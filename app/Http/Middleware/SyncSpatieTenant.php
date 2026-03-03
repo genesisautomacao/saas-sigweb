@@ -6,15 +6,18 @@ use Closure;
 use Filament\Facades\Filament;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Filament\Support\Facades\FilamentColor;
+use Filament\Support\Colors\Color;
 
 class SyncSpatieTenant
 {
-    public function handle(Request $request, Closure $next): Response
-    {
-        // Se houver uma Tenant ativa no painel
-        if ($tenant = Filament::getTenant()) {
 
-            // 1. Avisa ao Spatie que as permissões e papéis devem usar esse ID
+    public function handle(Request $request, Closure $next)
+    {
+        $tenant = Filament::getTenant();
+
+        if ($tenant) {
+            // 1. Sincroniza as permissões do Spatie (Provavelmente você já tem essa linha)
             setPermissionsTeamId($tenant->id);
 
             // 2. Pega o usuário logado usando a Facade oficial do Filament
@@ -25,6 +28,17 @@ class SyncSpatieTenant
             if ($user instanceof \Illuminate\Database\Eloquent\Model) {
                 $user->unsetRelation('roles');
                 $user->unsetRelation('permissions');
+            }
+
+            // 2. A MÁGICA DA COR DINÂMICA
+            // Pega a cor do banco, se não existir, usa o azul padrão do Filament (#3b82f6)
+            $hexColor = data_get($tenant->data, 'color', '#3b82f6');
+
+            if ($hexColor) {
+                // O FilamentColor::register reescreve a cor 'primary' na hora, gerando todos os tons
+                FilamentColor::register([
+                    'primary' => Color::hex($hexColor),
+                ]);
             }
         }
 

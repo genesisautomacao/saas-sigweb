@@ -6,8 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Filament\Models\Contracts\HasAvatar;
+use Illuminate\Support\Facades\Storage;
 
-class Tenant extends Model
+class Tenant extends Model implements HasAvatar
 {
     use HasFactory;
 
@@ -99,14 +101,21 @@ class Tenant extends Model
         $role->syncPermissions($permissionsToAssign);
     }
 
+    public function getFilamentAvatarUrl(): ?string
+    {
+        $logo = data_get($this->data, 'logo');
+        
+        if ($logo) {
+            // O asset() cria o link perfeito para a web e não dá erro no editor
+            return asset('storage/' . $logo);
+        }
+        
+        return null;
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class);
-    }
-
-    public function leads(): HasMany
-    {
-        return $this->hasMany(Lead::class);
     }
 
     public function roles(): HasMany
@@ -114,24 +123,5 @@ class Tenant extends Model
         return $this->hasMany(Role::class);
     }
 
-    public function sellers(): HasMany
-    {
-        return $this->hasMany(Seller::class);
-    }
-
-    public function leadstatuses(): HasMany
-    {
-        return $this->hasMany(LeadStatus::class);
-    }
-
-    public function leadpotentials(): HasMany
-    {
-        return $this->hasMany(LeadPotential::class);
-    }
-
-    public function leadsources(): HasMany
-    {
-        return $this->hasMany(LeadSource::class);
-    }
 
 }

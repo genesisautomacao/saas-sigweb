@@ -23,23 +23,6 @@ class PermissionsSeeder extends Seeder
             'create_roles',
             'edit_roles',
             'delete_roles',
-
-            /* leads */
-            'view_leads',
-            'create_leads',
-            'edit_leads',
-            'delete_leads',
-            'view_my_leads',
-            'import_leads',
-
-            /* sellers (vendedores) */
-            'view_sellers',
-            'create_sellers',
-            'edit_sellers',
-            'delete_sellers',
-
-            /* crm settings (status, origin, potential) */
-            'manage_crm_settings',
         ];
 
         foreach ($permissions as $permission) {

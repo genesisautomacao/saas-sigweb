@@ -20,6 +20,8 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
+use Filament\Navigation\NavigationItem;
+
 class AppPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
@@ -43,7 +45,7 @@ class AppPanelProvider extends PanelProvider
             /* Link externo na sidebar */
             ->navigationItems([
                 \Filament\Navigation\NavigationItem::make('Suporte Técnico')
-                    ->url('https://api.whatsapp.com/send?phone=5516993219654', shouldOpenInNewTab: true)
+                    ->url('https://api.whatsapp.com/send?phone=5516982281632', shouldOpenInNewTab: true)
                     ->icon('heroicon-o-chat-bubble-left-ellipsis')
                     ->group('Ajuda')
                     ->sort(10),

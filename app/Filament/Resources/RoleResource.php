@@ -70,7 +70,7 @@ class RoleResource extends Resource
                             ])->columns(1)->columnSpan(1),
 
                         // CAIXA 2: USUÁRIOS E VENDEDORES
-                        Forms\Components\Fieldset::make('Módulo: Equipe (Usuários e Vendedores)')
+                        Forms\Components\Fieldset::make('Módulo: Equipe (Usuários)')
                             ->schema([
                                 Forms\Components\CheckboxList::make('permissions_users')
                                     ->label('Gestão de Usuários')
@@ -82,15 +82,6 @@ class RoleResource extends Resource
                                     ])
                                     ->bulkToggleable(),
 
-                                Forms\Components\CheckboxList::make('permissions_sellers')
-                                    ->label('Gestão de Vendedores')
-                                    ->options([
-                                        'view_sellers' => 'Visualizar Vendedores',
-                                        'create_sellers' => 'Criar Vendedores',
-                                        'edit_sellers' => 'Editar Vendedores',
-                                        'delete_sellers' => 'Excluir Vendedores',
-                                    ])
-                                    ->bulkToggleable(),
                             ])->columns(1)->columnSpan(1),
 
                         // CAIXA 3: PAPÉIS
