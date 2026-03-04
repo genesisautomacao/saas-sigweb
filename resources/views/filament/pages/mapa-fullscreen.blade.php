@@ -14,6 +14,29 @@
             #layers-panel {
                 will-change: top, left;
                 z-index: 50;
+                width: 320px !important;
+                min-width: 320px !important;
+                max-width: 320px !important;
+            }
+
+            /* Deixa o arrasto 100% fluido desligando o blur pesadíssimo temporariamente */
+            .dragging-now {
+                backdrop-filter: none !important;
+                opacity: 0.95;
+            }
+
+            /* Scrollbar fininha e elegante para a janela de camadas */
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 4px;
+            }
+
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background-color: rgba(156, 163, 175, 0.5);
+                border-radius: 10px;
             }
         </style>
 
@@ -40,7 +63,18 @@
                         class="w-full bg-transparent border-none focus:ring-0 text-sm text-gray-700 dark:text-gray-200 outline-none">
                 </div>
 
+
                 <div class="flex items-center gap-1 px-1">
+
+                    <button title="Medir Distância"
+                        class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors">
+                        <x-heroicon-o-arrows-right-left class="w-5 h-5" />
+                    </button>
+                    <button title="Medir Área"
+                        class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors">
+                        <x-heroicon-o-view-columns class="w-5 h-5" />
+                    </button>
+
                     <button id="btn-toggle-layers"
                         class="px-4 py-2 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 rounded-xl text-primary-600 dark:text-primary-400 font-bold text-sm flex items-center gap-2">
                         <x-heroicon-o-square-3-stack-3d class="w-5 h-5" />
@@ -51,74 +85,142 @@
             <div class="w-10"></div>
         </div>
 
-        {{-- JANELA DE CAMADAS --}}
-        <div id="layers-panel" style="top: 80px; right: 20px;"
-            class="absolute bg-white/98 dark:bg-gray-800/98 backdrop-blur-md shadow-2xl rounded-2xl border border-gray-200 dark:border-gray-700 w-72 flex flex-col overflow-hidden z-20 pointer-events-auto">
-            <div class="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex justify-between items-center cursor-grab active:cursor-grabbing"
+        {{-- JANELA DE CAMADAS (ACORDEÃO ALPINE.JS - LARGURA BLOQUEADA) --}}
+        <div id="layers-panel" style="top: 80px; left: calc(100vw - 340px);" x-data="{ activeTab: 'base' }"
+            class="absolute bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-2xl rounded-2xl border-2 border-gray-200/50 dark:border-gray-700/50 flex-shrink-0 flex flex-col overflow-hidden z-20 pointer-events-auto transition-colors">
+
+            <div class="bg-gray-100/50 dark:bg-gray-800/50 border-b border-gray-200/50 dark:border-gray-700/50 px-4 py-3 flex justify-between items-center cursor-grab active:cursor-grabbing"
                 id="layers-panel-header">
-                <h3 class="font-bold text-sm text-gray-700 flex items-center gap-2 uppercase">
-                    <x-heroicon-o-bars-3 class="w-4 h-4" /> Camadas
+                <h3
+                    class="font-bold text-sm text-gray-700 dark:text-gray-200 flex items-center gap-2 uppercase tracking-wider">
+                    <x-heroicon-o-bars-3 class="w-4 h-4 text-gray-500" /> Camadas do Mapa
                 </h3>
             </div>
-            <div class="p-4 space-y-4 text-sm text-gray-700 dark:text-gray-300 max-h-[70vh] overflow-y-auto">
-                {{-- INSIRA SEUS CHECKBOXES AQUI EXATAMENTE COMO ESTAVAM --}}
-                <label class="flex items-center space-x-3 cursor-pointer">
-                    <input type="checkbox" checked data-layer="perimetros"
-                        class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 shadow-sm w-4 h-4">
-                    <span class="layer-label flex items-center gap-2">
-                        <div class="w-3 h-3 bg-red-500 rounded-full opacity-50"></div> Perímetros
-                    </span>
-                </label>
-                {{-- Adicione os outros checkboxes abaixo... --}}
-                <label class="flex items-center space-x-3 cursor-pointer">
-                    <input type="checkbox" data-layer="zonas"
-                        class="layer-toggle rounded border-gray-300 text-purple-600 focus:ring-purple-500 shadow-sm w-4 h-4">
-                    <span class="layer-label flex items-center gap-2">
-                        <div class="w-3 h-3 bg-purple-500 rounded-full opacity-50"></div> Zonas
-                    </span>
-                </label>
-                <label class="flex items-center space-x-3 cursor-pointer">
-                    <input type="checkbox" data-layer="bairros"
-                        class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 shadow-sm w-4 h-4">
-                    <span class="layer-label flex items-center gap-2">
-                        <div class="w-3 h-3 bg-blue-500 rounded-full opacity-50"></div> Bairros
-                    </span>
-                </label>
-                <label class="flex items-center space-x-3 cursor-pointer">
-                    <input type="checkbox" data-layer="quadras"
-                        class="layer-toggle rounded border-gray-300 text-orange-500 focus:ring-orange-500 shadow-sm w-4 h-4">
-                    <span class="layer-label flex items-center gap-2">
-                        <div class="w-3 h-3 bg-orange-500 rounded-full opacity-50"></div> Quadras
-                    </span>
-                </label>
 
-                <hr class="border-gray-200 dark:border-gray-700 my-2">
+            <div class="overflow-y-auto overflow-x-hidden max-h-[65vh] custom-scrollbar">
 
-                <label class="flex items-center space-x-3 cursor-pointer">
-                    <input type="checkbox" data-layer="logradouros"
-                        class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 shadow-sm w-4 h-4">
-                    <span class="layer-label flex items-center gap-2">
-                        <div class="w-3 h-1 bg-slate-600"></div> Logradouros
-                    </span>
-                </label>
-                <label class="flex items-center space-x-3 cursor-pointer" title="Visível apenas de perto">
-                    <input type="checkbox" data-layer="lotes"
-                        class="layer-toggle rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 shadow-sm w-4 h-4">
-                    <span class="layer-label flex items-center gap-2">
-                        <div class="w-3 h-3 bg-emerald-500 rounded-full opacity-50"></div> Lotes <small
-                            class="text-xs text-gray-400">(Zoom)</small>
-                    </span>
-                </label>
-                <label class="flex items-center space-x-3 cursor-pointer" title="Visível apenas de perto">
-                    <input type="checkbox" data-layer="edificacoes"
-                        class="layer-toggle rounded border-gray-300 text-amber-700 focus:ring-amber-700 shadow-sm w-4 h-4">
-                    <span class="layer-label flex items-center gap-2">
-                        <div class="w-3 h-3 bg-amber-700 rounded-sm opacity-80"></div> Edificações <small
-                            class="text-xs text-gray-400">(Zoom)</small>
-                    </span>
-                </label>
+                {{-- GRUPO 1: CADASTRO BASE --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'base' ? '' : 'base'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                        <span class="flex items-center gap-2">Cadastro Base</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'base' ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="activeTab === 'base'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
+
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" checked data-layer="perimetros"
+                                class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                <span class="layer-text truncate">Perímetros/Limites</span>
+                            </span>
+                        </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer w-full">
+                            <input type="checkbox" data-layer="bairros"
+                                class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-blue-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                <span class="layer-text truncate">Bairros</span>
+                            </span>
+                        </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer w-full">
+                            <input type="checkbox" data-layer="quadras"
+                                class="layer-toggle rounded border-gray-300 text-orange-500 focus:ring-orange-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-orange-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
+                                </div>
+                                <span class="layer-text truncate">Quadras</span>
+                            </span>
+                        </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer w-full"
+                            title="Visível apenas de perto">
+                            <input type="checkbox" data-layer="lotes"
+                                class="layer-toggle rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-emerald-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
+                                </div>
+                                <span class="layer-text truncate">Lotes <small
+                                        class="text-xs text-gray-500">(Zoom)</small></span>
+                            </span>
+                        </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer w-full"
+                            title="Visível apenas de perto">
+                            <input type="checkbox" data-layer="edificacoes"
+                                class="layer-toggle rounded border-gray-300 text-amber-700 focus:ring-amber-700 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-amber-700 rounded-sm opacity-80 shadow-sm flex-shrink-0"></div>
+                                <span class="layer-text truncate">Edificações <small
+                                        class="text-xs text-gray-500">(Zoom)</small></span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                {{-- GRUPO 2: ZONEAMENTO URBANO (DINÂMICO) --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'zonas' ? '' : 'zonas'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                        <span class="flex items-center gap-2">Zoneamento Urbano</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'zonas' ? 'rotate-180' : ''" />
+                    </button>
+
+                    <div x-show="activeTab === 'zonas'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden">
+                        @foreach($zonasTipos as $zona)
+                            @php $rgbLimpo = str_replace(['(', ')'], '', $zona['rgb']); @endphp
+                            <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"
+                                title="{{ $zona['name'] }}">
+                                <input type="checkbox" data-layer="zonas" data-zona-sigla="{{ $zona['sigla'] }}"
+                                    class="zona-toggle rounded border-gray-400 shadow-sm w-4 h-4 flex-shrink-0"
+                                    style="color: rgb({{ $rgbLimpo }});">
+                                <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-2">
+                                    <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10"
+                                        style="background-color: rgb({{ $rgbLimpo }});"></div>
+                                    <span
+                                        class="layer-text truncate font-medium text-gray-700 dark:text-gray-300">{{ $zona['sigla'] }}
+                                        - {{ $zona['name'] }}</span>
+                                </span>
+                            </label>
+                        @endforeach
+
+                        @if(empty($zonasTipos))
+                            <p class="text-xs text-gray-400">Nenhuma zona cadastrada.</p>
+                        @endif
+                    </div>
+                </div>
+
+                {{-- GRUPO 3: INFRAESTRUTURA --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'infra' ? '' : 'infra'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                        <span class="flex items-center gap-2">Infraestrutura</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'infra' ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="activeTab === 'infra'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" data-layer="logradouros"
+                                class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div>
+                                <span class="layer-text truncate">Logradouros</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
             </div>
         </div>
+
     </div>
 
     {{-- ⚡ ÁREA GERENCIADA PELO LIVEWIRE (A Ficha do Imóvel) ⚡ --}}
@@ -147,7 +249,7 @@
                 </div>
 
                 {{-- Lista de Ações Futuras --}}
-                <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase pt-5 mb-4">Ações Disponíveis</h3>
+                <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase pt-4 mb-4">Ações Disponíveis</h3>
 
                 <div class="space-y-3">
                     {{-- Lembrete: Lote vazio também é unidade imobiliária! --}}
@@ -187,16 +289,48 @@
                 const centerLat = {{ $mapLat }};
                 const initialZoom = {{ $mapZoom }};
                 const tenantId = {{ $tenantId }};
+                let zonasAtivas = [];
 
                 // Mantenha toda a sua configuração do map, layerConfigs e dragElement aqui...
                 const view = new ol.View({ center: ol.proj.fromLonLat([centerLon, centerLat]), zoom: initialZoom, maxZoom: 22 });
                 const osmLayer = new ol.layer.Tile({ source: new ol.source.OSM() });
 
                 const layerConfigs = {
+
                     'perimetros': { z: 10, minZoom: 0, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#ef4444', width: 3 }), fill: new ol.style.Fill({ color: 'rgba(239, 68, 68, 0.05)' }) }) },
-                    'zonas': { z: 20, minZoom: 0, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#a855f7', width: 2, lineDash: [4, 4] }), fill: new ol.style.Fill({ color: 'rgba(168, 85, 247, 0.1)' }) }) },
+
+                    // A MÁGICA DAS ZONAS ACONTECE AQUI:
+                    'zonas': {
+                        z: 20,
+                        minZoom: 0,
+                        style: function (feature) {
+                            const sigla = feature.get('sigla');
+                            const rgbBruto = feature.get('rgb'); // Ex: "(255,0,197)"
+
+                            // Se a sigla deste polígono não estiver no array de ativas, retorna null (fica invisível)
+                            if (!zonasAtivas.includes(sigla)) {
+                                return null;
+                            }
+
+                            // Limpa os parênteses do banco para montar a cor
+                            const rgbLimpo = rgbBruto ? rgbBruto.replace(/[()]/g, '') : '150,150,150';
+
+                            return new ol.style.Style({
+                                stroke: new ol.style.Stroke({ color: `rgb(${rgbLimpo})`, width: 2, lineDash: [4, 4] }),
+                                fill: new ol.style.Fill({ color: `rgba(${rgbLimpo}, 0.25)` }),
+                                // Bônus: Escreve a Sigla no meio da zona!
+                                text: new ol.style.Text({
+                                    text: sigla, font: 'bold 14px Arial', fill: new ol.style.Fill({ color: '#333' }),
+                                    stroke: new ol.style.Stroke({ color: '#fff', width: 3 })
+                                })
+                            });
+                        }
+                    },
+
                     'bairros': { z: 30, minZoom: 0, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#3b82f6', width: 2 }), fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.1)' }) }) },
+
                     'quadras': { z: 40, minZoom: 13, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#f97316', width: 1 }), fill: new ol.style.Fill({ color: 'rgba(249, 115, 22, 0.2)' }) }) },
+
                     'logradouros': { z: 50, minZoom: 14, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#475569', width: 3 }) }) },
 
                     /* lotes */
@@ -239,10 +373,15 @@
                         return;
                     }
 
-                    const labelSpan = checkboxElement.nextElementSibling;
-                    const originalText = labelSpan.innerHTML;
-                    labelSpan.innerHTML = 'Carregando...';
-                    labelSpan.classList.add('animate-pulse', 'text-primary-500', 'ps-2');
+                    // Pega apenas o span do texto, ignorando a bolinha de cor!
+                    const textSpan = checkboxElement.nextElementSibling.querySelector('.layer-text');
+                    let originalText = '';
+
+                    if (textSpan) {
+                        originalText = textSpan.innerHTML;
+                        textSpan.innerHTML = 'Carregando...';
+                        textSpan.classList.add('animate-pulse', 'text-primary-500');
+                    }
 
                     fetch(`/api/gis-data?tenant_id=${tenantId}&layer=${layerName}`)
                         .then(response => response.json())
@@ -263,23 +402,46 @@
                         })
                         .catch(err => console.error(`Erro ao carregar ${layerName}:`, err))
                         .finally(() => {
-                            labelSpan.innerHTML = originalText;
-                            labelSpan.classList.remove('animate-pulse', 'text-primary-500', 'ps-2');
+                            if (textSpan) {
+                                textSpan.innerHTML = originalText;
+                                textSpan.classList.remove('animate-pulse', 'text-primary-500');
+                            }
                         });
                 };
 
-                // Evento de clique em cada caixinha de seleção
+                // EVENTO DAS CAMADAS NORMAIS
                 document.querySelectorAll('.layer-toggle').forEach(checkbox => {
                     checkbox.addEventListener('change', function () {
                         const layerName = this.getAttribute('data-layer');
                         if (this.checked) fetchAndDrawLayer(layerName, this);
                         else if (loadedLayers[layerName]) loadedLayers[layerName].setVisible(false);
                     });
+                    if (checkbox.checked) fetchAndDrawLayer(checkbox.getAttribute('data-layer'), checkbox);
+                });
 
-                    // Dispara o carregamento do Perímetro que já começa marcado no HTML
-                    if (checkbox.checked) {
-                        fetchAndDrawLayer(checkbox.getAttribute('data-layer'), checkbox);
-                    }
+                // EVENTO ESPECÍFICO PARA AS ZONAS
+                document.querySelectorAll('.zona-toggle').forEach(checkbox => {
+                    checkbox.addEventListener('change', function () {
+                        const layerName = 'zonas';
+                        const sigla = this.getAttribute('data-zona-sigla');
+
+                        // Atualiza o array de zonas ativas
+                        if (this.checked) {
+                            if (!zonasAtivas.includes(sigla)) zonasAtivas.push(sigla);
+                        } else {
+                            zonasAtivas = zonasAtivas.filter(s => s !== sigla);
+                        }
+
+                        // Se a camada principal de zonas ainda não foi baixada, baixa agora
+                        if (!loadedLayers[layerName]) {
+                            fetchAndDrawLayer(layerName, this);
+                        } else {
+                            // Se já baixou, apenas força o OpenLayers a redesenhar a tela aplicando as novas cores
+                            loadedLayers[layerName].changed();
+                            // Garante que a camada esteja visível
+                            loadedLayers[layerName].setVisible(zonasAtivas.length > 0);
+                        }
+                    });
                 });
 
                 // ---------------------------------------------------------
@@ -308,6 +470,9 @@
                         pos4 = e.clientY;
                         document.onmouseup = closeDragElement;
                         document.onmousemove = elementDrag;
+
+                        // DESLIGA O BLUR PESADO PARA ARRASTAR LISO
+                        elmnt.classList.add('dragging-now');
                     }
 
                     function elementDrag(e) {
@@ -317,12 +482,10 @@
                         pos3 = e.clientX;
                         pos4 = e.clientY;
 
-                        // Cálculo suave
                         requestAnimationFrame(() => {
                             let newTop = elmnt.offsetTop - pos2;
                             let newLeft = elmnt.offsetLeft - pos1;
 
-                            // Limites da tela
                             if (newTop < 10) newTop = 10;
                             if (newLeft < 10) newLeft = 10;
                             if (newTop > window.innerHeight - elmnt.clientHeight - 10)
@@ -332,13 +495,16 @@
 
                             elmnt.style.top = newTop + "px";
                             elmnt.style.left = newLeft + "px";
-                            elmnt.style.right = "auto"; // Importante para o movimento livre
+                            elmnt.style.right = "auto";
                         });
                     }
 
                     function closeDragElement() {
                         document.onmouseup = null;
                         document.onmousemove = null;
+
+                        // RELIGA O BLUR BONITO QUANDO SOLTAR
+                        elmnt.classList.remove('dragging-now');
                     }
                 }
 
@@ -360,7 +526,7 @@
                                             const errData = JSON.parse(rawText);
                                             throw new Error(errData.message || 'Erro no servidor.');
                                         } catch (err) {
-                                            throw new Error('Erro fatal na base de dados.');
+                                            throw new Error('Erro na busca dos dados.');
                                         }
                                     }
                                     return response.json();

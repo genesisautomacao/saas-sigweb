@@ -34,7 +34,9 @@ class MapDataController extends Controller
                             'id' => $item->id,
                             'name' => $item->name ?? $item->numero_lote ?? $item->codigo_imovel_tributario ?? 'S/N',
                             'codigo' => $item->code,
-                            'layer' => $layerName // <-- Agora o JS vai saber o que é Lote e o que é Bairro!
+                            'layer' => $layerName, // <-- Agora o JS vai saber o que é Lote e o que é Bairro!
+                            'sigla' => $item->sigla ?? null,
+                            'rgb' => $item->rgb ?? '150,150,150'
                         ],
                         'geometry' => $item->geo_json
                     ];

@@ -27,6 +27,7 @@ class MapaFullscreen extends Page
     public ?int $loteAtivoId = null;
     public ?string $loteAtivoNome = null;
     public bool $showFicha = false;
+    public array $zonasTipos = [];
 
     public function mount()
     {
@@ -40,6 +41,19 @@ class MapaFullscreen extends Page
             $this->mapLat = (float) data_get($tenant->data, 'map_lat', -26.9658952);
             $this->mapLon = (float) data_get($tenant->data, 'map_lon', -50.4182571);
             $this->mapZoom = (int) data_get($tenant->data, 'map_zoom', 14);
+
+            $this->zonasTipos = \App\Models\Zona::where('tenant_id', $this->tenantId)
+                ->select('id', 'name', 'sigla', 'rgb')
+                ->distinct()
+                ->get()
+                // O MAP extrai apenas os campos limpos, evitando que o toArray() quebre a Model
+                ->map(fn($zona) => [
+                    'id' => $zona->id,
+                    'name' => $zona->name,
+                    'sigla' => $zona->sigla,
+                    'rgb' => $zona->rgb,
+                ])
+                ->toArray();
         }
     }
 
