@@ -13,7 +13,7 @@ return new class extends Migration {
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
             $table->unsignedBigInteger('sequential_id')->nullable();
 
-            $table->foreignId('lote_id')->nullable()->constrained('lotes')->nullOnDelete();
+            $table->foreignId('lote_id')->nullable()->constrained('lotes')->cascadeOnDelete();
 
             // Faremos a tabela de pessoas depois, deixe o id solto por enquanto
             $table->unsignedBigInteger('proprietario_id')->nullable();

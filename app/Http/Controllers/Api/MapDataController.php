@@ -81,39 +81,77 @@ class MapDataController extends Controller
     public function searchLote(Request $request)
     {
         $tenantId = $request->query('tenant_id');
-        $numeroLote = $request->query('numero');
+        $termo = (string) $request->query('termo');
 
-        if (!$tenantId || !$numeroLote) {
-            return response()->json(['error' => 'Parâmetros insuficientes'], 400);
+        if (!$tenantId || strlen($termo) < 2) {
+            return response()->json([]);
         }
 
-        // Busca o lote e retorna o centroide em formato GeoJSON (Ponto)
-        $lote = \App\Models\Lote::where('tenant_id', $tenantId)
-            ->where('numero_lote', $numeroLote)
-            ->selectRaw('id, numero_lote, ST_AsGeoJSON(ST_Centroid(geo)) as centroide')
-            ->first();
+        try {
+            // Busca Inteligente com JOINs: Procura em Lotes e em Unidades Imobiliárias
+            $lotes = \Illuminate\Support\Facades\DB::table('lotes')
+                ->leftJoin('quadras', 'lotes.quadra_id', '=', 'quadras.id')
+                // 🚨 MUDANÇA 1: Garante que só vai "juntar" com unidades que NÃO estão deletadas
+                ->leftJoin('unidade_imobiliarias', function ($join) {
+                    $join->on('unidade_imobiliarias.lote_id', '=', 'lotes.id')
+                        ->whereNull('unidade_imobiliarias.deleted_at');
+                })
+                ->where('lotes.tenant_id', $tenantId)
+                ->whereNotNull('lotes.geo')
+                // 🚨 MUDANÇA 2: Esconde os lotes que sofreram Soft Delete
+                ->whereNull('lotes.deleted_at')
+                ->where(function ($q) use ($termo) {
+                    // Mantive o ilike que estava no seu arquivo, 
+                    // mas se você estiver usando a busca exata (sem os %), é só tirar!
+                    $q->where('lotes.numero_lote', $termo)
+                        ->orWhere('unidade_imobiliarias.inscricao_imobiliaria', $termo)
+                        ->orWhere('unidade_imobiliarias.codigo_imovel_tributario', $termo);
+                })
+                ->selectRaw('
+                lotes.id, 
+                lotes.numero_lote, 
+                quadras.name as quadra_nome, 
+                unidade_imobiliarias.codigo_imovel_tributario,
+                ST_AsGeoJSON(ST_Centroid(lotes.geo)) as centroide
+            ')
+                ->limit(30)
+                ->get();
 
-        // 1ª Trava: Lote não existe na base
-        if (!$lote) {
-            return response()->json(['message' => 'Lote não encontrado na base de dados.'], 404);
+            $uniqueKeys = [];
+            $results = [];
+
+            foreach ($lotes as $l) {
+                $quadra = $l->quadra_nome ?? 'S/I';
+                $cod = $l->codigo_imovel_tributario ?? 'S/C';
+                $num = $l->numero_lote ?? 'S/N';
+
+                // A MÁGICA: A chave única agora é Lote + Código Tributário.
+                // Isso permite listar as múltiplas unidades do mesmo lote!
+                $uniqueKey = $l->id . '_' . $cod;
+
+                if (in_array($uniqueKey, $uniqueKeys))
+                    continue;
+                $uniqueKeys[] = $uniqueKey;
+
+                $centroide = json_decode($l->centroide);
+                $coords = $centroide->coordinates ?? null;
+                if (!$coords)
+                    continue;
+
+                $results[] = [
+                    'id' => $l->id,
+                    'lote' => $num,
+                    'quadra' => $quadra,
+                    'codigo' => $cod,
+                    'coords' => $coords
+                ];
+            }
+
+            return response()->json($results);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erro DB: ' . $e->getMessage()], 500);
         }
-
-        // 2ª Trava: Lote existe, mas a coluna 'geo' está vazia (NULL)
-        if (empty($lote->centroide)) {
-            return response()->json(['message' => 'Lote encontrado, mas não possui desenho no mapa.'], 404);
-        }
-
-        $centroideData = json_decode($lote->centroide);
-
-        // 3ª Trava: Falha ao decodificar o GeoJSON
-        if (!$centroideData || !isset($centroideData->coordinates)) {
-            return response()->json(['message' => 'Erro ao processar as coordenadas deste lote.'], 500);
-        }
-
-        return response()->json([
-            'id' => $lote->id,
-            'numero' => $lote->numero_lote,
-            'coords' => $centroideData->coordinates
-        ]);
     }
+
 }
