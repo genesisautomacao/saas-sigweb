@@ -1,0 +1,3067 @@
+[
+    {
+        "cnae": "01.21-1",
+        "descricao": "Horticultura",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "01.22-9",
+        "descricao": "Cultivo de flores e plantas ornamentais",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "01.61-0",
+        "descricao": "Atividades de apoio à agricultura",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "01.62-8",
+        "descricao": "Atividades de apoio à pecuária",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "01.63-6",
+        "descricao": "Atividades de pós-colheita",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "02.30-6",
+        "descricao": "Atividades de apoio à produção florestal",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "05.00-3",
+        "descricao": "Extração de carvão mineral",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "06.00-0",
+        "descricao": "Extração de petróleo e gás natural",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "07.10-3",
+        "descricao": "Extração de minério de ferro",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "07.21-9",
+        "descricao": "Extração de minério de alumínio",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "07.22-7",
+        "descricao": "Extração de minério de estanho",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "07.23-5",
+        "descricao": "Extração de minério de manganês",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "07.24-3",
+        "descricao": "Extração de minério de metais preciosos",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "07.25-1",
+        "descricao": "Extração de minerais radioativos",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "07.29-4",
+        "descricao": "Extração de minerais metálicos não ferrosos não especificados anteriormente",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "08.10-0",
+        "descricao": "Extração de pedra, areia e argila",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "08.91-6",
+        "descricao": "Extração de minerais para fabricação de adubos, fertilizantes e outros produtos químicos",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "08.92-4",
+        "descricao": "Extração e refino de sal marinho e sal-gema",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "08.93-2",
+        "descricao": "Extração de gemas (pedras preciosas e semipreciosas)",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "08.99-1",
+        "descricao": "Extração de minerais não metálicos não especificados anteriormente",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "10.11-2",
+        "descricao": "Abate de reses, exceto suínos",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "10.12-1",
+        "descricao": "Abate de suínos, aves e outros pequenos animais",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "10.13-9",
+        "descricao": "Fabricação de produtos de carne",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.20-1",
+        "descricao": "Preservação do pescado e fabricação de produtos do pescado",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "10.31-7",
+        "descricao": "Fabricação de conservas de frutas",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "10.32-5",
+        "descricao": "Fabricação de conservas de legumes e outros vegetais",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "10.33-3",
+        "descricao": "Fabricação de sucos de frutas, hortaliças e legumes",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "10.41-4",
+        "descricao": "Fabricação de óleos vegetais em bruto, exceto óleo de milho",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "10.42-2",
+        "descricao": "Fabricação de óleos vegetais refinados, exceto óleo de milho",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "10.43-1",
+        "descricao": "Fabricação de margarina e outras gorduras vegetais e de óleos não comestíveis de animais",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.51-1",
+        "descricao": "Preparação do leite",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.52-0",
+        "descricao": "Fabricação de laticínios",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.53-8",
+        "descricao": "Fabricação de sorvetes e outros gelados comestíveis",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "10.61-9",
+        "descricao": "Beneficiamento de arroz e fabricação de produtos do arroz",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.62-7",
+        "descricao": "Moagem de trigo e fabricação de derivados",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.63-5",
+        "descricao": "Fabricação de farinha de mandioca e derivados",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.64-3",
+        "descricao": "Fabricação de farinha de milho e derivados, exceto óleos de milho",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.65-1",
+        "descricao": "Fabricação de amidos e féculas de vegetais e de óleos de milho",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.66-0",
+        "descricao": "Fabricação de alimentos para animais",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.69-4",
+        "descricao": "Moagem e fabricação de produtos de origem vegetal não especificados anteriormente",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.71-6",
+        "descricao": "Fabricação de açúcar em bruto",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.72-4",
+        "descricao": "Fabricação de açúcar refinado",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.81-3",
+        "descricao": "Torrefação e moagem de café",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "10.82-1",
+        "descricao": "Fabricação de produtos à base de café",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "10.91-1",
+        "descricao": "Fabricação de produtos de panificação",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "10.92-9",
+        "descricao": "Fabricação de biscoitos e bolachas",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "10.93-7",
+        "descricao": "Fabricação de produtos derivados do cacau, de chocolates e confeitos",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "10.94-5",
+        "descricao": "Fabricação de massas alimentícias",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "10.95-3",
+        "descricao": "Fabricação de especiarias, molhos, temperos e condimentos",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "10.96-1",
+        "descricao": "Fabricação de alimentos e pratos prontos",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "10.99-6",
+        "descricao": "Fabricação de produtos alimentícios não especificados anteriormente",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "11.11-9",
+        "descricao": "Fabricação de aguardentes e outras bebidas destiladas",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "11.12-7",
+        "descricao": "Fabricação de vinho",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "11.13-5",
+        "descricao": "Fabricação de malte, cervejas e chopes",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "11.21-6",
+        "descricao": "Fabricação de águas envasadas",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "11.22-4",
+        "descricao": "Fabricação de refrigerantes e de outras bebidas não alcoólicas",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "12.10-7",
+        "descricao": "Processamento industrial do fumo",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "12.20-4",
+        "descricao": "Fabricação de produtos do fumo",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "13.11-1",
+        "descricao": "Preparação e fiação de fibras de algodão",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "13.12-0",
+        "descricao": "Preparação e fiação de fibras têxteis naturais, exceto algodão",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "13.13-8",
+        "descricao": "Fiação de fibras artificiais e sintéticas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "13.14-6",
+        "descricao": "Fabricação de linhas para costurar e bordar",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "13.21-9",
+        "descricao": "Tecelagem de fios de algodão",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "13.22-7",
+        "descricao": "Tecelagem de fios de fibras têxteis naturais, exceto algodão",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "13.23-5",
+        "descricao": "Tecelagem de fios de fibras artificiais e sintéticas",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "13.30-8",
+        "descricao": "Fabricação de tecidos de malha",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "13.40-5",
+        "descricao": "Acabamentos em fios, tecidos e artefatos têxteis",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "13.51-1",
+        "descricao": "Fabricação de artefatos têxteis para uso doméstico",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "13.52-9",
+        "descricao": "Fabricação de artefatos de tapeçaria",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "13.53-7",
+        "descricao": "Fabricação de artefatos de cordoaria",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "13.54-5",
+        "descricao": "Fabricação de tecidos especiais, inclusive artefatos",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "13.59-6",
+        "descricao": "Fabricação de outros produtos têxteis não especificados anteriormente",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "14.11-8",
+        "descricao": "Confecção de roupas íntimas",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "14.12-6",
+        "descricao": "Confecção de peças do vestuário, exceto roupas íntimas",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "14.13-4",
+        "descricao": "Confecção de roupas profissionais",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "14.14-2",
+        "descricao": "Fabricação de acessórios do vestuário, exceto para segurança e proteção",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "14.21-5",
+        "descricao": "Fabricação de meias",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "14.22-3",
+        "descricao": "Fabricação de artigos do vestuário, produzidos em malharias e tricotagens, exceto meias",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "15.10-6",
+        "descricao": "Curtimento e outras preparações de couro",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "15.21-1",
+        "descricao": "Fabricação de artigos para viagem, bolsas e semelhantes de qualquer material",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "15.29-7",
+        "descricao": "Fabricação de artefatos de couro não especificados anteriormente",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "15.31-9",
+        "descricao": "Fabricação de calçados de couro",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "15.32-7",
+        "descricao": "Fabricação de tênis de qualquer material",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "15.33-5",
+        "descricao": "Fabricação de calçados de material sintético",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "15.39-4",
+        "descricao": "Fabricação de calçados de materiais não especificados anteriormente",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "15.40-8",
+        "descricao": "Fabricação de partes para calçados, de qualquer material",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "16.10-2",
+        "descricao": "Desdobramento de madeira",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "16.21-8",
+        "descricao": "Fabricação de madeira laminada e de chapas de madeira compensada, prensada e aglomerada",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "16.22-6",
+        "descricao": "Fabricação de estruturas de madeira e de artigos de carpintaria para construção",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "16.23-4",
+        "descricao": "Fabricação de artefatos de tanoaria e de embalagens de madeira",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "16.29-3",
+        "descricao": "Fabricação de artefatos de madeira, palha, cortiça, vime e material trançado não especificados anteriormente, exceto móveis",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "17.10-9",
+        "descricao": "Fabricação de celulose e outras pastas para a fabricação de papel",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "17.21-4",
+        "descricao": "Fabricação de papel",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "17.22-2",
+        "descricao": "Fabricação de cartolina e papel-cartão",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "17.31-1",
+        "descricao": "Fabricação de embalagens de papel",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "17.32-0",
+        "descricao": "Fabricação de embalagens de cartolina e papel-cartão",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "17.33-8",
+        "descricao": "Fabricação de chapas e de embalagens de papelão ondulado",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "17.41-9",
+        "descricao": "Fabricação de produtos de papel, cartolina, papel-cartão e papelão ondulado para uso comercial e de escritório",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "17.42-7",
+        "descricao": "Fabricação de produtos de papel para usos doméstico e higiênico-sanitário",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "17.49-4",
+        "descricao": "Fabricação de produtos de pastas celulósicas, papel, cartolina, papel-cartão e papelão ondulado não especificados anteriormente",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "18.11-3",
+        "descricao": "Impressão de jornais, livros, revistas e outras publicações periódicas",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "18.12-1",
+        "descricao": "Impressão de material de segurança",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "18.13-0",
+        "descricao": "Impressão de materiais para outros usos",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "19.10-1",
+        "descricao": "Coquerias",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "19.21-7",
+        "descricao": "Fabricação de produtos do refino de petróleo",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "19.22-5",
+        "descricao": "Fabricação de produtos derivados do petróleo, exceto produtos do refino",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "19.31-4",
+        "descricao": "Fabricação de álcool",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "19.32-2",
+        "descricao": "Fabricação de biocombustíveis, exceto álcool",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.11-8",
+        "descricao": "Fabricação de cloro e álcalis",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.12-6",
+        "descricao": "Fabricação de intermediários para fertilizantes",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.13-4",
+        "descricao": "Fabricação de adubos e fertilizantes",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.14-2",
+        "descricao": "Fabricação de gases industriais",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.19-3",
+        "descricao": "Fabricação de produtos químicos inorgânicos não especificados anteriormente",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.21-5",
+        "descricao": "Fabricação de produtos petroquímicos básicos",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.22-3",
+        "descricao": "Fabricação de intermediários para plastificantes, resinas e fibras",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.29-1",
+        "descricao": "Fabricação de produtos químicos orgânicos não especificados anteriormente",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.31-2",
+        "descricao": "Fabricação de resinas termoplásticas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.32-1",
+        "descricao": "Fabricação de resinas termofixas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.33-9",
+        "descricao": "Fabricação de elastômeros",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.40-1",
+        "descricao": "Fabricação de fibras artificiais e sintéticas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.51-7",
+        "descricao": "Fabricação de defensivos agrícolas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.52-5",
+        "descricao": "Fabricação de desinfestantes domissanitários",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.61-4",
+        "descricao": "Fabricação de sabões e detergentes sintéticos",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.62-2",
+        "descricao": "Fabricação de produtos de limpeza e polimento",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.63-1",
+        "descricao": "Fabricação de cosméticos, produtos de perfumaria e de higiene pessoal",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.71-1",
+        "descricao": "Fabricação de tintas, vernizes, esmaltes e lacas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.72-0",
+        "descricao": "Fabricação de tintas de impressão",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.73-8",
+        "descricao": "Fabricação de impermeabilizantes, solventes e produtos afins",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.91-6",
+        "descricao": "Fabricação de adesivos e selantes",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.92-4",
+        "descricao": "Fabricação de explosivos",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.93-2",
+        "descricao": "Fabricação de aditivos de uso industrial",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.94-1",
+        "descricao": "Fabricação de catalisadores",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "20.99-1",
+        "descricao": "Fabricação de produtos químicos não especificados anteriormente",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "21.10-6",
+        "descricao": "Fabricação de produtos farmoquímicos",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "21.21-1",
+        "descricao": "Fabricação de medicamentos para uso humano",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "21.22-0",
+        "descricao": "Fabricação de medicamentos para uso veterinário",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "21.23-8",
+        "descricao": "Fabricação de preparações farmacêuticas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "22.11-1",
+        "descricao": "Fabricação de pneumáticos e de câmaras-de-ar",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "22.12-9",
+        "descricao": "Reforma de pneumáticos usados",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "22.19-6",
+        "descricao": "Fabricação de artefatos de borracha não especificados anteriormente",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "22.21-8",
+        "descricao": "Fabricação de laminados planos e tubulares de material plástico",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "22.22-6",
+        "descricao": "Fabricação de embalagens de material plástico",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "22.23-4",
+        "descricao": "Fabricação de tubos e acessórios de material plástico para uso na construção",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "22.29-3",
+        "descricao": "Fabricação de artefatos de material plástico não especificados anteriormente",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "23.11-7",
+        "descricao": "Fabricação de vidro plano e de segurança",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "23.12-5",
+        "descricao": "Fabricação de embalagens de vidro",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "23.19-2",
+        "descricao": "Fabricação de artigos de vidro",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "23.20-6",
+        "descricao": "Fabricação de cimento",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "23.30-3",
+        "descricao": "Fabricação de artefatos de concreto, cimento, fibrocimento, gesso e materiais semelhantes",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "23.41-9",
+        "descricao": "Fabricação de produtos cerâmicos refratários",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "23.42-7",
+        "descricao": "Fabricação de produtos cerâmicos não refratários para uso estrutural na construção",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "23.49-4",
+        "descricao": "Fabricação de produtos cerâmicos não refratários não especificados anteriormente",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "23.91-5",
+        "descricao": "Aparelhamento e outros trabalhos em pedras",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "23.92-3",
+        "descricao": "Fabricação de cal e gesso",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "23.99-1",
+        "descricao": "Fabricação de produtos de minerais não metálicos não especificados anteriormente",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "24.11-3",
+        "descricao": "Produção de ferro-gusa",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "24.12-1",
+        "descricao": "Produção de ferroligas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "24.21-1",
+        "descricao": "Produção de semiacabados de aço",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "24.22-9",
+        "descricao": "Produção de laminados planos de aço",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "24.23-7",
+        "descricao": "Produção de laminados longos de aço",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "24.24-5",
+        "descricao": "Produção de relaminados, trefilados e perfilados de aço",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "24.31-8",
+        "descricao": "Produção de tubos de aço com costura",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "24.39-3",
+        "descricao": "Produção de outros tubos de ferro e aço",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "24.41-5",
+        "descricao": "Metalurgia do alumínio e suas ligas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "24.42-3",
+        "descricao": "Metalurgia dos metais preciosos",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "24.43-1",
+        "descricao": "Metalurgia do cobre",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "24.49-1",
+        "descricao": "Metalurgia dos metais não ferrosos e suas ligas não especificados anteriormente",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "24.51-2",
+        "descricao": "Fundição de ferro e aço",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "24.52-1",
+        "descricao": "Fundição de metais não ferrosos e suas ligas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "25.11-0",
+        "descricao": "Fabricação de estruturas metálicas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "25.12-8",
+        "descricao": "Fabricação de esquadrias de metal",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "25.13-6",
+        "descricao": "Fabricação de obras de caldeiraria pesada",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "25.21-7",
+        "descricao": "Fabricação de tanques, reservatórios metálicos e caldeiras para aquecimento central",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "25.22-5",
+        "descricao": "Fabricação de caldeiras geradoras de vapor, exceto para aquecimento central e para veículos",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "25.31-4",
+        "descricao": "Produção de forjados de aço e de metais não ferrosos e suas ligas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "25.32-2",
+        "descricao": "Produção de artefatos estampados de metal; metalurgia do pó",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "25.39-0",
+        "descricao": "Serviços de usinagem, solda, tratamento e revestimento em metais",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "25.41-1",
+        "descricao": "Fabricação de artigos de cutelaria",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "25.42-0",
+        "descricao": "Fabricação de artigos de serralheria, exceto esquadrias",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "25.43-8",
+        "descricao": "Fabricação de ferramentas",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "25.50-1",
+        "descricao": "Fabricação de equipamento bélico pesado, armas de fogo e munições",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "25.91-8",
+        "descricao": "Fabricação de embalagens metálicas",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "25.92-6",
+        "descricao": "Fabricação de produtos de trefilados de metal",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "25.93-4",
+        "descricao": "Fabricação de artigos de metal para uso doméstico e pessoal",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "25.99-3",
+        "descricao": "Fabricação de produtos de metal não especificados anteriormente",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "26.10-8",
+        "descricao": "Fabricação de componentes eletrônicos",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "26.21-3",
+        "descricao": "Fabricação de equipamentos de informática",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "26.22-1",
+        "descricao": "Fabricação de periféricos para equipamentos de informática",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "26.31-1",
+        "descricao": "Fabricação de equipamentos transmissores de comunicação",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "26.32-9",
+        "descricao": "Fabricação de aparelhos telefônicos e de outros equipamentos de comunicação",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "26.40-0",
+        "descricao": "Fabricação de aparelhos de recepção, reprodução, gravação e amplificação de áudio e vídeo",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "26.51-5",
+        "descricao": "Fabricação de aparelhos e equipamentos de medida, teste e controle",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "26.52-3",
+        "descricao": "Fabricação de cronômetros e relógios",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "26.60-4",
+        "descricao": "Fabricação de aparelhos eletromédicos e eletroterapêuticos e equipamentos de irradiação",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "26.70-1",
+        "descricao": "Fabricação de equipamentos e instrumentos ópticos, fotográficos e cinematográficos",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "26.80-9",
+        "descricao": "Fabricação de mídias virgens, magnéticas e ópticas",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "27.10-4",
+        "descricao": "Fabricação de geradores, transformadores e motores elétricos",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "27.21-0",
+        "descricao": "Fabricação de pilhas, baterias e acumuladores elétricos, exceto para veículos automotores",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "27.22-8",
+        "descricao": "Fabricação de baterias e acumuladores para veículos automotores",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "27.31-7",
+        "descricao": "Fabricação de aparelhos e equipamentos para distribuição e controle de energia elétrica",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "27.32-5",
+        "descricao": "Fabricação de material elétrico para instalações em circuito de consumo",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "27.33-3",
+        "descricao": "Fabricação de fios, cabos e condutores elétricos isolados",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "27.40-6",
+        "descricao": "Fabricação de lâmpadas e outros equipamentos de iluminação",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "27.51-1",
+        "descricao": "Fabricação de fogões, refrigeradores e máquinas de lavar e secar para uso doméstico",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "27.59-7",
+        "descricao": "Fabricação de aparelhos eletrodomésticos não especificados anteriormente",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "27.90-2",
+        "descricao": "Fabricação de equipamentos e aparelhos elétricos não especificados anteriormente",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.11-9",
+        "descricao": "Fabricação de motores e turbinas, exceto para aviões e veículos rodoviários",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "28.12-7",
+        "descricao": "Fabricação de equipamentos hidráulicos e pneumáticos, exceto válvulas",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.13-5",
+        "descricao": "Fabricação de válvulas, registros e dispositivos semelhantes",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.14-3",
+        "descricao": "Fabricação de compressores",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.15-1",
+        "descricao": "Fabricação de equipamentos de transmissão para fins industriais",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.21-6",
+        "descricao": "Fabricação de aparelhos e equipamentos para instalações térmicas",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.22-4",
+        "descricao": "Fabricação de máquinas, equipamentos e aparelhos para transporte e elevação de cargas e pessoas",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.23-2",
+        "descricao": "Fabricação de máquinas e aparelhos de refrigeração e ventilação para uso industrial e comercial",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.24-1",
+        "descricao": "Fabricação de aparelhos e equipamentos de ar condicionado",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.25-9",
+        "descricao": "Fabricação de máquinas e equipamentos para saneamento básico e ambiental",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.29-1",
+        "descricao": "Fabricação de máquinas e equipamentos de uso geral não especificados anteriormente",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.31-3",
+        "descricao": "Fabricação de tratores agrícolas",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.32-1",
+        "descricao": "Fabricação de equipamentos para irrigação agrícola",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.33-0",
+        "descricao": "Fabricação de máquinas e equipamentos para a agricultura e pecuária, exceto para irrigação",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.40-2",
+        "descricao": "Fabricação de máquinas-ferramenta",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.51-8",
+        "descricao": "Fabricação de máquinas e equipamentos para a prospecção e extração de petróleo",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.52-6",
+        "descricao": "Fabricação de outras máquinas e equipamentos para uso na extração mineral, exceto na extração de petróleo",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.53-4",
+        "descricao": "Fabricação de tratores, exceto agrícolas",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.54-2",
+        "descricao": "Fabricação de máquinas e equipamentos para terraplenagem, pavimentação e construção, exceto tratores",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.61-5",
+        "descricao": "Fabricação de máquinas para a indústria metalúrgica, exceto máquinas-ferramenta",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.62-3",
+        "descricao": "Fabricação de máquinas e equipamentos para as indústrias de alimentos, bebidas e fumo",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.63-1",
+        "descricao": "Fabricação de máquinas e equipamentos para a indústria têxtil",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.64-0",
+        "descricao": "Fabricação de máquinas e equipamentos para as indústrias do vestuário, do couro e de calçados",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.65-8",
+        "descricao": "Fabricação de máquinas e equipamentos para as indústrias de celulose, papel e papelão e artefatos",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.66-6",
+        "descricao": "Fabricação de máquinas e equipamentos para a indústria do plástico",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "28.69-1",
+        "descricao": "Fabricação de máquinas e equipamentos para uso industrial específico não especificados anteriormente",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "29.10-7",
+        "descricao": "Fabricação de automóveis, camionetas e utilitários",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "29.20-4",
+        "descricao": "Fabricação de caminhões e ônibus",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "29.30-1",
+        "descricao": "Fabricação de cabines, carrocerias e reboques para veículos automotores",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "29.41-7",
+        "descricao": "Fabricação de peças e acessórios para o sistema motor de veículos automotores",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "29.42-5",
+        "descricao": "Fabricação de peças e acessórios para os sistemas de marcha e transmissão de veículos automotores",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "29.43-3",
+        "descricao": "Fabricação de peças e acessórios para o sistema de freios de veículos automotores",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "29.44-1",
+        "descricao": "Fabricação de peças e acessórios para o sistema de direção e suspensão de veículos automotores",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "29.45-0",
+        "descricao": "Fabricação de material elétrico e eletrônico para veículos automotores, exceto baterias",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "29.49-2",
+        "descricao": "Fabricação de peças e acessórios para veículos automotores não especificados anteriormente",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "29.50-6",
+        "descricao": "Recondicionamento e recuperação de motores para veículos automotores",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "30.11-3",
+        "descricao": "Construção de embarcações e estruturas flutuantes",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "30.12-1",
+        "descricao": "Construção de embarcações para esporte e lazer",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "30.31-8",
+        "descricao": "Fabricação de locomotivas, vagões e outros materiais rodantes",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "30.32-6",
+        "descricao": "Fabricação de peças e acessórios para veículos ferroviários",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "30.41-5",
+        "descricao": "Fabricação de aeronaves",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "30.42-3",
+        "descricao": "Fabricação de turbinas, motores e outros componentes e peças para aeronaves",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "30.50-4",
+        "descricao": "Fabricação de veículos militares de combate",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "30.91-1",
+        "descricao": "Fabricação de motocicletas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "30.92-0",
+        "descricao": "Fabricação de bicicletas e triciclos não motorizados",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "30.99-7",
+        "descricao": "Fabricação de equipamentos de transporte não especificados anteriormente",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "31.01-2",
+        "descricao": "Fabricação de móveis com predominância de madeira",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "31.02-1",
+        "descricao": "Fabricação de móveis com predominância de metal",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "31.03-9",
+        "descricao": "Fabricação de móveis de outros materiais, exceto madeira e metal",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "31.04-7",
+        "descricao": "Fabricação de colchões",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "32.20-5",
+        "descricao": "Fabricação de instrumentos musicais",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "32.30-2",
+        "descricao": "Fabricação de artefatos para pesca e esporte",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "32.40-0",
+        "descricao": "Fabricação de brinquedos e jogos recreativos",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "32.50-7",
+        "descricao": "Fabricação de instrumentos e materiais para uso médico e odontológico e de artigos ópticos",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "32.91-4",
+        "descricao": "Fabricação de escovas, pincéis e vassouras",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "32.92-2",
+        "descricao": "Fabricação de equipamentos e acessórios para segurança e proteção pessoal e profissional",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "32.99-0",
+        "descricao": "Fabricação de produtos diversos não especificados anteriormente",
+        "classificacao": "I3"
+    },
+    {
+        "cnae": "86.10-1",
+        "descricao": "Atividades de atendimento hospitalar",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "86.21-6",
+        "descricao": "Serviços móveis de atendimento a urgências",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "86.22-4",
+        "descricao": "Serviços de remoção de pacientes, exceto os serviços móveis de atendimento a urgências ",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "86.30-5",
+        "descricao": "Atividades de atenção ambulatorial executadas por médicos e odontólogos",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "86.40-2",
+        "descricao": "Atividades de serviços de complementação diagnóstica e terapêutica",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "86.50-0",
+        "descricao": "Atividades de profissionais da área de saúde, exceto médicos e odontólogos",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "86.60-7",
+        "descricao": "Atividades de apoio à gestão de saúde",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "86.90-9",
+        "descricao": "Atividades de atenção à saúde humana não especificadas anteriormente",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "87.11-5",
+        "descricao": "Atividades de assistência a idosos, deficientes físicos, imunodeprimidos e convalescentes prestadas em residências coletivas e particulares",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "87.12-3",
+        "descricao": "Atividades de fornecimento de infraestrutura de apoio e assistência a paciente no domicílio",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "87.20-4",
+        "descricao": "Atividades de assistência psicossocial e à saúde a portadores de distúrbios psíquicos, deficiência mental e dependência química",
+        "classificacao": "CS4,SC3"
+    },
+    {
+        "cnae": "87.30-1",
+        "descricao": "Atividades de assistência social prestadas em residências coletivas e particulares",
+        "classificacao": "CS4,SC3"
+    },
+    {
+        "cnae": "88.00-6",
+        "descricao": "Serviços de assistência social sem alojamento",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "85.11-2",
+        "descricao": "Educação infantil - creche",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "85.12-1",
+        "descricao": "Educação infantil - pré-escola",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "85.13-9",
+        "descricao": "Ensino fundamental",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "85.20-1",
+        "descricao": "Ensino médio",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "85.31-7",
+        "descricao": "Educação superior - graduação",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "85.32-5",
+        "descricao": "Educação superior - graduação e pós-graduação",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "85.33-3",
+        "descricao": "Educação superior - pós-graduação e extensão",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "85.41-4",
+        "descricao": "Educação profissional de nível técnico",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "85.42-2",
+        "descricao": "Educação profissional de nível tecnológico",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "85.50-3",
+        "descricao": "Atividades de apoio à educação",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "85.91-1",
+        "descricao": "Ensino de esportes",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "85.92-9",
+        "descricao": "Ensino de arte e cultura",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "85.93-7",
+        "descricao": "Ensino de idiomas",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "85.99-6",
+        "descricao": "Atividades de ensino não especificadas anteriormente",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "84.11-6",
+        "descricao": "Administração pública em geral",
+        "classificacao": "SC2"
+    },
+    {
+        "cnae": "84.12-4",
+        "descricao": "Regulação das atividades de saúde, educação, serviços culturais e outros serviços sociais",
+        "classificacao": "SC2"
+    },
+    {
+        "cnae": "84.13-2",
+        "descricao": "Regulação das atividades econômicas",
+        "classificacao": "SC2"
+    },
+    {
+        "cnae": "84.21-3",
+        "descricao": "Relações exteriores",
+        "classificacao": "SC2"
+    },
+    {
+        "cnae": "84.22-1",
+        "descricao": "Defesa",
+        "classificacao": "SC2"
+    },
+    {
+        "cnae": "84.23-0",
+        "descricao": "Justiça",
+        "classificacao": "SC2"
+    },
+    {
+        "cnae": "84.24-8",
+        "descricao": "Segurança e ordem pública",
+        "classificacao": "SC2"
+    },
+    {
+        "cnae": "84.25-6",
+        "descricao": "Defesa Civil",
+        "classificacao": "SC2"
+    },
+    {
+        "cnae": "84.30-2",
+        "descricao": "Seguridade social obrigatória",
+        "classificacao": "SC2"
+    },
+    {
+        "cnae": "68.10-2",
+        "descricao": "Atividades imobiliárias de imóveis próprios",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "68.21-8",
+        "descricao": "Intermediação na compra, venda e aluguel de imóveis",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "68.22-6",
+        "descricao": "Gestão e administração da propriedade imobiliária",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "69.11-7",
+        "descricao": "Atividades jurídicas, exceto cartórios",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "69.12-5",
+        "descricao": "Cartórios",
+        "classificacao": "CS3 "
+    },
+    {
+        "cnae": "69.20-6",
+        "descricao": "Atividades de contabilidade, consultoria e auditoria contábil e tributária",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "70.10-7",
+        "descricao": "Sedes de empresas e unidades administrativas locais",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "70.20-4",
+        "descricao": "Atividades de consultoria em gestão empresarial",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "71.11-1",
+        "descricao": "Serviços de arquitetura",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "71.12-0",
+        "descricao": "Serviços de engenharia",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "71.19-7",
+        "descricao": "Atividades técnicas relacionadas à arquitetura e engenharia",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "71.20-1",
+        "descricao": "Testes e análises técnicas",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "72.10-0",
+        "descricao": "Pesquisa e desenvolvimento experimental em ciências físicas e naturais",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "72.20-7",
+        "descricao": "Pesquisa e desenvolvimento experimental em ciências sociais e humanas",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "73.11-4",
+        "descricao": "Agências de publicidade",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "73.12-2",
+        "descricao": "Agenciamento de espaços para publicidade, exceto em veículos de comunicação",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "73.19-0",
+        "descricao": "Atividades de publicidade não especificadas anteriormente",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "73.20-3",
+        "descricao": "Pesquisas de mercado e de opinião pública",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "74.10-2",
+        "descricao": "Design e decoração de interiores",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "74.20-0",
+        "descricao": "Atividades fotográficas e similares",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "74.90-1",
+        "descricao": "Atividades profissionais, científicas e técnicas não especificadas anteriormente",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "75.00-1",
+        "descricao": "Atividades veterinárias",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "77.21-7",
+        "descricao": "Aluguel de equipamentos recreativos e esportivos",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "77.23-3",
+        "descricao": "Aluguel de objetos do vestuário, jóias e acessórios",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "77.29-2",
+        "descricao": "Aluguel de objetos pessoais e domésticos não especificados anteriormente",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "77.31-4",
+        "descricao": "Aluguel de máquinas e equipamentos agrícolas sem operador",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "77.32-2",
+        "descricao": "Aluguel de máquinas e equipamentos para construção sem operador",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "77.33-1",
+        "descricao": "Aluguel de máquinas e equipamentos para escritório",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "77.39-0",
+        "descricao": "Aluguel de máquinas e equipamentos não especificados anteriormente",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "77.40-3",
+        "descricao": "Gestão de ativos intangíveis não financeiros",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "78.10-8",
+        "descricao": "Seleção e agenciamento de mão de obra",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "78.20-5",
+        "descricao": "Locação de mão de obra temporária",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "78.30-2",
+        "descricao": "Fornecimento e gestão de recursos humanos para terceiros",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "79.11-2",
+        "descricao": "Agências de viagens",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "79.12-1",
+        "descricao": "Operadores turísticos",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "79.90-2",
+        "descricao": "Serviços de reservas e outros serviços de turismo não especificados anteriormente",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "80.11-1",
+        "descricao": "Atividades de vigilância e segurança privada",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "80.12-9",
+        "descricao": "Atividades de transporte de valores",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "80.20-0",
+        "descricao": "Atividades de monitoramento de sistemas de segurança",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "80.30-7",
+        "descricao": "Atividades de investigação particular",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "81.30-3",
+        "descricao": "Atividades paisagísticas",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "82.11-3",
+        "descricao": "Serviços combinados de escritório e apoio administrativo",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "82.19-9",
+        "descricao": "Fotocópias, preparação de documentos e outros serviços especializados de apoio administrativo",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "82.20-2",
+        "descricao": "Atividades de teleatendimento",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "82.30-0",
+        "descricao": "Atividades de organização de eventos, exceto culturais e esportivos",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "82.91-1",
+        "descricao": "Atividades de cobrança e informações cadastrais",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "82.92-0",
+        "descricao": "Envasamento e empacotamento sob contrato",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "82.99-7",
+        "descricao": "Atividades de serviços prestados principalmente às empresas não especificadas anteriormente",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "94.11-1",
+        "descricao": "Atividades de organizações associativas patronais e empresariais",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "94.12-0",
+        "descricao": "Atividades de organizações associativas profissionais",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "94.20-1",
+        "descricao": "Atividades de organizações sindicais",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "94.30-8",
+        "descricao": "Atividades de associações de defesa de direitos sociais",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "94.91-0",
+        "descricao": "Atividades de organizações religiosas",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "94.92-8",
+        "descricao": "Atividades de organizações políticas",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "94.93-6",
+        "descricao": "Atividades de organizações associativas ligadas à cultura e à arte",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "94.99-5",
+        "descricao": "Atividades associativas não especificadas anteriormente",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "96.01-7",
+        "descricao": "Lavanderias, tinturarias e toalheiros",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "96.02-5",
+        "descricao": "Cabeleireiros e outras atividades de tratamento de beleza",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "96.03-3",
+        "descricao": "Atividades funerárias e serviços relacionados",
+        "classificacao": "CS4,SC3"
+    },
+    {
+        "cnae": "96.09-2",
+        "descricao": "Atividades de serviços pessoais não especificadas anteriormente",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "97.00-5",
+        "descricao": "Serviços domésticos",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "64.21-2",
+        "descricao": "Bancos comerciais",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "64.22-1",
+        "descricao": "Bancos múltiplos, com carteira comercial",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "64.23-9",
+        "descricao": "Caixas econômicas",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "64.24-7",
+        "descricao": "Crédito cooperativo",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "64.31-0",
+        "descricao": "Bancos múltiplos, sem carteira comercial",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "64.32-8",
+        "descricao": "Bancos de investimento",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "64.33-6",
+        "descricao": "Bancos de desenvolvimento",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "64.34-4",
+        "descricao": "Agências de fomento",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "64.35-2",
+        "descricao": "Crédito imobiliário",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "64.36-1",
+        "descricao": "Sociedades de crédito, financiamento e investimento - financeiras",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "64.37-9",
+        "descricao": "Sociedades de crédito ao microempreendedor",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "64.38-7",
+        "descricao": "Bancos de câmbio e outras instituições de intermediação não monetária",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "64.40-9",
+        "descricao": "Arrendamento mercantil",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "64.50-6",
+        "descricao": "Sociedades de capitalização",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "64.61-1",
+        "descricao": "Holdings de instituições financeiras",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "64.62-0",
+        "descricao": "Holdings de instituições não financeiras",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "64.63-8",
+        "descricao": "Outras sociedades de participação, exceto holdings",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "64.70-1",
+        "descricao": "Fundos de investimento",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "64.91-3",
+        "descricao": "Sociedades de fomento mercantil - factoring",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "64.92-1",
+        "descricao": "Securitização de créditos",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "64.93-0",
+        "descricao": "Administração de consórcios para aquisição de bens e direitos",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "64.99-9",
+        "descricao": "Outras atividades de serviços financeiros não especificadas anteriormente",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "65.11-1",
+        "descricao": "Seguros de vida",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "65.12-0",
+        "descricao": "Seguros não vida",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "65.20-1",
+        "descricao": "Seguros-saúde",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "65.30-8",
+        "descricao": "Resseguros",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "65.41-3",
+        "descricao": "Previdência complementar fechada",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "65.42-1",
+        "descricao": "Previdência complementar aberta",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "65.50-2",
+        "descricao": "Planos de saúde",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "66.11-8",
+        "descricao": "Administração de bolsas e mercados de balcão organizados",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "66.12-6",
+        "descricao": "Atividades de intermediários em transações de títulos, valores mobiliários e mercadorias",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "66.13-4",
+        "descricao": "Administração de cartões de crédito",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "66.19-3",
+        "descricao": "Atividades auxiliares dos serviços financeiros não especificadas anteriormente",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "66.21-5",
+        "descricao": "Avaliação de riscos e perdas",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "66.22-3",
+        "descricao": "Corretores e agentes de seguros, de planos de previdência complementar e de saúde",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "66.29-1",
+        "descricao": "Atividades auxiliares dos seguros, da previdência complementar e dos planos de saúde não especificadas anteriormente",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "66.30-4",
+        "descricao": "Atividades de administração de fundos por contrato ou comissão",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "90.01-9",
+        "descricao": "Artes cênicas, espetáculos e atividades complementares",
+        "classificacao": "CS2,SC2"
+    },
+    {
+        "cnae": "90.02-7",
+        "descricao": "Criação artística",
+        "classificacao": "CS2,SC2"
+    },
+    {
+        "cnae": "90.03-5",
+        "descricao": "Gestão de espaços para artes cênicas, espetáculos e outras atividades artísticas",
+        "classificacao": "CS2,SC2"
+    },
+    {
+        "cnae": "91.01-5",
+        "descricao": "Atividades de bibliotecas e arquivos",
+        "classificacao": "CS2,SC1"
+    },
+    {
+        "cnae": "91.02-3",
+        "descricao": "Atividades de museus e de exploração, restauração artística e conservação de lugares e prédios históricos e atrações similares",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "91.03-1",
+        "descricao": "Atividades de jardins botânicos, zoológicos, parques nacionais, reservas ecológicas e áreas de proteção ambiental",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "92.00-3",
+        "descricao": "Atividades de exploração de jogos de azar e apostas",
+        "classificacao": "CS4,SC3"
+    },
+    {
+        "cnae": "93.11-5",
+        "descricao": "Gestão de instalações de esportes",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "93.12-3",
+        "descricao": "Clubes sociais, esportivos e similares",
+        "classificacao": "CS3,SC3"
+    },
+    {
+        "cnae": "93.13-1",
+        "descricao": "Atividades de condicionamento físico",
+        "classificacao": "CS2,SC2"
+    },
+    {
+        "cnae": "93.19-1",
+        "descricao": "Atividades esportivas não especificadas anteriormente",
+        "classificacao": "CS3,SC3"
+    },
+    {
+        "cnae": "93.21-2",
+        "descricao": "Parques de diversão e parques temáticos",
+        "classificacao": "CS4,SC3"
+    },
+    {
+        "cnae": "93.29-8",
+        "descricao": "Atividades de recreação e lazer não especificadas anteriormente",
+        "classificacao": "CS3,SC2"
+    },
+    {
+        "cnae": "58.11-5",
+        "descricao": "Edição de livros",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "58.12-3",
+        "descricao": "Edição de jornais",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "58.13-1",
+        "descricao": "Edição de revistas",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "58.19-1",
+        "descricao": "Edição de cadastros, listas e outros produtos gráficos",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "58.21-2",
+        "descricao": "Edição integrada à impressão de livros",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "58.22-1",
+        "descricao": "Edição integrada à impressão de jornais",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "58.23-9",
+        "descricao": "Edição integrada à impressão de revistas",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "58.29-8",
+        "descricao": "Edição integrada à impressão de cadastros, listas e outros produtos gráficos",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "59.11-1",
+        "descricao": "Atividades de produção cinematográfica, de vídeos e de programas de televisão",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "59.12-0",
+        "descricao": "Atividades de pós-produção cinematográfica, de vídeos e de programas de televisão",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "59.13-8",
+        "descricao": "Distribuição cinematográfica, de vídeo e de programas de televisão",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "59.14-6",
+        "descricao": "Atividades de exibição cinematográfica",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "59.20-1",
+        "descricao": "Atividades de gravação de som e de edição de música",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "60.10-1",
+        "descricao": "Atividades de rádio",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "60.21-7",
+        "descricao": "Atividades de televisão aberta",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "61.10-8",
+        "descricao": "Telecomunicações por fio",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "61.20-5",
+        "descricao": "Telecomunicações sem fio",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "61.30-2",
+        "descricao": "Telecomunicações por satélite",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "61.41-8",
+        "descricao": "Operadoras de televisão por assinatura por cabo",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "61.42-6",
+        "descricao": "Operadoras de televisão por assinatura por micro-ondas",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "61.43-4",
+        "descricao": "Operadoras de televisão por assinatura por satélite",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "61.90-6",
+        "descricao": "Outras atividades de telecomunicações",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "62.01-5",
+        "descricao": "Desenvolvimento de programas de computador sob encomenda",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "62.02-3",
+        "descricao": "Desenvolvimento e licenciamento de programas de computador customizáveis",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "62.03-1",
+        "descricao": "Desenvolvimento e licenciamento de programas de computador não customizáveis",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "62.04-0",
+        "descricao": "Consultoria em tecnologia da informação",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "62.09-1",
+        "descricao": "Suporte técnico, manutenção e outros serviços em tecnologia da informação",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "63.11-9",
+        "descricao": "Tratamento de dados, provedores de serviços de aplicação e serviços de hospedagem na Internet",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "63.19-4",
+        "descricao": "Portais, provedores de conteúdo e outros serviços de informação na Internet",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "63.91-7",
+        "descricao": "Agências de notícias",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "63.99-2",
+        "descricao": "Outras atividades de prestação de serviços de informação não especificadas anteriormente",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "09.10-6",
+        "descricao": "Atividades de apoio à extração de petróleo e gás natural",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "09.90-4",
+        "descricao": "Atividades de apoio à extração de minerais, exceto petróleo e gás natural",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "18.21-1",
+        "descricao": "Serviços de pré-impressão",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "18.22-9",
+        "descricao": "Serviços de acabamentos gráficos",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "18.30-0",
+        "descricao": "Reprodução de materiais gravados em qualquer suporte",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "32.11-6",
+        "descricao": "Lapidação de gemas e fabricação de artefatos de ourivesaria e joalheria",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "32.12-4",
+        "descricao": "Fabricação de bijuterias e artefatos semelhantes",
+        "classificacao": "I2"
+    },
+    {
+        "cnae": "55.10-8",
+        "descricao": "Hotéis e similares",
+        "classificacao": "H5"
+    },
+    {
+        "cnae": "55.90-6",
+        "descricao": "Outros tipos de alojamento não especificados anteriormente",
+        "classificacao": "H5"
+    },
+    {
+        "cnae": "56.11-2",
+        "descricao": "Restaurantes e outros estabelecimentos de serviços de alimentação e bebidas",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "56.12-1",
+        "descricao": "Serviços ambulantes de alimentação",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "56.20-1",
+        "descricao": "Serviços de catering, bufê e outros serviços de comida preparada",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "49.11-6",
+        "descricao": "Transporte ferroviário de carga",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "49.12-4",
+        "descricao": "Transporte metroferroviário de passageiros",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "49.21-3",
+        "descricao": "Transporte rodoviário coletivo de passageiros, com itinerário fixo, municipal e em região metropolitana",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "49.22-1",
+        "descricao": "Transporte rodoviário coletivo de passageiros, com itinerário fixo, intermunicipal, interestadual e internacional",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "49.23-0",
+        "descricao": "Transporte rodoviário de táxi",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "49.24-8",
+        "descricao": "Transporte escolar",
+        "classificacao": "CS2,SC2"
+    },
+    {
+        "cnae": "49.29-9",
+        "descricao": "Transporte rodoviário coletivo de passageiros, sob regime de fretamento, e outros transportes rodoviários não especificados anteriormente",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "49.30-2",
+        "descricao": "Transporte rodoviário de carga",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "49.40-0",
+        "descricao": "Transporte dutoviário",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "49.50-7",
+        "descricao": "Trens turísticos, teleféricos e similares",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "50.11-4",
+        "descricao": "Transporte marítimo de cabotagem",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "50.12-2",
+        "descricao": "Transporte marítimo de longo curso",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "50.21-1",
+        "descricao": "Transporte por navegação interior de carga",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "50.22-0",
+        "descricao": "Transporte por navegação interior de passageiros em linhas regulares",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "50.30-1",
+        "descricao": "Navegação de apoio",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "50.91-2",
+        "descricao": "Transporte por navegação de travessia",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "50.99-8",
+        "descricao": "Transportes aquaviários não especificados anteriormente",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "51.11-1",
+        "descricao": "Transporte aéreo de passageiros regular",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "51.12-9",
+        "descricao": "Transporte aéreo de passageiros não regular",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "51.20-0",
+        "descricao": "Transporte aéreo de carga",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "51.30-7",
+        "descricao": "Transporte espacial",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "52.11-7",
+        "descricao": "Armazenamento",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "52.12-5",
+        "descricao": "Carga e descarga",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "52.21-4",
+        "descricao": "Concessionárias de rodovias, pontes, túneis e serviços relacionados",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "52.22-2",
+        "descricao": "Terminais rodoviários e ferroviários",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "52.23-1",
+        "descricao": "Estacionamento de veículos",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "52.29-0",
+        "descricao": "Atividades auxiliares dos transportes terrestres não especificadas anteriormente",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "52.31-1",
+        "descricao": "Gestão de portos e terminais",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "52.32-0",
+        "descricao": "Atividades de agenciamento marítimo",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "52.39-7",
+        "descricao": "Atividades auxiliares dos transportes aquaviários não especificadas anteriormente",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "52.40-1",
+        "descricao": "Atividades auxiliares dos transportes aéreos",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "52.50-8",
+        "descricao": "Atividades relacionadas à organização do transporte de carga",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "53.10-5",
+        "descricao": "Atividades de Correio",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "53.20-2",
+        "descricao": "Atividades de malote e de entrega",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "45.11-1",
+        "descricao": "Comércio a varejo e por atacado de veículos automotores",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "45.12-9",
+        "descricao": "Representantes comerciais e agentes do comércio de veículos automotores",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "45.20-0",
+        "descricao": "Manutenção e reparação de veículos automotores",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "45.30-7",
+        "descricao": "Comércio de peças e acessórios para veículos automotores",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "45.41-2",
+        "descricao": "Comércio por atacado e a varejo de motocicletas, peças e acessórios",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "45.42-1",
+        "descricao": "Representantes comerciais e agentes do comércio de motocicletas, peças e acessórios",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "45.43-9",
+        "descricao": "Manutenção e reparação de motocicletas",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.11-7",
+        "descricao": "Representantes comerciais e agentes do comércio de matérias-primas agrícolas e animais vivos",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.12-5",
+        "descricao": "Representantes comerciais e agentes do comércio de combustíveis, minerais, produtos siderúrgicos e químicos",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "46.13-3",
+        "descricao": "Representantes comerciais e agentes do comércio de madeira, material de construção e ferragens",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.14-1",
+        "descricao": "Representantes comerciais e agentes do comércio de máquinas, equipamentos, embarcações e aeronaves",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.15-0",
+        "descricao": "Representantes comerciais e agentes do comércio de eletrodomésticos, móveis e artigos de uso doméstico",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.16-8",
+        "descricao": "Representantes comerciais e agentes do comércio de têxteis, vestuário, calçados e artigos de viagem",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.17-6",
+        "descricao": "Representantes comerciais e agentes do comércio de produtos alimentícios, bebidas e fumo",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "46.18-4",
+        "descricao": "Representantes comerciais e agentes do comércio especializado em produtos não especificados anteriormente",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.19-2",
+        "descricao": "Representantes comerciais e agentes do comércio de mercadorias em geral não especializado",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.21-4",
+        "descricao": "Comércio atacadista de café em grão",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.22-2",
+        "descricao": "Comércio atacadista de soja",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.23-1",
+        "descricao": "Comércio atacadista de animais vivos, alimentos para animais e matérias-primas agrícolas, exceto café e soja",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.31-1",
+        "descricao": "Comércio atacadista de leite e laticínios",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.32-0",
+        "descricao": "Comércio atacadista de cereais e leguminosas beneficiados, farinhas, amidos e féculas",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.33-8",
+        "descricao": "Comércio atacadista de hortifrutigranjeiros",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.34-6",
+        "descricao": "Comércio atacadista de carnes, produtos da carne e pescado",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.35-4",
+        "descricao": "Comércio atacadista de bebidas",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.36-2",
+        "descricao": "Comércio atacadista de produtos do fumo",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.37-1",
+        "descricao": "Comércio atacadista especializado em produtos alimentícios não especificados anteriormente",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.39-7",
+        "descricao": "Comércio atacadista de produtos alimentícios em geral",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.41-9",
+        "descricao": "Comércio atacadista de tecidos, artefatos de tecidos e de armarinho",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.42-7",
+        "descricao": "Comércio atacadista de artigos do vestuário e acessórios",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "46.43-5",
+        "descricao": "Comércio atacadista de calçados e artigos de viagem",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "46.44-3",
+        "descricao": "Comércio atacadista de produtos farmacêuticos para uso humano e veterinário",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.45-1",
+        "descricao": "Comércio atacadista de instrumentos e materiais para uso médico, cirúrgico, ortopédico e odontológico",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.46-0",
+        "descricao": "Comércio atacadista de cosméticos, produtos de perfumaria e de higiene pessoal",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.47-8",
+        "descricao": "Comércio atacadista de artigos de escritório e de papelaria; livros, jornais e outras publicações",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.49-4",
+        "descricao": "Comércio atacadista de equipamentos e artigos de uso pessoal e doméstico não especificados anteriormente",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.51-6",
+        "descricao": "Comércio atacadista de computadores, periféricos e suprimentos de informática",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.52-4",
+        "descricao": "Comércio atacadista de componentes eletrônicos e equipamentos de telefonia e comunicação",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "46.61-3",
+        "descricao": "Comércio atacadista de máquinas, aparelhos e equipamentos para uso agropecuário; partes e peças",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.62-1",
+        "descricao": "Comércio atacadista de máquinas, equipamentos para terraplenagem, mineração e construção; partes e peças",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "46.63-0",
+        "descricao": "Comércio atacadista de máquinas e equipamentos para uso industrial; partes e peças",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "46.64-8",
+        "descricao": "Comércio atacadista de máquinas, aparelhos e equipamentos para uso odonto-médico-hospitalar; partes e peças",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.65-6",
+        "descricao": "Comércio atacadista de máquinas e equipamentos para uso comercial; partes e peças",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.69-9",
+        "descricao": "Comércio atacadista de máquinas, aparelhos e equipamentos não especificados anteriormente; partes e peças",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.71-1",
+        "descricao": "Comércio atacadista de madeira e produtos derivados",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.72-9",
+        "descricao": "Comércio atacadista de ferragens e ferramentas",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.73-7",
+        "descricao": "Comércio atacadista de material elétrico",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.74-5",
+        "descricao": "Comércio atacadista de cimento",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "46.79-6",
+        "descricao": "Comércio atacadista especializado de materiais de construção não especificados anteriormente e de materiais de construção em geral",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.81-8",
+        "descricao": "Comércio atacadista de combustíveis sólidos, líquidos e gasosos, exceto gás natural e GLP",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "46.82-6",
+        "descricao": "Comércio atacadista de gás liquefeito de petróleo (GLP)",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "46.83-4",
+        "descricao": "Comércio atacadista de defensivos agrícolas, adubos, fertilizantes e corretivos do solo",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "46.84-2",
+        "descricao": "Comércio atacadista de produtos químicos e petroquímicos, exceto agroquímicos",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "46.85-1",
+        "descricao": "Comércio atacadista de produtos siderúrgicos e metalúrgicos, exceto para construção",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "46.86-9",
+        "descricao": "Comércio atacadista de papel e papelão em bruto e de embalagens",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.87-7",
+        "descricao": "Comércio atacadista de resíduos e sucatas",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.89-3",
+        "descricao": "Comércio atacadista especializado de outros produtos intermediários não especificados anteriormente",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "46.91-5",
+        "descricao": "Comércio atacadista de mercadorias em geral, com predominância de produtos alimentícios",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "46.92-3",
+        "descricao": "Comércio atacadista de mercadorias em geral, com predominância de insumos agropecuários",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "46.93-1",
+        "descricao": "Comércio atacadista de mercadorias em geral, sem predominância de alimentos ou de insumos agropecuários",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "47.11-3",
+        "descricao": "Comércio varejista de mercadorias em geral, com predominância de produtos alimentícios - hipermercados e supermercados",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "47.12-1",
+        "descricao": "Comércio varejista de mercadorias em geral, com predominância de produtos alimentícios - minimercados, mercearias e armazéns",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.13-0",
+        "descricao": "Comércio varejista de mercadorias em geral, sem predominância de produtos alimentícios",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "47.21-1",
+        "descricao": "Comércio varejista de produtos de padaria, laticínio, doces, balas e semelhantes",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.22-9",
+        "descricao": "Comércio varejista de carnes e pescados - açougues e peixarias",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "47.23-7",
+        "descricao": "Comércio varejista de bebidas",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.24-5",
+        "descricao": "Comércio varejista de hortifrutigranjeiros",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "47.29-6",
+        "descricao": "Comércio varejista de produtos alimentícios em geral ou especializado em produtos alimentícios não especificados anteriormente; produtos do fumo",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "47.31-8",
+        "descricao": "Comércio varejista de combustíveis para veículos automotores",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "47.32-6",
+        "descricao": "Comércio varejista de lubrificantes",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "47.41-5",
+        "descricao": "Comércio varejista de tintas e materiais para pintura",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "47.42-3",
+        "descricao": "Comércio varejista de material elétrico",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "47.43-1",
+        "descricao": "Comércio varejista de vidros",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "47.44-0",
+        "descricao": "Comércio varejista de ferragens, madeira e materiais de construção",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "47.51-2",
+        "descricao": "Comércio varejista especializado de equipamentos e suprimentos de informática",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.52-1",
+        "descricao": "Comércio varejista especializado de equipamentos de telefonia e comunicação",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.53-9",
+        "descricao": "Comércio varejista especializado de eletrodomésticos e equipamentos de áudio e vídeo",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.54-7",
+        "descricao": "Comércio varejista especializado de móveis, colchoaria e artigos de iluminação",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.55-5",
+        "descricao": "Comércio varejista especializado de tecidos e artigos de cama, mesa e banho",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.56-3",
+        "descricao": "Comércio varejista especializado de instrumentos musicais e acessórios",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.57-1",
+        "descricao": "Comércio varejista especializado de peças e acessórios para aparelhos eletroeletrônicos para uso doméstico, exceto informática e comunicação",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.59-8",
+        "descricao": "Comércio varejista de artigos de uso doméstico não especificados anteriormente",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "47.61-0",
+        "descricao": "Comércio varejista de livros, jornais, revistas e papelaria",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.62-8",
+        "descricao": "Comércio varejista de discos, CDs, DVDs e fitas",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.63-6",
+        "descricao": "Comércio varejista de artigos recreativos e esportivos",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.71-7",
+        "descricao": "Comércio varejista de produtos farmacêuticos para uso humano e veterinário",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "47.72-5",
+        "descricao": "Comércio varejista de cosméticos, produtos de perfumaria e de higiene pessoal",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.73-3",
+        "descricao": "Comércio varejista de artigos médicos e ortopédicos",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "47.74-1",
+        "descricao": "Comércio varejista de artigos de óptica",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.81-4",
+        "descricao": "Comércio varejista de artigos do vestuário e acessórios",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.82-2",
+        "descricao": "Comércio varejista de calçados e artigos de viagem",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.83-1",
+        "descricao": "Comércio varejista de jóias e relógios",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.84-9",
+        "descricao": "Comércio varejista de gás liqüefeito de petróleo (GLP)",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "47.85-7",
+        "descricao": "Comércio varejista de artigos usados",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "47.89-0",
+        "descricao": "Comércio varejista de outros produtos novos não especificados anteriormente",
+        "classificacao": "CS2"
+    },
+    {
+        "cnae": "47.90-3",
+        "descricao": "Comércio ambulante e outros tipos de comércio varejista",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "35.11-5",
+        "descricao": "Geração de energia elétrica",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "35.12-3",
+        "descricao": "Transmissão de energia elétrica",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "35.13-1",
+        "descricao": "Comércio atacadista de energia elétrica",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "35.14-0",
+        "descricao": "Distribuição de energia elétrica",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "35.20-4",
+        "descricao": "Produção de gás; processamento de gás natural; distribuição de combustíveis gasosos por redes urbanas",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "35.30-1",
+        "descricao": "Produção e distribuição de vapor, água quente e ar condicionado",
+        "classificacao": "I4"
+    },
+    {
+        "cnae": "36.00-6",
+        "descricao": "Captação, tratamento e distribuição de água ",
+        "classificacao": "CS4,SC3 "
+    },
+    {
+        "cnae": "37.01-1",
+        "descricao": "Gestão de redes de esgoto",
+        "classificacao": "CS4,SC3 "
+    },
+    {
+        "cnae": "37.02-9",
+        "descricao": "Atividades relacionadas a esgoto, exceto a gestão de redes",
+        "classificacao": "CS4,SC3 "
+    },
+    {
+        "cnae": "38.11-4",
+        "descricao": "Coleta de resíduos não perigosos",
+        "classificacao": "CS4,SC3 "
+    },
+    {
+        "cnae": "38.12-2",
+        "descricao": "Coleta de resíduos perigosos",
+        "classificacao": "CS4,SC3 "
+    },
+    {
+        "cnae": "38.21-1",
+        "descricao": "Tratamento e disposição de resíduos não perigosos",
+        "classificacao": "CS4,SC3 "
+    },
+    {
+        "cnae": "38.22-0",
+        "descricao": "Tratamento e disposição de resíduos perigosos",
+        "classificacao": "CS4,SC3 "
+    },
+    {
+        "cnae": "38.31-9",
+        "descricao": "Recuperação de materiais metálicos",
+        "classificacao": "CS4,SC3 "
+    },
+    {
+        "cnae": "38.32-7",
+        "descricao": "Recuperação de materiais plásticos",
+        "classificacao": "CS4,SC3 "
+    },
+    {
+        "cnae": "38.39-4",
+        "descricao": "Recuperação de materiais não especificados anteriormente",
+        "classificacao": "CS4,SC3 "
+    },
+    {
+        "cnae": "39.00-5",
+        "descricao": "Descontaminação e outros serviços de gestão de resíduos",
+        "classificacao": "CS4,SC3 "
+    },
+    {
+        "cnae": "33.11-2",
+        "descricao": "Manutenção e reparação de tanques, reservatórios metálicos e caldeiras, exceto para veículos",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "33.12-1",
+        "descricao": "Manutenção e reparação de equipamentos eletrônicos e ópticos",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "33.13-9",
+        "descricao": "Manutenção e reparação de máquinas e equipamentos elétricos",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "33.14-7",
+        "descricao": "Manutenção e reparação de máquinas e equipamentos da indústria mecânica",
+        "classificacao": "CS3"
+    },
+    {
+        "cnae": "33.15-5",
+        "descricao": "Manutenção e reparação de veículos ferroviários",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "33.16-3",
+        "descricao": "Manutenção e reparação de aeronaves",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "33.17-1",
+        "descricao": "Manutenção e reparação de embarcações",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "33.19-8",
+        "descricao": "Manutenção e reparação de equipamentos e produtos não especificados anteriormente",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "33.21-0",
+        "descricao": "Instalação de máquinas e equipamentos industriais",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "33.29-5",
+        "descricao": "Instalação de equipamentos não especificados anteriormente",
+        "classificacao": "CS4"
+    },
+    {
+        "cnae": "95.11-8",
+        "descricao": "Reparação e manutenção de computadores e de equipamentos periféricos",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "95.12-6",
+        "descricao": "Reparação e manutenção de equipamentos de comunicação",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "95.21-5",
+        "descricao": "Reparação e manutenção de equipamentos eletroeletrônicos de uso pessoal e doméstico",
+        "classificacao": "CS1"
+    },
+    {
+        "cnae": "95.29-1",
+        "descricao": "Reparação e manutenção de objetos e equipamentos pessoais e domésticos não especificados anteriormente",
+        "classificacao": "CS1"
+    }
+]

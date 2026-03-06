@@ -1,0 +1,47 @@
+/* Configuração de Posicionamento do Zoom do OpenLayers */
+.ol-zoom {
+    top: 6rem !important;
+    left: 1.25rem !important;
+}
+
+/* Painel de Camadas Flutuante */
+#layers-panel {
+    will-change: top, left;
+    z-index: 50;
+    width: 320px !important;
+    min-width: 320px !important;
+    max-width: 320px !important;
+}
+
+/* Otimização de Performance: Desliga o blur durante o arraste */
+.dragging-now {
+    backdrop-filter: none !important;
+    opacity: 0.95;
+}
+
+/* Scrollbar Customizada (Estilo Webkit) */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.5);
+    border-radius: 10px;
+}
+
+/* Tooltip de Medição Cartográfica */
+.ol-tooltip {
+    position: relative;
+    background: rgba(0, 0, 0, 0.85);
+    border-radius: 8px;
+    color: white;
+    padding: 6px 10px;
+    opacity: 1;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: bold;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}

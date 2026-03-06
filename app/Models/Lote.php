@@ -31,4 +31,36 @@ class Lote extends Model
     {
         $this->attributes['geo'] = DB::raw("ST_Multi(ST_GeomFromGeoJSON('" . json_encode($value) . "'))");
     }
+
+    /**
+     * Um Lote pertence a uma Zona (Necessário para a Viabilidade)
+     */
+    public function zona()
+    {
+        return $this->belongsTo(Zona::class, 'zona_id');
+    }
+
+    /**
+     * Um Lote pertence a uma Quadra
+     */
+    public function quadra()
+    {
+        return $this->belongsTo(Quadra::class, 'quadra_id');
+    }
+
+    /**
+     * Um Lote possui várias Unidades Imobiliárias
+     */
+    public function unidadesImobiliarias()
+    {
+        return $this->hasMany(UnidadeImobiliaria::class, 'lote_id');
+    }
+
+    /**
+     * Um Lote pode possuir várias Edificações
+     */
+    public function edificacoes()
+    {
+        return $this->hasMany(Edificacao::class, 'lote_id');
+    }
 }

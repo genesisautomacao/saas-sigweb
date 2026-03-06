@@ -1,0 +1,55 @@
+[
+    {
+        "zonas": "ZCS",
+        "permitido": "H1, H2,H5,SC1,SC2,CS1,CS2,I1",
+        "permissivel": "H6,SC3,CS3,CS4,I2",
+        "proibido": "H3,H4,I3,I4"
+    },
+    {
+        "zonas": "ZUM",
+        "permitido": "H1, H2,H5, SC1,SC2,CS1,CS2,I1",
+        "permissivel": "H6,SC3,CS3,CS4,I2",
+        "proibido": "H3,H4,I3,I4"
+    },
+    {
+        "zonas": "ZR1",
+        "permitido": "H1,H2,H3,SC1,CS1,CS2,I1",
+        "permissivel": "H5,SC2,CS3,I2",
+        "proibido": "H4,H6,CS3,CS4,I3,I4"
+    },
+    {
+        "zonas": "ZR2",
+        "permitido": "H1,H2,H3,SC1,CS1,CS2,I1",
+        "permissivel": "H5,SC2,CS3,I2",
+        "proibido": "H4,H6,SC3,CS4,I3,I4"
+    },
+    {
+        "zonas": "ZEIS",
+        "permitido": "H1,H2,H3,H4,SC1,SC2,CS1,CS2,I1",
+        "permissivel": "H5,H6,SC3CS3,I2",
+        "proibido": "CS4,I3,I4"
+    },
+    {
+        "zonas": "ZI",
+        "permitido": "I1,I2",
+        "permissivel": "H1,H2,H3,H4,H5,SC1,SC2,CS1,CS2,CS3,I3,I4",
+        "proibido": "H6,SC3,CS4"
+    },
+    {
+        "zonas": "ZEU",
+        "permitido": "H1, H2, H3, H5, SC1,CS1,CS2,I1,I2",
+        "permissivel": "H4,H6,SC2,SC3,CS3,CS4,I3,I4"
+    },
+    {
+        "zonas": "ZIC",
+        "proibido": "H1,H2,H3,H4,H5,H6,SC1,SC2,SC3,CS1,CS2,CS3,CS4,I1,I2,I3,I4"
+    },
+    {
+        "zonas": "ZPA",
+        "proibido": "H1,H2,H3,H4,H5,H6,SC1,SC2,SC3,CS1,CS2,CS3,CS4,I1,I2,I3,I4"
+    },
+    {
+        "zonas": "ZPP",
+        "proibido": "H1,H2,H3,H4,H5,H6,SC1,SC2,SC3,CS1,CS2,CS3,CS4,I1,I2,I3,I4"
+    }
+]
