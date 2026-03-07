@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Filament\Pages\Traits\HasLoteActions;
 use App\Filament\Pages\Traits\HasEdificacaoActions;
+use \App\Filament\Pages\Traits\HasLogradouroActions;
 use App\Models\Lote;
 use App\Models\Edificacao;
 use App\Models\Zona;
@@ -19,6 +20,7 @@ class MapaFullscreen extends Page
     // Injetando as gavetas de lógica (Traits)
     use HasLoteActions;
     use HasEdificacaoActions;
+    use HasLogradouroActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';
@@ -34,7 +36,7 @@ class MapaFullscreen extends Page
     public int $mapZoom = 14;
     public int $tenantId = 0;
     public string $tenantSlug = '';
-    
+
     // Propriedades do Lote Ativo
     public ?int $loteAtivoId = null;
     public ?string $loteAtivoNome = null;
@@ -50,6 +52,7 @@ class MapaFullscreen extends Page
     public bool $mostrarEdificacoesLoteAtivo = false;
     public ?int $edificacaoAtivaId = null;
     public array $zonasTipos = [];
+    public ?int $logradouroAtivoId = null;
 
     public function mount()
     {
@@ -127,14 +130,15 @@ class MapaFullscreen extends Page
 
             $this->quadraRascunhoId = $quadra->id;
             $this->zonaRascunhoId = Zona::where('tenant_id', $this->tenantId)->whereRaw("ST_Intersects(geo, $centroidWKT)")->value('id');
-        }
+            
+            // 🛑 MÁGICA: Monta a ação do Lote aqui e encerra
+            $this->mountAction('criarLote');
 
-        if ($entityType === 'edificacao') {
-            // MÁGICA: A área da edificação que ficar DE FORA do Lote deve ser menor ou igual a 0.1m²
+        } elseif ($entityType === 'edificacao') {
             $contido = Lote::where('id', $this->loteAtivoId)
                 ->whereRaw("ST_Area(ST_Difference($polyWKT, geo)::geography) <= 0.1")
                 ->exists();
-                
+
             if (!$contido) {
                 Notification::make()->title('Erro de Topologia')
                     ->body('A edificação invadiu a rua ou o lote vizinho além do limite permitido.')
@@ -142,9 +146,14 @@ class MapaFullscreen extends Page
                 $this->dispatch('limpar-rascunho-mapa');
                 return;
             }
-        }
+            
+            // 🛑 MÁGICA: Monta a ação da Edificação aqui e encerra
+            $this->mountAction('criarEdificacao');
 
-        $this->mountAction('criar' . ucfirst($entityType));
+        } elseif ($entityType === 'logradouro') {
+            // 🛑 MÁGICA: Monta a ação do Logradouro aqui e encerra
+            $this->mountAction('criarLogradouro');
+        }
     }
 
     public function habilitarEdicaoGeometria()
@@ -223,5 +232,24 @@ class MapaFullscreen extends Page
     {
         $this->edificacaoAtivaId = $id;
         $this->mountAction('opcoesEdificacao');
+    }
+
+    #[On('abrirOpcoesLogradouro')]
+    public function abrirOpcoesLogradouro($id)
+    {
+        $this->logradouroAtivoId = $id;
+        $this->mountAction('opcoesLogradouro');
+    }
+
+    #[On('salvarNovaGeometriaLogradouro')]
+    public function salvarNovaGeometriaLogradouro($id, $geoJson)
+    {
+        $logradouro = \App\Models\Logradouro::find($id);
+        if ($logradouro) {
+            $logradouro->update(['geo' => $geoJson]);
+            // Opcional: DB::statement("UPDATE logradouros SET length_geo = ST_Length(geo::geography) WHERE id = ?", [$logradouro->id]);
+
+            \Filament\Notifications\Notification::make()->title('Geometria da Rua Atualizada!')->success()->send();
+        }
     }
 }

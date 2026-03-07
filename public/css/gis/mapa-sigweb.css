@@ -45,3 +45,17 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
+
+/* ToolTip de Logradouro */
+.ol-tooltip-logradouro {
+    background: rgba(14, 61, 131, 0.85);
+    border-radius: 8px;
+    color: white;
+    padding: 6px 10px;
+    opacity: 1;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: bold;
+    border: 1px solid rgba(9, 19, 156, 0.2);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}

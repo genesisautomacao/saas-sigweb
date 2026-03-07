@@ -87,8 +87,7 @@ trait HasEdificacaoActions
             ->hiddenLabel()
             ->modalHeading(fn () => 'Edificação #' . $this->edificacaoAtivaId)
             ->modalWidth('xl')
-            ->modalSubmitActionLabel('Salvar Dados')
-            ->modalFooterActionsAlignment(Alignment::Center)
+            ->modalSubmitActionLabel('Salvar Alterações')
             ->fillForm(function (): array {
                 $edif = Edificacao::find($this->edificacaoAtivaId);
                 return [

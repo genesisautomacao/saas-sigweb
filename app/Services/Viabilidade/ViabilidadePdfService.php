@@ -16,22 +16,24 @@ class ViabilidadePdfService
     public function generatePdf(array $dadosAnalise, ?string $mapImageBase64 = null)
     {
         // 🛑 MÁGICA: Pegando o Tenant ativo do jeito certo no Filament
-        $tenant = Filament::getTenant(); 
-        
+        $tenant = Filament::getTenant();
+
         $dataHora = now()->format('d/m/Y H:i:s');
         $protocolo = 'VIA-' . date('Ymd') . '-' . Str::upper(Str::random(4));
 
-        $fileName = 'viabilidade-' . $dadosAnalise['numero_lote'] . '.pdf';
+        // Remove as barras do número do lote (Ex: "S/N" vira "S-N") para o Windows não dar erro
+        $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote']);
+        $fileName = 'viabilidade-' . $numeroLoteSeguro . '.pdf';
 
         // Prepara a imagem do mapa (se vier do JS)
         $mapImage = null;
         if ($mapImageBase64) {
-            $mapImage = $mapImageBase64; 
+            $mapImage = $mapImageBase64;
         }
 
         // 🛑 MÁGICA: Caminho da view atualizado para resources/views/pdf/
         $pdf = Pdf::loadView(
-            'pdf.viabilidade-template', 
+            'pdf.viabilidade-template',
             compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImage')
         );
 

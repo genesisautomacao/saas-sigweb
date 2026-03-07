@@ -23,6 +23,9 @@
         {{-- TOOLTIP DE MEDIÇÃO (Escondido) --}}
         <div id="measure-tooltip" class="ol-tooltip" style="display: none;"></div>
 
+        {{-- NOVO: TOOLTIP DE HOVER PARA LOGRADOUROS --}}
+        <div id="feature-tooltip" class="fixed bg-gray text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[9999] ol-tooltip-logradouro" style="display: none; transform: translate(-50%, -150%);"></div>
+
         {{-- BARRA SUPERIOR E CONTROLES --}}
         <div class="absolute top-4 left-0 w-full px-4 z-40 pointer-events-none flex items-start justify-between">
 
@@ -46,7 +49,7 @@
                     <x-heroicon-o-magnifying-glass class="w-5 h-5 text-gray-400 mr-2" />
                     <input type="text" x-model="termo" @input.debounce.500ms="buscar(); posicionarDropdown()"
                         @keydown.enter="buscar()" x-ref="inputField"
-                        placeholder="Buscar lote ou Cód Tributário exato..."
+                        placeholder="Buscar lote, Cód Tributário ou Logradouro..."
                         class="w-full bg-transparent border-none focus:ring-0 text-sm text-gray-700 dark:text-gray-200 outline-none">
 
                     {{-- Spinner de Carregando --}}
@@ -58,24 +61,28 @@
                     <div x-show="resultados.length > 0" style="display: none;" @click.outside="resultados = []"
                         x-ref="dropdown" :style="dropdownStyle"
                         class="fixed bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-[9999]">
+
                         <ul class="overflow-y-auto custom-scrollbar" :style="`max-height: ${dropdownMaxHeight}px`">
-                            <template x-for="res in resultados" :key="res.id + '_' + res.codigo">
+                            <template x-for="(res, index) in resultados" :key="index">
                                 <li @click="voarPara(res)"
                                     class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer transition-colors flex items-start gap-3">
-                                    <x-heroicon-o-map-pin class="w-5 h-5 text-primary-500 flex-shrink-0 mt-0.5" />
+                                    
+                                    {{-- Ícone muda dependendo se é lote ou rua --}}
+                                    <template x-if="res.tipo === 'lote'">
+                                        <x-heroicon-o-map-pin class="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                                    </template>
+                                    <template x-if="res.tipo === 'logradouro'">
+                                        <x-heroicon-o-minus class="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
+                                    </template>
+
                                     <div class="flex flex-col">
-                                        <span class="text-sm font-bold text-gray-800 dark:text-gray-100">
-                                            Lote: <span x-text="res.lote"></span>
-                                            <span class="text-gray-400 font-normal mx-1">|</span>
-                                            Quadra: <span x-text="res.quadra"></span>
-                                        </span>
-                                        <span class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                            Cód Tributário: <span class="font-semibold" x-text="res.codigo"></span>
-                                        </span>
+                                        <span class="text-sm font-bold text-gray-800 dark:text-gray-100" x-text="res.titulo"></span>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium" x-text="res.subtitulo"></span>
                                     </div>
                                 </li>
                             </template>
                         </ul>
+
                     </div>
                 </div>
 
@@ -103,11 +110,20 @@
                                     class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
                                     <x-heroicon-o-home class="w-4 h-4" /> Edificação (Polígono)
                                 </button>
+                                {{-- NOVO BOTÃO DE LOGRADOURO --}}
+                                <button onclick="enableDrawing('logradouro')" @click="openDraw = false" class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <x-heroicon-o-minus class="w-4 h-4" /> Logradouro (Linha)
+                                </button>
                             </div>
                         </div>
                     </div>
 
                     <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
+                    <button id="btn-pan" title="Mover Mapa (Cancelar Ferramentas)"
+                        class="p-2 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-xl transition-colors focus:outline-none">
+                        <x-heroicon-o-hand-raised class="w-5 h-5" />
+                    </button>
 
                     <button id="btn-measure-line" title="Medir Distância"
                         class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors focus:outline-none">
@@ -430,10 +446,10 @@
 
     <script>
         // Recebe o ID e a string crua (Ex: "47.51-2,47.52-1")
-        window.capturarMapaEImprimir = function(loteId, cnaesString) {
-            
+        window.capturarMapaEImprimir = function (loteId, cnaesString) {
+
             const btn = document.getElementById('btn-imprimir-viab');
-            if(btn) btn.innerHTML = '<span class="animate-pulse">Gerando PDF...</span>';
+            if (btn) btn.innerHTML = '<span class="animate-pulse">Gerando PDF...</span>';
 
             // 🛑 O TRUQUE 2: O Javascript pega a string e corta em um Array perfeito!
             const cnaesArray = cnaesString ? cnaesString.split(',') : [];
@@ -442,8 +458,8 @@
                 try {
                     const mapCanvas = document.createElement('canvas');
                     const canvases = document.querySelectorAll('.ol-layer canvas');
-                    
-                    if(canvases.length > 0) {
+
+                    if (canvases.length > 0) {
                         mapCanvas.width = canvases[0].width;
                         mapCanvas.height = canvases[0].height;
                         const mapContext = mapCanvas.getContext('2d');
@@ -453,9 +469,9 @@
                                 const opacity = canvas.parentNode.style.opacity;
                                 mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
                                 const transform = canvas.style.transform;
-                                if(transform) {
+                                if (transform) {
                                     const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
-                                    if(matrix) {
+                                    if (matrix) {
                                         const m = matrix[1].split(',').map(Number);
                                         mapContext.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
                                     }
@@ -465,7 +481,7 @@
                         });
 
                         const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
-                        
+
                         // Manda para o Livewire gerando o PDF com o Array correto!
                         Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirViabilidade(dataURL, cnaesArray, loteId);
                     } else {
@@ -475,9 +491,9 @@
                     console.error("Erro na captura do mapa:", error);
                     Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirViabilidade(null, cnaesArray, loteId);
                 } finally {
-                    if(btn) btn.innerHTML = 'Imprimir Relatório'; 
+                    if (btn) btn.innerHTML = 'Imprimir Relatório';
                 }
-            }, 500); 
+            }, 500);
         };
     </script>
 

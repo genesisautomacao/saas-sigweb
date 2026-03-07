@@ -10,10 +10,10 @@ document.addEventListener('DOMContentLoaded', function () {
     let zonasAtivas = [];
 
     // 2. CONFIGURA A CÂMERA DO MAPA
-    const view = new ol.View({ 
-        center: ol.proj.fromLonLat([config.mapLon, config.mapLat]), 
-        zoom: config.mapZoom, 
-        maxZoom: 22 
+    const view = new ol.View({
+        center: ol.proj.fromLonLat([config.mapLon, config.mapLat]),
+        zoom: config.mapZoom,
+        maxZoom: 22
     });
 
     // 3. MAPAS BASE (Raster)
@@ -62,9 +62,55 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
         },
-        'bairros': { z: 30, minZoom: 0, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#3b82f6', width: 2 }), fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.1)' }) }) },
-        'quadras': { z: 40, minZoom: 13, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#f97316', width: 1 }), fill: new ol.style.Fill({ color: 'rgba(249, 115, 22, 0.2)' }) }) },
-        'logradouros': { z: 50, minZoom: 14, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#475569', width: 3 }) }) },
+        
+        'bairros': {
+            z: 30,
+            minZoom: 0,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#3b82f6', width: 2 }),
+                    fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.1)' })
+                });
+                
+                // Aparece num zoom mais aberto (14) para não sumir a cidade inteira
+                if (zoom >= 14) {
+                    style.setText(new ol.style.Text({
+                        text: feature.get('name') ? feature.get('name').toString() : '',
+                        font: 'bold 16px Arial, sans-serif',
+                        fill: new ol.style.Fill({ color: '#1e3a8a' }), // Azul muito escuro
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 4 }),
+                        overflow: true
+                    }));
+                }
+                return style;
+            }
+        },
+        'quadras': {
+            z: 40,
+            minZoom: 13,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#f97316', width: 1 }),
+                    fill: new ol.style.Fill({ color: 'rgba(249, 115, 22, 0.2)' })
+                });
+                
+                // Aparece num zoom intermediário (16)
+                if (zoom >= 16) {
+                    style.setText(new ol.style.Text({
+                        text: feature.get('name') ? 'Q ' + feature.get('name').toString() : '',
+                        font: 'bold 14px Arial, sans-serif',
+                        fill: new ol.style.Fill({ color: '#9a3412' }), // Laranja escuro
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                        overflow: true
+                    }));
+                }
+                return style;
+            }
+        },
+
+        'logradouros': { z: 50, minZoom: 14, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#3675ce', width: 3 }) }) },
         'lotes': {
             z: 60,
             minZoom: 15.5,
@@ -140,8 +186,13 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(response => response.json())
             .then(data => {
                 if (data && data.features && data.features.length > 0) {
+                    const parsedFeatures = new ol.format.GeoJSON().readFeatures(data, { featureProjection: 'EPSG:3857' });
+
+                    // 🛑 CARIMBO OBRIGATÓRIO: Garante que o feature saiba de qual camada ele é, para o clique funcionar!
+                    parsedFeatures.forEach(f => f.set('layer', layerName));
+
                     const vectorSource = new ol.source.Vector({
-                        features: new ol.format.GeoJSON().readFeatures(data, { featureProjection: 'EPSG:3857' })
+                        features: parsedFeatures
                     });
                     const vectorLayer = new ol.layer.Vector({
                         source: vectorSource,
@@ -244,10 +295,91 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    const featureTooltip = document.getElementById('feature-tooltip');
+    let hoveredFeature = null;
+
     map.on('pointermove', function (e) {
+        // 1. Limpa o efeito do último elemento que passamos o mouse
+        if (hoveredFeature) {
+            hoveredFeature.setStyle(undefined); // Devolve a cor original
+            hoveredFeature = null;
+        }
+
         const feature = map.forEachFeatureAtPixel(e.pixel, feature => feature);
-        const isClickable = feature && (feature.get('layer') === 'lotes' || feature.get('layer') === 'edificacao_ativa');
-        map.getTargetElement().style.cursor = isClickable ? 'pointer' : '';
+        
+        // 2. Define quais camadas ganham a "mãozinha" (pointer) ao passar o mouse
+        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'quadras'];
+        const isHoverable = feature && hoverableLayers.includes(feature.get('layer'));
+        map.getTargetElement().style.cursor = isHoverable ? 'pointer' : '';
+
+        // 3. Aplica o efeito de Hover
+        if (feature) {
+            const layer = feature.get('layer');
+            const name = feature.get('name') ? feature.get('name').toString() : '';
+            const zoom = view.getZoom(); // Pega o zoom atual para respeitar as regras de texto
+
+            if (hoverableLayers.includes(layer)) {
+                hoveredFeature = feature;
+            }
+
+            if (layer === 'logradouros') {
+                feature.setStyle(new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#38bdf8', width: 6 }) 
+                }));
+
+                if (featureTooltip) {
+                    featureTooltip.innerHTML = name || 'Logradouro sem nome';
+                    featureTooltip.style.display = 'block';
+                    featureTooltip.style.left = e.originalEvent.clientX + 'px';
+                    featureTooltip.style.top = e.originalEvent.clientY + 'px';
+                }
+            } else {
+                // Esconde o tooltip de rua se estivermos em outra coisa
+                if (featureTooltip) featureTooltip.style.display = 'none';
+
+                // EFEITO DE "ACENDER" (Mais opacidade no fundo e Texto Branco)
+                if (layer === 'bairros') {
+                    feature.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#3b82f6', width: 3 }),
+                        fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.4)' }), // Fundo mais forte
+                        text: zoom >= 14 ? new ol.style.Text({
+                            text: name,
+                            font: 'bold 16px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: '#ffffff' }), // Texto Branco
+                            stroke: new ol.style.Stroke({ color: '#1e3a8a', width: 4 }), // Borda azul escura
+                            overflow: true
+                        }) : null
+                    }));
+                } else if (layer === 'quadras') {
+                    feature.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#f97316', width: 2 }),
+                        fill: new ol.style.Fill({ color: 'rgba(249, 115, 22, 0.5)' }), // Fundo mais forte
+                        text: zoom >= 16 ? new ol.style.Text({
+                            text: name ? 'Q ' + name : '',
+                            font: 'bold 14px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: '#ffffff' }), // Texto Branco
+                            stroke: new ol.style.Stroke({ color: '#9a3412', width: 3 }),
+                            overflow: true
+                        }) : null
+                    }));
+                } else if (layer === 'lotes') {
+                    feature.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#0ea5e9', width: 2 }),
+                        fill: new ol.style.Fill({ color: 'rgba(14, 165, 233, 0.4)' }), // Fundo mais forte
+                        text: zoom >= 18 ? new ol.style.Text({
+                            text: name,
+                            font: 'bold 12px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: '#ffffff' }), // Texto Branco
+                            stroke: new ol.style.Stroke({ color: '#0369a1', width: 3 }),
+                            overflow: true
+                        }) : null
+                    }));
+                }
+            }
+        } else {
+            // Limpa tudo se clicar fora
+            if (featureTooltip) featureTooltip.style.display = 'none';
+        }
     });
 
     map.on('singleclick', function (evt) {
@@ -258,6 +390,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const clickedEdif = features.find(f => f.get('layer') === 'edificacao_ativa');
             if (clickedEdif) {
                 Livewire.dispatch('abrirOpcoesEdificacao', { id: clickedEdif.get('id') });
+                return;
+            }
+
+            const clickedLogradouro = features.find(f => f.get('layer') === 'logradouros');
+            if (clickedLogradouro) {
+                Livewire.dispatch('abrirOpcoesLogradouro', { id: clickedLogradouro.get('id') });
                 return;
             }
 
@@ -302,14 +440,27 @@ document.addEventListener('DOMContentLoaded', function () {
     const formatGeoJSON = new ol.format.GeoJSON({ featureProjection: 'EPSG:3857', dataProjection: 'EPSG:4326' });
 
     window.enableDrawing = function (entityType) {
+
+        // 1. Limpa qualquer régua ou mãozinha ativa
+        if (typeof window.resetToPan === 'function') window.resetToPan();
+
+        activeTool = 'draw';
+        currentDrawEntity = entityType;
+
+        // 2. Apaga a cor azul da mãozinha visualmente
+        const btnPan = document.getElementById('btn-pan');
+        if (btnPan) {
+            btnPan.classList.remove('bg-primary-100', 'text-primary-600', 'dark:bg-primary-900/30', 'dark:text-primary-400');
+            btnPan.classList.add('hover:bg-gray-100', 'text-gray-600', 'dark:hover:bg-gray-700', 'dark:text-gray-300');
+        }
+
+        // 3. Limpa interações antigas
         if (currentMeasureInteraction) map.removeInteraction(currentMeasureInteraction);
         if (currentDrawInteraction) map.removeInteraction(currentDrawInteraction);
         if (currentSnapInteraction) map.removeInteraction(currentSnapInteraction);
 
         drawSource.clear();
         measureTooltipElement.style.display = 'none';
-        activeTool = 'draw';
-        currentDrawEntity = entityType;
 
         let geometryType = 'Polygon';
         if (['arvore', 'poste'].includes(entityType)) geometryType = 'Point';
@@ -333,13 +484,19 @@ document.addEventListener('DOMContentLoaded', function () {
             map.getTargetElement().style.cursor = '';
             map.removeInteraction(currentDrawInteraction);
             if (currentSnapInteraction) map.removeInteraction(currentSnapInteraction);
+
+            // Devolve a cor azul pra mãozinha ao terminar
             activeTool = 'pan';
+            if (btnPan) {
+                btnPan.classList.add('bg-primary-100', 'text-primary-600', 'dark:bg-primary-900/30', 'dark:text-primary-400');
+                btnPan.classList.remove('hover:bg-gray-100', 'text-gray-600', 'dark:hover:bg-gray-700', 'dark:text-gray-300');
+            }
+
             Livewire.dispatch('abrirModalCriacao', { entityType: currentDrawEntity, geoJson: geoJson.geometry });
         });
 
         map.addInteraction(currentDrawInteraction);
 
-        // ÍMÃ (Snap)
         if (['lote', 'edificacao'].includes(entityType) && loadedLayers['lotes']) {
             currentSnapInteraction = new ol.interaction.Snap({
                 source: loadedLayers['lotes'].getSource(),
@@ -425,6 +582,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    window.addEventListener('iniciar-edicao-geometria-logradouro', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['logradouros']) return;
+        const source = loadedLayers['logradouros'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#38bdf8' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
+            });
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
     window.salvarEdicaoGeometria = function () {
         if (featureEmEdicao) {
             const geoJson = formatGeoJSON.writeGeometryObject(featureEmEdicao.getGeometry());
@@ -436,6 +612,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (layerName === 'lotes') Livewire.dispatch('salvarNovaGeometria', { id: id, geoJson: geoJson });
             else if (layerName === 'edificacao_ativa') Livewire.dispatch('salvarNovaGeometriaEdificacao', { id: id, geoJson: geoJson });
+            // Adicionado o despacho para salvar o Logradouro:
+            else if (layerName === 'logradouros') Livewire.dispatch('salvarNovaGeometriaLogradouro', { id: id, geoJson: geoJson });
+
             encerrarModoEdicao();
         }
     };
@@ -499,19 +678,48 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('esconder-edificacoes-lote', () => edifAtivasSource.clear());
 
-    // 15. FERRAMENTAS DE MEDIÇÃO (RÉGUA)
-    function enableMeasurement(type, buttonElement) {
+    // 15. FERRAMENTAS DE MEDIÇÃO E NAVEGAÇÃO
+    const btnPan = document.getElementById('btn-pan');
+    const btnMeasureLine = document.getElementById('btn-measure-line');
+    const btnMeasureArea = document.getElementById('btn-measure-area');
+
+    window.resetToPan = function () {
         if (currentMeasureInteraction) map.removeInteraction(currentMeasureInteraction);
+        if (currentDrawInteraction) map.removeInteraction(currentDrawInteraction);
+        if (currentSnapInteraction) map.removeInteraction(currentSnapInteraction);
+
         drawSource.clear();
         measureTooltipElement.style.display = 'none';
+        activeTool = 'pan';
+        map.getTargetElement().style.cursor = ''; // Volta para a mãozinha
 
-        document.getElementById('btn-measure-line').classList.remove('bg-primary-100', 'text-primary-600');
-        document.getElementById('btn-measure-area').classList.remove('bg-primary-100', 'text-primary-600');
+        if (btnPan) {
+            btnPan.classList.add('bg-primary-100', 'text-primary-600', 'dark:bg-primary-900/30', 'dark:text-primary-400');
+            btnPan.classList.remove('hover:bg-gray-100', 'text-gray-600', 'dark:hover:bg-gray-700', 'dark:text-gray-300');
+        }
+        if (btnMeasureLine) {
+            btnMeasureLine.classList.remove('bg-primary-100', 'text-primary-600', 'dark:bg-primary-900/30', 'dark:text-primary-400');
+            btnMeasureLine.classList.add('hover:bg-gray-100', 'text-gray-600', 'dark:hover:bg-gray-700', 'dark:text-gray-300');
+        }
+        if (btnMeasureArea) {
+            btnMeasureArea.classList.remove('bg-primary-100', 'text-primary-600', 'dark:bg-primary-900/30', 'dark:text-primary-400');
+            btnMeasureArea.classList.add('hover:bg-gray-100', 'text-gray-600', 'dark:hover:bg-gray-700', 'dark:text-gray-300');
+        }
+    };
 
-        if (activeTool === type) { activeTool = 'pan'; map.getTargetElement().style.cursor = ''; return; }
+    if (btnPan) btnPan.addEventListener('click', window.resetToPan);
 
+    function enableMeasurement(type, buttonElement) {
+        window.resetToPan();
         activeTool = type;
-        buttonElement.classList.add('bg-primary-100', 'text-primary-600');
+
+        if (btnPan) {
+            btnPan.classList.remove('bg-primary-100', 'text-primary-600', 'dark:bg-primary-900/30', 'dark:text-primary-400');
+            btnPan.classList.add('hover:bg-gray-100', 'text-gray-600', 'dark:hover:bg-gray-700', 'dark:text-gray-300');
+        }
+        buttonElement.classList.add('bg-primary-100', 'text-primary-600', 'dark:bg-primary-900/30', 'dark:text-primary-400');
+        buttonElement.classList.remove('hover:bg-gray-100', 'text-gray-600', 'dark:hover:bg-gray-700', 'dark:text-gray-300');
+
         map.getTargetElement().style.cursor = 'crosshair';
 
         currentMeasureInteraction = new ol.interaction.Draw({
@@ -527,18 +735,26 @@ document.addEventListener('DOMContentLoaded', function () {
             measureTooltipElement.innerHTML = output;
             const position = type === 'line' ? geom.getLastCoordinate() : geom.getInteriorPoint().getCoordinates();
             measureOverlay.setPosition(position);
-
-            activeTool = 'pan';
-            buttonElement.classList.remove('bg-primary-100', 'text-primary-600');
-            map.getTargetElement().style.cursor = '';
             map.removeInteraction(currentMeasureInteraction);
         });
         map.addInteraction(currentMeasureInteraction);
     }
 
-    const btnMeasureLine = document.getElementById('btn-measure-line');
-    const btnMeasureArea = document.getElementById('btn-measure-area');
     if (btnMeasureLine) btnMeasureLine.addEventListener('click', function () { enableMeasurement('line', this); });
     if (btnMeasureArea) btnMeasureArea.addEventListener('click', function () { enableMeasurement('area', this); });
 
-});
+    // 16. ATUALIZA A CAMADA DE LOGRADOUROS APÓS CRIAR/EDITAR
+    window.addEventListener('atualizar-camada-logradouros', () => {
+        if (loadedLayers['logradouros']) {
+            map.removeLayer(loadedLayers['logradouros']);
+            delete loadedLayers['logradouros'];
+
+            // Finge um clique no checkbox para baixar os dados atualizados do banco
+            const checkbox = document.querySelector('input[data-layer="logradouros"]');
+            if (checkbox && checkbox.checked) {
+                fetchAndDrawLayer('logradouros', checkbox);
+            }
+        }
+    });
+
+}); // <-- Fim do DOMContentLoaded

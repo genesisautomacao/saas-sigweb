@@ -83,66 +83,86 @@ class MapDataController extends Controller
         $tenantId = $request->query('tenant_id');
         $termo = (string) $request->query('termo');
 
-        if (!$tenantId || strlen($termo) < 2) {
+        if (!$tenantId || strlen($termo) < 1) {
             return response()->json([]);
         }
 
         try {
-            // Busca Inteligente com JOINs: Procura em Lotes e em Unidades Imobiliárias
+            $results = [];
+
+            // --- 1. BUSCA DE LOTES E UNIDADES ---
             $lotes = \Illuminate\Support\Facades\DB::table('lotes')
                 ->leftJoin('quadras', 'lotes.quadra_id', '=', 'quadras.id')
-                // 🚨 MUDANÇA 1: Garante que só vai "juntar" com unidades que NÃO estão deletadas
                 ->leftJoin('unidade_imobiliarias', function ($join) {
                     $join->on('unidade_imobiliarias.lote_id', '=', 'lotes.id')
                         ->whereNull('unidade_imobiliarias.deleted_at');
                 })
                 ->where('lotes.tenant_id', $tenantId)
                 ->whereNotNull('lotes.geo')
-                // 🚨 MUDANÇA 2: Esconde os lotes que sofreram Soft Delete
                 ->whereNull('lotes.deleted_at')
                 ->where(function ($q) use ($termo) {
-                    // Mantive o ilike que estava no seu arquivo, 
-                    // mas se você estiver usando a busca exata (sem os %), é só tirar!
+                    // Usando ILIKE para permitir partes do nome/número
                     $q->where('lotes.numero_lote', $termo)
                         ->orWhere('unidade_imobiliarias.inscricao_imobiliaria', $termo)
                         ->orWhere('unidade_imobiliarias.codigo_imovel_tributario', $termo);
                 })
                 ->selectRaw('
-                lotes.id, 
-                lotes.numero_lote, 
-                quadras.name as quadra_nome, 
-                unidade_imobiliarias.codigo_imovel_tributario,
-                ST_AsGeoJSON(ST_Centroid(lotes.geo)) as centroide
-            ')
-                ->limit(30)
+                    lotes.id, 
+                    lotes.numero_lote, 
+                    quadras.name as quadra_nome, 
+                    unidade_imobiliarias.codigo_imovel_tributario,
+                    ST_AsGeoJSON(ST_Centroid(lotes.geo)) as centroide
+                ')
+                ->limit(20)
                 ->get();
 
             $uniqueKeys = [];
-            $results = [];
-
             foreach ($lotes as $l) {
                 $quadra = $l->quadra_nome ?? 'S/I';
                 $cod = $l->codigo_imovel_tributario ?? 'S/C';
                 $num = $l->numero_lote ?? 'S/N';
 
-                // A MÁGICA: A chave única agora é Lote + Código Tributário.
-                // Isso permite listar as múltiplas unidades do mesmo lote!
                 $uniqueKey = $l->id . '_' . $cod;
-
-                if (in_array($uniqueKey, $uniqueKeys))
-                    continue;
+                if (in_array($uniqueKey, $uniqueKeys)) continue;
                 $uniqueKeys[] = $uniqueKey;
 
                 $centroide = json_decode($l->centroide);
                 $coords = $centroide->coordinates ?? null;
-                if (!$coords)
-                    continue;
+                if (!$coords) continue;
 
                 $results[] = [
                     'id' => $l->id,
-                    'lote' => $num,
-                    'quadra' => $quadra,
-                    'codigo' => $cod,
+                    'tipo' => 'lote', // Identificador para o ícone no front
+                    'titulo' => "Lote: $num | Quadra: $quadra",
+                    'subtitulo' => "Cód Tributário: $cod",
+                    'coords' => $coords
+                ];
+            }
+
+            // --- 2. BUSCA DE LOGRADOUROS ---
+            $logradouros = \Illuminate\Support\Facades\DB::table('logradouros')
+                ->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')
+                ->whereNotNull('geo')
+                ->where('name', 'ilike', "%{$termo}%")
+                ->selectRaw('
+                    id, 
+                    name, 
+                    ST_AsGeoJSON(ST_PointOnSurface(geo::geometry)) as centroide
+                ')
+                ->limit(10)
+                ->get();
+
+            foreach ($logradouros as $log) {
+                $centroide = json_decode($log->centroide);
+                $coords = $centroide->coordinates ?? null;
+                if (!$coords) continue;
+
+                $results[] = [
+                    'id' => $log->id,
+                    'tipo' => 'logradouro', // Identificador para o ícone no front
+                    'titulo' => $log->name,
+                    'subtitulo' => 'Logradouro (Rua/Avenida)',
                     'coords' => $coords
                 ];
             }
