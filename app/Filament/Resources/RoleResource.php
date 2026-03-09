@@ -157,6 +157,34 @@ class RoleResource extends Resource
                                     ->bulkToggleable(),
                             ])->columns(1)->columnSpan(1),
 
+                        // CAIXA 9: ESTOQUE
+                        Forms\Components\Fieldset::make('Módulo: Estoque')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_estoque')
+                                    ->label('Gestão de Estoque')
+                                    ->options([
+                                        'view_locais_estoque' => 'Vis. Locais',
+                                        'create_locais_estoque' => 'Criar Locais',
+                                        'edit_locais_estoque' => 'Editar Locais',
+                                        'delete_locais_estoque' => 'Excluir Locais',
+                                        'view_marcas' => 'Vis. Marcas',
+                                        'create_marcas' => 'Criar Marcas',
+                                        'edit_marcas' => 'Editar Marcas',
+                                        'delete_marcas' => 'Excluir Marcas',
+                                        'view_produtos' => 'Vis. Produtos',
+                                        'create_produtos' => 'Criar Produtos',
+                                        'edit_produtos' => 'Editar Produtos',
+                                        'delete_produtos' => 'Excluir Produtos',
+                                        'view_estoques' => 'Visualizar Saldos',
+                                        'view_movimentacoes' => 'Vis. Movimentações',
+                                        'create_movimentacoes' => 'Criar Movimentações',
+                                        'edit_movimentacoes' => 'Editar Movimentações',
+                                        'delete_movimentacoes' => 'Excluir Movimentações',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(2),
+                            ])->columns(1)->columnSpanFull(), // Coloquei FullSpan pois essa lista é grandinha
+
                     ])->columns(4), // 🛑 Mudou de 3 para 4 colunas para as 8 caixas ficarem perfeitas
 
             ]);

@@ -74,23 +74,13 @@ class Tenant extends Model implements HasAvatar
 
         // Filtra as permissões com base nas suas regras de negócio
         $permissionsToAssign = $allPermissions->filter(function ($permission) use ($activeModules) {
-            
-            // REGRA 1: O Manager NUNCA tem a restrição de ver apenas os próprios leads
-            if ($permission === 'view_my_leads' || $permission === 'ver-meus-leads') {
-                return false;
-            }
 
-            // REGRA 2: Só libera as permissões de Leads se a Tenant tiver o módulo 'leads'
-            if (str_ends_with($permission, '_leads') && !in_array('leads', $activeModules)) {
-                return false;
-            }
-
-            // REGRA 3: Preparando o terreno para os futuros módulos (Frotas e Financeiro)
-            if (str_ends_with($permission, '_frotas') && !in_array('frotas', $activeModules)) {
-                return false;
-            }
-            if (str_ends_with($permission, '_financeiro') && !in_array('financeiro', $activeModules)) {
-                return false;
+            // REGRA 1: Módulo de Estoque e Almoxarifado
+            $estoqueEntities = ['locais_estoque', 'marcas', 'produtos', 'estoques', 'movimentacoes'];
+            foreach ($estoqueEntities as $entity) {
+                if (str_ends_with($permission, '_' . $entity) && !in_array('estoque', $activeModules)) {
+                    return false;
+                }
             }
 
             // Se for permissão base do sistema (ex: view_users, create_roles), ele deixa passar direto
@@ -172,6 +162,31 @@ class Tenant extends Model implements HasAvatar
     public function arvores()
     {
         return $this->hasMany(Arvore::class);
+    }
+
+    public function localEstoques(): HasMany
+    {
+        return $this->hasMany(LocalEstoque::class);
+    }
+
+    public function marcas(): HasMany
+    {
+        return $this->hasMany(Marca::class);
+    }
+
+    public function produtos(): HasMany
+    {
+        return $this->hasMany(Produto::class);
+    }
+
+    public function estoques(): HasMany
+    {
+        return $this->hasMany(Estoque::class);
+    }
+
+    public function estoqueMovimentacaos(): HasMany
+    {
+        return $this->hasMany(EstoqueMovimentacao::class);
     }
 
 }

@@ -29,12 +29,14 @@ class EditRole extends EditRecord
         $data['permissions_contatos'] = array_values(array_intersect($permissions, ['view_contatos', 'create_contatos', 'edit_contatos', 'delete_contatos']));
         $data['permissions_enderecos'] = array_values(array_intersect($permissions, ['view_enderecos', 'create_enderecos', 'edit_enderecos', 'delete_enderecos']));
         $data['permissions_documentos'] = array_values(array_intersect($permissions, ['view_documentos', 'create_documentos', 'edit_documentos', 'delete_documentos']));
-        
+                
         // 🛑 BUG CORRIGIDO: A Iluminação não estava sendo carregada visualmente!
         $data['permissions_iluminacao'] = array_values(array_intersect($permissions, ['view_tipos_poste', 'create_tipos_poste', 'edit_tipos_poste', 'delete_tipos_poste', 'view_postes', 'create_postes', 'edit_postes', 'delete_postes']));
         
         // 🛑 NOVA CAIXA: Arborização
         $data['permissions_arborizacao'] = array_values(array_intersect($permissions, ['view_arvores', 'create_arvores', 'edit_arvores', 'delete_arvores']));
+
+        $data['permissions_estoque'] = array_values(array_intersect($permissions, ['view_locais_estoque', 'create_locais_estoque', 'edit_locais_estoque', 'delete_locais_estoque', 'view_marcas', 'create_marcas', 'edit_marcas', 'delete_marcas', 'view_produtos', 'create_produtos', 'edit_produtos', 'delete_produtos', 'view_estoques', 'view_movimentacoes', 'create_movimentacoes', 'edit_movimentacoes', 'delete_movimentacoes']));
 
         return $data;
     }
@@ -48,7 +50,8 @@ class EditRole extends EditRecord
         $enderecosData = $data['permissions_enderecos'] ?? [];
         $documentosData = $data['permissions_documentos'] ?? [];
         $iluminacaoData = $data['permissions_iluminacao'] ?? [];
-        $arborizacaoData = $data['permissions_arborizacao'] ?? []; // 🛑 NOVO
+        $arborizacaoData = $data['permissions_arborizacao'] ?? []; 
+        $estoqueData = $data['permissions_estoque'] ?? [];
 
         $users = is_array($usersData) ? $usersData : ($usersData === true ? ['view_users', 'create_users', 'edit_users', 'delete_users'] : []);
         $roles = is_array($rolesData) ? $rolesData : ($rolesData === true ? ['view_roles', 'create_roles', 'edit_roles', 'delete_roles'] : []);
@@ -57,7 +60,9 @@ class EditRole extends EditRecord
         $enderecos = is_array($enderecosData) ? $enderecosData : ($enderecosData === true ? ['view_enderecos', 'create_enderecos', 'edit_enderecos', 'delete_enderecos'] : []);
         $documentos = is_array($documentosData) ? $documentosData : ($documentosData === true ? ['view_documentos', 'create_documentos', 'edit_documentos', 'delete_documentos'] : []);
         $iluminacao = is_array($iluminacaoData) ? $iluminacaoData : ($iluminacaoData === true ? ['view_tipos_poste', 'create_tipos_poste', 'edit_tipos_poste', 'delete_tipos_poste', 'view_postes', 'create_postes', 'edit_postes', 'delete_postes'] : []);
-        $arborizacao = is_array($arborizacaoData) ? $arborizacaoData : ($arborizacaoData === true ? ['view_arvores', 'create_arvores', 'edit_arvores', 'delete_arvores'] : []); // 🛑 NOVO
+        $arborizacao = is_array($arborizacaoData) ? $arborizacaoData : ($arborizacaoData === true ? ['view_arvores', 'create_arvores', 'edit_arvores', 'delete_arvores'] : []); 
+        
+        $estoque = is_array($estoqueData) ? $estoqueData : ($estoqueData === true ? ['view_locais_estoque', 'create_locais_estoque', 'edit_locais_estoque', 'delete_locais_estoque', 'view_marcas', 'create_marcas', 'edit_marcas', 'delete_marcas', 'view_produtos', 'create_produtos', 'edit_produtos', 'delete_produtos', 'view_estoques', 'view_movimentacoes', 'create_movimentacoes', 'edit_movimentacoes', 'delete_movimentacoes'] : []);
 
         $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $iluminacao, $arborizacao);
 
@@ -69,7 +74,8 @@ class EditRole extends EditRecord
             $data['permissions_enderecos'],
             $data['permissions_documentos'],
             $data['permissions_iluminacao'],
-            $data['permissions_arborizacao'] // 🛑 NOVO
+            $data['permissions_arborizacao'],
+            $data['permissions_estoque'],
         );
 
         return $data;
