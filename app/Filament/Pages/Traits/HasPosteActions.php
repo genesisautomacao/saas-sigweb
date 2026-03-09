@@ -23,26 +23,21 @@ trait HasPosteActions
             ->modalWidth('2xl')
             ->form($this->getPosteFormSchema())
             ->action(function (array $data) {
-                // 1. Prepara os dados básicos
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['code'] = (string) Str::uuid();
 
-                // 2. Separa os IDs dos logradouros (pois é um relacionamento N:N e não vai direto na tabela postes)
                 $logradourosIds = $data['logradouros'] ?? [];
                 unset($data['logradouros']);
 
-                // 3. Salva o Poste (incluindo o campo 'address' se preenchido)
                 $poste = Poste::create($data);
 
-                // 4. Salva o Relacionamento na tabela pivô (poste_logradouro)
                 if (!empty($logradourosIds)) {
                     $poste->logradouros()->sync($logradourosIds);
                 }
 
                 Notification::make()->title('Poste Criado com Sucesso!')->success()->send();
 
-                // Limpa e atualiza
                 $this->geometriaRascunho = null;
                 $this->dispatch('limpar-rascunho-mapa');
                 $this->dispatch('atualizar-camada-postes');
@@ -50,28 +45,98 @@ trait HasPosteActions
     }
 
     /**
-     * Ação: Opções e Edição Completa do Poste
+     * 🛑 HUB DE AÇÕES (A Nova Modal Centralizadora Menorzinha)
      */
     public function opcoesPosteAction(): Action
     {
         return Action::make('opcoesPoste')
+            ->hiddenLabel()
+            ->modalHeading(function () {
+                $poste = Poste::find($this->posteAtivoId);
+                return 'Ponto de Iluminação #' . ($poste ? $poste->sequential_id : '');
+            })
+            ->modalDescription('Selecione a operação que deseja realizar:')
+            ->modalWidth('sm') // Modal pequena!
+            ->modalSubmitAction(false) // Remove o botão salvar padrão
+            ->modalCancelAction(false) // Remove o botão cancelar padrão
+            ->form([
+                // 1. Botão Ver/Editar Ficha
+                \Filament\Forms\Components\Actions::make([
+                    \Filament\Forms\Components\Actions\Action::make('editar_ficha')
+                        ->label('Ver / Editar Ficha Completa')
+                        ->icon('heroicon-o-document-text')
+                        ->color('primary')
+                        ->action(function () {
+                            // MÁGICA: Substitui a modal atual pela modal de edição!
+                            $this->replaceMountedAction('editarPoste');
+                        }),
+                ])->fullWidth(), // Força a empilhar verticalmente
+
+                // 2. Botão Geometria
+                \Filament\Forms\Components\Actions::make([
+                    \Filament\Forms\Components\Actions\Action::make('geometria')
+                        ->label('Alterar Geometria (Mover)')
+                        ->icon('heroicon-o-map')
+                        ->color('warning')
+                        ->action(function () {
+                            $this->dispatch('iniciar-edicao-geometria-poste', id: $this->posteAtivoId);
+                            $this->dispatch('fechar-modal-filament');
+                        }),
+                ])->fullWidth(),
+
+                // 3. Botão Manutenção (O Novo Módulo)
+                \Filament\Forms\Components\Actions::make([
+                    \Filament\Forms\Components\Actions\Action::make('manutencao')
+                        ->label('Solicitar Manutenção / OS')
+                        ->icon('heroicon-o-wrench-screwdriver')
+                        ->color('success')
+                        ->action(function () {
+                            $this->replaceMountedAction('manutencaoPoste');
+                        }),
+                ])->fullWidth(),
+
+                // 4. Botão Excluir
+                \Filament\Forms\Components\Actions::make([
+                    \Filament\Forms\Components\Actions\Action::make('excluir')
+                        ->label('Excluir Equipamento')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Excluir Poste')
+                        ->modalDescription('Tem certeza que deseja remover este poste do mapa? Esta ação não pode ser desfeita.')
+                        ->modalSubmitActionLabel('Sim, excluir')
+                        ->action(function () {
+                            Poste::where('id', $this->posteAtivoId)->delete();
+                            Notification::make()->title('Poste Excluído!')->success()->send();
+                            $this->dispatch('atualizar-camada-postes');
+                            $this->dispatch('fechar-modal-filament');
+                        }),
+                ])->fullWidth(),
+            ]);
+    }
+
+    /**
+     * 🛑 O FORMULÁRIO REAL (Que foi separado do Hub)
+     */
+    public function editarPosteAction(): Action
+    {
+        return Action::make('editarPoste')
             ->model(\App\Models\Poste::class)
             ->hiddenLabel()
             ->modalHeading(function () {
                 $poste = Poste::find($this->posteAtivoId);
-                return 'Editar Ponto de Iluminação #' . ($poste ? $poste->sequential_id : $this->posteAtivoId);
+                return 'Editar Ficha - Poste #' . ($poste ? $poste->sequential_id : '');
             })
             ->modalWidth('2xl')
             ->modalSubmitActionLabel('Salvar Alterações')
             ->fillForm(function (): array {
-                // Carrega o poste já trazendo os logradouros vinculados
                 $poste = Poste::with('logradouros')->find($this->posteAtivoId);
                 if (!$poste)
                     return [];
 
                 return [
-                    'logradouros' => $poste->logradouros->pluck('id')->toArray(), // Extrai os IDs para o Select Múltiplo
-                    'address' => $poste->address, // Referência
+                    'logradouros' => $poste->logradouros->pluck('id')->toArray(),
+                    'address' => $poste->address,
                     'tipo_poste_id' => $poste->tipo_poste_id,
                     'structural_condition' => $poste->structural_condition,
                     'height' => $poste->height,
@@ -87,49 +152,69 @@ trait HasPosteActions
             ->action(function (array $data) {
                 $poste = Poste::find($this->posteAtivoId);
                 if ($poste) {
-                    // Separa os logradouros antes do update
                     $logradourosIds = $data['logradouros'] ?? [];
                     unset($data['logradouros']);
 
-                    // Atualiza os dados principais (incluindo 'address')
                     $poste->update($data);
-
-                    // Sincroniza a tabela pivô
                     $poste->logradouros()->sync($logradourosIds);
 
                     Notification::make()->title('Poste Atualizado!')->success()->send();
                     $this->dispatch('atualizar-camada-postes');
                 }
-            })
-            ->extraModalFooterActions([
-                Action::make('editar_geometria')
-                    ->label('Geometria')
-                    ->color('warning')
-                    ->icon('heroicon-o-map')
-                    ->action(function () {
-                        $this->dispatch('iniciar-edicao-geometria-poste', id: $this->posteAtivoId);
-                        $this->dispatch('fechar-modal-filament');
-                    }),
-
-                Action::make('excluir_poste')
-                    ->label('Excluir')
-                    ->color('danger')
-                    ->icon('heroicon-o-trash')
-                    ->requiresConfirmation()
-                    ->modalHeading('Excluir Poste')
-                    ->modalDescription('Tem certeza que deseja remover este poste do mapa? Esta ação não pode ser desfeita.')
-                    ->modalSubmitActionLabel('Sim, excluir')
-                    ->action(function () {
-                        Poste::where('id', $this->posteAtivoId)->delete();
-                        Notification::make()->title('Poste Excluído!')->success()->send();
-                        $this->dispatch('atualizar-camada-postes');
-                        $this->dispatch('fechar-modal-filament');
-                    }),
-            ]);
+            });
+        // 🛑 Agora a edição só tem "Salvar" e "Cancelar" padrão do Filament, super limpo!
     }
 
     /**
-     * Helper: Centraliza os campos do formulário
+     * 🛑 O SIMULADOR DO MÓDULO DE MANUTENÇÃO (Apenas para teste visual)
+     */
+    public function manutencaoPosteAction(): Action
+    {
+        return Action::make('manutencaoPoste')
+            ->model(\App\Models\Poste::class)
+            ->hiddenLabel()
+            ->modalHeading('Abertura de Chamado - Ordem de Serviço')
+            ->modalDescription('Informe o problema reportado para este ponto de luz.')
+            ->modalWidth('md')
+            ->modalSubmitActionLabel('Abrir Chamado')
+            ->form([
+                \Filament\Forms\Components\Select::make('defeito')
+                    ->label('Tipo de Ocorrência')
+                    ->options([
+                        'apagada' => 'Lâmpada Apagada (À Noite)',
+                        'acesa' => 'Lâmpada Acesa (De Dia)',
+                        'oscilando' => 'Lâmpada Oscilando/Piscando',
+                        'quebrada' => 'Luminária Quebrada',
+                        'abalroamento' => 'Poste Atingido por Veículo',
+                    ])
+                    ->required(),
+
+                \Filament\Forms\Components\Select::make('prioridade')
+                    ->label('Nível de Prioridade')
+                    ->options([
+                        'baixa' => '🟢 Baixa (Manutenção de Rotina)',
+                        'media' => '🟡 Média (Normal)',
+                        'alta' => '🔴 Alta (Emergência)',
+                    ])
+                    ->default('media')
+                    ->required(),
+
+                \Filament\Forms\Components\Textarea::make('observacao')
+                    ->label('Descrição do Reclamante')
+                    ->rows(3),
+            ])
+            ->action(function (array $data) {
+                // No futuro, isso vai salvar na tabela de OS do Módulo de Manutenção
+                Notification::make()
+                    ->title('Chamado Aberto com Sucesso!')
+                    ->body('A equipe técnica foi notificada.')
+                    ->success()
+                    ->send();
+            });
+    }
+
+    /**
+     * Helper: Centraliza os campos do formulário (Sem alterações aqui)
      */
     protected function getPosteFormSchema(): array
     {
@@ -138,7 +223,6 @@ trait HasPosteActions
                 ->schema([
                     \Filament\Forms\Components\Select::make('logradouros')
                         ->label('Logradouro(s) Vinculado(s)')
-                        // 🛑 A SOLUÇÃO: Carregamos as opções na mão e tiramos o relacionamento automático
                         ->options(function () {
                             return \App\Models\Logradouro::query()
                                 ->where('tenant_id', $this->tenantId)
@@ -149,11 +233,10 @@ trait HasPosteActions
                         ->preload()
                         ->searchable()
                         ->default(function () {
-                            // MÁGICA: Preenche o logradouro sozinho na hora de ABRIR o modal de criação!
                             if ($this->geometriaRascunho && isset($this->geometriaRascunho['coordinates'])) {
                                 $lon = $this->geometriaRascunho['coordinates'][0];
                                 $lat = $this->geometriaRascunho['coordinates'][1];
-                                
+
                                 $nearest = \App\Models\Logradouro::query()
                                     ->where('tenant_id', $this->tenantId)
                                     ->whereNotNull('geo')

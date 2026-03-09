@@ -9,7 +9,6 @@ use Illuminate\Support\Str;
 
 trait HasArvoreActions
 {
-    // Guarda qual árvore foi clicada no mapa
     public ?int $arvoreAtivaId = null;
 
     /**
@@ -25,7 +24,7 @@ trait HasArvoreActions
             ->form($this->getArvoreFormSchema())
             ->action(function (array $data) {
                 $data['tenant_id'] = $this->tenantId;
-                $data['geo'] = $this->geometriaRascunho; 
+                $data['geo'] = $this->geometriaRascunho;
                 $data['code'] = (string) Str::uuid();
 
                 $logradourosIds = $data['logradouros'] ?? [];
@@ -33,12 +32,11 @@ trait HasArvoreActions
 
                 $arvore = Arvore::create($data);
 
-                // Salva a rua mais próxima na tabela pivô
                 if (!empty($logradourosIds)) {
                     $arvore->logradouros()->sync($logradourosIds);
                 }
 
-                Notification::make()->title('Árvore Cadastrada!')->success()->send();
+                Notification::make()->title('Árvore Cadastrada com Sucesso!')->success()->send();
 
                 $this->geometriaRascunho = null;
                 $this->dispatch('limpar-rascunho-mapa');
@@ -47,23 +45,95 @@ trait HasArvoreActions
     }
 
     /**
-     * Ação: Opções e Edição Completa da Árvore
+     * 🛑 HUB DE AÇÕES (A Nova Modal Centralizadora Menorzinha)
      */
     public function opcoesArvoreAction(): Action
     {
         return Action::make('opcoesArvore')
+            ->hiddenLabel()
+            ->modalHeading(function () {
+                $arvore = Arvore::find($this->arvoreAtivaId);
+                return 'Árvore / Indivíduo Arbóreo #' . ($arvore ? $arvore->sequential_id : '');
+            })
+            ->modalDescription('Selecione a operação que deseja realizar:')
+            ->modalWidth('sm') // Modal pequena!
+            ->modalSubmitAction(false) // Remove o botão salvar padrão
+            ->modalCancelAction(false) // Remove o botão cancelar padrão
+            ->form([
+                // 1. Botão Ver/Editar Ficha
+                \Filament\Forms\Components\Actions::make([
+                    \Filament\Forms\Components\Actions\Action::make('editar_ficha')
+                        ->label('Ver / Editar Ficha Completa')
+                        ->icon('heroicon-o-document-text')
+                        ->color('primary')
+                        ->action(function () {
+                            // MÁGICA: Substitui a modal atual pela modal de edição!
+                            $this->replaceMountedAction('editarArvore');
+                        }),
+                ])->fullWidth(), // Força a empilhar verticalmente
+
+                // 2. Botão Geometria
+                \Filament\Forms\Components\Actions::make([
+                    \Filament\Forms\Components\Actions\Action::make('geometria')
+                        ->label('Alterar Geometria (Mover)')
+                        ->icon('heroicon-o-map')
+                        ->color('warning')
+                        ->action(function () {
+                            $this->dispatch('iniciar-edicao-geometria-arvore', id: $this->arvoreAtivaId);
+                            $this->dispatch('fechar-modal-filament');
+                        }),
+                ])->fullWidth(),
+
+                // 3. Botão Manutenção (Manejo Arbóreo)
+                \Filament\Forms\Components\Actions::make([
+                    \Filament\Forms\Components\Actions\Action::make('manutencao')
+                        ->label('Solicitar Serviço / Manejo')
+                        ->icon('heroicon-o-scissors')
+                        ->color('success')
+                        ->action(function () {
+                            $this->replaceMountedAction('manutencaoArvore');
+                        }),
+                ])->fullWidth(),
+
+                // 4. Botão Excluir
+                \Filament\Forms\Components\Actions::make([
+                    \Filament\Forms\Components\Actions\Action::make('excluir')
+                        ->label('Excluir Árvore')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Excluir Árvore')
+                        ->modalDescription('Tem certeza que deseja remover esta árvore do mapa? Esta ação não pode ser desfeita.')
+                        ->modalSubmitActionLabel('Sim, excluir')
+                        ->action(function () {
+                            Arvore::where('id', $this->arvoreAtivaId)->delete();
+                            Notification::make()->title('Árvore Excluída!')->success()->send();
+                            $this->dispatch('atualizar-camada-arvores');
+                            $this->dispatch('fechar-modal-filament');
+                        }),
+                ])->fullWidth(),
+            ]);
+    }
+
+    /**
+     * 🛑 O FORMULÁRIO REAL (Que foi separado do Hub)
+     */
+    public function editarArvoreAction(): Action
+    {
+        return Action::make('editarArvore')
             ->model(\App\Models\Arvore::class)
             ->hiddenLabel()
             ->modalHeading(function () {
                 $arvore = Arvore::find($this->arvoreAtivaId);
-                return 'Editar Árvore #' . ($arvore ? $arvore->sequential_id : $this->arvoreAtivaId);
+                return 'Editar Ficha - Árvore #' . ($arvore ? $arvore->sequential_id : '');
             })
             ->modalWidth('2xl')
             ->modalSubmitActionLabel('Salvar Alterações')
             ->fillForm(function (): array {
                 $arvore = Arvore::with('logradouros')->find($this->arvoreAtivaId);
-                if (!$arvore) return [];
-                
+                if (!$arvore)
+                    return [];
+
                 return [
                     'logradouros' => $arvore->logradouros->pluck('id')->toArray(),
                     'address' => $arvore->address,
@@ -93,31 +163,57 @@ trait HasArvoreActions
                     $arvore->logradouros()->sync($logradourosIds);
 
                     Notification::make()->title('Árvore Atualizada!')->success()->send();
-                    $this->dispatch('atualizar-camada-arvores'); 
+                    $this->dispatch('atualizar-camada-arvores');
                 }
-            })
-            ->extraModalFooterActions([
-                Action::make('editar_geometria')
-                    ->label('Geometria')
-                    ->color('warning')
-                    ->icon('heroicon-o-map')
-                    ->action(function () {
-                        $this->dispatch('iniciar-edicao-geometria-arvore', id: $this->arvoreAtivaId);
-                        $this->dispatch('fechar-modal-filament');
-                    }),
-                    
-                Action::make('excluir_arvore')
-                    ->label('Excluir')
-                    ->color('danger')
-                    ->icon('heroicon-o-trash')
-                    ->requiresConfirmation()
-                    ->action(function() {
-                        Arvore::where('id', $this->arvoreAtivaId)->delete();
-                        Notification::make()->title('Árvore Excluída!')->success()->send();
-                        $this->dispatch('atualizar-camada-arvores');
-                        $this->dispatch('fechar-modal-filament');
-                    }),
-            ]);
+            });
+    }
+
+    /**
+     * 🛑 O SIMULADOR DO MÓDULO DE MANUTENÇÃO (Apenas para teste visual)
+     */
+    public function manutencaoArvoreAction(): Action
+    {
+        return Action::make('manutencaoArvore')
+            ->model(\App\Models\Arvore::class)
+            ->hiddenLabel()
+            ->modalHeading('Abertura de Chamado - Manejo Arbóreo')
+            ->modalDescription('Informe o serviço necessário para este indivíduo arbóreo.')
+            ->modalWidth('md')
+            ->modalSubmitActionLabel('Abrir Chamado')
+            ->form([
+                \Filament\Forms\Components\Select::make('servico')
+                    ->label('Tipo de Serviço / Manejo')
+                    ->options([
+                        'poda_limpeza' => 'Poda de Limpeza (Galhos Secos)',
+                        'poda_elevacao' => 'Poda de Elevação de Copa',
+                        'poda_interferencia' => 'Poda por Interferência (Fios/Placas)',
+                        'supressao' => 'Supressão / Corte (Árvore Morta/Risco)',
+                        'analise' => 'Análise Fitossanitária (Laudo)',
+                        'plantio' => 'Plantio / Substituição',
+                    ])
+                    ->required(),
+
+                \Filament\Forms\Components\Select::make('prioridade')
+                    ->label('Nível de Prioridade')
+                    ->options([
+                        'baixa' => '🟢 Baixa (Rotina)',
+                        'media' => '🟡 Média (Normal)',
+                        'alta' => '🔴 Alta (Urgência / Risco de Queda)',
+                    ])
+                    ->default('media')
+                    ->required(),
+
+                \Filament\Forms\Components\Textarea::make('observacao')
+                    ->label('Descrição / Justificativa')
+                    ->rows(3),
+            ])
+            ->action(function (array $data) {
+                Notification::make()
+                    ->title('Chamado Aberto com Sucesso!')
+                    ->body('A equipe de meio ambiente foi notificada.')
+                    ->success()
+                    ->send();
+            });
     }
 
     /**
@@ -140,11 +236,10 @@ trait HasArvoreActions
                         ->preload()
                         ->searchable()
                         ->default(function () {
-                            // RADAR: Busca a rua mais próxima ao abrir o modal
                             if ($this->geometriaRascunho && isset($this->geometriaRascunho['coordinates'])) {
                                 $lon = $this->geometriaRascunho['coordinates'][0];
                                 $lat = $this->geometriaRascunho['coordinates'][1];
-                                
+
                                 $nearest = \App\Models\Logradouro::query()
                                     ->where('tenant_id', $this->tenantId)
                                     ->whereNotNull('geo')
