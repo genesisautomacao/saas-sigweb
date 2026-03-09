@@ -123,5 +123,55 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(Role::class);
     }
 
+    // 🛑 ADICIONE ESTES RELACIONAMENTOS AQUI 🛑
+    
+    // Módulo Administrativo
+    public function pessoas(): HasMany
+    {
+        return $this->hasMany(Pessoa::class);
+    }
+    public function contatos(): HasMany
+    {
+        return $this->hasMany(Contato::class);
+    }
+    public function enderecos(): HasMany
+    {
+        return $this->hasMany(Endereco::class);
+    }
+    public function documentos(): HasMany
+    {
+        return $this->hasMany(Documento::class);
+    }
+
+    // Módulo GIS (Mapa)
+    public function lotes(): HasMany
+    {
+        return $this->hasMany(Lote::class);
+    }
+    public function quadras(): HasMany
+    {
+        return $this->hasMany(Quadra::class);
+    }
+    public function zonas(): HasMany
+    {
+        return $this->hasMany(Zona::class);
+    }
+    public function edificacoes(): HasMany
+    {
+        return $this->hasMany(Edificacao::class);
+    }
+
+    public function tipoPostes(): HasMany {
+        return $this->hasMany(TipoPoste::class);
+    }
+    
+    public function postes(): HasMany {
+        return $this->hasMany(Poste::class);
+    }
+
+    public function arvores()
+    {
+        return $this->hasMany(Arvore::class);
+    }
 
 }

@@ -24,7 +24,9 @@
         <div id="measure-tooltip" class="ol-tooltip" style="display: none;"></div>
 
         {{-- NOVO: TOOLTIP DE HOVER PARA LOGRADOUROS --}}
-        <div id="feature-tooltip" class="fixed bg-gray text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[9999] ol-tooltip-logradouro" style="display: none; transform: translate(-50%, -150%);"></div>
+        <div id="feature-tooltip"
+            class="fixed bg-gray text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[9999] ol-tooltip-logradouro"
+            style="display: none; transform: translate(-50%, -150%);"></div>
 
         {{-- BARRA SUPERIOR E CONTROLES --}}
         <div class="absolute top-4 left-0 w-full px-4 z-40 pointer-events-none flex items-start justify-between">
@@ -66,7 +68,7 @@
                             <template x-for="(res, index) in resultados" :key="index">
                                 <li @click="voarPara(res)"
                                     class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer transition-colors flex items-start gap-3">
-                                    
+
                                     {{-- Ícone muda dependendo se é lote ou rua --}}
                                     <template x-if="res.tipo === 'lote'">
                                         <x-heroicon-o-map-pin class="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
@@ -76,8 +78,10 @@
                                     </template>
 
                                     <div class="flex flex-col">
-                                        <span class="text-sm font-bold text-gray-800 dark:text-gray-100" x-text="res.titulo"></span>
-                                        <span class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium" x-text="res.subtitulo"></span>
+                                        <span class="text-sm font-bold text-gray-800 dark:text-gray-100"
+                                            x-text="res.titulo"></span>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium"
+                                            x-text="res.subtitulo"></span>
                                     </div>
                                 </li>
                             </template>
@@ -106,14 +110,33 @@
                                     class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
                                     <x-heroicon-o-stop class="w-4 h-4" /> Lote (Polígono)
                                 </button>
+
                                 <button onclick="enableDrawing('edificacao')" @click="openDraw = false"
                                     class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
                                     <x-heroicon-o-home class="w-4 h-4" /> Edificação (Polígono)
                                 </button>
-                                {{-- NOVO BOTÃO DE LOGRADOURO --}}
-                                <button onclick="enableDrawing('logradouro')" @click="openDraw = false" class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+
+                                <button onclick="enableDrawing('logradouro')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
                                     <x-heroicon-o-minus class="w-4 h-4" /> Logradouro (Linha)
                                 </button>
+
+                                <button onclick="enableDrawing('poste')" @click="openDraw = false"
+                                    class="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
+                                        </path>
+                                    </svg>
+                                    Poste / Ponto de Luz
+                                </button>
+
+                                <button onclick="enableDrawing('arvore')" @click="openDraw = false"
+                                    class="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <x-heroicon-o-sparkles class="w-4 h-4 text-emerald-500" /> Árvores
+                                </button>
+
                             </div>
                         </div>
                     </div>
@@ -194,7 +217,7 @@
                     <div x-show="activeTab === 'base'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
-                            <input type="checkbox" checked data-layer="perimetros"
+                            <input type="checkbox" data-layer="perimetros"
                                 class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
@@ -275,6 +298,7 @@
                     </button>
                     <div x-show="activeTab === 'infra'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
+
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
                             <input type="checkbox" data-layer="logradouros"
                                 class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0">
@@ -283,6 +307,25 @@
                                     class="layer-text truncate">Logradouros</span>
                             </span>
                         </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" data-layer="postes"
+                                class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div><span
+                                    class="layer-text truncate">Iluminação Pública</span>
+                            </span>
+                        </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" data-layer="arvores"
+                                class="layer-toggle rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-emerald-500 rounded-full flex-shrink-0"></div><span
+                                    class="layer-text truncate">Arborização Urbana</span>
+                            </span>
+                        </label>
+
                     </div>
                 </div>
 

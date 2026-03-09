@@ -13,30 +13,35 @@ class CreateRole extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        // Extração segura de todas as 5 caixinhas
-        $leadsData = $data['permissions_leads'] ?? [];
-        $settingsData = $data['permissions_settings'] ?? [];
         $usersData = $data['permissions_users'] ?? [];
-        $sellersData = $data['permissions_sellers'] ?? [];
         $rolesData = $data['permissions_roles'] ?? [];
+        $pessoasData = $data['permissions_pessoas'] ?? [];
+        $contatosData = $data['permissions_contatos'] ?? [];
+        $enderecosData = $data['permissions_enderecos'] ?? [];
+        $documentosData = $data['permissions_documentos'] ?? [];
+        $iluminacaoData = $data['permissions_iluminacao'] ?? [];
+        $arborizacaoData = $data['permissions_arborizacao'] ?? []; // 🛑 NOVO
 
-        // Converte o "true" (se o usuário clicou em "Select All") ou usa o array selecionado
-        $leads = is_array($leadsData) ? $leadsData : ($leadsData === true ? ['view_leads', 'create_leads', 'edit_leads', 'delete_leads', 'view_my_leads', 'import_leads'] : []);
-        $settings = is_array($settingsData) ? $settingsData : ($settingsData === true ? ['manage_crm_settings'] : []);
         $users = is_array($usersData) ? $usersData : ($usersData === true ? ['view_users', 'create_users', 'edit_users', 'delete_users'] : []);
-        $sellers = is_array($sellersData) ? $sellersData : ($sellersData === true ? ['view_sellers', 'create_sellers', 'edit_sellers', 'delete_sellers'] : []);
         $roles = is_array($rolesData) ? $rolesData : ($rolesData === true ? ['view_roles', 'create_roles', 'edit_roles', 'delete_roles'] : []);
+        $pessoas = is_array($pessoasData) ? $pessoasData : ($pessoasData === true ? ['view_pessoas', 'create_pessoas', 'edit_pessoas', 'delete_pessoas'] : []);
+        $contatos = is_array($contatosData) ? $contatosData : ($contatosData === true ? ['view_contatos', 'create_contatos', 'edit_contatos', 'delete_contatos'] : []);
+        $enderecos = is_array($enderecosData) ? $enderecosData : ($enderecosData === true ? ['view_enderecos', 'create_enderecos', 'edit_enderecos', 'delete_enderecos'] : []);
+        $documentos = is_array($documentosData) ? $documentosData : ($documentosData === true ? ['view_documentos', 'create_documentos', 'edit_documentos', 'delete_documentos'] : []);
+        $iluminacao = is_array($iluminacaoData) ? $iluminacaoData : ($iluminacaoData === true ? ['view_tipos_poste', 'create_tipos_poste', 'edit_tipos_poste', 'delete_tipos_poste', 'view_postes', 'create_postes', 'edit_postes', 'delete_postes'] : []);
+        $arborizacao = is_array($arborizacaoData) ? $arborizacaoData : ($arborizacaoData === true ? ['view_arvores', 'create_arvores', 'edit_arvores', 'delete_arvores'] : []); // 🛑 NOVO
 
-        // Junta tudo em um único array
-        $this->permissionsToSync = array_merge($leads, $settings, $users, $sellers, $roles);
+        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $iluminacao, $arborizacao);
 
-        // Remove os arrays fantasmas antes de salvar no banco
         unset(
-            $data['permissions_leads'],
-            $data['permissions_settings'],
             $data['permissions_users'],
-            $data['permissions_sellers'],
-            $data['permissions_roles']
+            $data['permissions_roles'],
+            $data['permissions_pessoas'],
+            $data['permissions_contatos'],
+            $data['permissions_enderecos'],
+            $data['permissions_documentos'],
+            $data['permissions_iluminacao'],
+            $data['permissions_arborizacao'] // 🛑 NOVO
         );
 
         return $data;

@@ -5,10 +5,14 @@ namespace App\Filament\Pages;
 use App\Filament\Pages\Traits\HasLoteActions;
 use App\Filament\Pages\Traits\HasEdificacaoActions;
 use \App\Filament\Pages\Traits\HasLogradouroActions;
+use App\Filament\Pages\Traits\HasPosteActions;
+use App\Filament\Pages\Traits\HasArvoreActions;
 use App\Models\Lote;
 use App\Models\Edificacao;
 use App\Models\Zona;
 use App\Models\Quadra;
+use App\Models\Poste;
+use App\Models\Arvore;
 use Filament\Pages\Page;
 use Filament\Facades\Filament;
 use Livewire\Attributes\On;
@@ -21,6 +25,8 @@ class MapaFullscreen extends Page
     use HasLoteActions;
     use HasEdificacaoActions;
     use HasLogradouroActions;
+    use HasPosteActions;
+    use HasArvoreActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';
@@ -130,7 +136,7 @@ class MapaFullscreen extends Page
 
             $this->quadraRascunhoId = $quadra->id;
             $this->zonaRascunhoId = Zona::where('tenant_id', $this->tenantId)->whereRaw("ST_Intersects(geo, $centroidWKT)")->value('id');
-            
+
             // 🛑 MÁGICA: Monta a ação do Lote aqui e encerra
             $this->mountAction('criarLote');
 
@@ -146,14 +152,22 @@ class MapaFullscreen extends Page
                 $this->dispatch('limpar-rascunho-mapa');
                 return;
             }
-            
+
             // 🛑 MÁGICA: Monta a ação da Edificação aqui e encerra
             $this->mountAction('criarEdificacao');
 
         } elseif ($entityType === 'logradouro') {
             // 🛑 MÁGICA: Monta a ação do Logradouro aqui e encerra
             $this->mountAction('criarLogradouro');
+
+        } elseif ($entityType === 'poste') {
+            // 🛑 MÁGICA: Monta a ação do Poste aqui e encerra
+            $this->mountAction('criarPoste');
+
+        } elseif ($entityType === 'arvore') { // <-- NOVO BLOCO
+            $this->mountAction('criarArvore');
         }
+
     }
 
     public function habilitarEdicaoGeometria()
@@ -251,5 +265,46 @@ class MapaFullscreen extends Page
 
             \Filament\Notifications\Notification::make()->title('Geometria da Rua Atualizada!')->success()->send();
         }
+    }
+
+    #[On('salvarNovaGeometriaPoste')]
+    public function salvarNovaGeometriaPoste($id, $geoJson)
+    {
+        $poste = Poste::find($id);
+        if ($poste) {
+            $poste->update(['geo' => $geoJson]);
+
+            \Filament\Notifications\Notification::make()
+                ->title('Posição do Poste Atualizada!')
+                ->success()
+                ->send();
+        }
+    }
+
+    #[On('abrirOpcoesPoste')]
+    public function abrirOpcoesPoste($id)
+    {
+        $this->posteAtivoId = $id;
+        $this->mountAction('opcoesPoste');
+    }
+
+    #[On('salvarNovaGeometriaArvore')]
+    public function salvarNovaGeometriaArvore($id, $geoJson)
+    {
+        $arvore = Arvore::find($id);
+        if ($arvore) {
+            $arvore->update(['geo' => $geoJson]);
+            \Filament\Notifications\Notification::make()
+                ->title('Posição da Árvore Atualizada!')
+                ->success()
+                ->send();
+        }
+    }
+
+    #[On('abrirOpcoesArvore')]
+    public function abrirOpcoesArvore($id)
+    {
+        $this->arvoreAtivaId = $id;
+        $this->mountAction('opcoesArvore');
     }
 }

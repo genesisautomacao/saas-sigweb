@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
         },
-        
+
         'bairros': {
             z: 30,
             minZoom: 0,
@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     stroke: new ol.style.Stroke({ color: '#3b82f6', width: 2 }),
                     fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.1)' })
                 });
-                
+
                 // Aparece num zoom mais aberto (14) para não sumir a cidade inteira
                 if (zoom >= 14) {
                     style.setText(new ol.style.Text({
@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     stroke: new ol.style.Stroke({ color: '#f97316', width: 1 }),
                     fill: new ol.style.Fill({ color: 'rgba(249, 115, 22, 0.2)' })
                 });
-                
+
                 // Aparece num zoom intermediário (16)
                 if (zoom >= 16) {
                     style.setText(new ol.style.Text({
@@ -111,6 +111,55 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
         'logradouros': { z: 50, minZoom: 14, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#3675ce', width: 3 }) }) },
+
+        'postes': {
+            z: 100, // Z-index alto para os postes ficarem acima de tudo
+            minZoom: 14,
+            style: function (feature) {
+                const condition = feature.get('structural_condition');
+                let fillColor = '#eab308'; // Amarelo (Regular/Padrão)
+
+                if (condition === 'Bom') fillColor = '#22c55e'; // Verde
+                if (condition === 'Ruim') fillColor = '#ef4444'; // Vermelho
+
+                return new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 6,
+                        fill: new ol.style.Fill({ color: fillColor }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                    })
+                });
+            }
+        },
+
+        'arvores': {
+            z: 101, // Acima dos postes
+            minZoom: 15,
+            style: function (feature) {
+                const condition = feature.get('phytosanitary_condition');
+                const size = feature.get('size');
+                
+                // Tamanho baseado no porte
+                let radius = 6;
+                if (size === 'pequeno') radius = 6;
+                if (size === 'grande') radius = 8;
+
+                // Cor baseada na saúde
+                let fillColor = '#22c55e'; // Verde padrão (Boa)
+                if (condition === 'Regular') fillColor = '#eab308'; // Amarelo
+                if (condition === 'Ruim') fillColor = '#ef4444'; // Vermelho
+                if (condition === 'Morta') fillColor = '#6b7280'; // Cinza
+
+                return new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: radius,
+                        fill: new ol.style.Fill({ color: fillColor }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                    })
+                });
+            }
+        },
+
         'lotes': {
             z: 60,
             minZoom: 15.5,
@@ -299,16 +348,27 @@ document.addEventListener('DOMContentLoaded', function () {
     let hoveredFeature = null;
 
     map.on('pointermove', function (e) {
+
+        // 🛑 A TRAVA MESTRA: Se estiver editando geometria, desliga o hover na hora!
+        if (featureEmEdicao) {
+            if (hoveredFeature) {
+                hoveredFeature.setStyle(undefined); // Limpa o hover atual
+                hoveredFeature = null;
+            }
+            if (featureTooltip) featureTooltip.style.display = 'none'; // Esconde o texto
+            return; // 🛑 Cancela a execução do resto do evento de hover!
+        }
+
         // 1. Limpa o efeito do último elemento que passamos o mouse
         if (hoveredFeature) {
             hoveredFeature.setStyle(undefined); // Devolve a cor original
             hoveredFeature = null;
         }
 
-        const feature = map.forEachFeatureAtPixel(e.pixel, feature => feature);
-        
+        const feature = map.forEachFeatureAtPixel(e.pixel, feature => feature, { hitTolerance: 5 });
+
         // 2. Define quais camadas ganham a "mãozinha" (pointer) ao passar o mouse
-        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'quadras'];
+        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'quadras', 'postes', 'arvores']; 
         const isHoverable = feature && hoverableLayers.includes(feature.get('layer'));
         map.getTargetElement().style.cursor = isHoverable ? 'pointer' : '';
 
@@ -324,7 +384,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (layer === 'logradouros') {
                 feature.setStyle(new ol.style.Style({
-                    stroke: new ol.style.Stroke({ color: '#38bdf8', width: 6 }) 
+                    stroke: new ol.style.Stroke({ color: '#38bdf8', width: 6 })
                 }));
 
                 if (featureTooltip) {
@@ -374,6 +434,56 @@ document.addEventListener('DOMContentLoaded', function () {
                             overflow: true
                         }) : null
                     }));
+                } else if (layer === 'postes') {
+                    const condition = feature.get('structural_condition');
+                    const seqId = feature.get('sequential_id'); // 1. Pega o ID Sequencial do banco
+                    const textoHover = seqId ? `Poste #${seqId}` : 'Poste S/N'; // 2. Monta o texto bonitão
+
+                    let fillColor = '#eab308'; // Amarelo padrão
+                    if (condition === 'Bom') fillColor = '#22c55e'; // Verde
+                    if (condition === 'Ruim') fillColor = '#ef4444'; // Vermelho
+
+                    feature.setStyle(new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: 9, 
+                            fill: new ol.style.Fill({ color: fillColor }),
+                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }) 
+                        }),
+                        text: zoom >= 18 ? new ol.style.Text({
+                            text: textoHover, // 3. Aplica a variável nova aqui!
+                            offsetY: -16, 
+                            font: 'bold 12px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: '#ffffff' }),
+                            stroke: new ol.style.Stroke({ color: '#000000', width: 3 }), 
+                            overflow: true
+                        }) : null
+                    }));
+                } else if (layer === 'arvores') {
+                    const condition = feature.get('phytosanitary_condition');
+                    const seqId = feature.get('sequential_id');
+                    const especie = name && name !== 'S/N' ? name : 'Não Identificada';
+                    const textoHover = seqId ? `Árvore #${seqId} - ${especie}` : `Árvore - ${especie}`;
+
+                    let fillColor = '#22c55e'; // Verde padrão
+                    if (condition === 'Regular') fillColor = '#eab308';
+                    if (condition === 'Ruim') fillColor = '#ef4444';
+                    if (condition === 'Morta') fillColor = '#6b7280';
+
+                    feature.setStyle(new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: 10, // Cresce no hover
+                            fill: new ol.style.Fill({ color: fillColor }),
+                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }) 
+                        }),
+                        text: zoom >= 18 ? new ol.style.Text({
+                            text: textoHover,
+                            offsetY: -16, 
+                            font: 'bold 12px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: '#ffffff' }),
+                            stroke: new ol.style.Stroke({ color: '#000000', width: 3 }), 
+                            overflow: true
+                        }) : null
+                    }));
                 }
             }
         } else {
@@ -384,7 +494,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     map.on('singleclick', function (evt) {
         if (activeTool !== 'pan') return;
-        const features = map.getFeaturesAtPixel(evt.pixel);
+        const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
 
         if (features && features.length > 0) {
             const clickedEdif = features.find(f => f.get('layer') === 'edificacao_ativa');
@@ -396,6 +506,18 @@ document.addEventListener('DOMContentLoaded', function () {
             const clickedLogradouro = features.find(f => f.get('layer') === 'logradouros');
             if (clickedLogradouro) {
                 Livewire.dispatch('abrirOpcoesLogradouro', { id: clickedLogradouro.get('id') });
+                return;
+            }
+
+            const clickedPoste = features.find(f => f.get('layer') === 'postes');
+            if (clickedPoste) {
+                Livewire.dispatch('abrirOpcoesPoste', { id: clickedPoste.get('id') });
+                return;
+            }
+
+            const clickedArvore = features.find(f => f.get('layer') === 'arvores');
+            if (clickedArvore) {
+                Livewire.dispatch('abrirOpcoesArvore', { id: clickedArvore.get('id') });
                 return;
             }
 
@@ -601,6 +723,61 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    window.addEventListener('iniciar-edicao-geometria-poste', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['postes']) return;
+        const source = loadedLayers['postes'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 7,
+                        fill: new ol.style.Fill({ color: '#eab308' }), // Amarelo enquanto arrasta
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                    })
+                })
+            });
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
+    // ARRASTAR ÁRVORE
+    window.addEventListener('iniciar-edicao-geometria-arvore', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['arvores']) return;
+        const source = loadedLayers['arvores'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 8, fill: new ol.style.Fill({ color: '#22c55e' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
+            });
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
+    // ATUALIZAR CAMADA
+    window.addEventListener('atualizar-camada-arvores', () => {
+        if (loadedLayers['arvores']) {
+            map.removeLayer(loadedLayers['arvores']);
+            delete loadedLayers['arvores'];
+            const checkbox = document.querySelector('input[data-layer="arvores"]');
+            if (checkbox && checkbox.checked) fetchAndDrawLayer('arvores', checkbox);
+        }
+    });
+
     window.salvarEdicaoGeometria = function () {
         if (featureEmEdicao) {
             const geoJson = formatGeoJSON.writeGeometryObject(featureEmEdicao.getGeometry());
@@ -614,6 +791,12 @@ document.addEventListener('DOMContentLoaded', function () {
             else if (layerName === 'edificacao_ativa') Livewire.dispatch('salvarNovaGeometriaEdificacao', { id: id, geoJson: geoJson });
             // Adicionado o despacho para salvar o Logradouro:
             else if (layerName === 'logradouros') Livewire.dispatch('salvarNovaGeometriaLogradouro', { id: id, geoJson: geoJson });
+
+            // Disparo para salvar a nova posição do Poste
+            else if (layerName === 'postes') Livewire.dispatch('salvarNovaGeometriaPoste', { id: id, geoJson: geoJson });
+
+            // Disparo para salvar a nova posição da Árvore
+            else if (layerName === 'arvores') Livewire.dispatch('salvarNovaGeometriaArvore', { id: id, geoJson: geoJson });
 
             encerrarModoEdicao();
         }
@@ -636,8 +819,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     window.addEventListener('fechar-modal-filament', () => {
-        const closeBtn = document.querySelector('.fi-modal-close-btn') || document.querySelector('button[x-on\\:click="close"]');
-        if (closeBtn) closeBtn.click();
+        // O delay de 150ms é o segredo! Ele simula um clique humano logo após o Livewire processar a ação,
+        // garantindo que a animação do Alpine.js termine em paz e leve o fundo escuro embora.
+        setTimeout(() => {
+            const closeBtn = document.querySelector('.fi-modal-close-btn');
+            if (closeBtn) {
+                closeBtn.click();
+            }
+        }, 150);
     });
 
     function encerrarModoEdicao() {
@@ -756,5 +945,95 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     });
+
+    window.addEventListener('atualizar-camada-postes', () => {
+        if (loadedLayers['postes']) {
+            map.removeLayer(loadedLayers['postes']);
+            delete loadedLayers['postes'];
+
+            // Finge um clique no checkbox para baixar os dados atualizados do banco
+            const checkbox = document.querySelector('input[data-layer="postes"]');
+            if (checkbox && checkbox.checked) {
+                fetchAndDrawLayer('postes', checkbox);
+            }
+        }
+    });
+
+    // =========================================================================
+    // 17. INTERCEPTADOR DE CRIAÇÃO GEOGRÁFICA (PONTOS VIA URL)
+    // =========================================================================
+    const urlParams = new URLSearchParams(window.location.search);
+    const actionParams = urlParams.get('action');
+    const layerParams = urlParams.get('layer');
+
+    // 🛑 AGORA ELE ACEITA POSTES E ÁRVORES!
+    if (actionParams === 'create' && (layerParams === 'postes' || layerParams === 'arvores')) {
+
+        const entityName = layerParams === 'postes' ? 'Poste' : 'Árvore';
+        
+        console.log(`Modo de inserção de ${entityName} ativado!`);
+        alert(`📍 Clique no mapa exatamente onde o(a) novo(a) ${entityName} está localizado(a).`);
+
+        // Ativa a ferramenta de desenho de Ponto do OpenLayers
+        const drawPoint = new ol.interaction.Draw({
+            type: 'Point',
+        });
+
+        map.addInteraction(drawPoint);
+        map.getTargetElement().style.cursor = 'crosshair';
+
+        // O Evento de Clique (Fim do desenho)
+        drawPoint.on('drawend', function (event) {
+            map.removeInteraction(drawPoint);
+            map.getTargetElement().style.cursor = '';
+
+            const geometry = event.feature.getGeometry();
+            const coords4326 = ol.proj.transform(geometry.getCoordinates(), 'EPSG:3857', 'EPSG:4326');
+
+            const lon = coords4326[0].toFixed(8);
+            const lat = coords4326[1].toFixed(8);
+
+            // Montar a URL de volta dinâmica (vai para /postes/create ou /arvores/create)
+            const returnUrl = `/app/${config.tenantSlug}/${layerParams}/create?lat=${lat}&lon=${lon}`;
+
+            window.location.href = returnUrl;
+        });
+    }    
+
+    // =========================================================================
+    // 19. VOO DIRETO VIA URL (VER NO MAPA)
+    // =========================================================================
+    const focusLat = urlParams.get('focus_lat');
+    const focusLon = urlParams.get('focus_lon');
+    const targetLayer = urlParams.get('layer');
+
+    if (focusLat && focusLon) {
+        // 1. Liga a camada no menu lateral automaticamente se ela existir
+        if (targetLayer) {
+            const checkbox = document.querySelector(`input[data-layer="${targetLayer}"]`);
+            if (checkbox && !checkbox.checked) {
+                checkbox.checked = true;
+                checkbox.dispatchEvent(new Event('change')); // Força o carregamento no banco
+
+                // Abre a sanfona correspondente no menu de camadas para mostrar que ativou
+                // O painel de postes fica na infraestrutura, então se for postes, abre ela.
+                if (targetLayer === 'postes') {
+                    // Aqui disparamos o Alpine para abrir a sanfona de Infraestrutura
+                    const infraButton = document.querySelector('button[x-on\\:click*="infra"]');
+                    if (infraButton) infraButton.click();
+                }
+            }
+        }
+
+        // 2. Faz o voo cinematográfico para o local exato
+        setTimeout(() => {
+            const coords = ol.proj.fromLonLat([parseFloat(focusLon), parseFloat(focusLat)]);
+            view.animate({
+                center: coords,
+                zoom: 20, // Zoom bem fechado para ver a rua e o poste de perto
+                duration: 2500 // 2.5 segundos de animação suave
+            });
+        }, 800); // Um delay de 800ms para dar tempo do mapa renderizar o DOM e carregar os blocos
+    }
 
 }); // <-- Fim do DOMContentLoaded

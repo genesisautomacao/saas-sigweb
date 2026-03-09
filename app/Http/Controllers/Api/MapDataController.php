@@ -12,6 +12,8 @@ use App\Models\Logradouro;
 use App\Models\Lote;
 use App\Models\Edificacao;
 use App\Models\UnidadeImobiliaria;
+use App\Models\Poste;
+use App\Models\Arvore;
 
 class MapDataController extends Controller
 {
@@ -36,7 +38,11 @@ class MapDataController extends Controller
                             'codigo' => $item->code,
                             'layer' => $layerName, // <-- Agora o JS vai saber o que é Lote e o que é Bairro!
                             'sigla' => $item->sigla ?? null,
-                            'rgb' => $item->rgb ?? '150,150,150'
+                            'rgb' => $item->rgb ?? '150,150,150',
+                            'structural_condition' => $item->structural_condition ?? null,
+                            'sequential_id' => $item->sequential_id ?? null,
+                            'phytosanitary_condition' => $item->phytosanitary_condition ?? null,
+                            'size' => $item->size ?? null,
                         ],
                         'geometry' => $item->geo_json
                     ];
@@ -70,6 +76,16 @@ class MapDataController extends Controller
                 break;
             case 'edificacoes':
                 $data = $buildFeatureCollection(Edificacao::where('tenant_id', $tenantId)->get(), 'edificacoes');
+                break;
+            case 'postes':
+                $postes = Poste::where('tenant_id', $tenantId)->select('id', 'sequential_id', 'geo', 'structural_condition', 'code')->get();
+                $data = $buildFeatureCollection($postes, 'postes');
+                break;
+            case 'arvores': // 🛑 NOVO CASE
+                $arvores = Arvore::where('tenant_id', $tenantId)
+                    ->select('id', 'geo', 'botanical_species', 'phytosanitary_condition', 'size', 'sequential_id')
+                    ->get();
+                $data = $buildFeatureCollection($arvores, 'arvores');
                 break;
             default:
                 return response()->json(['error' => 'Camada não encontrada'], 404);
@@ -123,12 +139,14 @@ class MapDataController extends Controller
                 $num = $l->numero_lote ?? 'S/N';
 
                 $uniqueKey = $l->id . '_' . $cod;
-                if (in_array($uniqueKey, $uniqueKeys)) continue;
+                if (in_array($uniqueKey, $uniqueKeys))
+                    continue;
                 $uniqueKeys[] = $uniqueKey;
 
                 $centroide = json_decode($l->centroide);
                 $coords = $centroide->coordinates ?? null;
-                if (!$coords) continue;
+                if (!$coords)
+                    continue;
 
                 $results[] = [
                     'id' => $l->id,
@@ -156,7 +174,8 @@ class MapDataController extends Controller
             foreach ($logradouros as $log) {
                 $centroide = json_decode($log->centroide);
                 $coords = $centroide->coordinates ?? null;
-                if (!$coords) continue;
+                if (!$coords)
+                    continue;
 
                 $results[] = [
                     'id' => $log->id,

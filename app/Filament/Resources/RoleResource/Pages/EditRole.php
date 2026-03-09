@@ -23,47 +23,53 @@ class EditRole extends EditRecord
     {
         $permissions = $this->record->permissions->pluck('name')->toArray();
 
-        // Usamos array_values() para garantir que o Livewire não transforme o Array em Objeto
-        // ATENÇÃO: Adicionado o 'view_my_leads' aqui para a caixinha vir marcada se ele tiver a permissão
-        $data['permissions_leads'] = array_values(array_intersect($permissions, ['view_leads', 'create_leads', 'edit_leads', 'delete_leads', 'view_my_leads', 'import_leads']));
-
         $data['permissions_users'] = array_values(array_intersect($permissions, ['view_users', 'create_users', 'edit_users', 'delete_users']));
-
         $data['permissions_roles'] = array_values(array_intersect($permissions, ['view_roles', 'create_roles', 'edit_roles', 'delete_roles']));
-
-        $data['permissions_sellers'] = array_values(array_intersect($permissions, ['view_sellers', 'create_sellers', 'edit_sellers', 'delete_sellers']));
-
-        $data['permissions_settings'] = array_values(array_intersect($permissions, ['manage_crm_settings']));
+        $data['permissions_pessoas'] = array_values(array_intersect($permissions, ['view_pessoas', 'create_pessoas', 'edit_pessoas', 'delete_pessoas']));
+        $data['permissions_contatos'] = array_values(array_intersect($permissions, ['view_contatos', 'create_contatos', 'edit_contatos', 'delete_contatos']));
+        $data['permissions_enderecos'] = array_values(array_intersect($permissions, ['view_enderecos', 'create_enderecos', 'edit_enderecos', 'delete_enderecos']));
+        $data['permissions_documentos'] = array_values(array_intersect($permissions, ['view_documentos', 'create_documentos', 'edit_documentos', 'delete_documentos']));
+        
+        // 🛑 BUG CORRIGIDO: A Iluminação não estava sendo carregada visualmente!
+        $data['permissions_iluminacao'] = array_values(array_intersect($permissions, ['view_tipos_poste', 'create_tipos_poste', 'edit_tipos_poste', 'delete_tipos_poste', 'view_postes', 'create_postes', 'edit_postes', 'delete_postes']));
+        
+        // 🛑 NOVA CAIXA: Arborização
+        $data['permissions_arborizacao'] = array_values(array_intersect($permissions, ['view_arvores', 'create_arvores', 'edit_arvores', 'delete_arvores']));
 
         return $data;
     }
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        // Extração segura de todas as 5 caixinhas
-        $leadsData = $data['permissions_leads'] ?? [];
-        $settingsData = $data['permissions_settings'] ?? [];
         $usersData = $data['permissions_users'] ?? [];
-        $sellersData = $data['permissions_sellers'] ?? [];
         $rolesData = $data['permissions_roles'] ?? [];
+        $pessoasData = $data['permissions_pessoas'] ?? [];
+        $contatosData = $data['permissions_contatos'] ?? [];
+        $enderecosData = $data['permissions_enderecos'] ?? [];
+        $documentosData = $data['permissions_documentos'] ?? [];
+        $iluminacaoData = $data['permissions_iluminacao'] ?? [];
+        $arborizacaoData = $data['permissions_arborizacao'] ?? []; // 🛑 NOVO
 
-        // Converte o "true" do botão de marcar todos, ou usa o array selecionado
-        $leads = is_array($leadsData) ? $leadsData : ($leadsData === true ? ['view_leads', 'create_leads', 'edit_leads', 'delete_leads', 'view_my_leads', 'import_leads'] : []);
-        $settings = is_array($settingsData) ? $settingsData : ($settingsData === true ? ['manage_crm_settings'] : []);
         $users = is_array($usersData) ? $usersData : ($usersData === true ? ['view_users', 'create_users', 'edit_users', 'delete_users'] : []);
-        $sellers = is_array($sellersData) ? $sellersData : ($sellersData === true ? ['view_sellers', 'create_sellers', 'edit_sellers', 'delete_sellers'] : []);
         $roles = is_array($rolesData) ? $rolesData : ($rolesData === true ? ['view_roles', 'create_roles', 'edit_roles', 'delete_roles'] : []);
+        $pessoas = is_array($pessoasData) ? $pessoasData : ($pessoasData === true ? ['view_pessoas', 'create_pessoas', 'edit_pessoas', 'delete_pessoas'] : []);
+        $contatos = is_array($contatosData) ? $contatosData : ($contatosData === true ? ['view_contatos', 'create_contatos', 'edit_contatos', 'delete_contatos'] : []);
+        $enderecos = is_array($enderecosData) ? $enderecosData : ($enderecosData === true ? ['view_enderecos', 'create_enderecos', 'edit_enderecos', 'delete_enderecos'] : []);
+        $documentos = is_array($documentosData) ? $documentosData : ($documentosData === true ? ['view_documentos', 'create_documentos', 'edit_documentos', 'delete_documentos'] : []);
+        $iluminacao = is_array($iluminacaoData) ? $iluminacaoData : ($iluminacaoData === true ? ['view_tipos_poste', 'create_tipos_poste', 'edit_tipos_poste', 'delete_tipos_poste', 'view_postes', 'create_postes', 'edit_postes', 'delete_postes'] : []);
+        $arborizacao = is_array($arborizacaoData) ? $arborizacaoData : ($arborizacaoData === true ? ['view_arvores', 'create_arvores', 'edit_arvores', 'delete_arvores'] : []); // 🛑 NOVO
 
-        // Junta tudo num array só
-        $this->permissionsToSync = array_merge($leads, $settings, $users, $sellers, $roles);
+        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $iluminacao, $arborizacao);
 
-        // Remove do form data para não quebrar a query SQL
         unset(
-            $data['permissions_leads'],
-            $data['permissions_settings'],
             $data['permissions_users'],
-            $data['permissions_sellers'],
-            $data['permissions_roles']
+            $data['permissions_roles'],
+            $data['permissions_pessoas'],
+            $data['permissions_contatos'],
+            $data['permissions_enderecos'],
+            $data['permissions_documentos'],
+            $data['permissions_iluminacao'],
+            $data['permissions_arborizacao'] // 🛑 NOVO
         );
 
         return $data;
@@ -71,7 +77,6 @@ class EditRole extends EditRecord
 
     protected function afterSave(): void
     {
-        // Aqui a mágica do Spatie acontece, mas agora com o array completo!
         $this->record->syncPermissions($this->permissionsToSync);
     }
 }

@@ -178,6 +178,7 @@ class TenantResource extends Resource
                             ->label('Módulos Liberados para esta Prefeitura')
                             ->multiple()
                             ->options([
+                                'administrativo' => 'ADM - Administrativo',
                                 'imobiliario' => 'GIS - Cadastro Imobiliário',
                                 'arborizacao' => 'GIS - Arborização Urbana',
                                 'iluminacao' => 'GIS - Iluminação Pública',

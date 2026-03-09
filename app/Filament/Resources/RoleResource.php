@@ -33,7 +33,6 @@ class RoleResource extends Resource
                         ignoreRecord: true,
                         modifyRuleUsing: function (\Illuminate\Validation\Rules\Unique $rule) {
                             $tenant = \Filament\Facades\Filament::getTenant();
-                            // Garante que a validação de nome único ocorra apenas DENTRO da Tenant atual
                             return $rule->where('tenant_id', $tenant?->id);
                         }
                     ),
@@ -42,34 +41,7 @@ class RoleResource extends Resource
                     ->description('Selecione as permissões organizadas por módulo do sistema.')
                     ->schema([
 
-                        // CAIXA 1: LEADS E CRM
-                        Forms\Components\Fieldset::make('Módulo: CRM (Leads e Configurações)')
-                            ->visible(function () {
-                                $tenant = \Filament\Facades\Filament::getTenant();
-                                return $tenant && in_array('leads', $tenant->modules ?? []);
-                            })
-                            ->schema([
-                                Forms\Components\CheckboxList::make('permissions_leads')
-                                    ->label('Gestão de Leads')
-                                    ->options([
-                                        'view_leads' => 'Visualizar Leads',
-                                        'create_leads' => 'Criar Leads',
-                                        'edit_leads' => 'Editar Leads',
-                                        'delete_leads' => 'Excluir Leads',
-                                        'view_my_leads' => 'Visualizar APENAS meus Leads',
-                                        'import_leads' => 'Importar Leads (Planilha)',
-                                    ])
-                                    ->bulkToggleable(),
-
-                                Forms\Components\CheckboxList::make('permissions_settings')
-                                    ->label('Configurações do CRM')
-                                    ->options([
-                                        'manage_crm_settings' => 'Gerenciar Status, Origens e Potencial',
-                                    ])
-                                    ->bulkToggleable(),
-                            ])->columns(1)->columnSpan(1),
-
-                        // CAIXA 2: USUÁRIOS E VENDEDORES
+                        // CAIXA 1: USUÁRIOS E VENDEDORES
                         Forms\Components\Fieldset::make('Módulo: Equipe (Usuários)')
                             ->schema([
                                 Forms\Components\CheckboxList::make('permissions_users')
@@ -81,11 +53,10 @@ class RoleResource extends Resource
                                         'delete_users' => 'Excluir Usuários',
                                     ])
                                     ->bulkToggleable(),
-
                             ])->columns(1)->columnSpan(1),
 
-                        // CAIXA 3: PAPÉIS
-                        Forms\Components\Fieldset::make('Módulo: Segurança (Papéis de Acesso)')
+                        // CAIXA 2: PAPÉIS
+                        Forms\Components\Fieldset::make('Módulo: Segurança (Papéis)')
                             ->schema([
                                 Forms\Components\CheckboxList::make('permissions_roles')
                                     ->label('Gestão de Papéis')
@@ -98,7 +69,96 @@ class RoleResource extends Resource
                                     ->bulkToggleable(),
                             ])->columns(1)->columnSpan(1),
 
-                    ])->columns(3),
+                        // CAIXA 3: ADMINISTRATIVO - PESSOAS
+                        Forms\Components\Fieldset::make('Módulo Administrativo: Pessoas')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_pessoas')
+                                    ->label('Gestão de Pessoas')
+                                    ->options([
+                                        'view_pessoas' => 'Visualizar Pessoas',
+                                        'create_pessoas' => 'Criar Pessoas',
+                                        'edit_pessoas' => 'Editar Pessoas',
+                                        'delete_pessoas' => 'Excluir Pessoas',
+                                    ])
+                                    ->bulkToggleable(),
+                            ])->columns(1)->columnSpan(1),
+
+                        // CAIXA 4: ADMINISTRATIVO - CONTATOS
+                        Forms\Components\Fieldset::make('Módulo Administrativo: Contatos')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_contatos')
+                                    ->label('Gestão de Contatos')
+                                    ->options([
+                                        'view_contatos' => 'Visualizar Contatos',
+                                        'create_contatos' => 'Criar Contatos',
+                                        'edit_contatos' => 'Editar Contatos',
+                                        'delete_contatos' => 'Excluir Contatos',
+                                    ])
+                                    ->bulkToggleable(),
+                            ])->columns(1)->columnSpan(1),
+
+                        // CAIXA 5: ADMINISTRATIVO - ENDEREÇOS
+                        Forms\Components\Fieldset::make('Módulo Administrativo: Endereços')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_enderecos')
+                                    ->label('Gestão de Endereços')
+                                    ->options([
+                                        'view_enderecos' => 'Visualizar Endereços',
+                                        'create_enderecos' => 'Criar Endereços',
+                                        'edit_enderecos' => 'Editar Endereços',
+                                        'delete_enderecos' => 'Excluir Endereços',
+                                    ])
+                                    ->bulkToggleable(),
+                            ])->columns(1)->columnSpan(1),
+
+                        // CAIXA 6: ADMINISTRATIVO - DOCUMENTOS
+                        Forms\Components\Fieldset::make('Módulo Administrativo: Documentos')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_documentos')
+                                    ->label('Gestão de Documentos')
+                                    ->options([
+                                        'view_documentos' => 'Visualizar Documentos',
+                                        'create_documentos' => 'Criar Documentos',
+                                        'edit_documentos' => 'Editar Documentos',
+                                        'delete_documentos' => 'Excluir Documentos',
+                                    ])
+                                    ->bulkToggleable(),
+                            ])->columns(1)->columnSpan(1),
+
+                        // CAIXA 7: ILUMINAÇÃO PÚBLICA
+                        Forms\Components\Fieldset::make('Módulo: Iluminação Pública')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_iluminacao')
+                                    ->label('Gestão de Iluminação')
+                                    ->options([
+                                        'view_tipos_poste' => 'Visualizar Tipos',
+                                        'create_tipos_poste' => 'Criar Tipos',
+                                        'edit_tipos_poste' => 'Editar Tipos',
+                                        'delete_tipos_poste' => 'Excluir Tipos',
+                                        'view_postes' => 'Visualizar Postes',
+                                        'create_postes' => 'Criar Postes',
+                                        'edit_postes' => 'Editar Postes',
+                                        'delete_postes' => 'Excluir Postes',
+                                    ])
+                                    ->bulkToggleable(),
+                            ])->columns(1)->columnSpan(1),
+
+                        // 🛑 CAIXA 8: MEIO AMBIENTE / ARBORIZAÇÃO
+                        Forms\Components\Fieldset::make('Módulo: Meio Ambiente (Árvores)')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_arborizacao')
+                                    ->label('Gestão de Árvores')
+                                    ->options([
+                                        'view_arvores' => 'Visualizar Árvores',
+                                        'create_arvores' => 'Criar Árvores',
+                                        'edit_arvores' => 'Editar Árvores',
+                                        'delete_arvores' => 'Excluir Árvores',
+                                    ])
+                                    ->bulkToggleable(),
+                            ])->columns(1)->columnSpan(1),
+
+                    ])->columns(4), // 🛑 Mudou de 3 para 4 colunas para as 8 caixas ficarem perfeitas
+
             ]);
     }
 
@@ -109,7 +169,7 @@ class RoleResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome do Papel')
                     ->badge()
-                    ->color('warning') // Uma cor laranja/amarela para diferenciar
+                    ->color('warning')
                     ->searchable()
                     ->sortable(),
 
@@ -118,15 +178,11 @@ class RoleResource extends Resource
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
             ])
-            ->filters([
-                // Filtros futuros podem entrar aqui
-            ])
+            ->filters([])
             ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\EditAction::make(),
-
                     Tables\Actions\DeleteAction::make()
-                        // Protege os papéis vitais do sistema contra exclusão
                         ->hidden(fn(\App\Models\Role $record) => in_array($record->name, ['Master', 'Manager'])),
                 ])->tooltip('Ações'),
             ])
@@ -136,17 +192,9 @@ class RoleResource extends Resource
                         ->label('Excluir Selecionados'),
                 ]),
             ])
-            // Trava a caixinha de seleção em lote para os papéis vitais
             ->checkIfRecordIsSelectableUsing(
                 fn(\App\Models\Role $record): bool => !in_array($record->name, ['Master', 'Manager']),
             );
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
     }
 
     public static function getPages(): array
