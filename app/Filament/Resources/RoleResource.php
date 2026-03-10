@@ -185,6 +185,25 @@ class RoleResource extends Resource
                                     ->columns(2),
                             ])->columns(1)->columnSpanFull(), // Coloquei FullSpan pois essa lista é grandinha
 
+                        // CAIXA 10: MANUTENÇÃO E SERVIÇOS
+                        Forms\Components\Fieldset::make('Módulo: Manutenção e Serviços')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_manutencao')
+                                    ->label('Gestão de Manutenção (O.S.)')
+                                    ->options([
+                                        'view_solicitacoes' => 'Vis. Solicitações',
+                                        'create_solicitacoes' => 'Criar Solicitações',
+                                        'edit_solicitacoes' => 'Editar Solicitações',
+                                        'delete_solicitacoes' => 'Excluir Solicitações',
+                                        'view_ordens_servico' => 'Vis. Ordens (OS)',
+                                        'create_ordens_servico' => 'Criar Ordens (OS)',
+                                        'edit_ordens_servico' => 'Editar Ordens (OS)',
+                                        'delete_ordens_servico' => 'Excluir Ordens (OS)',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(2),
+                            ])->columns(1)->columnSpanFull(),
+
                     ])->columns(4), // 🛑 Mudou de 3 para 4 colunas para as 8 caixas ficarem perfeitas
 
             ]);

@@ -43,6 +43,7 @@ class MapDataController extends Controller
                             'sequential_id' => $item->sequential_id ?? null,
                             'phytosanitary_condition' => $item->phytosanitary_condition ?? null,
                             'size' => $item->size ?? null,
+                            'tem_chamado' => (bool) ($item->tem_chamado ?? false),
                         ],
                         'geometry' => $item->geo_json
                     ];
@@ -58,35 +59,52 @@ class MapDataController extends Controller
             case 'perimetros':
                 $data = $buildFeatureCollection(PerimetroUrbano::where('tenant_id', $tenantId)->get(), 'perimetros');
                 break;
+
             case 'zonas':
                 $data = $buildFeatureCollection(Zona::where('tenant_id', $tenantId)->get(), 'zonas');
                 break;
+
             case 'bairros':
                 $data = $buildFeatureCollection(Bairro::where('tenant_id', $tenantId)->get(), 'bairros');
                 break;
+
             case 'quadras':
                 $data = $buildFeatureCollection(Quadra::where('tenant_id', $tenantId)->get(), 'quadras');
                 break;
+
             case 'logradouros':
                 $data = $buildFeatureCollection(Logradouro::where('tenant_id', $tenantId)->get(), 'logradouros');
                 break;
+
             case 'lotes':
                 $lotes = Lote::where('tenant_id', $tenantId)->select('id', 'numero_lote', 'geo')->get();
                 $data = $buildFeatureCollection($lotes, 'lotes');
                 break;
+
             case 'edificacoes':
                 $data = $buildFeatureCollection(Edificacao::where('tenant_id', $tenantId)->get(), 'edificacoes');
                 break;
+
             case 'postes':
-                $postes = Poste::where('tenant_id', $tenantId)->select('id', 'sequential_id', 'geo', 'structural_condition', 'code')->get();
+                $postes = Poste::where('tenant_id', $tenantId)
+                ->select('id', 'sequential_id', 'geo', 'structural_condition', 'code')
+                ->withExists(['solicitacoesManutencao as tem_chamado' => function ($query) {
+                        $query->whereIn('status', ['pendente', 'analise', 'aprovada_os']);
+                    }])
+                ->get();
                 $data = $buildFeatureCollection($postes, 'postes');
                 break;
+
             case 'arvores': // 🛑 NOVO CASE
                 $arvores = Arvore::where('tenant_id', $tenantId)
                     ->select('id', 'geo', 'botanical_species', 'phytosanitary_condition', 'size', 'sequential_id')
+                    ->withExists(['solicitacoesManutencao as tem_chamado' => function ($query) {
+                        $query->whereIn('status', ['pendente', 'analise', 'aprovada_os']);
+                    }])
                     ->get();
                 $data = $buildFeatureCollection($arvores, 'arvores');
                 break;
+
             default:
                 return response()->json(['error' => 'Camada não encontrada'], 404);
         }

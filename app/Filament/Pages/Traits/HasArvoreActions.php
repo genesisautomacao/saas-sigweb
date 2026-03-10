@@ -45,7 +45,7 @@ trait HasArvoreActions
     }
 
     /**
-     * 🛑 HUB DE AÇÕES (A Nova Modal Centralizadora Menorzinha)
+     * 🛑 HUB DE AÇÕES DINÂMICO DA ÁRVORE
      */
     public function opcoesArvoreAction(): Action
     {
@@ -56,24 +56,28 @@ trait HasArvoreActions
                 return 'Árvore / Indivíduo Arbóreo #' . ($arvore ? $arvore->sequential_id : '');
             })
             ->modalDescription('Selecione a operação que deseja realizar:')
-            ->modalWidth('sm') // Modal pequena!
-            ->modalSubmitAction(false) // Remove o botão salvar padrão
-            ->modalCancelAction(false) // Remove o botão cancelar padrão
-            ->form([
-                // 1. Botão Ver/Editar Ficha
-                \Filament\Forms\Components\Actions::make([
+            ->modalWidth('sm')
+            ->modalSubmitAction(false)
+            ->modalCancelAction(false)
+            ->form(function () {
+
+                // 🟢 VERIFICA SE EXISTE CHAMADO ABERTO
+                $solicitacaoAberta = \App\Models\SolicitacaoManutencao::where('asset_type', \App\Models\Arvore::class)
+                    ->where('asset_id', $this->arvoreAtivaId)
+                    ->whereIn('status', ['pendente', 'analise', 'aprovada_os'])
+                    ->first();
+
+                $actions = [];
+
+                $actions[] = \Filament\Forms\Components\Actions::make([
                     \Filament\Forms\Components\Actions\Action::make('editar_ficha')
                         ->label('Ver / Editar Ficha Completa')
                         ->icon('heroicon-o-document-text')
                         ->color('primary')
-                        ->action(function () {
-                            // MÁGICA: Substitui a modal atual pela modal de edição!
-                            $this->replaceMountedAction('editarArvore');
-                        }),
-                ])->fullWidth(), // Força a empilhar verticalmente
+                        ->action(fn() => $this->replaceMountedAction('editarArvore')),
+                ])->fullWidth();
 
-                // 2. Botão Geometria
-                \Filament\Forms\Components\Actions::make([
+                $actions[] = \Filament\Forms\Components\Actions::make([
                     \Filament\Forms\Components\Actions\Action::make('geometria')
                         ->label('Alterar Geometria (Mover)')
                         ->icon('heroicon-o-map')
@@ -82,37 +86,44 @@ trait HasArvoreActions
                             $this->dispatch('iniciar-edicao-geometria-arvore', id: $this->arvoreAtivaId);
                             $this->dispatch('fechar-modal-filament');
                         }),
-                ])->fullWidth(),
+                ])->fullWidth();
 
-                // 3. Botão Manutenção (Manejo Arbóreo)
-                \Filament\Forms\Components\Actions::make([
-                    \Filament\Forms\Components\Actions\Action::make('manutencao')
-                        ->label('Solicitar Serviço / Manejo')
-                        ->icon('heroicon-o-scissors')
-                        ->color('success')
-                        ->action(function () {
-                            $this->replaceMountedAction('manutencaoArvore');
-                        }),
-                ])->fullWidth(),
+                // 🛑 A MÁGICA: ALTERNA O BOTÃO
+                if ($solicitacaoAberta) {
+                    $actions[] = \Filament\Forms\Components\Actions::make([
+                        \Filament\Forms\Components\Actions\Action::make('ver_manutencao')
+                            ->label('Ver Solicitação Aberta (#' . $solicitacaoAberta->sequential_id . ')')
+                            ->icon('heroicon-o-exclamation-triangle')
+                            ->color('danger')
+                            ->url(fn() => \App\Filament\Resources\SolicitacaoManutencaoResource::getUrl('edit', ['record' => $solicitacaoAberta->id]))
+                            ->openUrlInNewTab(),
+                    ])->fullWidth();
+                } else {
+                    $actions[] = \Filament\Forms\Components\Actions::make([
+                        \Filament\Forms\Components\Actions\Action::make('manutencao')
+                            ->label('Solicitar Serviço / Manejo')
+                            ->icon('heroicon-o-scissors')
+                            ->color('success')
+                            ->action(fn() => $this->replaceMountedAction('manutencaoArvore')),
+                    ])->fullWidth();
+                }
 
-                // 4. Botão Excluir
-                \Filament\Forms\Components\Actions::make([
+                $actions[] = \Filament\Forms\Components\Actions::make([
                     \Filament\Forms\Components\Actions\Action::make('excluir')
                         ->label('Excluir Árvore')
                         ->icon('heroicon-o-trash')
                         ->color('danger')
                         ->requiresConfirmation()
-                        ->modalHeading('Excluir Árvore')
-                        ->modalDescription('Tem certeza que deseja remover esta árvore do mapa? Esta ação não pode ser desfeita.')
-                        ->modalSubmitActionLabel('Sim, excluir')
                         ->action(function () {
                             Arvore::where('id', $this->arvoreAtivaId)->delete();
                             Notification::make()->title('Árvore Excluída!')->success()->send();
                             $this->dispatch('atualizar-camada-arvores');
                             $this->dispatch('fechar-modal-filament');
                         }),
-                ])->fullWidth(),
-            ]);
+                ])->fullWidth();
+
+                return $actions;
+            });
     }
 
     /**
@@ -169,27 +180,24 @@ trait HasArvoreActions
     }
 
     /**
-     * 🛑 O SIMULADOR DO MÓDULO DE MANUTENÇÃO (Apenas para teste visual)
+     * 🛑 CRIA A SOLICITAÇÃO REAL NO BANCO DE DADOS
      */
     public function manutencaoArvoreAction(): Action
     {
         return Action::make('manutencaoArvore')
-            ->model(\App\Models\Arvore::class)
             ->hiddenLabel()
             ->modalHeading('Abertura de Chamado - Manejo Arbóreo')
-            ->modalDescription('Informe o serviço necessário para este indivíduo arbóreo.')
             ->modalWidth('md')
             ->modalSubmitActionLabel('Abrir Chamado')
             ->form([
-                \Filament\Forms\Components\Select::make('servico')
+                \Filament\Forms\Components\Select::make('tipo_servico')
                     ->label('Tipo de Serviço / Manejo')
                     ->options([
-                        'poda_limpeza' => 'Poda de Limpeza (Galhos Secos)',
-                        'poda_elevacao' => 'Poda de Elevação de Copa',
-                        'poda_interferencia' => 'Poda por Interferência (Fios/Placas)',
-                        'supressao' => 'Supressão / Corte (Árvore Morta/Risco)',
-                        'analise' => 'Análise Fitossanitária (Laudo)',
-                        'plantio' => 'Plantio / Substituição',
+                        'Poda de Limpeza' => 'Poda de Limpeza (Galhos Secos)',
+                        'Poda de Elevação' => 'Poda de Elevação de Copa',
+                        'Poda por Interferência' => 'Poda por Interferência (Fios/Placas)',
+                        'Supressão (Corte)' => 'Supressão / Corte (Morta/Risco)',
+                        'Análise' => 'Análise Fitossanitária (Laudo)',
                     ])
                     ->required(),
 
@@ -198,21 +206,36 @@ trait HasArvoreActions
                     ->options([
                         'baixa' => '🟢 Baixa (Rotina)',
                         'media' => '🟡 Média (Normal)',
-                        'alta' => '🔴 Alta (Urgência / Risco de Queda)',
+                        'alta' => '🔴 Alta (Urgência)',
+                        'critica' => '⚫ Crítica (Risco de Queda)',
                     ])
                     ->default('media')
                     ->required(),
+
+                \Filament\Forms\Components\TextInput::make('solicitante_nome')
+                    ->label('Nome do Solicitante (Opcional)'),
 
                 \Filament\Forms\Components\Textarea::make('observacao')
                     ->label('Descrição / Justificativa')
                     ->rows(3),
             ])
             ->action(function (array $data) {
-                Notification::make()
-                    ->title('Chamado Aberto com Sucesso!')
-                    ->body('A equipe de meio ambiente foi notificada.')
-                    ->success()
-                    ->send();
+                // SALVA A SOLICITAÇÃO DE VERDADE CONECTADA À ÁRVORE!
+                \App\Models\SolicitacaoManutencao::create([
+                    'tenant_id' => $this->tenantId,
+                    'asset_type' => \App\Models\Arvore::class,
+                    'asset_id' => $this->arvoreAtivaId,
+                    'tipo_servico' => $data['tipo_servico'],
+                    'prioridade' => $data['prioridade'],
+                    'status' => 'pendente',
+                    'solicitante_nome' => $data['solicitante_nome'] ?? null,
+                    'observacao' => $data['observacao'] ?? null,
+                ]);
+
+                Notification::make()->title('Chamado Aberto com Sucesso!')->success()->send();
+
+                $this->dispatch('atualizar-camada-arvores');
+                $this->dispatch('fechar-modal-filament');
             });
     }
 

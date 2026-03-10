@@ -81,4 +81,20 @@ class Poste extends Model
     {
         return $this->belongsToMany(Logradouro::class, 'poste_logradouro');
     }
+
+    /**
+     * Histórico de Solicitações (Polimórfico)
+     */
+    public function solicitacoesManutencao()
+    {
+        return $this->morphMany(SolicitacaoManutencao::class, 'asset');
+    }
+
+    /**
+     * Histórico de Ordens de Serviço (Polimórfico)
+     */
+    public function ordensServico()
+    {
+        return $this->morphMany(OrdemServico::class, 'asset');
+    }
 }

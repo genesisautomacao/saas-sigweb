@@ -68,14 +68,38 @@ class Tenant extends Model implements HasAvatar
     {
         // Busca TODAS as permissões cadastradas no sistema
         $allPermissions = \Spatie\Permission\Models\Permission::where('guard_name', 'web')->pluck('name');
-        
+
         // Pega os módulos ativos desta Tenant
         $activeModules = $this->modules ?? [];
 
         // Filtra as permissões com base nas suas regras de negócio
         $permissionsToAssign = $allPermissions->filter(function ($permission) use ($activeModules) {
 
-            // REGRA 1: Módulo de Estoque e Almoxarifado
+            // 1. Módulo Administrativo
+            $adminEntities = ['pessoas', 'contatos', 'enderecos', 'documentos'];
+            foreach ($adminEntities as $entity) {
+                if (str_ends_with($permission, '_' . $entity) && !in_array('administrativo', $activeModules)) {
+                    return false;
+                }
+            }
+
+            // 2. Módulo de Iluminação Pública
+            $iluminacaoEntities = ['tipos_poste', 'postes'];
+            foreach ($iluminacaoEntities as $entity) {
+                if (str_ends_with($permission, '_' . $entity) && !in_array('iluminacao', $activeModules)) {
+                    return false;
+                }
+            }
+
+            // 3. Módulo de Arborização (Meio Ambiente)
+            $arborizacaoEntities = ['arvores'];
+            foreach ($arborizacaoEntities as $entity) {
+                if (str_ends_with($permission, '_' . $entity) && !in_array('arborizacao', $activeModules)) {
+                    return false;
+                }
+            }
+
+            // 4. Módulo de Estoque e Almoxarifado
             $estoqueEntities = ['locais_estoque', 'marcas', 'produtos', 'estoques', 'movimentacoes'];
             foreach ($estoqueEntities as $entity) {
                 if (str_ends_with($permission, '_' . $entity) && !in_array('estoque', $activeModules)) {
@@ -83,23 +107,30 @@ class Tenant extends Model implements HasAvatar
                 }
             }
 
-            // Se for permissão base do sistema (ex: view_users, create_roles), ele deixa passar direto
-            return true; 
+            // 5. Módulo de Manutenção e Serviços
+            $manutencaoEntities = ['solicitacoes', 'ordens_servico'];
+            foreach ($manutencaoEntities as $entity) {
+                if (str_ends_with($permission, '_' . $entity) && !in_array('manutencao', $activeModules)) {
+                    return false;
+                }
+            }
+
+            // Se for permissão base do sistema (ex: view_users, create_roles), deixa passar
+            return true;
         });
 
         // Sincroniza o array filtrado diretamente no papel do Manager
         $role->syncPermissions($permissionsToAssign);
     }
-
     public function getFilamentAvatarUrl(): ?string
     {
         $logo = data_get($this->data, 'logo');
-        
+
         if ($logo) {
             // O asset() cria o link perfeito para a web e não dá erro no editor
             return asset('storage/' . $logo);
         }
-        
+
         return null;
     }
 
@@ -114,7 +145,7 @@ class Tenant extends Model implements HasAvatar
     }
 
     // 🛑 ADICIONE ESTES RELACIONAMENTOS AQUI 🛑
-    
+
     // Módulo Administrativo
     public function pessoas(): HasMany
     {
@@ -151,11 +182,13 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(Edificacao::class);
     }
 
-    public function tipoPostes(): HasMany {
+    public function tipoPostes(): HasMany
+    {
         return $this->hasMany(TipoPoste::class);
     }
-    
-    public function postes(): HasMany {
+
+    public function postes(): HasMany
+    {
         return $this->hasMany(Poste::class);
     }
 
@@ -187,6 +220,17 @@ class Tenant extends Model implements HasAvatar
     public function estoqueMovimentacaos(): HasMany
     {
         return $this->hasMany(EstoqueMovimentacao::class);
+    }
+
+    // Módulo de Manutenção e Serviços
+    public function solicitacaoManutencaos(): HasMany
+    {
+        return $this->hasMany(SolicitacaoManutencao::class);
+    }
+
+    public function ordemServicos(): HasMany
+    {
+        return $this->hasMany(OrdemServico::class);
     }
 
 }

@@ -182,9 +182,9 @@ class TenantResource extends Resource
                                 'imobiliario' => 'GIS - Cadastro Imobiliário',
                                 'arborizacao' => 'GIS - Arborização Urbana',
                                 'iluminacao' => 'GIS - Iluminação Pública',
-                                'estoque' => 'Estoque',
+                                'estoque' => 'ADM - Estoque',
+                                'manutencao' => 'ADM - Manutenção e Serviços',
 
-                                'manutencoes' => 'Mnutenção e Serviços',
                                 'cemiterio' => 'GIS - Gestão de Cemitérios',
                                 'mob_infra' => 'Mobilidade - Infraestrutura',
                                 // Adicione os módulos do CSV que você me mandou aqui!

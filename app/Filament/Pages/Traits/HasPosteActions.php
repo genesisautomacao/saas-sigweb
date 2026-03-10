@@ -44,8 +44,8 @@ trait HasPosteActions
             });
     }
 
-    /**
-     * 🛑 HUB DE AÇÕES (A Nova Modal Centralizadora Menorzinha)
+   /**
+     * 🛑 HUB DE AÇÕES DINÂMICO (Com inteligência de Manutenção)
      */
     public function opcoesPosteAction(): Action
     {
@@ -56,24 +56,29 @@ trait HasPosteActions
                 return 'Ponto de Iluminação #' . ($poste ? $poste->sequential_id : '');
             })
             ->modalDescription('Selecione a operação que deseja realizar:')
-            ->modalWidth('sm') // Modal pequena!
-            ->modalSubmitAction(false) // Remove o botão salvar padrão
-            ->modalCancelAction(false) // Remove o botão cancelar padrão
-            ->form([
+            ->modalWidth('sm')
+            ->modalSubmitAction(false)
+            ->modalCancelAction(false)
+            ->form(function () {
+                // 🟢 VERIFICA SE EXISTE CHAMADO ABERTO PARA ESTE POSTE
+                $solicitacaoAberta = \App\Models\SolicitacaoManutencao::where('asset_type', \App\Models\Poste::class)
+                    ->where('asset_id', $this->posteAtivoId)
+                    ->whereIn('status', ['pendente', 'analise', 'aprovada_os'])
+                    ->first();
+
+                $actions = [];
+
                 // 1. Botão Ver/Editar Ficha
-                \Filament\Forms\Components\Actions::make([
+                $actions[] = \Filament\Forms\Components\Actions::make([
                     \Filament\Forms\Components\Actions\Action::make('editar_ficha')
                         ->label('Ver / Editar Ficha Completa')
                         ->icon('heroicon-o-document-text')
                         ->color('primary')
-                        ->action(function () {
-                            // MÁGICA: Substitui a modal atual pela modal de edição!
-                            $this->replaceMountedAction('editarPoste');
-                        }),
-                ])->fullWidth(), // Força a empilhar verticalmente
+                        ->action(fn () => $this->replaceMountedAction('editarPoste')),
+                ])->fullWidth();
 
                 // 2. Botão Geometria
-                \Filament\Forms\Components\Actions::make([
+                $actions[] = \Filament\Forms\Components\Actions::make([
                     \Filament\Forms\Components\Actions\Action::make('geometria')
                         ->label('Alterar Geometria (Mover)')
                         ->icon('heroicon-o-map')
@@ -82,38 +87,49 @@ trait HasPosteActions
                             $this->dispatch('iniciar-edicao-geometria-poste', id: $this->posteAtivoId);
                             $this->dispatch('fechar-modal-filament');
                         }),
-                ])->fullWidth(),
+                ])->fullWidth();
 
-                // 3. Botão Manutenção (O Novo Módulo)
-                \Filament\Forms\Components\Actions::make([
-                    \Filament\Forms\Components\Actions\Action::make('manutencao')
-                        ->label('Solicitar Manutenção / OS')
-                        ->icon('heroicon-o-wrench-screwdriver')
-                        ->color('success')
-                        ->action(function () {
-                            $this->replaceMountedAction('manutencaoPoste');
-                        }),
-                ])->fullWidth(),
+                // 3. 🛑 A MÁGICA: ALTERNA O BOTÃO COM BASE NO STATUS 🛑
+                if ($solicitacaoAberta) {
+                    $actions[] = \Filament\Forms\Components\Actions::make([
+                        \Filament\Forms\Components\Actions\Action::make('ver_manutencao')
+                            ->label('Ver Solicitação Aberta (#' . $solicitacaoAberta->sequential_id . ')')
+                            ->icon('heroicon-o-exclamation-triangle')
+                            ->color('danger')
+                            // Abre a tela de edição da solicitação em NOVA ABA para não perder o mapa!
+                            ->url(fn () => \App\Filament\Resources\SolicitacaoManutencaoResource::getUrl('edit', ['record' => $solicitacaoAberta->id]))
+                            ->openUrlInNewTab(),
+                    ])->fullWidth();
+                } else {
+                    $actions[] = \Filament\Forms\Components\Actions::make([
+                        \Filament\Forms\Components\Actions\Action::make('manutencao')
+                            ->label('Solicitar Manutenção / OS')
+                            ->icon('heroicon-o-wrench-screwdriver')
+                            ->color('success')
+                            ->action(fn () => $this->replaceMountedAction('manutencaoPoste')),
+                    ])->fullWidth();
+                }
 
                 // 4. Botão Excluir
-                \Filament\Forms\Components\Actions::make([
+                $actions[] = \Filament\Forms\Components\Actions::make([
                     \Filament\Forms\Components\Actions\Action::make('excluir')
                         ->label('Excluir Equipamento')
                         ->icon('heroicon-o-trash')
                         ->color('danger')
                         ->requiresConfirmation()
-                        ->modalHeading('Excluir Poste')
-                        ->modalDescription('Tem certeza que deseja remover este poste do mapa? Esta ação não pode ser desfeita.')
-                        ->modalSubmitActionLabel('Sim, excluir')
                         ->action(function () {
                             Poste::where('id', $this->posteAtivoId)->delete();
                             Notification::make()->title('Poste Excluído!')->success()->send();
                             $this->dispatch('atualizar-camada-postes');
                             $this->dispatch('fechar-modal-filament');
                         }),
-                ])->fullWidth(),
-            ]);
+                ])->fullWidth();
+
+                return $actions;
+            });
     }
+
+    
 
     /**
      * 🛑 O FORMULÁRIO REAL (Que foi separado do Hub)
@@ -165,51 +181,65 @@ trait HasPosteActions
         // 🛑 Agora a edição só tem "Salvar" e "Cancelar" padrão do Filament, super limpo!
     }
 
-    /**
-     * 🛑 O SIMULADOR DO MÓDULO DE MANUTENÇÃO (Apenas para teste visual)
+/**
+     * 🛑 CRIA A SOLICITAÇÃO REAL NO BANCO DE DADOS
      */
     public function manutencaoPosteAction(): Action
     {
         return Action::make('manutencaoPoste')
-            ->model(\App\Models\Poste::class)
             ->hiddenLabel()
             ->modalHeading('Abertura de Chamado - Ordem de Serviço')
             ->modalDescription('Informe o problema reportado para este ponto de luz.')
             ->modalWidth('md')
             ->modalSubmitActionLabel('Abrir Chamado')
             ->form([
-                \Filament\Forms\Components\Select::make('defeito')
+                \Filament\Forms\Components\Select::make('tipo_servico')
                     ->label('Tipo de Ocorrência')
                     ->options([
-                        'apagada' => 'Lâmpada Apagada (À Noite)',
-                        'acesa' => 'Lâmpada Acesa (De Dia)',
-                        'oscilando' => 'Lâmpada Oscilando/Piscando',
-                        'quebrada' => 'Luminária Quebrada',
-                        'abalroamento' => 'Poste Atingido por Veículo',
+                        'Lâmpada Apagada' => 'Lâmpada Apagada (À Noite)',
+                        'Lâmpada Acesa' => 'Lâmpada Acesa (De Dia)',
+                        'Lâmpada Oscilando' => 'Lâmpada Oscilando/Piscando',
+                        'Luminária Quebrada' => 'Luminária Quebrada',
+                        'Poste Abalroado' => 'Poste Atingido por Veículo',
                     ])
                     ->required(),
 
                 \Filament\Forms\Components\Select::make('prioridade')
                     ->label('Nível de Prioridade')
                     ->options([
-                        'baixa' => '🟢 Baixa (Manutenção de Rotina)',
+                        'baixa' => '🟢 Baixa (Rotina)',
                         'media' => '🟡 Média (Normal)',
                         'alta' => '🔴 Alta (Emergência)',
+                        'critica' => '⚫ Crítica (Risco)',
                     ])
                     ->default('media')
                     ->required(),
+                
+                \Filament\Forms\Components\TextInput::make('solicitante_nome')
+                    ->label('Nome do Solicitante (Opcional)'),
 
                 \Filament\Forms\Components\Textarea::make('observacao')
-                    ->label('Descrição do Reclamante')
+                    ->label('Descrição do Problema')
                     ->rows(3),
             ])
             ->action(function (array $data) {
-                // No futuro, isso vai salvar na tabela de OS do Módulo de Manutenção
-                Notification::make()
-                    ->title('Chamado Aberto com Sucesso!')
-                    ->body('A equipe técnica foi notificada.')
-                    ->success()
-                    ->send();
+                // SALVA A SOLICITAÇÃO DE VERDADE CONECTADA AO POSTE!
+                \App\Models\SolicitacaoManutencao::create([
+                    'tenant_id' => $this->tenantId,
+                    'asset_type' => \App\Models\Poste::class,
+                    'asset_id' => $this->posteAtivoId,
+                    'tipo_servico' => $data['tipo_servico'],
+                    'prioridade' => $data['prioridade'],
+                    'status' => 'pendente',
+                    'solicitante_nome' => $data['solicitante_nome'] ?? null,
+                    'observacao' => $data['observacao'] ?? null,
+                ]);
+
+                Notification::make()->title('Chamado Aberto com Sucesso!')->success()->send();
+                
+                // Manda o mapa atualizar para o poste mudar de cor!
+                $this->dispatch('atualizar-camada-postes'); 
+                $this->dispatch('fechar-modal-filament');
             });
     }
 

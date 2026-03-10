@@ -113,48 +113,55 @@ document.addEventListener('DOMContentLoaded', function () {
         'logradouros': { z: 50, minZoom: 14, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#3675ce', width: 3 }) }) },
 
         'postes': {
-            z: 100, // Z-index alto para os postes ficarem acima de tudo
+            z: 100,
             minZoom: 14,
             style: function (feature) {
                 const condition = feature.get('structural_condition');
-                let fillColor = '#eab308'; // Amarelo (Regular/Padrão)
+                const temChamado = feature.get('tem_chamado'); // 🟢 LÊ DO BANCO
 
+                let fillColor = '#eab308'; // Amarelo (Padrão)
                 if (condition === 'Bom') fillColor = '#22c55e'; // Verde
                 if (condition === 'Ruim') fillColor = '#ef4444'; // Vermelho
 
+                // 🛑 SOBRESCREVE SE ESTIVER EM MANUTENÇÃO (Roxo brilhante)
+                if (temChamado) fillColor = '#d946ef';
+
                 return new ol.style.Style({
                     image: new ol.style.Circle({
-                        radius: 6,
+                        radius: temChamado ? 8 : 6, // 🟢 Fica maior se tiver chamado
                         fill: new ol.style.Fill({ color: fillColor }),
-                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                        stroke: new ol.style.Stroke({ color: temChamado ? '#000000' : '#ffffff', width: temChamado ? 3 : 2 })
                     })
                 });
             }
         },
 
         'arvores': {
-            z: 101, // Acima dos postes
+            z: 101,
             minZoom: 15,
             style: function (feature) {
                 const condition = feature.get('phytosanitary_condition');
                 const size = feature.get('size');
+                const temChamado = feature.get('tem_chamado'); // 🟢 LÊ DO BANCO
                 
-                // Tamanho baseado no porte
                 let radius = 6;
                 if (size === 'pequeno') radius = 6;
                 if (size === 'grande') radius = 8;
+                if (temChamado) radius += 2; // 🟢 Cresce mais um pouco
 
-                // Cor baseada na saúde
-                let fillColor = '#22c55e'; // Verde padrão (Boa)
-                if (condition === 'Regular') fillColor = '#eab308'; // Amarelo
-                if (condition === 'Ruim') fillColor = '#ef4444'; // Vermelho
-                if (condition === 'Morta') fillColor = '#6b7280'; // Cinza
+                let fillColor = '#22c55e'; // Verde padrão
+                if (condition === 'Regular') fillColor = '#eab308';
+                if (condition === 'Ruim') fillColor = '#ef4444';
+                if (condition === 'Morta') fillColor = '#6b7280';
+
+                // 🛑 SOBRESCREVE SE ESTIVER EM MANUTENÇÃO (Roxo brilhante)
+                if (temChamado) fillColor = '#d946ef';
 
                 return new ol.style.Style({
                     image: new ol.style.Circle({
                         radius: radius,
                         fill: new ol.style.Fill({ color: fillColor }),
-                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                        stroke: new ol.style.Stroke({ color: temChamado ? '#000000' : '#ffffff', width: temChamado ? 3 : 2 })
                     })
                 });
             }
@@ -436,21 +443,25 @@ document.addEventListener('DOMContentLoaded', function () {
                     }));
                 } else if (layer === 'postes') {
                     const condition = feature.get('structural_condition');
-                    const seqId = feature.get('sequential_id'); // 1. Pega o ID Sequencial do banco
-                    const textoHover = seqId ? `Poste #${seqId}` : 'Poste S/N'; // 2. Monta o texto bonitão
+                    const seqId = feature.get('sequential_id');
+                    const temChamado = feature.get('tem_chamado'); // 🟢
+                    
+                    const textoBase = seqId ? `Poste #${seqId}` : 'Poste S/N';
+                    const textoHover = temChamado ? `🛠️ ${textoBase} (Em Manutenção)` : textoBase;
 
-                    let fillColor = '#eab308'; // Amarelo padrão
-                    if (condition === 'Bom') fillColor = '#22c55e'; // Verde
-                    if (condition === 'Ruim') fillColor = '#ef4444'; // Vermelho
+                    let fillColor = '#eab308'; 
+                    if (condition === 'Bom') fillColor = '#22c55e'; 
+                    if (condition === 'Ruim') fillColor = '#ef4444'; 
+                    if (temChamado) fillColor = '#d946ef'; // 🛑
 
                     feature.setStyle(new ol.style.Style({
                         image: new ol.style.Circle({
-                            radius: 9, 
+                            radius: temChamado ? 10 : 9, // Cresce no hover
                             fill: new ol.style.Fill({ color: fillColor }),
-                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }) 
+                            stroke: new ol.style.Stroke({ color: temChamado ? '#000000' : '#ffffff', width: 3 }) 
                         }),
                         text: zoom >= 18 ? new ol.style.Text({
-                            text: textoHover, // 3. Aplica a variável nova aqui!
+                            text: textoHover, 
                             offsetY: -16, 
                             font: 'bold 12px Arial, sans-serif',
                             fill: new ol.style.Fill({ color: '#ffffff' }),
@@ -458,22 +469,28 @@ document.addEventListener('DOMContentLoaded', function () {
                             overflow: true
                         }) : null
                     }));
+
                 } else if (layer === 'arvores') {
                     const condition = feature.get('phytosanitary_condition');
                     const seqId = feature.get('sequential_id');
-                    const especie = name && name !== 'S/N' ? name : 'Não Identificada';
-                    const textoHover = seqId ? `Árvore #${seqId} - ${especie}` : `Árvore - ${especie}`;
+                    const nameStr = feature.get('name');
+                    const temChamado = feature.get('tem_chamado'); // 🟢
 
-                    let fillColor = '#22c55e'; // Verde padrão
+                    const especie = nameStr && nameStr !== 'S/N' ? nameStr : 'Não Identificada';
+                    const textoBase = seqId ? `Árvore #${seqId} - ${especie}` : `Árvore - ${especie}`;
+                    const textoHover = temChamado ? `🛠️ ${textoBase} (Em Manutenção)` : textoBase;
+
+                    let fillColor = '#22c55e'; 
                     if (condition === 'Regular') fillColor = '#eab308';
                     if (condition === 'Ruim') fillColor = '#ef4444';
                     if (condition === 'Morta') fillColor = '#6b7280';
+                    if (temChamado) fillColor = '#d946ef'; // 🛑
 
                     feature.setStyle(new ol.style.Style({
                         image: new ol.style.Circle({
-                            radius: 10, // Cresce no hover
+                            radius: temChamado ? 11 : 10,
                             fill: new ol.style.Fill({ color: fillColor }),
-                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }) 
+                            stroke: new ol.style.Stroke({ color: temChamado ? '#000000' : '#ffffff', width: 3 }) 
                         }),
                         text: zoom >= 18 ? new ol.style.Text({
                             text: textoHover,

@@ -69,7 +69,11 @@ class PermissionsSeeder extends Seeder
             'view_marcas', 'create_marcas', 'edit_marcas', 'delete_marcas',
             'view_produtos', 'create_produtos', 'edit_produtos', 'delete_produtos',
             'view_estoques',
-            'view_movimentacoes', 'create_movimentacoes', 'edit_movimentacoes', 'delete_movimentacoes'
+            'view_movimentacoes', 'create_movimentacoes', 'edit_movimentacoes', 'delete_movimentacoes',
+
+            /* Módulo de Manutenção e Serviços */
+            'view_solicitacoes', 'create_solicitacoes', 'edit_solicitacoes', 'delete_solicitacoes',
+            'view_ordens_servico', 'create_ordens_servico', 'edit_ordens_servico', 'delete_ordens_servico'
         ];
 
         foreach ($permissions as $permission) {
