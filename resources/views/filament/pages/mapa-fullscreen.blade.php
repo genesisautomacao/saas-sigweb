@@ -423,7 +423,16 @@
                         <span class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-primary-600">
                             Consulta de Viabilidade
                         </span>
-                        <x-heroicon-o-chevron-right class="w-4 h-4 text-gray-400 group-hover:text-primary-500" />
+                        <x-heroicon-o-document-text class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
+                    </button>
+
+                    {{-- BOTÃO DE MEMORIAL DESCRITIVO --}}
+                    <button wire:click="mountAction('gerarMemorialAction')"
+                        class="w-full text-left px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-emerald-500 hover:shadow-md transition-all group flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-emerald-600">
+                            Gerar Memorial Descritivo
+                        </span>
+                        <x-heroicon-o-document-text class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
                     </button>
 
                 </div>

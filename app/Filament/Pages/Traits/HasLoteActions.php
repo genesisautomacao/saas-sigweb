@@ -568,4 +568,46 @@ trait HasLoteActions
         $pdfService = app(\App\Services\Viabilidade\ViabilidadePdfService::class);
         return $pdfService->generatePdf($dadosAnalise, $mapImageBase64);
     }
+
+    /**
+     * Ação: Gerar Memorial Descritivo em PDF
+     */
+    public function gerarMemorialAction(): Action
+    {
+        return Action::make('gerarMemorialAction')
+            ->requiresConfirmation()
+            ->modalHeading('Gerar Memorial Descritivo')
+            ->modalDescription('Deseja gerar o documento legal com a descrição do perímetro e confrontantes para este lote?')
+            ->modalSubmitActionLabel('Gerar PDF')
+            ->icon('heroicon-o-document-text')
+            ->color('success')
+            ->action(function () {
+                $lote = \App\Models\Lote::find($this->loteAtivoId);
+                if (!$lote) {
+                    \Filament\Notifications\Notification::make()->danger()->title('Erro')->body('Lote não encontrado.')->send();
+                    return;
+                }
+
+                // 1. Instancia o nosso Service
+                $service = app(\App\Services\Gis\MemorialDescritivoService::class);
+                
+                // 2. Coleta os dados matemáticos e o texto
+                $textoMemorial = $service->gerarTextoMemorial($lote->id);
+                $segmentos = $service->gerarDadosPerimetro($lote->id);
+
+                // 3. Monta o PDF usando o DomPDF
+                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.memorial_descritivo', [
+                    'lote' => $lote,
+                    'textoMemorial' => $textoMemorial,
+                    'segmentos' => $segmentos,
+                    'dataExtenso' => now()->translatedFormat('d \d\e F \d\e Y'),
+                    'tenantNome' => \Filament\Facades\Filament::getTenant()->name ?? 'Município',
+                ]);
+
+                // 4. Devolve o arquivo para download sem recarregar a página
+                return response()->streamDownload(function () use ($pdf) {
+                    echo $pdf->output();
+                }, 'memorial_lote_' . ($lote->numero_lote ?? $lote->id) . '.pdf');
+            });
+    }
 }
