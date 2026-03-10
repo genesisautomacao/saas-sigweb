@@ -14,6 +14,7 @@ use App\Models\Edificacao;
 use App\Models\UnidadeImobiliaria;
 use App\Models\Poste;
 use App\Models\Arvore;
+use App\Models\Cemiterio;
 
 class MapDataController extends Controller
 {
@@ -87,22 +88,31 @@ class MapDataController extends Controller
 
             case 'postes':
                 $postes = Poste::where('tenant_id', $tenantId)
-                ->select('id', 'sequential_id', 'geo', 'structural_condition', 'code')
-                ->withExists(['solicitacoesManutencao as tem_chamado' => function ($query) {
-                        $query->whereIn('status', ['pendente', 'analise', 'aprovada_os']);
-                    }])
-                ->get();
+                    ->select('id', 'sequential_id', 'geo', 'structural_condition', 'code')
+                    ->withExists([
+                        'solicitacoesManutencao as tem_chamado' => function ($query) {
+                            $query->whereIn('status', ['pendente', 'analise', 'aprovada_os']);
+                        }
+                    ])
+                    ->get();
                 $data = $buildFeatureCollection($postes, 'postes');
                 break;
 
             case 'arvores': // 🛑 NOVO CASE
                 $arvores = Arvore::where('tenant_id', $tenantId)
                     ->select('id', 'geo', 'botanical_species', 'phytosanitary_condition', 'size', 'sequential_id')
-                    ->withExists(['solicitacoesManutencao as tem_chamado' => function ($query) {
-                        $query->whereIn('status', ['pendente', 'analise', 'aprovada_os']);
-                    }])
+                    ->withExists([
+                        'solicitacoesManutencao as tem_chamado' => function ($query) {
+                            $query->whereIn('status', ['pendente', 'analise', 'aprovada_os']);
+                        }
+                    ])
                     ->get();
                 $data = $buildFeatureCollection($arvores, 'arvores');
+                break;
+
+            case 'cemiterios': // <-- NOVO BLOCO
+                $cemiterios = Cemiterio::where('tenant_id', $tenantId)->select('id', 'name', 'code', 'geo')->get();
+                $data = $buildFeatureCollection($cemiterios, 'cemiterios');
                 break;
 
             default:

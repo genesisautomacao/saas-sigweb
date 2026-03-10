@@ -143,7 +143,7 @@ class RoleResource extends Resource
                                     ->bulkToggleable(),
                             ])->columns(1)->columnSpan(1),
 
-                        // 🛑 CAIXA 8: MEIO AMBIENTE / ARBORIZAÇÃO
+                        // CAIXA 8: MEIO AMBIENTE / ARBORIZAÇÃO
                         Forms\Components\Fieldset::make('Módulo: Meio Ambiente (Árvores)')
                             ->schema([
                                 Forms\Components\CheckboxList::make('permissions_arborizacao')
@@ -183,7 +183,7 @@ class RoleResource extends Resource
                                     ])
                                     ->bulkToggleable()
                                     ->columns(2),
-                            ])->columns(1)->columnSpanFull(), // Coloquei FullSpan pois essa lista é grandinha
+                            ])->columns(1)->columnSpanFull(),
 
                         // CAIXA 10: MANUTENÇÃO E SERVIÇOS
                         Forms\Components\Fieldset::make('Módulo: Manutenção e Serviços')
@@ -204,7 +204,37 @@ class RoleResource extends Resource
                                     ->columns(2),
                             ])->columns(1)->columnSpanFull(),
 
-                    ])->columns(4), // 🛑 Mudou de 3 para 4 colunas para as 8 caixas ficarem perfeitas
+                        // 🟢 CAIXA 11: CEMITÉRIOS (NOVO)
+                        Forms\Components\Fieldset::make('Módulo: Gestão de Cemitérios')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_cemiterio')
+                                    ->label('Administração de Cemitérios e Jazigos')
+                                    ->options([
+                                        'view_cemiterios' => 'Vis. Cemitérios',
+                                        'create_cemiterios' => 'Criar Cemitérios',
+                                        'edit_cemiterios' => 'Editar Cemitérios',
+                                        'delete_cemiterios' => 'Excluir Cemitérios',
+
+                                        'view_quadras_cemiterio' => 'Vis. Quadras',
+                                        'create_quadras_cemiterio' => 'Criar Quadras',
+                                        'edit_quadras_cemiterio' => 'Editar Quadras',
+                                        'delete_quadras_cemiterio' => 'Excluir Quadras',
+
+                                        'view_logradouros_cemiterio' => 'Vis. Ruas',
+                                        'create_logradouros_cemiterio' => 'Criar Ruas',
+                                        'edit_logradouros_cemiterio' => 'Editar Ruas',
+                                        'delete_logradouros_cemiterio' => 'Excluir Ruas',
+
+                                        'view_jazigos' => 'Vis. Jazigos',
+                                        'create_jazigos' => 'Criar Jazigos',
+                                        'edit_jazigos' => 'Editar Jazigos',
+                                        'delete_jazigos' => 'Excluir Jazigos',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(4), // Bem largo para aproveitar a tela
+                            ])->columns(1)->columnSpanFull(),
+
+                    ])->columns(4),
 
             ]);
     }

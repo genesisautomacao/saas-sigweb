@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const condition = feature.get('phytosanitary_condition');
                 const size = feature.get('size');
                 const temChamado = feature.get('tem_chamado'); // 🟢 LÊ DO BANCO
-                
+
                 let radius = 6;
                 if (size === 'pequeno') radius = 6;
                 if (size === 'grande') radius = 8;
@@ -189,6 +189,29 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         },
         'edificacoes': { z: 70, minZoom: 16, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#b45309', width: 1 }), fill: new ol.style.Fill({ color: 'rgba(180, 83, 9, 0.5)' }) }) },
+
+        'cemiterios': {
+            z: 25, // Fica entre a Zona e o Bairro
+            minZoom: 13,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#9333ea', width: 2 }), // Roxo
+                    fill: new ol.style.Fill({ color: 'rgba(147, 51, 234, 0.2)' }) // Roxo transparente
+                });
+                // Mostra o nome do cemitério a partir do zoom 15
+                if (zoom >= 15) {
+                    style.setText(new ol.style.Text({
+                        text: feature.get('name') ? feature.get('name').toString() : 'Cemitério',
+                        font: 'bold 14px Arial, sans-serif',
+                        fill: new ol.style.Fill({ color: '#581c87' }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                        overflow: true
+                    }));
+                }
+                return style;
+            }
+        },
     };
 
     // 5. INICIA O MAPA
@@ -375,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const feature = map.forEachFeatureAtPixel(e.pixel, feature => feature, { hitTolerance: 5 });
 
         // 2. Define quais camadas ganham a "mãozinha" (pointer) ao passar o mouse
-        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'quadras', 'postes', 'arvores']; 
+        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'quadras', 'postes', 'arvores', 'cemiterios'];
         const isHoverable = feature && hoverableLayers.includes(feature.get('layer'));
         map.getTargetElement().style.cursor = isHoverable ? 'pointer' : '';
 
@@ -445,27 +468,27 @@ document.addEventListener('DOMContentLoaded', function () {
                     const condition = feature.get('structural_condition');
                     const seqId = feature.get('sequential_id');
                     const temChamado = feature.get('tem_chamado'); // 🟢
-                    
+
                     const textoBase = seqId ? `Poste #${seqId}` : 'Poste S/N';
                     const textoHover = temChamado ? `🛠️ ${textoBase} (Em Manutenção)` : textoBase;
 
-                    let fillColor = '#eab308'; 
-                    if (condition === 'Bom') fillColor = '#22c55e'; 
-                    if (condition === 'Ruim') fillColor = '#ef4444'; 
+                    let fillColor = '#eab308';
+                    if (condition === 'Bom') fillColor = '#22c55e';
+                    if (condition === 'Ruim') fillColor = '#ef4444';
                     if (temChamado) fillColor = '#d946ef'; // 🛑
 
                     feature.setStyle(new ol.style.Style({
                         image: new ol.style.Circle({
                             radius: temChamado ? 10 : 9, // Cresce no hover
                             fill: new ol.style.Fill({ color: fillColor }),
-                            stroke: new ol.style.Stroke({ color: temChamado ? '#000000' : '#ffffff', width: 3 }) 
+                            stroke: new ol.style.Stroke({ color: temChamado ? '#000000' : '#ffffff', width: 3 })
                         }),
                         text: zoom >= 18 ? new ol.style.Text({
-                            text: textoHover, 
-                            offsetY: -16, 
+                            text: textoHover,
+                            offsetY: -16,
                             font: 'bold 12px Arial, sans-serif',
                             fill: new ol.style.Fill({ color: '#ffffff' }),
-                            stroke: new ol.style.Stroke({ color: '#000000', width: 3 }), 
+                            stroke: new ol.style.Stroke({ color: '#000000', width: 3 }),
                             overflow: true
                         }) : null
                     }));
@@ -480,7 +503,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const textoBase = seqId ? `Árvore #${seqId} - ${especie}` : `Árvore - ${especie}`;
                     const textoHover = temChamado ? `🛠️ ${textoBase} (Em Manutenção)` : textoBase;
 
-                    let fillColor = '#22c55e'; 
+                    let fillColor = '#22c55e';
                     if (condition === 'Regular') fillColor = '#eab308';
                     if (condition === 'Ruim') fillColor = '#ef4444';
                     if (condition === 'Morta') fillColor = '#6b7280';
@@ -490,18 +513,34 @@ document.addEventListener('DOMContentLoaded', function () {
                         image: new ol.style.Circle({
                             radius: temChamado ? 11 : 10,
                             fill: new ol.style.Fill({ color: fillColor }),
-                            stroke: new ol.style.Stroke({ color: temChamado ? '#000000' : '#ffffff', width: 3 }) 
+                            stroke: new ol.style.Stroke({ color: temChamado ? '#000000' : '#ffffff', width: 3 })
                         }),
                         text: zoom >= 18 ? new ol.style.Text({
                             text: textoHover,
-                            offsetY: -16, 
+                            offsetY: -16,
                             font: 'bold 12px Arial, sans-serif',
                             fill: new ol.style.Fill({ color: '#ffffff' }),
-                            stroke: new ol.style.Stroke({ color: '#000000', width: 3 }), 
+                            stroke: new ol.style.Stroke({ color: '#000000', width: 3 }),
+                            overflow: true
+                        }) : null
+                    }));
+
+
+                } else if (layer === 'cemiterios') {
+                    feature.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#a855f7', width: 3 }), // Roxo mais brilhante
+                        fill: new ol.style.Fill({ color: 'rgba(147, 51, 234, 0.4)' }), // Fundo mais escuro
+                        text: zoom >= 15 ? new ol.style.Text({
+                            text: name,
+                            font: 'bold 15px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: '#ffffff' }), // Letra branca
+                            stroke: new ol.style.Stroke({ color: '#581c87', width: 4 }),
                             overflow: true
                         }) : null
                     }));
                 }
+
+
             }
         } else {
             // Limpa tudo se clicar fora
@@ -538,6 +577,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            const clickedCemiterio = features.find(f => f.get('layer') === 'cemiterios');
+            if (clickedCemiterio) {
+                Livewire.dispatch('abrirOpcoesCemiterio', { id: clickedCemiterio.get('id') });
+                return;
+            }
+
             const clickedLote = features.find(f => f.get('layer') === 'lotes');
             if (clickedLote) {
                 const loteId = clickedLote.get('id');
@@ -548,6 +593,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const loteNome = clickedLote.get('name') || 'S/N';
                 if (loteId) Livewire.dispatch('abrirFichaImovel', { loteId: loteId, loteNome: loteNome });
             }
+
         } else {
             if (featureEmEdicao) window.cancelarEdicaoGeometria();
         }
@@ -785,6 +831,32 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // 🛑 INJEÇÃO 2: Habilitar modo arraste para Cemitério
+    window.addEventListener('iniciar-edicao-geometria-cemiterio', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['cemiterios']) return;
+        const source = loadedLayers['cemiterios'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({ 
+                    image: new ol.style.Circle({ 
+                        radius: 7, 
+                        fill: new ol.style.Fill({ color: '#9333ea' }), // Bolinha Roxa
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) 
+                    }) 
+                })
+            });
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
     // ATUALIZAR CAMADA
     window.addEventListener('atualizar-camada-arvores', () => {
         if (loadedLayers['arvores']) {
@@ -814,6 +886,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Disparo para salvar a nova posição da Árvore
             else if (layerName === 'arvores') Livewire.dispatch('salvarNovaGeometriaArvore', { id: id, geoJson: geoJson });
+
+            // 🛑 INJEÇÃO 3: Disparo para salvar o Cemitério
+            else if (layerName === 'cemiterios') Livewire.dispatch('salvarNovaGeometriaCemiterio', { id: id, geoJson: geoJson });
 
             encerrarModoEdicao();
         }
@@ -977,6 +1052,49 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // =========================================================================
+    // CIRURGIA EM MEMÓRIA: CEMITÉRIOS
+    // =========================================================================
+    
+    // Adiciona apenas o novo Cemitério ao terminar de desenhar
+    window.addEventListener('adicionar-cemiterio-mapa', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (drawSource) drawSource.clear();
+        const checkbox = document.querySelector('input[data-layer="cemiterios"]');
+        
+        if (checkbox && checkbox.checked && loadedLayers['cemiterios']) {
+            const feature = new ol.Feature({
+                geometry: new ol.format.GeoJSON().readGeometry(data.geo, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' }),
+                id: data.id, 
+                name: data.name, 
+                layer: 'cemiterios' // Essencial para o clique e hover funcionarem
+            });
+            loadedLayers['cemiterios'].getSource().addFeature(feature);
+        }
+    });
+
+    // Atualiza só o texto do hover se alterar o nome no banco
+    window.addEventListener('atualizar-label-cemiterio', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (loadedLayers['cemiterios']) {
+            const feature = loadedLayers['cemiterios'].getSource().getFeatures().find(f => f.get('id') == data.id);
+            if (feature) { 
+                feature.set('name', data.name); 
+                feature.changed(); // Força a re-renderização visual do polígono
+            }
+        }
+    });
+
+    // Arranca o polígono do mapa sem precisar baixar os outros do banco
+    window.addEventListener('remover-cemiterio-mapa', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (loadedLayers['cemiterios']) {
+            const source = loadedLayers['cemiterios'].getSource();
+            const feature = source.getFeatures().find(f => f.get('id') == data.id);
+            if (feature) source.removeFeature(feature);
+        }
+    });
+
+    // =========================================================================
     // 17. INTERCEPTADOR DE CRIAÇÃO GEOGRÁFICA (PONTOS VIA URL)
     // =========================================================================
     const urlParams = new URLSearchParams(window.location.search);
@@ -987,7 +1105,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (actionParams === 'create' && (layerParams === 'postes' || layerParams === 'arvores')) {
 
         const entityName = layerParams === 'postes' ? 'Poste' : 'Árvore';
-        
+
         console.log(`Modo de inserção de ${entityName} ativado!`);
         alert(`📍 Clique no mapa exatamente onde o(a) novo(a) ${entityName} está localizado(a).`);
 
@@ -1015,7 +1133,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
             window.location.href = returnUrl;
         });
-    }    
+    }
+
+    // 🛑 INJEÇÃO: Escutador de Criação de Polígonos (Cemitérios e futuras Quadras) vindos do Backoffice
+    else if (actionParams === 'create' && layerParams === 'cemiterios') {
+        
+        console.log("Modo de inserção de Cemitério ativado via Backoffice!");
+        
+        // Dá um pequeno tempo para o mapa carregar o DOM (500ms)
+        setTimeout(() => {
+            alert(`🗺️ Desenhe o polígono do novo Cemitério no mapa.\n\nClique nos vértices do terreno e dê um clique duplo no último ponto para finalizar e abrir a tela de cadastro.`);
+            
+            // 1. Liga a camada no menu lateral automaticamente para o usuário ver os outros cemitérios
+            const checkbox = document.querySelector(`input[data-layer="cemiterios"]`);
+            if (checkbox && !checkbox.checked) {
+                checkbox.checked = true;
+                checkbox.dispatchEvent(new Event('change'));
+            }
+
+            // 2. Chama a nossa função nativa que já ativa o cursor crosshair e o Rascunho
+            if (typeof window.enableDrawing === 'function') {
+                window.enableDrawing('cemiterio');
+            }
+        }, 500);
+    }
 
     // =========================================================================
     // 19. VOO DIRETO VIA URL (VER NO MAPA)

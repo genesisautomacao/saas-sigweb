@@ -137,6 +137,11 @@
                                     <x-heroicon-o-sparkles class="w-4 h-4 text-emerald-500" /> Árvores
                                 </button>
 
+                                <button onclick="enableDrawing('cemiterio')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <x-heroicon-o-stop class="w-4 h-4 text-purple-600" /> Cemitério (Polígono)
+                                </button>
+
                             </div>
                         </div>
                     </div>
@@ -256,6 +261,7 @@
                                 <span class="layer-text truncate">Edificações</span>
                             </span>
                         </label>
+
                     </div>
                 </div>
 
@@ -323,6 +329,29 @@
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-3 bg-emerald-500 rounded-full flex-shrink-0"></div><span
                                     class="layer-text truncate">Arborização Urbana</span>
+                            </span>
+                        </label>
+
+                    </div>
+                </div>
+
+                 {{-- GRUPO 4: CEMITÉRIOS --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'cemiterios' ? '' : 'cemiterios'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                        <span class="flex items-center gap-2">Gestão de Cemitérios</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'cemiterios' ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="activeTab === 'cemiterios'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
+
+                        <label class="flex items-center space-x-3 cursor-pointer w-full">
+                            <input type="checkbox" data-layer="cemiterios"
+                                class="layer-toggle rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-purple-600 rounded-sm opacity-60 shadow-sm flex-shrink-0"></div>
+                                <span class="layer-text truncate">Cemitérios</span>
                             </span>
                         </label>
 

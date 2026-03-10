@@ -184,8 +184,8 @@ class TenantResource extends Resource
                                 'iluminacao' => 'GIS - Iluminação Pública',
                                 'estoque' => 'ADM - Estoque',
                                 'manutencao' => 'ADM - Manutenção e Serviços',
-
                                 'cemiterio' => 'GIS - Gestão de Cemitérios',
+                                
                                 'mob_infra' => 'Mobilidade - Infraestrutura',
                                 // Adicione os módulos do CSV que você me mandou aqui!
                             ]),

@@ -73,7 +73,13 @@ class PermissionsSeeder extends Seeder
 
             /* Módulo de Manutenção e Serviços */
             'view_solicitacoes', 'create_solicitacoes', 'edit_solicitacoes', 'delete_solicitacoes',
-            'view_ordens_servico', 'create_ordens_servico', 'edit_ordens_servico', 'delete_ordens_servico'
+            'view_ordens_servico', 'create_ordens_servico', 'edit_ordens_servico', 'delete_ordens_servico',
+
+            /* Módulo de Cemitérios */
+            'view_cemiterios', 'create_cemiterios', 'edit_cemiterios', 'delete_cemiterios',
+            'view_quadras_cemiterio', 'create_quadras_cemiterio', 'edit_quadras_cemiterio', 'delete_quadras_cemiterio',
+            'view_logradouros_cemiterio', 'create_logradouros_cemiterio', 'edit_logradouros_cemiterio', 'delete_logradouros_cemiterio',
+            'view_jazigos', 'create_jazigos', 'edit_jazigos', 'delete_jazigos',
         ];
 
         foreach ($permissions as $permission) {

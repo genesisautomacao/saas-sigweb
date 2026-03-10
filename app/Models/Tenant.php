@@ -115,6 +115,14 @@ class Tenant extends Model implements HasAvatar
                 }
             }
 
+            // 6. Módulo de Gestão de Cemitérios
+            $cemiterioEntities = ['cemiterios', 'quadras_cemiterio', 'logradouros_cemiterio', 'jazigos'];
+            foreach ($cemiterioEntities as $entity) {
+                if (str_ends_with($permission, '_' . $entity) && !in_array('cemiterio', $activeModules)) {
+                    return false;
+                }
+            }
+
             // Se for permissão base do sistema (ex: view_users, create_roles), deixa passar
             return true;
         });
@@ -231,6 +239,24 @@ class Tenant extends Model implements HasAvatar
     public function ordemServicos(): HasMany
     {
         return $this->hasMany(OrdemServico::class);
+    }
+
+    // Módulo de Cemitérios
+    public function cemiterios(): HasMany
+    {
+        return $this->hasMany(Cemiterio::class);
+    }
+    public function quadrasCemiterio(): HasMany
+    {
+        return $this->hasMany(QuadraCemiterio::class);
+    }
+    public function logradourosCemiterio(): HasMany
+    {
+        return $this->hasMany(LogradouroCemiterio::class);
+    }
+    public function jazigos(): HasMany
+    {
+        return $this->hasMany(Jazigo::class);
     }
 
 }

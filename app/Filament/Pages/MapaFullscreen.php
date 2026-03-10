@@ -7,12 +7,14 @@ use App\Filament\Pages\Traits\HasEdificacaoActions;
 use \App\Filament\Pages\Traits\HasLogradouroActions;
 use App\Filament\Pages\Traits\HasPosteActions;
 use App\Filament\Pages\Traits\HasArvoreActions;
+use App\Filament\Pages\Traits\HasCemiterioActions;
 use App\Models\Lote;
 use App\Models\Edificacao;
 use App\Models\Zona;
 use App\Models\Quadra;
 use App\Models\Poste;
 use App\Models\Arvore;
+use App\Models\Cemiterio;
 use Filament\Pages\Page;
 use Filament\Facades\Filament;
 use Livewire\Attributes\On;
@@ -27,6 +29,7 @@ class MapaFullscreen extends Page
     use HasLogradouroActions;
     use HasPosteActions;
     use HasArvoreActions;
+    use HasCemiterioActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';
@@ -59,6 +62,7 @@ class MapaFullscreen extends Page
     public ?int $edificacaoAtivaId = null;
     public array $zonasTipos = [];
     public ?int $logradouroAtivoId = null;
+    public ?int $cemiterioAtivoId = null;
 
     public function mount()
     {
@@ -166,6 +170,9 @@ class MapaFullscreen extends Page
 
         } elseif ($entityType === 'arvore') { // <-- NOVO BLOCO
             $this->mountAction('criarArvore');
+
+        } elseif ($entityType === 'cemiterio') { // <-- NOVO BLOCO
+            $this->mountAction('criarCemiterio');
         }
 
     }
@@ -307,4 +314,27 @@ class MapaFullscreen extends Page
         $this->arvoreAtivaId = $id;
         $this->mountAction('opcoesArvore');
     }
+
+    #[On('abrirOpcoesCemiterio')]
+    public function abrirOpcoesCemiterio($id)
+    {
+        $this->cemiterioAtivoId = $id;
+        $this->mountAction('opcoesCemiterio');
+    }
+
+    #[On('salvarNovaGeometriaCemiterio')]
+    public function salvarNovaGeometriaCemiterio($id, $geoJson)
+    {
+        $cemiterio = Cemiterio::find($id);
+        if ($cemiterio) {
+            $cemiterio->update(['geo' => $geoJson]);
+            DB::statement("UPDATE cemiterios SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$cemiterio->id]);
+            \Filament\Notifications\Notification::make()->title('Polígono Atualizado!')->success()->send();
+            
+            // NÃO PRECISA DISPARAR NADA AQUI! 
+            // O Javascript (OpenLayers) já arrastou a linha lá na tela do usuário, 
+            // não precisamos fazer a tela piscar para mostrar o que ele já está vendo!
+        }
+    }
+    
 }
