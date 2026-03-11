@@ -115,6 +115,22 @@ class MapDataController extends Controller
                 $data = $buildFeatureCollection($cemiterios, 'cemiterios');
                 break;
 
+            case 'quadras_cemiterio':
+                $quadras = \App\Models\QuadraCemiterio::where('tenant_id', $tenantId)->select('id', 'name', 'code', 'geo')->get();
+                $data = $buildFeatureCollection($quadras, 'quadras_cemiterio');
+                break;
+
+            case 'logradouros_cemiterio':
+                $logradouros = \App\Models\LogradouroCemiterio::where('tenant_id', $tenantId)->select('id', 'name', 'code', 'geo')->get();
+                $data = $buildFeatureCollection($logradouros, 'logradouros_cemiterio');
+                break;
+
+            case 'jazigos':
+                // Enviamos o código em vez de name para exibir na label
+                $jazigos = \App\Models\Jazigo::where('tenant_id', $tenantId)->select('id', 'codigo as name', 'code', 'geo')->get();
+                $data = $buildFeatureCollection($jazigos, 'jazigos');
+                break;
+
             default:
                 return response()->json(['error' => 'Camada não encontrada'], 404);
         }

@@ -250,7 +250,7 @@ class Tenant extends Model implements HasAvatar
     {
         return $this->hasMany(QuadraCemiterio::class);
     }
-    public function logradourosCemiterio(): HasMany
+    public function logradouroCemiterios(): HasMany
     {
         return $this->hasMany(LogradouroCemiterio::class);
     }

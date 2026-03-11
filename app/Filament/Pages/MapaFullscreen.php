@@ -8,6 +8,9 @@ use \App\Filament\Pages\Traits\HasLogradouroActions;
 use App\Filament\Pages\Traits\HasPosteActions;
 use App\Filament\Pages\Traits\HasArvoreActions;
 use App\Filament\Pages\Traits\HasCemiterioActions;
+use App\Filament\Pages\Traits\HasQuadraCemiterioActions;
+use App\Filament\Pages\Traits\HasLogradouroCemiterioActions;
+use App\Filament\Pages\Traits\HasJazigoActions;
 use App\Models\Lote;
 use App\Models\Edificacao;
 use App\Models\Zona;
@@ -15,6 +18,9 @@ use App\Models\Quadra;
 use App\Models\Poste;
 use App\Models\Arvore;
 use App\Models\Cemiterio;
+use App\Models\QuadraCemiterio;
+use App\Models\LogradouroCemiterio;
+use App\Models\Jazigo; 
 use Filament\Pages\Page;
 use Filament\Facades\Filament;
 use Livewire\Attributes\On;
@@ -30,6 +36,10 @@ class MapaFullscreen extends Page
     use HasPosteActions;
     use HasArvoreActions;
     use HasCemiterioActions;
+    use HasQuadraCemiterioActions;
+    use HasLogradouroCemiterioActions;
+    use HasJazigoActions; // <-- INJETAR AQUI
+    
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';
@@ -63,6 +73,7 @@ class MapaFullscreen extends Page
     public array $zonasTipos = [];
     public ?int $logradouroAtivoId = null;
     public ?int $cemiterioAtivoId = null;
+    public ?int $jazigoAtivoId = null;
 
     public function mount()
     {
@@ -173,6 +184,72 @@ class MapaFullscreen extends Page
 
         } elseif ($entityType === 'cemiterio') { // <-- NOVO BLOCO
             $this->mountAction('criarCemiterio');
+
+        } elseif ($entityType === 'quadra_cemiterio') {
+
+            // 🛑 MÁGICA TOPOLÓGICA: Verifica se o centro do desenho caiu dentro de um Cemitério
+            $cemiterio = \App\Models\Cemiterio::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Intersects(geo, $centroidWKT)")
+                ->first();
+
+            if (!$cemiterio) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Fora do Cemitério!')
+                    ->body('A quadra deve ser desenhada DENTRO da área de um cemitério já existente.')
+                    ->danger()
+                    ->send();
+
+                $this->dispatch('limpar-rascunho-mapa');
+                return; // Aborta e nem abre a modal!
+            }
+
+            // Salva o ID do cemitério detectado para a Trait injetar no formulário
+            $this->cemiterioPreSelecionadoId = $cemiterio->id;
+
+            $this->mountAction('criarQuadraCemiterio');
+
+        } elseif ($entityType === 'logradouro_cemiterio') {
+
+            // Verifica se a linha desenhada passa por dentro de algum cemitério
+            $cemiterio = \App\Models\Cemiterio::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Intersects(geo, $polyWKT)") // Usa $polyWKT (que no caso da rua é a LineString)
+                ->first();
+
+            if (!$cemiterio) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Fora do Cemitério!')
+                    ->body('As ruas internas devem ser desenhadas dentro de um cemitério cadastrado.')
+                    ->danger()
+                    ->send();
+
+                $this->dispatch('limpar-rascunho-mapa');
+                return;
+            }
+
+            $this->cemiterioPreSelecionadoId = $cemiterio->id;
+            $this->mountAction('criarLogradouroCemiterio');
+        
+        } elseif ($entityType === 'jazigo') {
+            
+            // 🛑 MÁGICA TOPOLÓGICA: O Jazigo precisa estar dentro de uma Quadra de Cemitério!
+            $quadra = \App\Models\QuadraCemiterio::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Intersects(geo, $polyWKT)") 
+                ->first();
+
+            if (!$quadra) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Fora da Quadra!')
+                    ->body('O Jazigo deve ser desenhado DENTRO dos limites de uma Quadra de Cemitério.')
+                    ->danger()
+                    ->send();
+                    
+                $this->dispatch('limpar-rascunho-mapa');
+                return; 
+            }
+
+            // Salva o ID da Quadra detectada
+            $this->quadraCemiterioPreSelecionadaId = $quadra->id;
+            $this->mountAction('criarJazigo');
         }
 
     }
@@ -330,11 +407,107 @@ class MapaFullscreen extends Page
             $cemiterio->update(['geo' => $geoJson]);
             DB::statement("UPDATE cemiterios SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$cemiterio->id]);
             \Filament\Notifications\Notification::make()->title('Polígono Atualizado!')->success()->send();
-            
+
             // NÃO PRECISA DISPARAR NADA AQUI! 
             // O Javascript (OpenLayers) já arrastou a linha lá na tela do usuário, 
             // não precisamos fazer a tela piscar para mostrar o que ele já está vendo!
         }
     }
-    
+
+    #[On('abrirOpcoesQuadraCemiterio')]
+    public function abrirOpcoesQuadraCemiterio($id)
+    {
+        $this->quadraCemiterioAtivaId = $id;
+        $this->mountAction('opcoesQuadraCemiterio');
+    }
+
+    #[On('salvarNovaGeometriaQuadraCemiterio')]
+    public function salvarNovaGeometriaQuadraCemiterio($id, $geoJson)
+    {
+        $quadra = QuadraCemiterio::find($id);
+        if ($quadra) {
+            $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
+
+            // 🛑 MÁGICA TOPOLÓGICA: Impede de mover a quadra pra fora do cemitério dela
+            $contido = \App\Models\Cemiterio::where('id', $quadra->cemiterio_id)
+                ->whereRaw("ST_Intersects(geo, $polyWKT)")
+                ->exists();
+
+            if (!$contido) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Erro Topológico')
+                    ->body('Você não pode mover esta quadra para fora do cemitério ao qual ela pertence.')
+                    ->danger()
+                    ->send();
+
+                $this->dispatch('desfazer-edicao-geometria'); // Manda o JS voltar o polígono pro lugar
+                return;
+            }
+
+            $quadra->update(['geo' => $geoJson]);
+            DB::statement("UPDATE quadras_cemiterio SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$quadra->id]);
+            \Filament\Notifications\Notification::make()->title('Polígono da Quadra Atualizado!')->success()->send();
+        }
+    }
+
+    #[On('abrirOpcoesLogradouroCemiterio')]
+    public function abrirOpcoesLogradouroCemiterio($id)
+    {
+        $this->logradouroCemiterioAtivoId = $id;
+        $this->mountAction('opcoesLogradouroCemiterio');
+    }
+
+    #[On('salvarNovaGeometriaLogradouroCemiterio')]
+    public function salvarNovaGeometriaLogradouroCemiterio($id, $geoJson)
+    {
+        $logradouro = LogradouroCemiterio::find($id);
+        if ($logradouro) {
+            $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
+
+            $contido = \App\Models\Cemiterio::where('id', $logradouro->cemiterio_id)
+                ->whereRaw("ST_Intersects(geo, $polyWKT)")
+                ->exists();
+
+            if (!$contido) {
+                \Filament\Notifications\Notification::make()->title('Erro Topológico')->body('A rua não pode ser movida para fora do cemitério.')->danger()->send();
+                $this->dispatch('desfazer-edicao-geometria');
+                return;
+            }
+
+            $logradouro->update(['geo' => $geoJson]);
+            \Filament\Notifications\Notification::make()->title('Caminho Atualizado!')->success()->send();
+        }
+    }
+
+    #[On('abrirOpcoesJazigo')]
+    public function abrirOpcoesJazigo($id)
+    {
+        $this->jazigoAtivoId = $id;
+        $this->mountAction('opcoesJazigo');
+    }
+
+    #[On('salvarNovaGeometriaJazigo')]
+    public function salvarNovaGeometriaJazigo($id, $geoJson)
+    {
+        $jazigo = Jazigo::find($id);
+        if ($jazigo) {
+            $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
+            
+            // 🛑 Impede de mover o jazigo para fora da quadra dele
+            $contido = \App\Models\QuadraCemiterio::where('id', $jazigo->quadra_cemiterio_id)
+                ->whereRaw("ST_Intersects(geo, $polyWKT)")
+                ->exists();
+
+            if (!$contido) {
+                \Filament\Notifications\Notification::make()->title('Erro Topológico')->body('Você não pode mover este jazigo para fora da sua respectiva quadra.')->danger()->send();
+                $this->dispatch('desfazer-edicao-geometria');
+                return;
+            }
+
+            $jazigo->update(['geo' => $geoJson]);
+            DB::statement("UPDATE jazigos SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$jazigo->id]);
+            \Filament\Notifications\Notification::make()->title('Polígono do Jazigo Atualizado!')->success()->send();
+        }
+    }
+
 }

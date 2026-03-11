@@ -142,6 +142,21 @@
                                     <x-heroicon-o-stop class="w-4 h-4 text-purple-600" /> Cemitério (Polígono)
                                 </button>
 
+                                <button onclick="enableDrawing('quadra_cemiterio')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <x-heroicon-o-squares-2x2 class="w-4 h-4 text-indigo-500" /> Quadra de Cemitério
+                                </button>
+
+                                <button onclick="enableDrawing('logradouro_cemiterio')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <x-heroicon-o-arrows-right-left class="w-4 h-4 text-slate-500" /> Rua de Cemitério
+                                </button>
+
+                                <button onclick="enableDrawing('jazigo')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <x-heroicon-o-archive-box class="w-4 h-4 text-stone-600" /> Jazigo / Túmulo
+                                </button>
+
                             </div>
                         </div>
                     </div>
@@ -335,7 +350,7 @@
                     </div>
                 </div>
 
-                 {{-- GRUPO 4: CEMITÉRIOS --}}
+                {{-- GRUPO 4: CEMITÉRIOS --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'cemiterios' ? '' : 'cemiterios'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
@@ -352,6 +367,33 @@
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-3 bg-purple-600 rounded-sm opacity-60 shadow-sm flex-shrink-0"></div>
                                 <span class="layer-text truncate">Cemitérios</span>
+                            </span>
+                        </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer w-full">
+                            <input type="checkbox" data-layer="quadras_cemiterio"
+                                class="layer-toggle rounded border-gray-300 text-indigo-500 focus:ring-indigo-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-indigo-500 rounded-sm opacity-60 shadow-sm flex-shrink-0"></div>
+                                <span class="layer-text truncate">Quadras (Cemitério)</span>
+                            </span>
+                        </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer w-full">
+                            <input type="checkbox" data-layer="logradouros_cemiterio"
+                                class="layer-toggle rounded border-gray-300 text-slate-500 focus:ring-slate-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-1 bg-slate-500 rounded-sm opacity-80 flex-shrink-0"></div>
+                                <span class="layer-text truncate">Ruas (Cemitério)</span>
+                            </span>
+                        </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer w-full">
+                            <input type="checkbox" data-layer="jazigos"
+                                class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-stone-600 rounded-sm opacity-70 flex-shrink-0"></div>
+                                <span class="layer-text truncate">Jazigos / Túmulos</span>
                             </span>
                         </label>
 

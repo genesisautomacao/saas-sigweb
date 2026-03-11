@@ -42,7 +42,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 4. ESTILOS DAS CAMADAS VETORIAIS
     const layerConfigs = {
+
         'perimetros': { z: 10, minZoom: 0, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#ef4444', width: 3 }), fill: new ol.style.Fill({ color: 'rgba(239, 68, 68, 0.05)' }) }) },
+
         'zonas': {
             z: 20,
             minZoom: 0,
@@ -212,6 +214,61 @@ document.addEventListener('DOMContentLoaded', function () {
                 return style;
             }
         },
+
+        // 🛑 CAMADA DAS QUADRAS DO CEMITÉRIO
+        'quadras_cemiterio': {
+            z: 26, // Z-index maior que o cemitério (25) para a quadra ficar por cima e ser clicável
+            minZoom: 16,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#6366f1', width: 2, lineDash: [4, 4] }), // Borda Indigo tracejada
+                    fill: new ol.style.Fill({ color: 'rgba(99, 102, 241, 0.3)' }) // Fundo Indigo transparente
+                });
+
+                // Texto só aparece com zoom bem próximo
+                if (zoom >= 17) {
+                    style.setText(new ol.style.Text({
+                        text: feature.get('name') ? feature.get('name').toString() : 'Quadra',
+                        font: 'bold 13px Arial, sans-serif',
+                        fill: new ol.style.Fill({ color: '#312e81' }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                        overflow: true
+                    }));
+                }
+                return style;
+            }
+        },
+
+        'logradouros_cemiterio': {
+            z: 27,
+            minZoom: 16,
+            style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#64748b', width: 3 }) })
+        },
+
+        'jazigos': {
+            z: 28,
+            minZoom: 18, // Só aparece bem de perto para não poluir
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#57534e', width: 1 }), // Stone 600
+                    fill: new ol.style.Fill({ color: 'rgba(87, 83, 78, 0.4)' })
+                });
+
+                if (zoom >= 19.5) { // Texto só no ultra-zoom
+                    style.setText(new ol.style.Text({
+                        text: feature.get('name') ? feature.get('name').toString() : 'Jazigo',
+                        font: 'bold 11px Arial, sans-serif',
+                        fill: new ol.style.Fill({ color: '#1c1917' }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }),
+                        overflow: true
+                    }));
+                }
+                return style;
+            }
+        },
+
     };
 
     // 5. INICIA O MAPA
@@ -398,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const feature = map.forEachFeatureAtPixel(e.pixel, feature => feature, { hitTolerance: 5 });
 
         // 2. Define quais camadas ganham a "mãozinha" (pointer) ao passar o mouse
-        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'quadras', 'postes', 'arvores', 'cemiterios'];
+        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'quadras', 'postes', 'arvores', 'cemiterios', 'quadras_cemiterio', 'logradouros_cemiterio'];
         const isHoverable = feature && hoverableLayers.includes(feature.get('layer'));
         map.getTargetElement().style.cursor = isHoverable ? 'pointer' : '';
 
@@ -412,17 +469,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 hoveredFeature = feature;
             }
 
-            if (layer === 'logradouros') {
+            if (layer === 'logradouros' || layer === 'logradouros_cemiterio') {
                 feature.setStyle(new ol.style.Style({
-                    stroke: new ol.style.Stroke({ color: '#38bdf8', width: 6 })
+                    stroke: new ol.style.Stroke({ color: layer === 'logradouros' ? '#38bdf8' : '#94a3b8', width: 6 })
                 }));
 
                 if (featureTooltip) {
-                    featureTooltip.innerHTML = name || 'Logradouro sem nome';
+                    featureTooltip.innerHTML = name || 'Rua Interna sem nome';
                     featureTooltip.style.display = 'block';
                     featureTooltip.style.left = e.originalEvent.clientX + 'px';
                     featureTooltip.style.top = e.originalEvent.clientY + 'px';
                 }
+
             } else {
                 // Esconde o tooltip de rua se estivermos em outra coisa
                 if (featureTooltip) featureTooltip.style.display = 'none';
@@ -440,6 +498,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             overflow: true
                         }) : null
                     }));
+
                 } else if (layer === 'quadras') {
                     feature.setStyle(new ol.style.Style({
                         stroke: new ol.style.Stroke({ color: '#f97316', width: 2 }),
@@ -464,6 +523,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             overflow: true
                         }) : null
                     }));
+
                 } else if (layer === 'postes') {
                     const condition = feature.get('structural_condition');
                     const seqId = feature.get('sequential_id');
@@ -538,6 +598,28 @@ document.addEventListener('DOMContentLoaded', function () {
                             overflow: true
                         }) : null
                     }));
+
+                } else if (layer === 'quadras_cemiterio') {
+                    feature.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#818cf8', width: 3 }),
+                        fill: new ol.style.Fill({ color: 'rgba(99, 102, 241, 0.5)' }),
+                        text: zoom >= 17 ? new ol.style.Text({
+                            text: name, font: 'bold 14px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: '#ffffff' }),
+                            stroke: new ol.style.Stroke({ color: '#3730a3', width: 3 })
+                        }) : null
+                    }));
+
+                } else if (layer === 'jazigos') {
+                    feature.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#78716c', width: 2 }),
+                        fill: new ol.style.Fill({ color: 'rgba(87, 83, 78, 0.7)' }),
+                        text: zoom >= 19.5 ? new ol.style.Text({
+                            text: name, font: 'bold 12px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: '#ffffff' }),
+                            stroke: new ol.style.Stroke({ color: '#292524', width: 3 })
+                        }) : null
+                    }));
                 }
 
 
@@ -559,6 +641,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            const clickedLote = features.find(f => f.get('layer') === 'lotes');
+            if (clickedLote) {
+                const loteId = clickedLote.get('id');
+                if (featureEmEdicao) {
+                    if (featureEmEdicao.get('id') != loteId) window.cancelarEdicaoGeometria();
+                    else return;
+                }
+                const loteNome = clickedLote.get('name') || 'S/N';
+                if (loteId) Livewire.dispatch('abrirFichaImovel', { loteId: loteId, loteNome: loteNome });
+            }
+
             const clickedLogradouro = features.find(f => f.get('layer') === 'logradouros');
             if (clickedLogradouro) {
                 Livewire.dispatch('abrirOpcoesLogradouro', { id: clickedLogradouro.get('id') });
@@ -577,21 +670,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            // 🛑 PRIORIDADE 0: JAZIGO (Elemento mais interno de todos)
+            const clickedJazigo = features.find(f => f.get('layer') === 'jazigos');
+            if (clickedJazigo) {
+                Livewire.dispatch('abrirOpcoesJazigo', { id: clickedJazigo.get('id') });
+                return;
+            }
+
+            // 🛑 PRIORIDADE 1: Rua de Cemitério
+            const clickedRuaCem = features.find(f => f.get('layer') === 'logradouros_cemiterio');
+            if (clickedRuaCem) {
+                Livewire.dispatch('abrirOpcoesLogradouroCemiterio', { id: clickedRuaCem.get('id') });
+                return;
+            }
+
+            const clickedQuadraCem = features.find(f => f.get('layer') === 'quadras_cemiterio');
+            if (clickedQuadraCem) {
+                Livewire.dispatch('abrirOpcoesQuadraCemiterio', { id: clickedQuadraCem.get('id') });
+                return;
+            }
+
             const clickedCemiterio = features.find(f => f.get('layer') === 'cemiterios');
             if (clickedCemiterio) {
                 Livewire.dispatch('abrirOpcoesCemiterio', { id: clickedCemiterio.get('id') });
                 return;
-            }
-
-            const clickedLote = features.find(f => f.get('layer') === 'lotes');
-            if (clickedLote) {
-                const loteId = clickedLote.get('id');
-                if (featureEmEdicao) {
-                    if (featureEmEdicao.get('id') != loteId) window.cancelarEdicaoGeometria();
-                    else return;
-                }
-                const loteNome = clickedLote.get('name') || 'S/N';
-                if (loteId) Livewire.dispatch('abrirFichaImovel', { loteId: loteId, loteNome: loteNome });
             }
 
         } else {
@@ -649,7 +751,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         let geometryType = 'Polygon';
         if (['arvore', 'poste'].includes(entityType)) geometryType = 'Point';
-        if (entityType === 'logradouro') geometryType = 'LineString';
+
+        if (entityType === 'logradouro' || entityType === 'logradouro_cemiterio') geometryType = 'LineString';
 
         map.getTargetElement().style.cursor = 'crosshair';
 
@@ -857,6 +960,63 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    window.addEventListener('iniciar-edicao-geometria-quadra_cemiterio', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['quadras_cemiterio']) return;
+        const source = loadedLayers['quadras_cemiterio'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#6366f1' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
+            });
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
+    window.addEventListener('iniciar-edicao-geometria-logradouro_cemiterio', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['logradouros_cemiterio']) return;
+        const source = loadedLayers['logradouros_cemiterio'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#64748b' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
+            });
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
+    window.addEventListener('iniciar-edicao-geometria-jazigo', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['jazigos']) return;
+        const source = loadedLayers['jazigos'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 6, fill: new ol.style.Fill({ color: '#57534e' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
+            });
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
     window.salvarEdicaoGeometria = function () {
         if (featureEmEdicao) {
             const geoJson = formatGeoJSON.writeGeometryObject(featureEmEdicao.getGeometry());
@@ -879,6 +1039,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // 🛑 INJEÇÃO 3: Disparo para salvar o Cemitério
             else if (layerName === 'cemiterios') Livewire.dispatch('salvarNovaGeometriaCemiterio', { id: id, geoJson: geoJson });
+
+            else if (layerName === 'quadras_cemiterio') Livewire.dispatch('salvarNovaGeometriaQuadraCemiterio', { id: id, geoJson: geoJson });
+
+            else if (layerName === 'logradouros_cemiterio') Livewire.dispatch('salvarNovaGeometriaLogradouroCemiterio', { id: id, geoJson: geoJson });
+
+            else if (layerName === 'jazigos') Livewire.dispatch('salvarNovaGeometriaJazigo', { id: id, geoJson: geoJson });
 
             encerrarModoEdicao();
         }
@@ -1065,7 +1231,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const entidadesSurgical = [
         { layer: 'logradouros', singular: 'logradouro' },
         { layer: 'postes', singular: 'poste' },
-        { layer: 'arvores', singular: 'arvore' }
+        { layer: 'arvores', singular: 'arvore' },
+        { layer: 'quadras_cemiterio', singular: 'quadra_cemiterio' },
+        { layer: 'logradouros_cemiterio', singular: 'logradouro_cemiterio' },
+        { layer: 'jazigos', singular: 'jazigo' }
     ];
 
     entidadesSurgical.forEach(entidade => {
@@ -1116,7 +1285,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (feature) {
                     // Injeta a propriedade "tem_chamado" no cache do OpenLayers e força redesenhar
                     feature.set('tem_chamado', data.tem_chamado);
-                    feature.changed(); 
+                    feature.changed();
                 }
             }
         });
@@ -1165,24 +1334,24 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // 🛑 INJEÇÃO: Escutador de Criação de Polígonos (Cemitérios e futuras Quadras) vindos do Backoffice
-    else if (actionParams === 'create' && layerParams === 'cemiterios') {
+    else if (actionParams === 'create' && (layerParams === 'cemiterios' || layerParams === 'quadras_cemiterio' || layerParams === 'logradouros_cemiterio' || layerParams === 'jazigos')) {
 
-        console.log("Modo de inserção de Cemitério ativado via Backoffice!");
+        let labelEnt = layerParams === 'cemiterios' ? 'do novo Cemitério' : (layerParams === 'quadras_cemiterio' ? 'da nova Quadra' : (layerParams === 'logradouros_cemiterio' ? 'da nova Rua Interna' : 'do novo Jazigo'));
+        let funcEnt = layerParams === 'cemiterios' ? 'cemiterio' : (layerParams === 'quadras_cemiterio' ? 'quadra_cemiterio' : (layerParams === 'logradouros_cemiterio' ? 'logradouro_cemiterio' : 'jazigo'));
 
-        // Dá um pequeno tempo para o mapa carregar o DOM (500ms)
+        console.log(`Modo de inserção de ${funcEnt} ativado via Backoffice!`);
+
         setTimeout(() => {
-            alert(`🗺️ Desenhe o polígono do novo Cemitério no mapa.\n\nClique nos vértices do terreno e dê um clique duplo no último ponto para finalizar e abrir a tela de cadastro.`);
+            alert(`🗺️ Desenhe a geometria ${labelEnt} no mapa.`);
 
-            // 1. Liga a camada no menu lateral automaticamente para o usuário ver os outros cemitérios
-            const checkbox = document.querySelector(`input[data-layer="cemiterios"]`);
+            const checkbox = document.querySelector(`input[data-layer="${layerParams}"]`);
             if (checkbox && !checkbox.checked) {
                 checkbox.checked = true;
                 checkbox.dispatchEvent(new Event('change'));
             }
 
-            // 2. Chama a nossa função nativa que já ativa o cursor crosshair e o Rascunho
             if (typeof window.enableDrawing === 'function') {
-                window.enableDrawing('cemiterio');
+                window.enableDrawing(funcEnt);
             }
         }, 500);
     }
