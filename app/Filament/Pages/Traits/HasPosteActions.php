@@ -11,9 +11,6 @@ trait HasPosteActions
 {
     public ?int $posteAtivoId = null;
 
-    /**
-     * Ação: Criar Novo Poste Diretamente pelo Mapa
-     */
     public function criarPosteAction(): Action
     {
         return Action::make('criarPoste')
@@ -38,15 +35,16 @@ trait HasPosteActions
 
                 Notification::make()->title('Poste Criado com Sucesso!')->success()->send();
 
-                $this->geometriaRascunho = null;
+                // 🛑 Ação Cirúrgica de Adição
+                $this->dispatch('adicionar-poste-mapa', [
+                    'id' => $poste->id,
+                    'name' => 'Poste #' . $poste->sequential_id,
+                    'geo' => $this->geometriaRascunho
+                ]);
                 $this->dispatch('limpar-rascunho-mapa');
-                $this->dispatch('atualizar-camada-postes');
             });
     }
 
-   /**
-     * 🛑 HUB DE AÇÕES DINÂMICO (Com inteligência de Manutenção)
-     */
     public function opcoesPosteAction(): Action
     {
         return Action::make('opcoesPoste')
@@ -60,7 +58,6 @@ trait HasPosteActions
             ->modalSubmitAction(false)
             ->modalCancelAction(false)
             ->form(function () {
-                // 🟢 VERIFICA SE EXISTE CHAMADO ABERTO PARA ESTE POSTE
                 $solicitacaoAberta = \App\Models\SolicitacaoManutencao::where('asset_type', \App\Models\Poste::class)
                     ->where('asset_id', $this->posteAtivoId)
                     ->whereIn('status', ['pendente', 'analise', 'aprovada_os'])
@@ -68,16 +65,14 @@ trait HasPosteActions
 
                 $actions = [];
 
-                // 1. Botão Ver/Editar Ficha
                 $actions[] = \Filament\Forms\Components\Actions::make([
                     \Filament\Forms\Components\Actions\Action::make('editar_ficha')
                         ->label('Ver / Editar Ficha Completa')
                         ->icon('heroicon-o-document-text')
                         ->color('primary')
-                        ->action(fn () => $this->replaceMountedAction('editarPoste')),
+                        ->action(fn() => $this->replaceMountedAction('editarPoste')),
                 ])->fullWidth();
 
-                // 2. Botão Geometria
                 $actions[] = \Filament\Forms\Components\Actions::make([
                     \Filament\Forms\Components\Actions\Action::make('geometria')
                         ->label('Alterar Geometria (Mover)')
@@ -89,15 +84,13 @@ trait HasPosteActions
                         }),
                 ])->fullWidth();
 
-                // 3. 🛑 A MÁGICA: ALTERNA O BOTÃO COM BASE NO STATUS 🛑
                 if ($solicitacaoAberta) {
                     $actions[] = \Filament\Forms\Components\Actions::make([
                         \Filament\Forms\Components\Actions\Action::make('ver_manutencao')
                             ->label('Ver Solicitação Aberta (#' . $solicitacaoAberta->sequential_id . ')')
                             ->icon('heroicon-o-exclamation-triangle')
                             ->color('danger')
-                            // Abre a tela de edição da solicitação em NOVA ABA para não perder o mapa!
-                            ->url(fn () => \App\Filament\Resources\SolicitacaoManutencaoResource::getUrl('edit', ['record' => $solicitacaoAberta->id]))
+                            ->url(fn() => \App\Filament\Resources\SolicitacaoManutencaoResource::getUrl('edit', ['record' => $solicitacaoAberta->id]))
                             ->openUrlInNewTab(),
                     ])->fullWidth();
                 } else {
@@ -106,11 +99,10 @@ trait HasPosteActions
                             ->label('Solicitar Manutenção / OS')
                             ->icon('heroicon-o-wrench-screwdriver')
                             ->color('success')
-                            ->action(fn () => $this->replaceMountedAction('manutencaoPoste')),
+                            ->action(fn() => $this->replaceMountedAction('manutencaoPoste')),
                     ])->fullWidth();
                 }
 
-                // 4. Botão Excluir
                 $actions[] = \Filament\Forms\Components\Actions::make([
                     \Filament\Forms\Components\Actions\Action::make('excluir')
                         ->label('Excluir Equipamento')
@@ -118,9 +110,21 @@ trait HasPosteActions
                         ->color('danger')
                         ->requiresConfirmation()
                         ->action(function () {
+                            // 🛑 CORREÇÃO 1: Limpeza Polimórfica
+                            $solicitacoes = \App\Models\SolicitacaoManutencao::where('asset_type', \App\Models\Poste::class)
+                                ->where('asset_id', $this->posteAtivoId)->get();
+
+                            foreach ($solicitacoes as $solicitacao) {
+                                if (class_exists(\App\Models\OrdemServico::class)) {
+                                    \App\Models\OrdemServico::where('solicitacao_id', $solicitacao->id)->delete();
+                                }
+                                $solicitacao->delete();
+                            }
+
                             Poste::where('id', $this->posteAtivoId)->delete();
                             Notification::make()->title('Poste Excluído!')->success()->send();
-                            $this->dispatch('atualizar-camada-postes');
+
+                            $this->dispatch('remover-poste-mapa', ['id' => $this->posteAtivoId]);
                             $this->dispatch('fechar-modal-filament');
                         }),
                 ])->fullWidth();
@@ -129,11 +133,6 @@ trait HasPosteActions
             });
     }
 
-    
-
-    /**
-     * 🛑 O FORMULÁRIO REAL (Que foi separado do Hub)
-     */
     public function editarPosteAction(): Action
     {
         return Action::make('editarPoste')
@@ -175,15 +174,16 @@ trait HasPosteActions
                     $poste->logradouros()->sync($logradourosIds);
 
                     Notification::make()->title('Poste Atualizado!')->success()->send();
-                    $this->dispatch('atualizar-camada-postes');
+
+                    // 🛑 Ação Cirúrgica de Edição
+                    $this->dispatch('atualizar-label-poste', [
+                        'id' => $poste->id,
+                        'name' => 'Poste #' . $poste->sequential_id
+                    ]);
                 }
             });
-        // 🛑 Agora a edição só tem "Salvar" e "Cancelar" padrão do Filament, super limpo!
     }
 
-/**
-     * 🛑 CRIA A SOLICITAÇÃO REAL NO BANCO DE DADOS
-     */
     public function manutencaoPosteAction(): Action
     {
         return Action::make('manutencaoPoste')
@@ -214,7 +214,7 @@ trait HasPosteActions
                     ])
                     ->default('media')
                     ->required(),
-                
+
                 \Filament\Forms\Components\TextInput::make('solicitante_nome')
                     ->label('Nome do Solicitante (Opcional)'),
 
@@ -223,7 +223,6 @@ trait HasPosteActions
                     ->rows(3),
             ])
             ->action(function (array $data) {
-                // SALVA A SOLICITAÇÃO DE VERDADE CONECTADA AO POSTE!
                 \App\Models\SolicitacaoManutencao::create([
                     'tenant_id' => $this->tenantId,
                     'asset_type' => \App\Models\Poste::class,
@@ -236,16 +235,13 @@ trait HasPosteActions
                 ]);
 
                 Notification::make()->title('Chamado Aberto com Sucesso!')->success()->send();
-                
-                // Manda o mapa atualizar para o poste mudar de cor!
-                $this->dispatch('atualizar-camada-postes'); 
+
+                // Mantemos o recarregamento total AQUI porque abrir chamado muda a cor da bolinha no mapa
+                $this->dispatch('atualizar-manutencao-poste', ['id' => $this->posteAtivoId, 'tem_chamado' => true]);
                 $this->dispatch('fechar-modal-filament');
             });
     }
 
-    /**
-     * Helper: Centraliza os campos do formulário (Sem alterações aqui)
-     */
     protected function getPosteFormSchema(): array
     {
         return [

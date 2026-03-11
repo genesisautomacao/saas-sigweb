@@ -842,28 +842,18 @@ document.addEventListener('DOMContentLoaded', function () {
             geometriaOriginal = featureEmEdicao.getGeometry().clone();
             currentModifyInteraction = new ol.interaction.Modify({
                 features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({ 
-                    image: new ol.style.Circle({ 
-                        radius: 7, 
+                style: new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 7,
                         fill: new ol.style.Fill({ color: '#9333ea' }), // Bolinha Roxa
-                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) 
-                    }) 
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                    })
                 })
             });
             editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
             map.addInteraction(currentModifyInteraction);
             map.addInteraction(editSnapInteraction);
             window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    // ATUALIZAR CAMADA
-    window.addEventListener('atualizar-camada-arvores', () => {
-        if (loadedLayers['arvores']) {
-            map.removeLayer(loadedLayers['arvores']);
-            delete loadedLayers['arvores'];
-            const checkbox = document.querySelector('input[data-layer="arvores"]');
-            if (checkbox && checkbox.checked) fetchAndDrawLayer('arvores', checkbox);
         }
     });
 
@@ -1024,48 +1014,22 @@ document.addEventListener('DOMContentLoaded', function () {
     if (btnMeasureLine) btnMeasureLine.addEventListener('click', function () { enableMeasurement('line', this); });
     if (btnMeasureArea) btnMeasureArea.addEventListener('click', function () { enableMeasurement('area', this); });
 
-    // 16. ATUALIZA A CAMADA DE LOGRADOUROS APÓS CRIAR/EDITAR
-    window.addEventListener('atualizar-camada-logradouros', () => {
-        if (loadedLayers['logradouros']) {
-            map.removeLayer(loadedLayers['logradouros']);
-            delete loadedLayers['logradouros'];
-
-            // Finge um clique no checkbox para baixar os dados atualizados do banco
-            const checkbox = document.querySelector('input[data-layer="logradouros"]');
-            if (checkbox && checkbox.checked) {
-                fetchAndDrawLayer('logradouros', checkbox);
-            }
-        }
-    });
-
-    window.addEventListener('atualizar-camada-postes', () => {
-        if (loadedLayers['postes']) {
-            map.removeLayer(loadedLayers['postes']);
-            delete loadedLayers['postes'];
-
-            // Finge um clique no checkbox para baixar os dados atualizados do banco
-            const checkbox = document.querySelector('input[data-layer="postes"]');
-            if (checkbox && checkbox.checked) {
-                fetchAndDrawLayer('postes', checkbox);
-            }
-        }
-    });
 
     // =========================================================================
     // CIRURGIA EM MEMÓRIA: CEMITÉRIOS
     // =========================================================================
-    
+
     // Adiciona apenas o novo Cemitério ao terminar de desenhar
     window.addEventListener('adicionar-cemiterio-mapa', (e) => {
         const data = e.detail[0] || e.detail;
         if (drawSource) drawSource.clear();
         const checkbox = document.querySelector('input[data-layer="cemiterios"]');
-        
+
         if (checkbox && checkbox.checked && loadedLayers['cemiterios']) {
             const feature = new ol.Feature({
                 geometry: new ol.format.GeoJSON().readGeometry(data.geo, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' }),
-                id: data.id, 
-                name: data.name, 
+                id: data.id,
+                name: data.name,
                 layer: 'cemiterios' // Essencial para o clique e hover funcionarem
             });
             loadedLayers['cemiterios'].getSource().addFeature(feature);
@@ -1077,8 +1041,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const data = e.detail[0] || e.detail;
         if (loadedLayers['cemiterios']) {
             const feature = loadedLayers['cemiterios'].getSource().getFeatures().find(f => f.get('id') == data.id);
-            if (feature) { 
-                feature.set('name', data.name); 
+            if (feature) {
+                feature.set('name', data.name);
                 feature.changed(); // Força a re-renderização visual do polígono
             }
         }
@@ -1092,6 +1056,71 @@ document.addEventListener('DOMContentLoaded', function () {
             const feature = source.getFeatures().find(f => f.get('id') == data.id);
             if (feature) source.removeFeature(feature);
         }
+    });
+
+    // =========================================================================
+    // CIRURGIA EM MEMÓRIA: LOGRADOUROS, POSTES E ÁRVORES (Laço Dinâmico)
+    // =========================================================================
+
+    const entidadesSurgical = [
+        { layer: 'logradouros', singular: 'logradouro' },
+        { layer: 'postes', singular: 'poste' },
+        { layer: 'arvores', singular: 'arvore' }
+    ];
+
+    entidadesSurgical.forEach(entidade => {
+        // 1. Adicionar no Mapa (Após Criar)
+        window.addEventListener(`adicionar-${entidade.singular}-mapa`, (e) => {
+            const data = e.detail[0] || e.detail;
+            if (drawSource) drawSource.clear();
+            const checkbox = document.querySelector(`input[data-layer="${entidade.layer}"]`);
+
+            if (checkbox && checkbox.checked && loadedLayers[entidade.layer]) {
+                const feature = new ol.Feature({
+                    geometry: new ol.format.GeoJSON().readGeometry(data.geo, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' }),
+                    id: data.id,
+                    name: data.name || '',
+                    layer: entidade.layer
+                });
+                loadedLayers[entidade.layer].getSource().addFeature(feature);
+            }
+        });
+
+        // 2. Atualizar Label (Após Editar Nome)
+        window.addEventListener(`atualizar-label-${entidade.singular}`, (e) => {
+            const data = e.detail[0] || e.detail;
+            if (loadedLayers[entidade.layer]) {
+                const feature = loadedLayers[entidade.layer].getSource().getFeatures().find(f => f.get('id') == data.id);
+                if (feature) {
+                    feature.set('name', data.name);
+                    feature.changed();
+                }
+            }
+        });
+
+        // 3. Remover do Mapa (Após Excluir)
+        window.addEventListener(`remover-${entidade.singular}-mapa`, (e) => {
+            const data = e.detail[0] || e.detail;
+            if (loadedLayers[entidade.layer]) {
+                const source = loadedLayers[entidade.layer].getSource();
+                const feature = source.getFeatures().find(f => f.get('id') == data.id);
+                if (feature) source.removeFeature(feature);
+            }
+        });
+
+        // 4. Atualizar Status de Manutenção (Ficar Roxo no Mapa)
+        window.addEventListener(`atualizar-manutencao-${entidade.singular}`, (e) => {
+            const data = e.detail[0] || e.detail;
+            if (loadedLayers[entidade.layer]) {
+                const feature = loadedLayers[entidade.layer].getSource().getFeatures().find(f => f.get('id') == data.id);
+                if (feature) {
+                    // Injeta a propriedade "tem_chamado" no cache do OpenLayers e força redesenhar
+                    feature.set('tem_chamado', data.tem_chamado);
+                    feature.changed(); 
+                }
+            }
+        });
+
     });
 
     // =========================================================================
@@ -1137,13 +1166,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 🛑 INJEÇÃO: Escutador de Criação de Polígonos (Cemitérios e futuras Quadras) vindos do Backoffice
     else if (actionParams === 'create' && layerParams === 'cemiterios') {
-        
+
         console.log("Modo de inserção de Cemitério ativado via Backoffice!");
-        
+
         // Dá um pequeno tempo para o mapa carregar o DOM (500ms)
         setTimeout(() => {
             alert(`🗺️ Desenhe o polígono do novo Cemitério no mapa.\n\nClique nos vértices do terreno e dê um clique duplo no último ponto para finalizar e abrir a tela de cadastro.`);
-            
+
             // 1. Liga a camada no menu lateral automaticamente para o usuário ver os outros cemitérios
             const checkbox = document.querySelector(`input[data-layer="cemiterios"]`);
             if (checkbox && !checkbox.checked) {

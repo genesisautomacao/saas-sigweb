@@ -11,9 +11,6 @@ trait HasArvoreActions
 {
     public ?int $arvoreAtivaId = null;
 
-    /**
-     * Ação: Criar Nova Árvore Diretamente pelo Mapa
-     */
     public function criarArvoreAction(): Action
     {
         return Action::make('criarArvore')
@@ -38,15 +35,16 @@ trait HasArvoreActions
 
                 Notification::make()->title('Árvore Cadastrada com Sucesso!')->success()->send();
 
-                $this->geometriaRascunho = null;
+                // 🛑 Ação Cirúrgica de Adição
+                $this->dispatch('adicionar-arvore-mapa', [
+                    'id' => $arvore->id,
+                    'name' => $arvore->botanical_species ?? 'Árvore',
+                    'geo' => $this->geometriaRascunho
+                ]);
                 $this->dispatch('limpar-rascunho-mapa');
-                $this->dispatch('atualizar-camada-arvores');
             });
     }
 
-    /**
-     * 🛑 HUB DE AÇÕES DINÂMICO DA ÁRVORE
-     */
     public function opcoesArvoreAction(): Action
     {
         return Action::make('opcoesArvore')
@@ -61,7 +59,6 @@ trait HasArvoreActions
             ->modalCancelAction(false)
             ->form(function () {
 
-                // 🟢 VERIFICA SE EXISTE CHAMADO ABERTO
                 $solicitacaoAberta = \App\Models\SolicitacaoManutencao::where('asset_type', \App\Models\Arvore::class)
                     ->where('asset_id', $this->arvoreAtivaId)
                     ->whereIn('status', ['pendente', 'analise', 'aprovada_os'])
@@ -88,7 +85,6 @@ trait HasArvoreActions
                         }),
                 ])->fullWidth();
 
-                // 🛑 A MÁGICA: ALTERNA O BOTÃO
                 if ($solicitacaoAberta) {
                     $actions[] = \Filament\Forms\Components\Actions::make([
                         \Filament\Forms\Components\Actions\Action::make('ver_manutencao')
@@ -115,9 +111,22 @@ trait HasArvoreActions
                         ->color('danger')
                         ->requiresConfirmation()
                         ->action(function () {
+                            // 🛑 CORREÇÃO 1: Limpeza Polimórfica (Evita quebrar a lista de Solicitações/OS)
+                            $solicitacoes = \App\Models\SolicitacaoManutencao::where('asset_type', \App\Models\Arvore::class)
+                                ->where('asset_id', $this->arvoreAtivaId)->get();
+                            
+                            foreach ($solicitacoes as $solicitacao) {
+                                // Se existir tabela de OS atrelada à solicitação, apaga também
+                                if (class_exists(\App\Models\OrdemServico::class)) {
+                                    \App\Models\OrdemServico::where('solicitacao_id', $solicitacao->id)->delete();
+                                }
+                                $solicitacao->delete();
+                            }
+
                             Arvore::where('id', $this->arvoreAtivaId)->delete();
                             Notification::make()->title('Árvore Excluída!')->success()->send();
-                            $this->dispatch('atualizar-camada-arvores');
+                            
+                            $this->dispatch('remover-arvore-mapa', ['id' => $this->arvoreAtivaId]);
                             $this->dispatch('fechar-modal-filament');
                         }),
                 ])->fullWidth();
@@ -126,9 +135,6 @@ trait HasArvoreActions
             });
     }
 
-    /**
-     * 🛑 O FORMULÁRIO REAL (Que foi separado do Hub)
-     */
     public function editarArvoreAction(): Action
     {
         return Action::make('editarArvore')
@@ -142,8 +148,7 @@ trait HasArvoreActions
             ->modalSubmitActionLabel('Salvar Alterações')
             ->fillForm(function (): array {
                 $arvore = Arvore::with('logradouros')->find($this->arvoreAtivaId);
-                if (!$arvore)
-                    return [];
+                if (!$arvore) return [];
 
                 return [
                     'logradouros' => $arvore->logradouros->pluck('id')->toArray(),
@@ -174,14 +179,16 @@ trait HasArvoreActions
                     $arvore->logradouros()->sync($logradourosIds);
 
                     Notification::make()->title('Árvore Atualizada!')->success()->send();
-                    $this->dispatch('atualizar-camada-arvores');
+                    
+                    // 🛑 Ação Cirúrgica de Atualização de Nome (Corrigida)
+                    $this->dispatch('atualizar-label-arvore', [
+                        'id' => $arvore->id, 
+                        'name' => $data['botanical_species'] ?? 'Não Identificada'
+                    ]);
                 }
             });
     }
 
-    /**
-     * 🛑 CRIA A SOLICITAÇÃO REAL NO BANCO DE DADOS
-     */
     public function manutencaoArvoreAction(): Action
     {
         return Action::make('manutencaoArvore')
@@ -220,7 +227,6 @@ trait HasArvoreActions
                     ->rows(3),
             ])
             ->action(function (array $data) {
-                // SALVA A SOLICITAÇÃO DE VERDADE CONECTADA À ÁRVORE!
                 \App\Models\SolicitacaoManutencao::create([
                     'tenant_id' => $this->tenantId,
                     'asset_type' => \App\Models\Arvore::class,
@@ -234,14 +240,12 @@ trait HasArvoreActions
 
                 Notification::make()->title('Chamado Aberto com Sucesso!')->success()->send();
 
-                $this->dispatch('atualizar-camada-arvores');
+                // Mantemos o recarregamento total AQUI porque abrir chamado muda a cor da bolinha para Roxo no mapa
+                $this->dispatch('atualizar-manutencao-arvore', ['id' => $this->arvoreAtivaId, 'tem_chamado' => true]);
                 $this->dispatch('fechar-modal-filament');
             });
     }
 
-    /**
-     * Helper: Centraliza os campos do formulário para o Mapa
-     */
     protected function getArvoreFormSchema(): array
     {
         return [

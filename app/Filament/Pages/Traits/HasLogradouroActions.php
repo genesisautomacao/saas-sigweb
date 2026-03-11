@@ -10,12 +10,8 @@ use Illuminate\Support\Str;
 
 trait HasLogradouroActions
 {
-    // Variável para guardar qual logradouro estamos editando
     public ?int $logradouroAtivoId = null;
 
-    /**
-     * Ação: Criar Novo Logradouro
-     */
     public function criarLogradouroAction(): Action
     {
         return Action::make('criarLogradouro')
@@ -31,24 +27,23 @@ trait HasLogradouroActions
             ])
             ->action(function (array $data) {
                 $data['tenant_id'] = $this->tenantId;
-                $data['geo'] = $this->geometriaRascunho; // Pega a linha desenhada no mapa
+                $data['geo'] = $this->geometriaRascunho; 
                 $data['code'] = (string) Str::uuid();
 
                 $logradouro = Logradouro::create($data);
 
                 Notification::make()->title('Logradouro Criado!')->success()->send();
 
-                $this->geometriaRascunho = null;
+                // 🛑 Ação Cirúrgica de Adição
+                $this->dispatch('adicionar-logradouro-mapa', [
+                    'id' => $logradouro->id,
+                    'name' => $logradouro->name,
+                    'geo' => $this->geometriaRascunho
+                ]);
                 $this->dispatch('limpar-rascunho-mapa');
-                
-                // Dispara um recarregamento da camada (o usuário pode precisar dar F5 ou podemos implementar via JS depois)
-                $this->dispatch('atualizar-camada-logradouros');
             });
     }
 
-    /**
-     * Ação: Opções do Logradouro (Editar Nome, Geometria ou Excluir)
-     */
     public function opcoesLogradouroAction(): Action
     {
         return Action::make('opcoesLogradouro')
@@ -73,6 +68,12 @@ trait HasLogradouroActions
                 if ($logradouro) {
                     $logradouro->update($data);
                     Notification::make()->title('Nome Atualizado!')->success()->send();
+                    
+                    // 🛑 Ação Cirúrgica de Edição
+                    $this->dispatch('atualizar-label-logradouro', [
+                        'id' => $logradouro->id,
+                        'name' => $data['name']
+                    ]);
                 }
             })
             ->extraModalFooterActions([
@@ -81,7 +82,6 @@ trait HasLogradouroActions
                     ->color('warning')
                     ->icon('heroicon-o-map')
                     ->action(function () {
-                        // Dispara o JS que habilita puxar os pontos da rua
                         $this->dispatch('iniciar-edicao-geometria-logradouro', id: $this->logradouroAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -94,7 +94,9 @@ trait HasLogradouroActions
                     ->action(function() {
                         Logradouro::where('id', $this->logradouroAtivoId)->delete();
                         Notification::make()->title('Logradouro Excluído!')->success()->send();
-                        $this->dispatch('atualizar-camada-logradouros');
+                        
+                        // 🛑 Ação Cirúrgica de Exclusão
+                        $this->dispatch('remover-logradouro-mapa', ['id' => $this->logradouroAtivoId]);
                         $this->dispatch('fechar-modal-filament');
                     }),
             ]);
