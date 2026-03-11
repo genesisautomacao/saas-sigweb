@@ -631,6 +631,40 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     map.on('singleclick', function (evt) {
+
+        // 🛑 INTERCEPTADOR DA NUMERAÇÃO PREDIAL
+        if (activeTool.startsWith('numeracao')) {
+            if (activeTool === 'numeracao_step1') {
+                const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
+                const clickedLogradouro = features ? features.find(f => f.get('layer') === 'logradouros') : null;
+
+                if (clickedLogradouro) {
+                    ruaSelecionadaNumeracao = clickedLogradouro;
+                    activeTool = 'numeracao_step2';
+
+                    alert(`✅ Rua "${clickedLogradouro.get('name')}" selecionada!\n\n2️⃣ PASSO 2: Agora clique no mapa exatamente no PONTO INICIAL da rua (Marco Zero de onde a contagem vai começar).`);
+                    map.getTargetElement().style.cursor = 'crosshair';
+                } else {
+                    alert("❌ Você não clicou em uma rua. Aproxime o zoom e clique na linha colorida do logradouro.");
+                }
+            } else if (activeTool === 'numeracao_step2') {
+                // Pegou o marco zero
+                const coords4326 = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
+
+                // Manda para o PHP abrir a modal
+                Livewire.dispatch('abrirModalNumeracao', {
+                    logradouro_id: ruaSelecionadaNumeracao.get('id'),
+                    logradouro_nome: ruaSelecionadaNumeracao.get('name'),
+                    marco_lon: coords4326[0],
+                    marco_lat: coords4326[1]
+                });
+
+                window.resetToPan(); // Devolve a mãozinha
+            }
+            return; // 🛑 Impede que ele faça as outras funções de clique do mapa
+        }
+
+
         if (activeTool !== 'pan') return;
         const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
 
@@ -1120,6 +1154,19 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnMeasureLine = document.getElementById('btn-measure-line');
     const btnMeasureArea = document.getElementById('btn-measure-area');
 
+    const btnToolNumeracao = document.getElementById('btn-tool-numeracao');
+    let ruaSelecionadaNumeracao = null;
+
+    if (btnToolNumeracao) {
+        btnToolNumeracao.addEventListener('click', function () {
+            window.resetToPan();
+            activeTool = 'numeracao_step1';
+            ruaSelecionadaNumeracao = null;
+            map.getTargetElement().style.cursor = 'help';
+            alert("1️⃣ PASSO 1: Clique na RUA (Linha) que você deseja numerar.");
+        });
+    }
+
     window.resetToPan = function () {
         if (currentMeasureInteraction) map.removeInteraction(currentMeasureInteraction);
         if (currentDrawInteraction) map.removeInteraction(currentDrawInteraction);
@@ -1391,5 +1438,56 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }, 800); // Um delay de 800ms para dar tempo do mapa renderizar o DOM e carregar os blocos
     }
+
+    // =========================================================================
+    // MOTOR DE PRÉVIA DE NUMERAÇÃO PREDIAL
+    // =========================================================================
+
+    const previewNumSource = new ol.source.Vector();
+    const previewNumLayer = new ol.layer.Vector({
+        source: previewNumSource,
+        style: function (feature) {
+            return new ol.style.Style({
+                image: new ol.style.Circle({
+                    radius: 14,
+                    fill: new ol.style.Fill({ color: '#2563eb' }), // Azul Blue-600
+                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                }),
+                text: new ol.style.Text({
+                    text: feature.get('numero').toString(),
+                    font: 'bold 12px Arial, sans-serif',
+                    fill: new ol.style.Fill({ color: '#ffffff' }),
+                    offsetY: 0
+                })
+            });
+        },
+        zIndex: 10000 // Fica acima de TUDO no mapa
+    });
+    map.addLayer(previewNumLayer);
+
+    window.addEventListener('mostrar-preview-numeracao', (e) => {
+        const lotes = e.detail[0] || e.detail.dados || e.detail;
+        previewNumSource.clear();
+
+        if (lotes && Array.isArray(lotes)) {
+            const features = [];
+            lotes.forEach(lote => {
+                if (lote.geo) {
+                    try {
+                        const feature = new ol.Feature({
+                            geometry: new ol.format.GeoJSON().readGeometry(lote.geo, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' }),
+                            numero: lote.novo_numero
+                        });
+                        features.push(feature);
+                    } catch (err) { console.error("Erro no JSON da numeração", err); }
+                }
+            });
+            previewNumSource.addFeatures(features);
+        }
+    });
+
+    window.addEventListener('limpar-preview-numeracao', () => {
+        previewNumSource.clear();
+    });
 
 }); // <-- Fim do DOMContentLoaded

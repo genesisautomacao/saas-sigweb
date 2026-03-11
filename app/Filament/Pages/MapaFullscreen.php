@@ -74,6 +74,13 @@ class MapaFullscreen extends Page
     public ?int $logradouroAtivoId = null;
     public ?int $cemiterioAtivoId = null;
     public ?int $jazigoAtivoId = null;
+    // Propriedades da Numeração Automática
+    public ?int $numLogradouroId = null;
+    public ?string $numLogradouroNome = null;
+    public ?float $numMarcoLon = null;
+    public ?float $numMarcoLat = null;
+    public bool $previewNumeracaoAtivo = false;
+    public array $resultadosNumeracao = [];
 
     public function mount()
     {
@@ -508,6 +515,163 @@ class MapaFullscreen extends Page
             DB::statement("UPDATE jazigos SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$jazigo->id]);
             \Filament\Notifications\Notification::make()->title('Polígono do Jazigo Atualizado!')->success()->send();
         }
+    }
+
+    #[On('abrirModalNumeracao')]
+    public function abrirModalNumeracao($logradouro_id, $logradouro_nome, $marco_lon, $marco_lat)
+    {
+        $this->numLogradouroId = $logradouro_id;
+        $this->numLogradouroNome = $logradouro_nome;
+        $this->numMarcoLon = $marco_lon;
+        $this->numMarcoLat = $marco_lat;
+        
+        $this->mountAction('configurarNumeracaoAction');
+    }
+
+    public function configurarNumeracaoAction(): \Filament\Actions\Action
+    {
+        return \Filament\Actions\Action::make('configurarNumeracaoAction')
+            ->hiddenLabel()
+            ->modalHeading('Gerador de Numeração Predial')
+            ->modalDescription(fn() => 'Configurando a métrica para: ' . $this->numLogradouroNome)
+            ->modalSubmitActionLabel('Calcular Prévia no Mapa')
+            ->modalIcon('heroicon-o-hashtag')
+            ->form([
+                \Filament\Forms\Components\Select::make('lado_par')
+                    ->label('Qual lado da rua será a numeração PAR?')
+                    ->options([
+                        'right' => 'Lado Direito (Olhando do Marco Zero para o fim da rua)',
+                        'left' => 'Lado Esquerdo (Olhando do Marco Zero para o fim da rua)',
+                    ])
+                    ->default('right')
+                    ->required(),
+                    
+                \Filament\Forms\Components\TextInput::make('numero_inicial')
+                    ->label('Número Inicial / Constante')
+                    ->helperText('Se a rua começar do zero, deixe 0. Se for um trecho final, coloque a metragem inicial (Ex: 1500).')
+                    ->numeric()
+                    ->default(0)
+                    ->required(),
+            ])
+            ->action(function (array $data) {
+                
+                $ladoPar = $data['lado_par'];
+                $numInicial = (int) $data['numero_inicial'];
+
+                // 🛑 A MÁGICA DO POSTGIS E DA ÁLGEBRA LINEAR
+                $lotes = DB::select("
+                    WITH rua AS (
+                        SELECT id, geo::geometry AS geom FROM logradouros WHERE id = ?
+                    ),
+                    marco AS (
+                        SELECT ST_SetSRID(ST_MakePoint(?, ?), 4326) AS ponto
+                    )
+                    SELECT 
+                        l.id, l.numero_lote as lote_nome,
+                        ST_AsGeoJSON(ST_Centroid(l.geo)) as centroid_geo,
+                        -- 1. Distância Métrica
+                        ST_DistanceSphere(m.ponto, ST_ClosestPoint(r.geom, ST_Centroid(l.geo))) as distancia_metros,
+                        -- 2. Coordenadas para Produto Vetorial
+                        ST_X(ST_Centroid(l.geo)) as cx,
+                        ST_Y(ST_Centroid(l.geo)) as cy,
+                        ST_X(ST_Centroid(r.geom)) as rua_cx,
+                        ST_Y(ST_Centroid(r.geom)) as rua_cy
+                    FROM lotes l
+                    CROSS JOIN rua r
+                    CROSS JOIN marco m
+                    WHERE l.tenant_id = ?
+                    AND ST_DWithin(l.geo::geography, r.geom::geography, 25) -- Raio apertado (25m) para ignorar lotes fundos
+                    
+                    -- 🛑 FILTRO DE OURO: Tolera lotes de esquina com margem de empate de 6 metros!
+                    AND ST_Distance(l.geo::geography, r.geom::geography) <= (
+                        SELECT MIN(ST_Distance(l.geo::geography, r2.geo::geography)) + 6
+                        FROM logradouros r2
+                        WHERE r2.tenant_id = ?
+                        AND ST_DWithin(l.geo::geography, r2.geo::geography, 25)
+                    )
+                ", [$this->numLogradouroId, $this->numMarcoLon, $this->numMarcoLat, $this->tenantId, $this->tenantId]);
+
+                $this->resultadosNumeracao = [];
+
+                foreach ($lotes as $l) {
+                    $dist = round($l->distancia_metros);
+                    $numTarget = $numInicial + $dist;
+
+                    // 🛑 PRODUTO VETORIAL 2D (Saber se tá na Direita ou Esquerda)
+                    $vx_street = $l->rua_cx - $this->numMarcoLon;
+                    $vy_street = $l->rua_cy - $this->numMarcoLat;
+                    $vx_lot = $l->cx - $this->numMarcoLon;
+                    $vy_lot = $l->cy - $this->numMarcoLat;
+
+                    // Se Z > 0 é Esquerda. Se Z < 0 é Direita.
+                    $crossProduct = ($vx_street * $vy_lot) - ($vy_street * $vx_lot);
+                    $isLeft = $crossProduct > 0;
+                    $isRight = $crossProduct <= 0;
+
+                    $isLadoParCalculado = ($ladoPar === 'right' && $isRight) || ($ladoPar === 'left' && $isLeft);
+
+                    // 🛑 FORÇA A PARIDADE
+                    if ($isLadoParCalculado && $numTarget % 2 !== 0) {
+                        $numTarget += 1; // Se era pra ser Par e deu Ímpar, arruma
+                    } elseif (!$isLadoParCalculado && $numTarget % 2 === 0) {
+                        $numTarget += 1; // Se era pra ser Ímpar e deu Par, arruma
+                    }
+
+                    $this->resultadosNumeracao[] = [
+                        'lote_id' => $l->id,
+                        'numero_atual' => $l->lote_nome ?: 'S/N', 
+                        'novo_numero' => $numTarget,
+                        'distancia' => $dist,
+                        'geo' => json_decode($l->centroid_geo)
+                    ];
+                }
+
+                $this->previewNumeracaoAtivo = true;
+                
+                // Manda pro JS desenhar na tela!
+                $this->dispatch('mostrar-preview-numeracao', dados: $this->resultadosNumeracao);
+                
+                Notification::make()->title('Prévia Gerada!')->body('Revise os números no mapa.')->success()->send();
+            });
+    }
+
+    public function confirmarNumeracaoAction()
+    {
+       /*  foreach ($this->resultadosNumeracao as $res) {
+            Lote::where('id', $res['lote_id'])->update([
+                'numero_lote' => (string) $res['novo_numero'] 
+            ]);
+        } */
+
+        Notification::make()->title('Método em análise!')->success()->send();
+        
+        $this->cancelarNumeracaoAction();
+        $this->dispatch('atualizar-camada-lotes'); 
+    }
+
+    public function cancelarNumeracaoAction()
+    {
+        $this->previewNumeracaoAtivo = false;
+        $this->resultadosNumeracao = [];
+        $this->dispatch('limpar-preview-numeracao');
+    }
+
+    public function imprimirRelatorioNumeracao($imagemBase64)
+    {
+        $dados = $this->resultadosNumeracao;
+        $rua = $this->numLogradouroNome;
+        
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.relatorio-numeracao', [
+            'imagemMapa' => $imagemBase64,
+            'dados' => $dados,
+            'rua' => $rua,
+            'data' => now()->format('d/m/Y H:i')
+        ]);
+        
+        // Retorna o download direto na tela
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->stream();
+        }, 'relatorio-numeracao-' . \Illuminate\Support\Str::slug($rua) . '.pdf');
     }
 
 }

@@ -94,7 +94,7 @@
                     {{-- DROPDOWN DE CRIAÇÃO --}}
                     <div x-data="{ openDraw: false }" class="relative">
                         <button @click="openDraw = !openDraw" @click.outside="openDraw = false" title="Desenhar no Mapa"
-                            class="p-2 hover:bg-primary-100 dark:hover:bg-primary-900/20 rounded-xl text-primary-600 dark:text-primary-400 transition-colors focus:outline-none flex items-center gap-1">
+                            class="p-2 hover:bg-primary-100 dark:hover:bg-primary-900/20 rounded-xl text-gray-600 dark:text-gray-400 transition-colors focus:outline-none flex items-center gap-1">
                             <x-heroicon-o-pencil-square class="w-5 h-5" />
                             <x-heroicon-o-chevron-down class="w-3 h-3" />
                         </button>
@@ -168,14 +168,44 @@
                         <x-heroicon-o-hand-raised class="w-5 h-5" />
                     </button>
 
-                    <button id="btn-measure-line" title="Medir Distância"
-                        class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors focus:outline-none">
-                        <x-heroicon-o-arrows-right-left class="w-5 h-5" />
-                    </button>
-                    <button id="btn-measure-area" title="Medir Área"
-                        class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors focus:outline-none">
-                        <x-heroicon-o-view-columns class="w-5 h-5" />
-                    </button>
+                    <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
+                    {{-- 🛠️ DROPDOWN DE FERRAMENTAS 🛠️ --}}
+                    <div x-data="{ openTools: false }" class="relative">
+                        <button @click="openTools = !openTools" @click.outside="openTools = false"
+                            title="Ferramentas Avançadas"
+                            class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors focus:outline-none flex items-center gap-1">
+                            <x-heroicon-o-wrench-screwdriver class="w-5 h-5" />
+                            <x-heroicon-o-chevron-down class="w-3 h-3" />
+                        </button>
+                        <div x-show="openTools" style="display: none;"
+                            class="fixed mt-2 w-[240px] bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-[9999]"
+                            style="left: 360px;"> {{-- Ajuste a posição left se precisar --}}
+                            <div
+                                class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                                <span
+                                    class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Ferramentas</span>
+                            </div>
+                            <div class="py-1 flex flex-col">
+                                <button id="btn-tool-numeracao" @click="openTools = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
+                                    <x-heroicon-o-hashtag class="w-4 h-4 text-blue-500" /> Numeração Predial
+                                </button>
+
+                                <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+
+                                <button id="btn-measure-line" @click="openTools = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
+                                    <x-heroicon-o-arrows-right-left class="w-4 h-4 text-gray-500" /> Medir Distância
+                                </button>
+
+                                <button id="btn-measure-area" @click="openTools = false"
+                                    class="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
+                                    <x-heroicon-o-view-columns class="w-4 h-4 text-gray-500" /> Medir Área
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
 
@@ -209,9 +239,52 @@
             </span>
             <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
             <button onclick="salvarEdicaoGeometria()"
-                class="text-sm font-black text-emerald-600 hover:text-emerald-700 uppercase">Salvar</button>
+                class="text-sm font-black text-emerald-600 hover:text-emerald-700 uppercase">
+                Salvar
+            </button>
+
+            <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+
             <button onclick="cancelarEdicaoGeometria()"
-                class="text-sm font-black text-red-600 hover:text-red-700 uppercase">Cancelar</button>
+                class="text-sm font-black text-red-600 hover:text-red-700 uppercase">
+                Cancelar
+            </button>
+        </div>
+
+        {{-- BARRA FLUTUANTE DE REVISÃO DA NUMERAÇÃO PREDIAL (Padrão Pílula) --}}
+        <div x-data="{ previewAtivo: @entangle('previewNumeracaoAtivo') }" x-show="previewAtivo"
+            style="display: none; position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 9999;"
+            class="bg-white dark:bg-gray-800 shadow-2xl rounded-full border-2 border-blue-500 px-6 py-3 flex items-center gap-4 animate-bounce-short">
+
+            <span class="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                <span class="relative flex h-3 w-3">
+                    <span
+                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                </span>
+                Revisão de Numeração Predial
+            </span>
+
+            <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+
+            <button wire:click="confirmarNumeracaoAction"
+                class="text-sm font-black text-blue-600 hover:text-blue-700 uppercase transition-colors">
+                Salvar
+            </button>
+
+            <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+
+            <button onclick="capturarMapaNumeracao()" id="btn-print-num"
+                class="text-sm font-black text-amber-600 hover:text-amber-700 uppercase transition-colors flex items-center gap-1">
+                <x-heroicon-o-printer class="w-4 h-4" /> Relatório PDF
+            </button>
+
+            <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+
+            <button wire:click="cancelarNumeracaoAction"
+                class="text-sm font-black text-red-600 hover:text-red-700 uppercase transition-colors">
+                Cancelar
+            </button>
         </div>
 
         {{-- JANELA DE CAMADAS --}}
@@ -568,7 +641,8 @@
     </script>
 
     <script>
-        // Recebe o ID e a string crua (Ex: "47.51-2,47.52-1")
+
+        // IMPRIMIR CONSULTA E VIABILIDADE COM LOTE DO MAPA
         window.capturarMapaEImprimir = function (loteId, cnaesString) {
 
             const btn = document.getElementById('btn-imprimir-viab');
@@ -615,6 +689,52 @@
                     Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirViabilidade(null, cnaesArray, loteId);
                 } finally {
                     if (btn) btn.innerHTML = 'Imprimir Relatório';
+                }
+            }, 500);
+        };
+
+        /* IMPRIMIR NUMERAÇÃO PREDIAL COM MAPA */
+        window.capturarMapaNumeracao = function () {
+            const btn = document.getElementById('btn-print-num');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="animate-pulse">Gerando PDF...</span>';
+
+            setTimeout(() => {
+                try {
+                    const mapCanvas = document.createElement('canvas');
+                    const canvases = document.querySelectorAll('.ol-layer canvas');
+
+                    if (canvases.length > 0) {
+                        mapCanvas.width = canvases[0].width;
+                        mapCanvas.height = canvases[0].height;
+                        const mapContext = mapCanvas.getContext('2d');
+
+                        Array.prototype.forEach.call(canvases, function (canvas) {
+                            if (canvas.width > 0) {
+                                const opacity = canvas.parentNode.style.opacity;
+                                mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+                                const transform = canvas.style.transform;
+                                if (transform) {
+                                    const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
+                                    if (matrix) {
+                                        const m = matrix[1].split(',').map(Number);
+                                        mapContext.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+                                    }
+                                }
+                                mapContext.drawImage(canvas, 0, 0);
+                            }
+                        });
+
+                        const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
+
+                        // Dispara a função do PHP mandando a foto em Base64
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirRelatorioNumeracao(dataURL);
+                    }
+                } catch (error) {
+                    console.error("Erro na captura do mapa:", error);
+                    alert("Não foi possível capturar a imagem do mapa.");
+                } finally {
+                    btn.innerHTML = originalText;
                 }
             }, 500);
         };
