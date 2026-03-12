@@ -114,10 +114,15 @@ class LoteResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('quadra_id')
                     ->label('Filtrar por Quadra')
-                    ->relationship('quadra', 'name'),
+                    ->relationship('quadra', 'name')
+                    ->multiple()
+                    ->preload(),
+                    
                 Tables\Filters\SelectFilter::make('zona_id')
                     ->label('Filtrar por Zona')
-                    ->relationship('zona', 'name'),
+                    ->relationship('zona', 'name')
+                    ->multiple()
+                    ->preload(),
             ])
             ->actions([
                 Tables\Actions\Action::make('ver_no_mapa')

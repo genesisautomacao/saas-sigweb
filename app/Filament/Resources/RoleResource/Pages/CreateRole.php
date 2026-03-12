@@ -23,7 +23,8 @@ class CreateRole extends CreateRecord
         $arborizacaoData = $data['permissions_arborizacao'] ?? []; 
         $estoqueData = $data['permissions_estoque'] ?? [];
         $manutencaoData = $data['permissions_manutencao'] ?? []; 
-        $cemiterioData = $data['permissions_cemiterio'] ?? []; // 🟢 NOVO
+        $cemiterioData = $data['permissions_cemiterio'] ?? [];
+        $imobiliarioData = $data['permissions_imobiliario'] ?? [];
 
         $users = is_array($usersData) ? $usersData : ($usersData === true ? ['view_users', 'create_users', 'edit_users', 'delete_users'] : []);
         $roles = is_array($rolesData) ? $rolesData : ($rolesData === true ? ['view_roles', 'create_roles', 'edit_roles', 'delete_roles'] : []);
@@ -44,14 +45,23 @@ class CreateRole extends CreateRecord
             'view_jazigos', 'create_jazigos', 'edit_jazigos', 'delete_jazigos'
         ] : []);
 
-        // 🟢 ATUALIZADO
-        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $iluminacao, $arborizacao, $estoque, $manutencao, $cemiterio);
+        $imobiliario = is_array($imobiliarioData) ? $imobiliarioData : ($imobiliarioData === true ? [
+            'view_lotes', 'create_lotes', 'edit_lotes', 'delete_lotes',
+            'view_logradouros', 'create_logradouros', 'edit_logradouros', 'delete_logradouros',
+            'view_bairros', 'create_bairros', 'edit_bairros', 'delete_bairros',
+            'view_loteamentos', 'create_loteamentos', 'edit_loteamentos', 'delete_loteamentos',
+            'view_quadras', 'create_quadras', 'edit_quadras', 'delete_quadras',
+            'view_zonas', 'create_zonas', 'edit_zonas', 'delete_zonas'
+        ] : []);
+
+        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $iluminacao, $arborizacao, $estoque, $manutencao, $cemiterio, $imobiliario);
 
         unset(
             $data['permissions_users'], $data['permissions_roles'], $data['permissions_pessoas'],
             $data['permissions_contatos'], $data['permissions_enderecos'], $data['permissions_documentos'],
             $data['permissions_iluminacao'], $data['permissions_arborizacao'], $data['permissions_estoque'],
-            $data['permissions_manutencao'], $data['permissions_cemiterio'] // 🟢 NOVO
+            $data['permissions_manutencao'], $data['permissions_cemiterio'],
+            $data['permissions_imobiliario']
         );
 
         return $data;

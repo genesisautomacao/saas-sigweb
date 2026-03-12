@@ -234,6 +234,41 @@ class RoleResource extends Resource
                                     ->columns(4), // Bem largo para aproveitar a tela
                             ])->columns(1)->columnSpanFull(),
 
+                        // 🟢 CAIXA 12: MÓDULO IMOBILIÁRIO E GEOGRÁFICO
+                        Forms\Components\Fieldset::make('Módulo: Imobiliário e Geográfico (SIGWEB)')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_imobiliario')
+                                    ->label('Gestão de Lotes, Ruas e Zoneamento')
+                                    ->options([
+                                        'view_lotes' => 'Vis. Lotes',
+                                        'create_lotes' => 'Criar Lotes',
+                                        'edit_lotes' => 'Editar Lotes',
+                                        'delete_lotes' => 'Excluir Lotes',
+                                        'view_logradouros' => 'Vis. Ruas',
+                                        'create_logradouros' => 'Criar Ruas',
+                                        'edit_logradouros' => 'Editar Ruas',
+                                        'delete_logradouros' => 'Excluir Ruas',
+                                        'view_bairros' => 'Vis. Bairros',
+                                        'create_bairros' => 'Criar Bairros',
+                                        'edit_bairros' => 'Editar Bairros',
+                                        'delete_bairros' => 'Excluir Bairros',
+                                        'view_loteamentos' => 'Vis. Loteamentos',
+                                        'create_loteamentos' => 'Criar Loteam.',
+                                        'edit_loteamentos' => 'Editar Loteam.',
+                                        'delete_loteamentos' => 'Excluir Loteam.',
+                                        'view_quadras' => 'Vis. Quadras',
+                                        'create_quadras' => 'Criar Quadras',
+                                        'edit_quadras' => 'Editar Quadras',
+                                        'delete_quadras' => 'Excluir Quadras',
+                                        'view_zonas' => 'Vis. Zonas',
+                                        'create_zonas' => 'Criar Zonas',
+                                        'edit_zonas' => 'Editar Zonas',
+                                        'delete_zonas' => 'Excluir Zonas',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(4),
+                            ])->columns(1)->columnSpanFull(),
+
                     ])->columns(4),
 
             ]);

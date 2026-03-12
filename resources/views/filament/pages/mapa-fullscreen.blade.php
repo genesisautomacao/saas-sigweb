@@ -309,6 +309,7 @@
                     </button>
                     <div x-show="activeTab === 'base'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
+                        
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
                             <input type="checkbox" data-layer="perimetros"
                                 class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
@@ -317,6 +318,7 @@
                                 <span class="layer-text truncate">Perímetros/Limites</span>
                             </span>
                         </label>
+
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="bairros"
                                 class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
@@ -325,6 +327,7 @@
                                 <span class="layer-text truncate">Bairros</span>
                             </span>
                         </label>
+
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="quadras"
                                 class="layer-toggle rounded border-gray-300 text-orange-500 focus:ring-orange-500 w-4 h-4 flex-shrink-0">
@@ -333,6 +336,7 @@
                                 </div><span class="layer-text truncate">Quadras</span>
                             </span>
                         </label>
+
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="lotes"
                                 class="layer-toggle rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
@@ -341,6 +345,7 @@
                                 </div><span class="layer-text truncate">Lotes</span>
                             </span>
                         </label>
+
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="edificacoes"
                                 class="layer-toggle rounded border-gray-300 text-amber-700 focus:ring-amber-700 w-4 h-4 flex-shrink-0">
@@ -349,6 +354,16 @@
                                 <span class="layer-text truncate">Edificações</span>
                             </span>
                         </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" data-layer="logradouros"
+                                class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div><span
+                                    class="layer-text truncate">Logradouros</span>
+                            </span>
+                        </label>
+
 
                     </div>
                 </div>
@@ -394,11 +409,11 @@
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
 
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
-                            <input type="checkbox" data-layer="logradouros"
-                                class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0">
+                            <input type="checkbox" data-layer="arvores"
+                                class="layer-toggle rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div><span
-                                    class="layer-text truncate">Logradouros</span>
+                                <div class="w-3 h-3 bg-emerald-500 rounded-full flex-shrink-0"></div><span
+                                    class="layer-text truncate">Arborização Urbana</span>
                             </span>
                         </label>
 
@@ -408,15 +423,6 @@
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div><span
                                     class="layer-text truncate">Iluminação Pública</span>
-                            </span>
-                        </label>
-
-                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
-                            <input type="checkbox" data-layer="arvores"
-                                class="layer-toggle rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-emerald-500 rounded-full flex-shrink-0"></div><span
-                                    class="layer-text truncate">Arborização Urbana</span>
                             </span>
                         </label>
 

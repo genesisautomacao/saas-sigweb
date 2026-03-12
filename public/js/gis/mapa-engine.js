@@ -1340,13 +1340,13 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // =========================================================================
-    // 17. INTERCEPTADOR DE CRIAÇÃO GEOGRÁFICA (PONTOS VIA URL)
+    // 17. INTERCEPTADOR DE CRIAÇÃO GEOGRÁFICA (PONTOS E DESENHOS VIA URL)
     // =========================================================================
     const urlParams = new URLSearchParams(window.location.search);
     const actionParams = urlParams.get('action');
     const layerParams = urlParams.get('layer');
 
-    // 🛑 AGORA ELE ACEITA POSTES E ÁRVORES!
+    // 🛑 1. MODO DE PONTOS (Árvores e Postes - Redireciona com Lat/Lon)
     if (actionParams === 'create' && (layerParams === 'postes' || layerParams === 'arvores')) {
 
         const entityName = layerParams === 'postes' ? 'Poste' : 'Árvore';
@@ -1354,15 +1354,10 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log(`Modo de inserção de ${entityName} ativado!`);
         alert(`📍 Clique no mapa exatamente onde o(a) novo(a) ${entityName} está localizado(a).`);
 
-        // Ativa a ferramenta de desenho de Ponto do OpenLayers
-        const drawPoint = new ol.interaction.Draw({
-            type: 'Point',
-        });
-
+        const drawPoint = new ol.interaction.Draw({ type: 'Point' });
         map.addInteraction(drawPoint);
         map.getTargetElement().style.cursor = 'crosshair';
 
-        // O Evento de Clique (Fim do desenho)
         drawPoint.on('drawend', function (event) {
             map.removeInteraction(drawPoint);
             map.getTargetElement().style.cursor = '';
@@ -1373,34 +1368,46 @@ document.addEventListener('DOMContentLoaded', function () {
             const lon = coords4326[0].toFixed(8);
             const lat = coords4326[1].toFixed(8);
 
-            // Montar a URL de volta dinâmica (vai para /postes/create ou /arvores/create)
-            const returnUrl = `/app/${config.tenantSlug}/${layerParams}/create?lat=${lat}&lon=${lon}`;
-
-            window.location.href = returnUrl;
+            window.location.href = `/app/${config.tenantSlug}/${layerParams}/create?lat=${lat}&lon=${lon}`;
         });
     }
 
-    // 🛑 INJEÇÃO: Escutador de Criação de Polígonos (Cemitérios e futuras Quadras) vindos do Backoffice
-    else if (actionParams === 'create' && (layerParams === 'cemiterios' || layerParams === 'quadras_cemiterio' || layerParams === 'logradouros_cemiterio' || layerParams === 'jazigos')) {
+    // 🛑 2. MODO DE DESENHO (Polígonos e Linhas - Abre modal nativa do mapa)
+    else if (actionParams === 'create') {
+        
+        // Dicionário inteligente de entidades que desenham na tela
+        const drawableEntities = {
+            'lotes': { label: 'do novo Lote', func: 'lote' },
+            'logradouros': { label: 'da linha do novo Logradouro', func: 'logradouro' },
+            'edificacoes': { label: 'da nova Edificação', func: 'edificacao' },
+            'cemiterios': { label: 'do novo Cemitério', func: 'cemiterio' },
+            'quadras_cemiterio': { label: 'da nova Quadra', func: 'quadra_cemiterio' },
+            'logradouros_cemiterio': { label: 'da nova Rua Interna', func: 'logradouro_cemiterio' },
+            'jazigos': { label: 'do novo Jazigo', func: 'jazigo' }
+        };
 
-        let labelEnt = layerParams === 'cemiterios' ? 'do novo Cemitério' : (layerParams === 'quadras_cemiterio' ? 'da nova Quadra' : (layerParams === 'logradouros_cemiterio' ? 'da nova Rua Interna' : 'do novo Jazigo'));
-        let funcEnt = layerParams === 'cemiterios' ? 'cemiterio' : (layerParams === 'quadras_cemiterio' ? 'quadra_cemiterio' : (layerParams === 'logradouros_cemiterio' ? 'logradouro_cemiterio' : 'jazigo'));
+        if (drawableEntities[layerParams]) {
+            let labelEnt = drawableEntities[layerParams].label;
+            let funcEnt = drawableEntities[layerParams].func;
 
-        console.log(`Modo de inserção de ${funcEnt} ativado via Backoffice!`);
+            console.log(`Modo de inserção de ${funcEnt} ativado via Backoffice!`);
 
-        setTimeout(() => {
-            alert(`🗺️ Desenhe a geometria ${labelEnt} no mapa.`);
+            setTimeout(() => {
+                alert(`🗺️ Desenhe a geometria ${labelEnt} no mapa.`);
 
-            const checkbox = document.querySelector(`input[data-layer="${layerParams}"]`);
-            if (checkbox && !checkbox.checked) {
-                checkbox.checked = true;
-                checkbox.dispatchEvent(new Event('change'));
-            }
+                // Liga o checkbox da camada automaticamente para o usuário ver o que tá fazendo
+                const checkbox = document.querySelector(`input[data-layer="${layerParams}"]`);
+                if (checkbox && !checkbox.checked) {
+                    checkbox.checked = true;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
 
-            if (typeof window.enableDrawing === 'function') {
-                window.enableDrawing(funcEnt);
-            }
-        }, 500);
+                // Dispara a ferramenta de desenho!
+                if (typeof window.enableDrawing === 'function') {
+                    window.enableDrawing(funcEnt);
+                }
+            }, 800); // 800ms garante que o mapa carregou completamente antes de acionar a ferramenta
+        }
     }
 
     // =========================================================================

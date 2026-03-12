@@ -85,6 +85,8 @@ class PermissionsSeeder extends Seeder
 
 
             /* Módulo Imobiliário / Geográfico */
+            'view_lotes', 'create_lotes', 'edit_lotes', 'delete_lotes',
+            'view_logradouros', 'create_logradouros', 'edit_logradouros', 'delete_logradouros',
             'view_bairros', 'create_bairros', 'edit_bairros', 'delete_bairros',
             'view_loteamentos', 'create_loteamentos', 'edit_loteamentos', 'delete_loteamentos',
             'view_quadras', 'create_quadras', 'edit_quadras', 'delete_quadras',
