@@ -80,6 +80,15 @@ class PermissionsSeeder extends Seeder
             'view_quadras_cemiterio', 'create_quadras_cemiterio', 'edit_quadras_cemiterio', 'delete_quadras_cemiterio',
             'view_logradouros_cemiterio', 'create_logradouros_cemiterio', 'edit_logradouros_cemiterio', 'delete_logradouros_cemiterio',
             'view_jazigos', 'create_jazigos', 'edit_jazigos', 'delete_jazigos',
+
+            /* Módulo Imobiliário - Lotes (faltou aqui e na RoleResource*/
+
+
+            /* Módulo Imobiliário / Geográfico */
+            'view_bairros', 'create_bairros', 'edit_bairros', 'delete_bairros',
+            'view_loteamentos', 'create_loteamentos', 'edit_loteamentos', 'delete_loteamentos',
+            'view_quadras', 'create_quadras', 'edit_quadras', 'delete_quadras',
+            'view_zonas', 'create_zonas', 'edit_zonas', 'delete_zonas',
         ];
 
         foreach ($permissions as $permission) {
