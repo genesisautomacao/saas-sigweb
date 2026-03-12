@@ -164,15 +164,23 @@ trait HasLoteActions
             ->modalHeading(fn() => 'Unidades Imobiliárias - Lote #' . $this->loteAtivoNome)
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Fechar')
-            ->modalWidth('3xl')
+            ->modalWidth('4xl')
             ->modalContent(function () {
                 $unidades = UnidadeImobiliaria::where('lote_id', $this->loteAtivoId)->get();
 
-                // Usamos HEREDOC (<<<BLADE) para não precisar escapar aspas no HTML e chamar botões Livewire com facilidade
                 $bladeView = <<<'BLADE'
                     <div>
-                        <div class="mb-4 flex justify-end">
-                            {{-- Usando o botão nativo do Filament com a ação de REPLACE --}}
+                        <div class="mb-4 flex justify-end gap-2">
+                            {{-- 🛑 NOVO: Botão de Sincronização em Massa (Bulk) --}}
+                            @if($unidades->isNotEmpty())
+                                <x-filament::button 
+                                    wire:click="sincronizarTodasUnidades" 
+                                    color="info" 
+                                    icon="heroicon-m-cloud-arrow-down">
+                                    Sincronizar Todas
+                                </x-filament::button>
+                            @endif
+
                             <x-filament::button 
                                 wire:click="replaceMountedAction('criarUnidadeAction')" 
                                 color="success" 
@@ -193,20 +201,37 @@ trait HasLoteActions
                                         <tr>
                                             <th class="px-4 py-3">Inscrição</th>
                                             <th class="px-4 py-3">Cód Tributário</th>
-                                            <th class="px-4 py-3">Proprietário (ID)</th>
+                                            <th class="px-4 py-3">Proprietário</th>
                                             <th class="px-4 py-3 text-right"><span class="sr-only">Ações</span></th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                                         @foreach($unidades as $u)
-                                            {{-- Ao clicar em qualquer lugar da linha, abre a edição --}}
                                             <tr wire:click="replaceMountedAction('editarUnidadeAction', { unidadeId: {{ $u->id }} })" 
                                                 class="cursor-pointer bg-white dark:bg-gray-900 hover:bg-primary-50 dark:hover:bg-gray-800 transition-colors group">
                                                 
                                                 <td class="px-4 py-3 font-bold text-gray-900 dark:text-white">{{ $u->inscricao_imobiliaria ?? 'N/A' }}</td>
                                                 <td class="px-4 py-3">{{ $u->codigo_imovel_tributario ?? 'N/A' }}</td>
-                                                <td class="px-4 py-3">{{ $u->proprietario_id ? 'ID: ' . $u->proprietario_id : 'Não informado' }}</td>
+                                                
+                                                <td class="px-4 py-3">
+                                                    @php
+                                                        $nomeProprietario = 'Não informado';
+                                                        if (!empty($u->dados_tributarios) && isset($u->dados_tributarios['proprietario_name'])) {
+                                                            $nomeProprietario = $u->dados_tributarios['proprietario_name'];
+                                                        } elseif ($u->proprietario_id) {
+                                                            $pessoa = \App\Models\Pessoa::find($u->proprietario_id);
+                                                            $nomeProprietario = $pessoa ? $pessoa->name : 'ID: ' . $u->proprietario_id;
+                                                        }
+                                                    @endphp
+                                                    {{ $nomeProprietario }}
+                                                </td>
+
                                                 <td class="px-4 py-3 text-right">
+                                                    {{-- 🛑 NOVO: Imprimir BIC (Usa stopPropagation para não abrir a edição sem querer) --}}
+                                                    <button onclick="event.stopPropagation(); capturarMapaEImprimirBic({{ $u->id }})" class="text-amber-500 hover:text-amber-700 mr-3" title="Imprimir BIC">
+                                                        <x-heroicon-o-printer class="w-5 h-5 inline-block transition-colors" />
+                                                    </button>                                               
+
                                                     <x-heroicon-o-pencil-square class="w-5 h-5 text-gray-400 group-hover:text-primary-600 inline-block transition-colors" />
                                                 </td>
                                             </tr>
@@ -230,90 +255,93 @@ trait HasLoteActions
         return Action::make('criarUnidadeAction')
             ->modalHeading('Cadastrar Nova Unidade Imobiliária')
             ->modalSubmitActionLabel('Salvar Unidade')
-            ->modalWidth('lg')
+            ->modalWidth('xl')
             ->form([
                 TextInput::make('inscricao_imobiliaria')
                     ->label('Inscrição Imobiliária')
                     ->maxLength(255)
-                    ->unique(
-                        table: 'unidade_imobiliarias',
-                        column: 'inscricao_imobiliaria',
-                        modifyRuleUsing: fn(\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId)
-                    )
-                    ->validationMessages([
-                        'unique' => 'Esta Inscrição Imobiliária já está cadastrada neste município.',
-                    ]),
+                    ->unique(table: 'unidade_imobiliarias', column: 'inscricao_imobiliaria', modifyRuleUsing: fn(\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId))
+                    ->validationMessages(['unique' => 'Esta Inscrição já está cadastrada.']),
 
                 TextInput::make('codigo_imovel_tributario')
                     ->label('Código do Imóvel Tributário')
                     ->maxLength(255)
-                    ->unique(
-                        table: 'unidade_imobiliarias',
-                        column: 'codigo_imovel_tributario',
-                        modifyRuleUsing: fn(\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId)
-                    )
-                    ->validationMessages([
-                        'unique' => 'Este Código Tributário já está cadastrado neste município.',
-                    ]),
+                    ->unique(table: 'unidade_imobiliarias', column: 'codigo_imovel_tributario', modifyRuleUsing: fn(\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId))
+                    ->validationMessages(['unique' => 'Este Código Tributário já está cadastrado.'])
+                    ->suffixAction(
+                        \Filament\Forms\Components\Actions\Action::make('sincronizar_api')
+                            ->icon('heroicon-o-cloud-arrow-down')
+                            ->color('success')
+                            ->tooltip('Buscar na Prefeitura')
+                            ->action(function (\Filament\Forms\Get $get, \Filament\Forms\Set $set) {
+                                $codigo = $get('codigo_imovel_tributario');
+                                if (!$codigo) return;
+                                try {
+                                    $dados = app(\App\Services\ApiTools\IntegraPrefeituraService::class)->buscarImovelPorCodigo($codigo);
+                                    if ($dados) {
+                                        $set('inscricao_imobiliaria', $dados['inscricao_imobiliaria']);
+                                        $set('dados_tributarios', json_encode($dados, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                                        Notification::make()->title('Sincronizado!')->success()->send();
+                                    }
+                                } catch (\Exception $e) {}
+                            })
+                    ),
 
-                TextInput::make('proprietario_id')
-                    ->label('ID do Proprietário (Temporário)')
-                    ->numeric()
+                Select::make('proprietario_id')
+                    ->label('Proprietário Principal')
+                    ->options(fn() => \App\Models\Pessoa::pluck('name', 'id'))
+                    ->searchable()
                     ->nullable(),
+
+                \Filament\Forms\Components\Textarea::make('dados_tributarios')
+                    ->label('Dados Fiscais Sincronizados (API Prefeitura)')
+                    ->disabled()
+                    ->dehydrated() // Envia pro banco
+                    ->rows(10)
+                    ->columnSpanFull(),
             ])
             ->action(function (array $data) {
-                $lote = Lote::find($this->loteAtivoId);
+                // 🛑 BUG 3 RESOLVIDO: Decodifica antes de salvar
+                if (isset($data['dados_tributarios']) && is_string($data['dados_tributarios'])) {
+                    $decoded = json_decode($data['dados_tributarios'], true);
+                    if (json_last_error() === JSON_ERROR_NONE) $data['dados_tributarios'] = $decoded;
+                }
 
+                $lote = Lote::find($this->loteAtivoId);
                 $data['tenant_id'] = $this->tenantId;
                 $data['lote_id'] = $this->loteAtivoId;
                 $data['code'] = (string) Str::uuid();
 
                 $unidade = UnidadeImobiliaria::create($data);
 
-                // Garante que a unidade pegue o ponto (centroide) do lote
                 if ($unidade && $lote) {
-                    DB::statement("
-                        UPDATE unidade_imobiliarias
-                        SET geo = (SELECT ST_PointOnSurface(geo) FROM lotes WHERE id = ?)
-                        WHERE id = ?
-                    ", [$lote->id, $unidade->id]);
+                    DB::statement("UPDATE unidade_imobiliarias SET geo = (SELECT ST_PointOnSurface(geo) FROM lotes WHERE id = ?) WHERE id = ?", [$lote->id, $unidade->id]);
                 }
 
                 Notification::make()->title('Unidade criada com sucesso!')->success()->send();
-
-                // Substitui a modal atual voltando para a lista de unidades
                 $this->replaceMountedAction('verUnidades');
             })
-            // Se o usuário desistir de criar e fechar a modal, voltamos para a tabela de unidades
             ->modalCancelAction(false)
             ->extraModalFooterActions([
                 Action::make('voltar')
                     ->label('Voltar')
-                    ->color('gray') // Fica com a mesma cor neutra do Cancelar
+                    ->color('gray')
                     ->action(fn() => $this->replaceMountedAction('verUnidades')),
             ]);
     }
 
-    /**
-     * Ação: Editar Unidade Imobiliária (Agora com botão de Excluir dentro)
-     */
     public function editarUnidadeAction(): Action
     {
         return Action::make('editarUnidadeAction')
             ->modalHeading('Editar Unidade Imobiliária')
             ->modalSubmitActionLabel('Salvar Alterações')
-            ->modalWidth('lg')
+            ->modalWidth('xl')
             ->fillForm(function (array $arguments): array {
-                if (!isset($arguments['unidadeId']))
-                    return [];
+                if (!isset($arguments['unidadeId'])) return [];
                 $unidade = UnidadeImobiliaria::find($arguments['unidadeId']);
                 return $unidade ? $unidade->toArray() : [];
             })
-            // 🛑 MÁGICA: Transformamos o form em uma função que recebe os argumentos
             ->form(function (array $arguments) {
-                // Buscamos a unidade que está sendo editada ANTES de montar os campos
-                $unidade = \App\Models\UnidadeImobiliaria::find($arguments['unidadeId'] ?? null);
-
                 return [
                     TextInput::make('inscricao_imobiliaria')
                         ->label('Inscrição Imobiliária')
@@ -321,12 +349,14 @@ trait HasLoteActions
                         ->unique(
                             table: 'unidade_imobiliarias',
                             column: 'inscricao_imobiliaria',
-                            ignorable: $unidade, // Passamos o modelo diretamente aqui!
-                            modifyRuleUsing: fn(\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId)
+                            // 🛑 BUG 1 RESOLVIDO: Ignora o ID diretamente na query
+                            modifyRuleUsing: function (\Illuminate\Validation\Rules\Unique $rule) use ($arguments) {
+                                $rule->where('tenant_id', $this->tenantId);
+                                if (isset($arguments['unidadeId'])) $rule->ignore($arguments['unidadeId']);
+                                return $rule;
+                            }
                         )
-                        ->validationMessages([
-                            'unique' => 'Esta Inscrição Imobiliária já está cadastrada neste município.',
-                        ]),
+                        ->validationMessages(['unique' => 'Esta Inscrição Imobiliária já está cadastrada.']),
 
                     TextInput::make('codigo_imovel_tributario')
                         ->label('Código do Imóvel Tributário')
@@ -334,43 +364,85 @@ trait HasLoteActions
                         ->unique(
                             table: 'unidade_imobiliarias',
                             column: 'codigo_imovel_tributario',
-                            ignorable: $unidade, // Passamos o modelo diretamente aqui!
-                            modifyRuleUsing: fn(\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId)
+                            // 🛑 BUG 1 RESOLVIDO
+                            modifyRuleUsing: function (\Illuminate\Validation\Rules\Unique $rule) use ($arguments) {
+                                $rule->where('tenant_id', $this->tenantId);
+                                if (isset($arguments['unidadeId'])) $rule->ignore($arguments['unidadeId']);
+                                return $rule;
+                            }
                         )
-                        ->validationMessages([
-                            'unique' => 'Este Código Tributário já está cadastrado neste município.',
-                        ]),
+                        ->validationMessages(['unique' => 'Este Código Tributário já está cadastrado.'])
+                        ->suffixAction(
+                            \Filament\Forms\Components\Actions\Action::make('sincronizar_api')
+                                ->icon('heroicon-o-cloud-arrow-down')
+                                ->color('success')
+                                ->tooltip('Buscar na Prefeitura')
+                                ->action(function (\Filament\Forms\Get $get, \Filament\Forms\Set $set) {
+                                    $codigo = $get('codigo_imovel_tributario');
+                                    if (!$codigo) {
+                                        Notification::make()->title('Aviso')->body('Digite o código antes de buscar.')->warning()->send();
+                                        return;
+                                    }
+                                    try {
+                                        $apiService = app(\App\Services\ApiTools\IntegraPrefeituraService::class);
+                                        $dados = $apiService->buscarImovelPorCodigo($codigo);
+                                        if ($dados) {
+                                            $set('inscricao_imobiliaria', $dados['inscricao_imobiliaria']);
+                                            // 🛑 BUG 3 RESOLVIDO (Parte 1): Transforma o Array em String identada para o Textarea
+                                            $set('dados_tributarios', json_encode($dados, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                                            Notification::make()->title('Sincronizado!')->success()->send();
+                                        } else {
+                                            Notification::make()->title('Não Encontrado')->danger()->send();
+                                        }
+                                    } catch (\Exception $e) {
+                                        Notification::make()->title('Erro')->body($e->getMessage())->danger()->send();
+                                    }
+                                })
+                        ),
 
-                    TextInput::make('proprietario_id')
-                        ->label('ID do Proprietário (Temporário)')
-                        ->numeric()
+                    Select::make('proprietario_id')
+                        ->label('Proprietário Principal')
+                        ->options(fn() => \App\Models\Pessoa::pluck('name', 'id'))
+                        ->searchable()
                         ->nullable(),
+
+                    \Filament\Forms\Components\Textarea::make('dados_tributarios')
+                        ->label('Dados Fiscais Sincronizados (API Prefeitura)')
+                        ->formatStateUsing(function ($state) {
+                            if (is_string($state)) $state = json_decode($state, true);
+                            return $state ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'Ainda não sincronizado.';
+                        })
+                        ->disabled()
+                        ->dehydrated() // 🛑 BUG 3 RESOLVIDO (Parte 2): Força o campo disabled a ser enviado pro banco!
+                        ->rows(10)
+                        ->columnSpanFull(),
                 ];
             })
             ->action(function (array $data, array $arguments) {
                 $unidade = UnidadeImobiliaria::find($arguments['unidadeId']);
                 if ($unidade) {
+                    // 🛑 BUG 3 RESOLVIDO (Parte 3): Decodifica a string do Textarea de volta para Array antes de salvar
+                    if (isset($data['dados_tributarios']) && is_string($data['dados_tributarios'])) {
+                        $decoded = json_decode($data['dados_tributarios'], true);
+                        if (json_last_error() === JSON_ERROR_NONE) {
+                            $data['dados_tributarios'] = $decoded;
+                        }
+                    }
+
                     $unidade->update($data);
                     Notification::make()->title('Unidade atualizada!')->success()->send();
                 }
-
-                // Volta para a lista
                 $this->replaceMountedAction('verUnidades');
             })
             ->modalCancelAction(false)
             ->extraModalFooterActions(function (array $arguments) {
                 $unidadeId = $arguments['unidadeId'] ?? null;
-
                 return [
-
-
                     Action::make('excluir_unidade')
                         ->label('Excluir Unidade')
                         ->color('danger')
                         ->icon('heroicon-o-trash')
                         ->requiresConfirmation()
-                        ->modalHeading('Excluir Unidade Imobiliária')
-                        ->modalDescription('Tem certeza que deseja excluir esta unidade? A ação enviará o registro para a lixeira.')
                         ->action(function () use ($unidadeId) {
                             if ($unidadeId) {
                                 $unidade = UnidadeImobiliaria::find($unidadeId);
@@ -379,7 +451,7 @@ trait HasLoteActions
                                     Notification::make()->title('Unidade removida!')->success()->send();
                                 }
                             }
-                            $this->replaceMountedAction('verUnidades');
+                           $this->replaceMountedAction('verUnidades');
                         }),
 
                     Action::make('voltar')
@@ -388,6 +460,80 @@ trait HasLoteActions
                         ->action(fn() => $this->replaceMountedAction('verUnidades')),
                 ];
             });
+    }
+
+    /**
+     * 🛑 MÉTODOS LIVEWIRE PARA SINCRONIZAÇÃO NA TABELA DO MAPA
+     */
+    public function sincronizarUnidade($id)
+    {
+        $unidade = UnidadeImobiliaria::find($id);
+
+        if (!$unidade || !$unidade->codigo_imovel_tributario) {
+            Notification::make()->title('Aviso')->body('A unidade precisa ter o Código Tributário preenchido para sincronizar.')->warning()->send();
+            return;
+        }
+
+        $apiService = app(\App\Services\ApiTools\IntegraPrefeituraService::class);
+        $dados = $apiService->buscarImovelPorCodigo($unidade->codigo_imovel_tributario);
+
+        try {
+
+            if ($dados) {
+                $unidade->update(['inscricao_imobiliaria' => $dados['inscricao_imobiliaria'], 'dados_tributarios' => $dados]);
+                Notification::make()->title('Sincronizado!')->success()->send();
+            } else {
+                Notification::make()->title('Não Encontrado')->body('O código não foi localizado na prefeitura.')->danger()->send();
+            }
+        } catch (\Exception $e) {
+            Notification::make()->title('Erro')->body($e->getMessage())->danger()->send();
+        }
+
+        $this->mountAction('verUnidades');
+    }
+
+    public function sincronizarTodasUnidades()
+    {
+        $unidades = UnidadeImobiliaria::where('lote_id', $this->loteAtivoId)->whereNotNull('codigo_imovel_tributario')->get();
+
+        $sucesso = 0;
+        $apiService = app(\App\Services\ApiTools\IntegraPrefeituraService::class);
+
+        foreach ($unidades as $unidade) {
+            try {
+                $dados = $apiService->buscarImovelPorCodigo($unidade->codigo_imovel_tributario);
+                if ($dados) {
+                    $unidade->update(['inscricao_imobiliaria' => $dados['inscricao_imobiliaria'], 'dados_tributarios' => $dados]);
+                    $sucesso++;
+                }
+            } catch (\Exception $e) {
+            }
+        }
+
+        Notification::make()->title('Concluído')->body("{$sucesso} unidades sincronizadas com sucesso.")->success()->send();
+        $this->replaceMountedAction('verUnidades');
+    }
+
+    /**
+     * Ação Global: Recebe a Imagem do Mapa via JS e devolve o PDF da BIC
+     */
+    public function imprimirBic($unidadeId, $mapImageBase64)
+    {
+        $unidade = \App\Models\UnidadeImobiliaria::find($unidadeId);
+        
+        if (!$unidade) {
+            \Filament\Notifications\Notification::make()->title('Erro')->body('Unidade não encontrada.')->danger()->send();
+            return;
+        }
+
+        // Aviso amigável caso a unidade ainda não tenha sido sincronizada com a Prefeitura
+        if (empty($unidade->dados_tributarios)) {
+            \Filament\Notifications\Notification::make()->title('Aviso')->body('A unidade ainda não foi sincronizada. Os valores tributários podem sair zerados.')->warning()->send();
+        }
+
+        // Instancia o seu serviço existente e faz o download!
+        $service = app(\App\Services\Gis\BicPdfService::class);
+        return $service->generatePdf($unidadeId, $mapImageBase64);
     }
 
     /**
@@ -521,15 +667,15 @@ trait HasLoteActions
 
                 return new \Illuminate\Support\HtmlString(\Illuminate\Support\Facades\Blade::render($bladeView, ['analise' => $analise]));
             })
-           ->extraModalFooterActions(function (array $arguments) {
+            ->extraModalFooterActions(function (array $arguments) {
                 // Junta os CNAEs em uma string simples (Ex: "47.51-2,47.52-1")
                 $cnaesString = implode(',', $arguments['cnaes'] ?? []);
-                
+
                 return [
                     Action::make('voltar')
                         ->label('Nova Consulta')
                         ->color('gray')
-                        ->action(fn () => $this->replaceMountedAction('consultarViabilidadeAction')),
+                        ->action(fn() => $this->replaceMountedAction('consultarViabilidadeAction')),
 
                     Action::make('imprimir_pdf')
                         ->label('Imprimir Relatório')
@@ -539,11 +685,11 @@ trait HasLoteActions
                             'id' => 'btn-imprimir-viab',
                             'type' => 'button',
                             // Guarda a string de forma segura no HTML
-                            'data-cnaes' => $cnaesString, 
+                            'data-cnaes' => $cnaesString,
                             // 🛑 O TRUQUE: O Alpine lê a variável do HTML sem usar nenhuma aspa!
                             'x-on:click.prevent' => "capturarMapaEImprimir({$this->loteAtivoId}, \$el.dataset.cnaes)"
                         ])
-                        ->action(function() { /* Vazio propositalmente */ })
+                        ->action(function () { /* Vazio propositalmente */})
                 ];
             });
     }
@@ -590,7 +736,7 @@ trait HasLoteActions
 
                 // 1. Instancia o nosso Service
                 $service = app(\App\Services\Gis\MemorialDescritivoService::class);
-                
+
                 // 2. Coleta os dados matemáticos e o texto
                 $textoMemorial = $service->gerarTextoMemorial($lote->id);
                 $segmentos = $service->gerarDadosPerimetro($lote->id);

@@ -12,7 +12,12 @@ class UnidadeImobiliaria extends Model
 {
     use SoftDeletes, BelongsToTenant, HasTenantSequentialId;
 
-    protected $fillable = ['tenant_id', 'sequential_id', 'lote_id', 'codigo_imovel_tributario', 'inscricao_imobiliaria', 'proprietario_id', 'code', 'geo'];
+    protected $fillable = ['tenant_id', 'sequential_id', 'lote_id', 'codigo_imovel_tributario', 'inscricao_imobiliaria', 'proprietario_id', 'code', 'geo', 'dados_tributarios']; // <-- Adicionado
+
+    protected $casts = [
+        'dados_tributarios' => 'array', // <-- Adicionado para o Laravel converter o JSON sozinho
+    ];
+    
     protected $hidden = ['geo'];
     protected $appends = ['geo_json'];
 
@@ -35,5 +40,18 @@ class UnidadeImobiliaria extends Model
         }
         
         $this->attributes['geo'] = DB::raw("ST_GeomFromGeoJSON('" . json_encode($value) . "')");
+    }
+
+    public function lote()
+    {
+        return $this->belongsTo(Lote::class, 'lote_id');
+    }
+
+    /**
+     * Uma Unidade Imobiliária pertence a um Proprietário (Pessoa)
+     */
+    public function proprietario()
+    {
+        return $this->belongsTo(\App\Models\Pessoa::class, 'proprietario_id');
     }
 }

@@ -738,6 +738,52 @@
                 }
             }, 500);
         };
+
+        /* IMPRIMIR BIC */
+        window.capturarMapaEImprimirBic = function (unidadeId) {
+            // Pequeno delay para garantir que o mapa está estabilizado
+            setTimeout(() => {
+                try {
+                    const mapCanvas = document.createElement('canvas');
+                    const canvases = document.querySelectorAll('.ol-layer canvas');
+
+                    if (canvases.length > 0) {
+                        mapCanvas.width = canvases[0].width;
+                        mapCanvas.height = canvases[0].height;
+                        const mapContext = mapCanvas.getContext('2d');
+
+                        Array.prototype.forEach.call(canvases, function (canvas) {
+                            if (canvas.width > 0) {
+                                const opacity = canvas.parentNode.style.opacity;
+                                mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+                                const transform = canvas.style.transform;
+                                if (transform) {
+                                    const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
+                                    if (matrix) {
+                                        const m = matrix[1].split(',').map(Number);
+                                        mapContext.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+                                    }
+                                }
+                                mapContext.drawImage(canvas, 0, 0);
+                            }
+                        });
+
+                        const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
+
+                        // Dispara a função do Livewire mandando o ID e a foto!
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirBic(unidadeId, dataURL);
+                    } else {
+                        // Se não conseguir capturar o mapa por algum motivo, imprime sem foto
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirBic(unidadeId, null);
+                    }
+                } catch (error) {
+                    console.error("Erro na captura do mapa para a BIC:", error);
+                    alert("Não foi possível capturar a imagem do mapa. Gerando BIC sem imagem.");
+                    Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirBic(unidadeId, null);
+                }
+            }, 500);
+        };
+
     </script>
 
     <x-filament-actions::modals />
