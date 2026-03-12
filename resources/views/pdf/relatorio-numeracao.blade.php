@@ -16,10 +16,27 @@
         td { font-size: 11px; }
         .highlight { color: #2563eb; font-weight: bold; background-color: #eff6ff; }
         .bg-gray { background-color: #f9fafb; }
+        .logo-container { text-align: center; margin-bottom: 10px; }
+        .brand-image { max-height: 60px; }
     </style>
 </head>
 <body>
     <div class="header">
+        <div class="logo-container">
+           @php
+               // Pega a Tenant ativa de forma nativa no Filament v3
+               $tenant = \Filament\Facades\Filament::getTenant();
+
+               // No futuro, quando você adicionar uma coluna 'logo' na sua tabela de tenants, é só ajustar aqui:
+               $logoPath = $tenant ? data_get($tenant, 'data.logo') : null;
+           @endphp
+
+           @if ($logoPath && file_exists(public_path('storage/' . $logoPath)))
+                <img src="{{ public_path('storage/' . $logoPath) }}" alt="Logo" class="brand-image" />
+            @else
+                <h2 style="color: #666;">{{ $tenant ? $tenant->name : 'SaaS Base' }}</h2>
+            @endif
+        </div>
         <h2>Relatório de Numeração Predial</h2>
         <p><strong>LOGRADOURO:</strong> {{ mb_strtoupper($rua) }} &nbsp;|&nbsp; <strong>DATA DA PRÉVIA:</strong> {{ $data }}</p>
     </div>

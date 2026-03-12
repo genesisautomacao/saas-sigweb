@@ -632,7 +632,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     map.on('singleclick', function (evt) {
 
-        // 🛑 INTERCEPTADOR DA NUMERAÇÃO PREDIAL
+        // 🛑 INTERCEPTADOR DA NUMERAÇÃO PREDIAL (NOVO FLUXO: DESENHAR TRAJETO)
         if (activeTool.startsWith('numeracao')) {
             if (activeTool === 'numeracao_step1') {
                 const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
@@ -642,26 +642,41 @@ document.addEventListener('DOMContentLoaded', function () {
                     ruaSelecionadaNumeracao = clickedLogradouro;
                     activeTool = 'numeracao_step2';
 
-                    alert(`✅ Rua "${clickedLogradouro.get('name')}" selecionada!\n\n2️⃣ PASSO 2: Agora clique no mapa exatamente no PONTO INICIAL da rua (Marco Zero de onde a contagem vai começar).`);
+                    alert(`✅ Rua "${clickedLogradouro.get('name')}" selecionada!\n\n2️⃣ PASSO 2: Agora DESENHE O TRAJETO da numeração.\nClique no ponto inicial e vá clicando para contornar a rua.\nDê DOIS CLIQUES Rápidos para finalizar o percurso.`);
+                    
                     map.getTargetElement().style.cursor = 'crosshair';
+
+                    // 🛑 Liga a ferramenta de desenhar Linha na tela!
+                    currentDrawInteraction = new ol.interaction.Draw({
+                        source: drawSource,
+                        type: 'LineString',
+                        style: new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: '#eab308', width: 5, lineDash: [4, 4] }) // Linha amarela tracejada
+                        })
+                    });
+
+                    currentDrawInteraction.on('drawend', function (e) {
+                        // Quando terminar os dois cliques, pega o GeoJSON do trajeto
+                        const drawnGeoJson = formatGeoJSON.writeGeometryObject(e.feature.getGeometry());
+                        
+                        setTimeout(() => drawSource.clear(), 500);
+                        map.removeInteraction(currentDrawInteraction);
+                        window.resetToPan(); // Devolve a mãozinha azul
+
+                        // Dispara para o PHP mandando a linha inteira desenhada!
+                        Livewire.dispatch('abrirModalNumeracao', {
+                            logradouro_id: ruaSelecionadaNumeracao.get('id'),
+                            logradouro_nome: ruaSelecionadaNumeracao.get('name'),
+                            drawn_line: drawnGeoJson
+                        });
+                    });
+
+                    map.addInteraction(currentDrawInteraction);
                 } else {
                     alert("❌ Você não clicou em uma rua. Aproxime o zoom e clique na linha colorida do logradouro.");
                 }
-            } else if (activeTool === 'numeracao_step2') {
-                // Pegou o marco zero
-                const coords4326 = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
-
-                // Manda para o PHP abrir a modal
-                Livewire.dispatch('abrirModalNumeracao', {
-                    logradouro_id: ruaSelecionadaNumeracao.get('id'),
-                    logradouro_nome: ruaSelecionadaNumeracao.get('name'),
-                    marco_lon: coords4326[0],
-                    marco_lat: coords4326[1]
-                });
-
-                window.resetToPan(); // Devolve a mãozinha
-            }
-            return; // 🛑 Impede que ele faça as outras funções de clique do mapa
+            } 
+            return; // Impede que faça outras coisas no mapa
         }
 
 

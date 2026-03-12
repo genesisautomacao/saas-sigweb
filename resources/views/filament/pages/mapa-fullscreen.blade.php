@@ -346,14 +346,14 @@
                             </span>
                         </label>
 
-                        <label class="flex items-center space-x-3 cursor-pointer w-full">
+                       {{--  <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="edificacoes"
                                 class="layer-toggle rounded border-gray-300 text-amber-700 focus:ring-amber-700 w-4 h-4 flex-shrink-0">
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-3 bg-amber-700 rounded-sm opacity-80 shadow-sm flex-shrink-0"></div>
                                 <span class="layer-text truncate">Edificações</span>
                             </span>
-                        </label>
+                        </label> --}}
 
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
                             <input type="checkbox" data-layer="logradouros"
