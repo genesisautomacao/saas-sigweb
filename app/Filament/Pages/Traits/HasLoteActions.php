@@ -756,4 +756,21 @@ trait HasLoteActions
                 }, 'memorial_lote_' . ($lote->numero_lote ?? $lote->id) . '.pdf');
             });
     }
+
+    /**
+     * Ação Global: Recebe a Imagem do Mapa via JS e devolve o PDF do Croqui
+     */
+    public function imprimirCroqui($loteId, $mapImageBase64)
+    {
+        // Carrega o lote e as relações necessárias para o PDF
+        $lote = \App\Models\Lote::with(['quadra.bairro', 'zona'])->find($loteId);
+        
+        if (!$lote) {
+            \Filament\Notifications\Notification::make()->title('Erro')->body('Lote não encontrado.')->danger()->send();
+            return;
+        }
+
+        $service = app(\App\Services\Gis\CroquiPdfService::class);
+        return $service->generatePdf($lote, $mapImageBase64);
+    }
 }

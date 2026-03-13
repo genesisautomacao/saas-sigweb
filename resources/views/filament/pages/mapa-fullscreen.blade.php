@@ -309,7 +309,7 @@
                     </button>
                     <div x-show="activeTab === 'base'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
-                        
+
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
                             <input type="checkbox" data-layer="perimetros"
                                 class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
@@ -346,7 +346,7 @@
                             </span>
                         </label>
 
-                       {{--  <label class="flex items-center space-x-3 cursor-pointer w-full">
+                        {{-- <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="edificacoes"
                                 class="layer-toggle rounded border-gray-300 text-amber-700 focus:ring-amber-700 w-4 h-4 flex-shrink-0">
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
@@ -580,7 +580,16 @@
                     <button wire:click="mountAction('gerarMemorialAction')"
                         class="w-full text-left px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-emerald-500 hover:shadow-md transition-all group flex items-center justify-between">
                         <span class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-emerald-600">
-                            Gerar Memorial Descritivo
+                            Memorial Descritivo
+                        </span>
+                        <x-heroicon-o-document-text class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
+                    </button>
+
+                    {{-- BOTÃO DE CROQUI DE LOCALIZAÇÃO --}}
+                    <button onclick="capturarMapaEImprimirCroqui({{ $loteAtivoId }})"
+                        class="w-full text-left px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-blue-500 hover:shadow-md transition-all group flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-blue-600">
+                            Croqui de Localização
                         </span>
                         <x-heroicon-o-document-text class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
                     </button>
@@ -786,6 +795,55 @@
                     console.error("Erro na captura do mapa para a BIC:", error);
                     alert("Não foi possível capturar a imagem do mapa. Gerando BIC sem imagem.");
                     Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirBic(unidadeId, null);
+                }
+            }, 500);
+        };
+
+        /* IMPRIMIR CROQUI DE LOCALIZAÇÃO DO LOTE */
+        window.capturarMapaEImprimirCroqui = function (loteId) {
+
+            // Opcional: Feedback visual de que está carregando
+            const btnSpan = event.currentTarget.querySelector('span');
+            const originalText = btnSpan.innerText;
+            btnSpan.innerHTML = '<span class="animate-pulse">Gerando Croqui...</span>';
+
+            setTimeout(() => {
+                try {
+                    const mapCanvas = document.createElement('canvas');
+                    const canvases = document.querySelectorAll('.ol-layer canvas');
+
+                    if (canvases.length > 0) {
+                        mapCanvas.width = canvases[0].width;
+                        mapCanvas.height = canvases[0].height;
+                        const mapContext = mapCanvas.getContext('2d');
+
+                        Array.prototype.forEach.call(canvases, function (canvas) {
+                            if (canvas.width > 0) {
+                                const opacity = canvas.parentNode.style.opacity;
+                                mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+                                const transform = canvas.style.transform;
+                                if (transform) {
+                                    const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
+                                    if (matrix) {
+                                        const m = matrix[1].split(',').map(Number);
+                                        mapContext.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+                                    }
+                                }
+                                mapContext.drawImage(canvas, 0, 0);
+                            }
+                        });
+
+                        const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
+
+                        // Manda para o Livewire
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirCroqui(loteId, dataURL);
+                    }
+                } catch (error) {
+                    console.error("Erro na captura do mapa para o Croqui:", error);
+                    alert("Não foi possível capturar a imagem do mapa.");
+                } finally {
+                    // Restaura o texto original do botão
+                    btnSpan.innerText = originalText;
                 }
             }, 500);
         };
