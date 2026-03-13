@@ -14,6 +14,7 @@ class QuadraResource extends Resource
     protected static ?string $model = Quadra::class;
     protected static ?string $navigationIcon = 'heroicon-o-squares-2x2';
     protected static ?string $navigationGroup = 'Módulo Imobiliário';
+     protected static ?int $navigationSort = 4;
     
     public static function canCreate(): bool { return false; }
 

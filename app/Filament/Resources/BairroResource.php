@@ -14,6 +14,7 @@ class BairroResource extends Resource
     protected static ?string $model = Bairro::class;
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationGroup = 'Módulo Imobiliário';
+     protected static ?int $navigationSort = 1;
     
     public static function canCreate(): bool { return false; }
 

@@ -25,7 +25,7 @@ class LoteResource extends Resource
     protected static ?string $navigationGroup = 'Módulo Imobiliário';
     protected static ?string $modelLabel = 'Lote (Terreno)';
     protected static ?string $pluralModelLabel = 'Lotes';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 5;
 
     public static function form(Form $form): Form
     {

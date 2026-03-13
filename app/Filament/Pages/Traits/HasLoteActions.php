@@ -773,4 +773,74 @@ trait HasLoteActions
         $service = app(\App\Services\Gis\CroquiPdfService::class);
         return $service->generatePdf($lote, $mapImageBase64);
     }
+
+    /**
+     * Ação: Abrir Modal do Google Street View
+     */
+    public function abrirStreetViewAction(): \Filament\Actions\Action
+    {
+        return \Filament\Actions\Action::make('abrirStreetViewAction')
+            ->modalHeading(fn() => 'Google Street View - Frente do Lote')
+            ->modalWidth('5xl') // Modal bem larga para imersão
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Fechar')
+            ->modalContent(function () {
+                // Busca o centroide exato do Lote usando PostGIS
+                $lote = \App\Models\Lote::find($this->loteAtivoId);
+                $centro = \Illuminate\Support\Facades\DB::selectOne("
+                    SELECT ST_Y(ST_Centroid(geo::geometry)) as lat, ST_X(ST_Centroid(geo::geometry)) as lng 
+                    FROM lotes WHERE id = ?
+                ", [$lote->id]);
+
+                $lat = $centro->lat ?? 0;
+                $lng = $centro->lng ?? 0;
+
+                // Renderiza a view com o Alpine.js gerenciando o mapa de forma segura
+                $bladeView = <<<'BLADE'
+                    <div x-data="{
+                            init() {
+                                // Delay para aguardar a animação da modal abrir
+                                setTimeout(() => this.loadStreetView(), 200);
+                            },
+                            loadStreetView() {
+                                const panoDiv = document.getElementById('street-view-modal-pano');
+                                if (!panoDiv || typeof google === 'undefined' || !google.maps) return;
+
+                                const svService = new google.maps.StreetViewService();
+                                const centroDoLote = new google.maps.LatLng({{ $lat }}, {{ $lng }});
+
+                                svService.getPanorama({ location: centroDoLote, radius: 50 }, (data, status) => {
+                                    if (status === 'OK') {
+                                        panoDiv.style.opacity = '1'; 
+                                        
+                                        const panorama = new google.maps.StreetViewPanorama(panoDiv, {
+                                            position: data.location.latLng,
+                                            zoom: 0,
+                                            panControl: true,
+                                            zoomControl: true,
+                                            linksControl: true,
+                                            clickToGo: true
+                                        });
+                                        
+                                        // Vira a câmera exatamente para a porta do terreno!
+                                        const anguloParaOLote = google.maps.geometry.spherical.computeHeading(data.location.latLng, centroDoLote);
+                                        panorama.setPov({ heading: anguloParaOLote, pitch: 0 }); 
+                                    }
+                                });
+                            }
+                        }" 
+                        wire:ignore style="height: 500px; width: 100%; position: relative; border-radius: 0.75rem; overflow: hidden; border: 1px solid #e5e7eb; background-color: #f3f4f6;" class="dark:border-gray-600 dark:bg-gray-800">
+                        
+                        <div id="street-view-modal-pano" style="position: absolute; inset: 0; width: 100%; height: 100%; z-index: 10; opacity: 0; transition: opacity 0.5s;"></div>
+                        
+                        <div id="street-view-error" style="position: absolute; inset: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 0;">
+                            <x-heroicon-o-video-camera-slash style="width: 3rem; height: 3rem; opacity: 0.3; margin-bottom: 0.5rem; color: #6b7280;" />
+                            <span style="font-size: 14px; font-weight: bold; text-transform: uppercase; color: #6b7280; opacity: 0.6;">Sem Cobertura do Street View</span>
+                        </div>
+                    </div>
+                BLADE;
+
+                return new \Illuminate\Support\HtmlString(\Illuminate\Support\Facades\Blade::render($bladeView, ['lat' => $lat, 'lng' => $lng]));
+            });
+    }
 }

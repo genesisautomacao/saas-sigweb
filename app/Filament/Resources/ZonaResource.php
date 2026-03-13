@@ -14,6 +14,7 @@ class ZonaResource extends Resource
     protected static ?string $model = Zona::class;
     protected static ?string $navigationIcon = 'heroicon-o-globe-americas';
     protected static ?string $navigationGroup = 'Módulo Imobiliário';
+     protected static ?int $navigationSort = 0;
     
     public static function canCreate(): bool { return false; }
 

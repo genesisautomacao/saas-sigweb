@@ -187,7 +187,7 @@
                                     class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Ferramentas</span>
                             </div>
                             <div class="py-1 flex flex-col">
-                                
+
                                 <button id="btn-tool-numeracao" @click="openTools = false"
                                     class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
                                     <x-heroicon-o-hashtag class="w-4 h-4 text-blue-500" /> Numeração Predial
@@ -195,7 +195,8 @@
 
                                 <button id="btn-tool-altimetria" @click="openTools = false"
                                     class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
-                                    <x-heroicon-o-chart-bar class="w-4 h-4 text-emerald-500" /> Perfil de Terreno (Altimetria)
+                                    <x-heroicon-o-chart-bar class="w-4 h-4 text-emerald-500" /> Perfil de Terreno
+                                    (Altimetria)
                                 </button>
 
                                 <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
@@ -538,8 +539,10 @@
                             </p>
                         </div>
                     </div>
+
                 </div>
 
+                {{-- AÇÕES DO LOTE --}}
                 <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase pt-6 mb-4">Ações do Lote</h3>
                 <div class="space-y-3">
                     <button wire:click="mountAction('verUnidades')"
@@ -607,15 +610,27 @@
         @if($loteAtivoId)
             <div
                 class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-row gap-2">
+                {{-- STREET VIEW LOTE --}}
+                <button wire:click="mountAction('abrirStreetViewAction')" title="Explorar Street View"
+                    class="flex-1 flex justify-center py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold border border-blue-100 transition-colors">
+                    <x-heroicon-o-globe-americas class="w-5 h-5" />
+                </button>
+
+                {{-- EDITAR LOTE --}}
                 <button wire:click="mountAction('editarDadosLote')" title="Editar Dados"
                     class="flex-1 flex justify-center py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold border border-blue-100"><x-heroicon-o-document-text
-                        class="w-5 h-5" /></button>
+                        class="w-5 h-5" />
+                </button>
+                {{-- GEOMETRIA LOTE --}}
                 <button wire:click="habilitarEdicaoGeometria" title="Editar Geometria"
                     class="flex-1 flex justify-center py-2.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl font-bold border border-emerald-100"><x-heroicon-o-map
-                        class="w-5 h-5" /></button>
+                        class="w-5 h-5" />
+                </button>
+                {{-- EXCLUIR LOTE --}}
                 <button wire:click="mountAction('deletarArtefato')" title="Excluir Lote"
                     class="flex-1 flex justify-center py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-bold border border-red-100"><x-heroicon-o-trash
-                        class="w-5 h-5" /></button>
+                        class="w-5 h-5" />
+                </button>
             </div>
         @endif
     </div>
@@ -855,6 +870,11 @@
         };
 
     </script>
+
+    {{-- Carrega o Google Maps com a biblioteca de Geometria (para calcular o ângulo do olhar) --}}
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=geometry" async
+        defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <x-filament-actions::modals />
 </div>

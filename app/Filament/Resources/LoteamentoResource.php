@@ -14,6 +14,7 @@ class LoteamentoResource extends Resource
     protected static ?string $model = Loteamento::class;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-group';
     protected static ?string $navigationGroup = 'Módulo Imobiliário';
+     protected static ?int $navigationSort = 2;
     
     public static function canCreate(): bool { return false; }
 

@@ -690,6 +690,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            /* CLIQUE NO LOTE */
             const clickedLote = features.find(f => f.get('layer') === 'lotes');
             if (clickedLote) {
                 const loteId = clickedLote.get('id');
@@ -698,21 +699,27 @@ document.addEventListener('DOMContentLoaded', function () {
                     else return;
                 }
                 const loteNome = clickedLote.get('name') || 'S/N';
-                if (loteId) Livewire.dispatch('abrirFichaImovel', { loteId: loteId, loteNome: loteNome });
+                if (loteId) {
+                    // Abre a barra lateral
+                    Livewire.dispatch('abrirFichaImovel', { loteId: loteId, loteNome: loteNome });
+                }
             }
 
+            /* CLIQUE NO LOGRADOURO */
             const clickedLogradouro = features.find(f => f.get('layer') === 'logradouros');
             if (clickedLogradouro) {
                 Livewire.dispatch('abrirOpcoesLogradouro', { id: clickedLogradouro.get('id') });
                 return;
             }
 
+            /* CLIQUE NO POSTE */
             const clickedPoste = features.find(f => f.get('layer') === 'postes');
             if (clickedPoste) {
                 Livewire.dispatch('abrirOpcoesPoste', { id: clickedPoste.get('id') });
                 return;
             }
 
+            /* CLIQUE NA ÁRVORE */
             const clickedArvore = features.find(f => f.get('layer') === 'arvores');
             if (clickedArvore) {
                 Livewire.dispatch('abrirOpcoesArvore', { id: clickedArvore.get('id') });

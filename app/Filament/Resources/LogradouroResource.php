@@ -16,6 +16,7 @@ class LogradouroResource extends Resource
     protected static ?string $model = Logradouro::class;
     protected static ?string $navigationIcon = 'heroicon-o-arrows-right-left';
     protected static ?string $navigationGroup = 'Módulo Imobiliário';
+     protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {
