@@ -643,7 +643,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     activeTool = 'numeracao_step2';
 
                     alert(`✅ Rua "${clickedLogradouro.get('name')}" selecionada!\n\n2️⃣ PASSO 2: Agora DESENHE O TRAJETO da numeração.\nClique no ponto inicial e vá clicando para contornar a rua.\nDê DOIS CLIQUES Rápidos para finalizar o percurso.`);
-                    
+
                     map.getTargetElement().style.cursor = 'crosshair';
 
                     // 🛑 Liga a ferramenta de desenhar Linha na tela!
@@ -658,7 +658,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     currentDrawInteraction.on('drawend', function (e) {
                         // Quando terminar os dois cliques, pega o GeoJSON do trajeto
                         const drawnGeoJson = formatGeoJSON.writeGeometryObject(e.feature.getGeometry());
-                        
+
                         setTimeout(() => drawSource.clear(), 500);
                         map.removeInteraction(currentDrawInteraction);
                         window.resetToPan(); // Devolve a mãozinha azul
@@ -675,7 +675,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     alert("❌ Você não clicou em uma rua. Aproxime o zoom e clique na linha colorida do logradouro.");
                 }
-            } 
+            }
             return; // Impede que faça outras coisas no mapa
         }
 
@@ -1208,6 +1208,42 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (btnPan) btnPan.addEventListener('click', window.resetToPan);
 
+    // 🛑 FERRAMENTA DE PERFIL ALTIMÉTRICO (GOOGLE ELEVATION)
+    const btnToolAltimetria = document.getElementById('btn-tool-altimetria');
+    if (btnToolAltimetria) {
+        btnToolAltimetria.addEventListener('click', function () {
+            window.resetToPan();
+            activeTool = 'altimetria';
+
+            map.getTargetElement().style.cursor = 'crosshair';
+            alert("📈 MODO ALTIMETRIA: Desenhe o trajeto no mapa.\nClique para fazer curvas ao longo da rua e dê DOIS CLIQUES RÁPIDOS para finalizar e gerar o gráfico.");
+
+            currentDrawInteraction = new ol.interaction.Draw({
+                source: drawSource,
+                type: 'LineString',
+                style: new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#10b981', width: 4, lineDash: [4, 4] }) // Linha Verde Tracejada
+                })
+            });
+
+            currentDrawInteraction.on('drawend', function (e) {
+                const geometry = e.feature.getGeometry();
+
+                // Converte as coordenadas do formato do Mapa (3857) para GPS padrão do Google (4326)
+                const coords4326 = geometry.clone().transform('EPSG:3857', 'EPSG:4326').getCoordinates();
+
+                setTimeout(() => drawSource.clear(), 500);
+                map.removeInteraction(currentDrawInteraction);
+                window.resetToPan();
+
+                // Dispara o evento pro Livewire mandando o array de coordenadas
+                Livewire.dispatch('gerarPerfilAltimetrico', { coords: coords4326 });
+            });
+
+            map.addInteraction(currentDrawInteraction);
+        });
+    }
+
     function enableMeasurement(type, buttonElement) {
         window.resetToPan();
         activeTool = type;
@@ -1389,7 +1425,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 🛑 2. MODO DE DESENHO (Polígonos e Linhas - Abre modal nativa do mapa)
     else if (actionParams === 'create') {
-        
+
         // Dicionário inteligente de entidades que desenham na tela
         const drawableEntities = {
             'lotes': { label: 'do novo Lote', func: 'lote' },

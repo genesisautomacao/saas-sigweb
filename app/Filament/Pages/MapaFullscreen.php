@@ -74,12 +74,16 @@ class MapaFullscreen extends Page
     public ?int $logradouroAtivoId = null;
     public ?int $cemiterioAtivoId = null;
     public ?int $jazigoAtivoId = null;
+
     // Propriedades da Numeração Automática
     public ?int $numLogradouroId = null;
     public ?string $numLogradouroNome = null;
     public ?string $numDrawnLine = null;
     public bool $previewNumeracaoAtivo = false;
     public array $resultadosNumeracao = [];
+
+    /* altimetria */
+    public array $altimetriaData = [];
 
     public function mount()
     {
@@ -674,6 +678,155 @@ class MapaFullscreen extends Page
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->stream();
         }, 'relatorio-numeracao-' . \Illuminate\Support\Str::slug($rua) . '.pdf');
+    }
+
+    /**
+     * Recebe a linha do mapa e consulta o Google Elevation API
+     */
+    #[\Livewire\Attributes\On('gerarPerfilAltimetrico')]
+    public function gerarPerfilAltimetrico($coords)
+    {
+        $apiKey = env('GOOGLE_MAPS_API_KEY');
+
+        if (!$apiKey) {
+            \Filament\Notifications\Notification::make()->title('Aviso')->body('A chave GOOGLE_MAPS_API_KEY não está configurada no .env.')->warning()->send();
+            return;
+        }
+
+        // Formata os pontos para a URL da API do Google (Lat,Lon|Lat,Lon...)
+        $pathStr = collect($coords)->map(function ($c) {
+            return $c[1] . ',' . $c[0]; // O Google exige a Latitude primeiro
+        })->implode('|');
+
+        // Pedimos 100 pontos de amostragem para o gráfico ficar com uma curva bem realista
+        $samples = 100;
+        $url = "https://maps.googleapis.com/maps/api/elevation/json?path={$pathStr}&samples={$samples}&key={$apiKey}";
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::get($url);
+            $data = $response->json();
+
+            if ($data['status'] === 'OK') {
+                $this->altimetriaData = $data['results'];
+                $this->mountAction('verPerfilAltimetricoAction'); // Abre a Modal com o gráfico
+            } else {
+                \Filament\Notifications\Notification::make()->title('Erro na API')->body($data['error_message'] ?? $data['status'])->danger()->send();
+            }
+        } catch (\Exception $e) {
+            \Filament\Notifications\Notification::make()->title('Erro de Conexão')->body($e->getMessage())->danger()->send();
+        }
+    }
+
+    /**
+     * Modal que renderiza o gráfico de relevo usando Chart.js via Alpine.js
+     */
+    public function verPerfilAltimetricoAction(): \Filament\Actions\Action
+    {
+        return \Filament\Actions\Action::make('verPerfilAltimetrico')
+            ->modalHeading('Perfil Altimétrico do Terreno')
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Fechar Relatório')
+            ->modalWidth('4xl')
+            ->modalContent(function () {
+                $bladeView = <<<'BLADE'
+                <div>
+                    {{-- Armazena os dados de forma segura e invisível para o JS ler sem quebrar aspas --}}
+                    <script type="application/json" id="altimetria-data">
+                        {!! json_encode($altimetriaData) !!}
+                    </script>
+
+                    <div class="mb-4 text-sm text-gray-600 dark:text-gray-400 border-l-4 border-emerald-500 pl-3">
+                        O corte topográfico abaixo foi processado usando a malha de satélites e dados de radar <strong>SRTM (Shuttle Radar Topography Mission)</strong>. Gráfico gerado a partir de <strong>{{ count($altimetriaData) }} pontos</strong> de amostragem.
+                    </div>
+                    
+                    {{-- A Mágica do Alpine.js: Ele percebe quando a div entra na tela e roda o gráfico --}}
+                    <div class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm" style="height: 350px;"
+                        x-data="{
+                            init() {
+                                if (typeof Chart === 'undefined') {
+                                    let script = document.createElement('script');
+                                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                                    script.onload = () => this.drawChart();
+                                    document.head.appendChild(script);
+                                } else {
+                                    this.drawChart();
+                                }
+                            },
+                            drawChart() {
+                                setTimeout(() => {
+                                    const canvas = document.getElementById('altimetriaChart');
+                                    const dataElement = document.getElementById('altimetria-data');
+                                    if(!canvas || !dataElement) return;
+                                    
+                                    const rawData = JSON.parse(dataElement.textContent);
+                                    const ctx = canvas.getContext('2d');
+                                    
+                                    const labels = rawData.map((d, index) => (index * (100 / rawData.length)).toFixed(0) + '%');
+                                    const elevations = rawData.map(d => d.elevation.toFixed(2));
+
+                                    if(window.altimetriaChartInstance) {
+                                        window.altimetriaChartInstance.destroy();
+                                    }
+
+                                    window.altimetriaChartInstance = new Chart(ctx, {
+                                        type: 'line',
+                                        data: {
+                                            labels: labels,
+                                            datasets: [{
+                                                label: 'Altitude (m)',
+                                                data: elevations,
+                                                borderColor: '#10b981',
+                                                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                                                borderWidth: 3,
+                                                fill: true,
+                                                tension: 0.4,
+                                                pointRadius: 0,
+                                                pointHoverRadius: 8,
+                                                pointHoverBackgroundColor: '#047857'
+                                            }]
+                                        },
+                                        options: {
+                                            responsive: true,
+                                            maintainAspectRatio: false,
+                                        
+                                            interaction: {
+                                                mode: 'index',
+                                                intersect: false,
+                                            },
+
+                                            plugins: {
+                                                legend: { display: false },
+                                                tooltip: {
+                                                    backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                                                    padding: 12,
+                                                    titleFont: { size: 13 },
+                                                    bodyFont: { size: 14, weight: 'bold' },
+                                                    callbacks: {
+                                                        label: function(context) { return 'Altitude: ' + context.parsed.y + ' metros acima do nível do mar'; }
+                                                    }
+                                                }
+                                            },
+                                            scales: {
+                                                y: {
+                                                    title: { display: true, text: 'Altitude (Nível do Mar)', font: { weight: 'bold' } },
+                                                    suggestedMin: Math.min(...elevations) - 2,
+                                                    suggestedMax: Math.max(...elevations) + 2
+                                                },
+                                                x: { ticks: { maxTicksLimit: 10 } }
+                                            }
+                                        }
+                                    });
+                                }, 150); // Delay milimétrico só pro DOM assentar
+                            }
+                        }"
+                    >
+                        <canvas id="altimetriaChart"></canvas>
+                    </div>
+                </div>
+                BLADE;
+
+                return new \Illuminate\Support\HtmlString(\Illuminate\Support\Facades\Blade::render($bladeView, ['altimetriaData' => $this->altimetriaData]));
+            });
     }
 
 }

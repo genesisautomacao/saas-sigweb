@@ -187,9 +187,15 @@
                                     class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Ferramentas</span>
                             </div>
                             <div class="py-1 flex flex-col">
+                                
                                 <button id="btn-tool-numeracao" @click="openTools = false"
                                     class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
                                     <x-heroicon-o-hashtag class="w-4 h-4 text-blue-500" /> Numeração Predial
+                                </button>
+
+                                <button id="btn-tool-altimetria" @click="openTools = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
+                                    <x-heroicon-o-chart-bar class="w-4 h-4 text-emerald-500" /> Perfil de Terreno (Altimetria)
                                 </button>
 
                                 <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
