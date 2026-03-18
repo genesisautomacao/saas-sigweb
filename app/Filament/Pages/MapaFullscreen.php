@@ -1080,4 +1080,56 @@ class MapaFullscreen extends Page
                 $this->fecharFicha();
             });
     }
+
+   /**
+     * Ação: Abrir o Visualizador 3D de Nuvem de Pontos (Potree) com Fallback Inteligente
+     */
+    public function abrirNuvemPontosAction(): \Filament\Actions\Action
+    {
+        return \Filament\Actions\Action::make('abrirNuvemPontosAction')
+            ->modalHeading('Visualizador 3D - Nuvem de Pontos (LiDAR)')
+            ->modalWidth('7xl') 
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Fechar Visualizador')
+            ->modalContent(function () {
+                
+                // 1. O SISTEMA PROCURA O ARQUIVO REAL DO MUNICÍPIO NA PASTA PUBLIC
+                // Estrutura esperada: public/nuvem-pontos/bom-principio/index.html
+                $pastaMunicipio = "nuvem-pontos/{$this->tenantSlug}";
+                $caminhoFisico = public_path("{$pastaMunicipio}/index.html");
+
+                // 2. A INTELIGÊNCIA DO FALLBACK
+                if (file_exists($caminhoFisico)) {
+                    // O voo de drone existe! Carrega o dado real da prefeitura.
+                    $demoUrl = asset("{$pastaMunicipio}/index.html");
+                    $mensagem = "Visualizando dados reais de escaneamento a laser do município.";
+                    $corAviso = "emerald"; // Fica verdinho
+                } else {
+                    // A prefeitura ainda não contratou o voo. Carrega a demonstração da PoC.
+                    $demoUrl = 'https://potree.github.io/potree/examples/annotations.html';
+                    $mensagem = "Nuvem de pontos do município não detectada. Exibindo ambiente 3D de demonstração.";
+                    $corAviso = "blue"; // Fica azul
+                }
+
+                $bladeView = <<<'BLADE'
+                <div>
+                    <div class="mb-4 text-sm text-gray-600 dark:text-gray-400 border-l-4 border-{{ $corAviso }}-500 pl-3 py-1">
+                        <b>{{ $mensagem }}</b><br>
+                        Utilize o mouse para orbitar, o scroll para zoom e as ferramentas laterais para medição e fatiamento.
+                    </div>
+                    
+                    {{-- O Container do iFrame 3D --}}
+                    <div class="w-full rounded-xl overflow-hidden border border-gray-300 dark:border-gray-700 bg-black shadow-inner" style="height: 650px;">
+                        <iframe src="{{ $demoUrl }}" class="w-full h-full border-0" allow="fullscreen"></iframe>
+                    </div>
+                </div>
+                BLADE;
+
+                return new \Illuminate\Support\HtmlString(\Illuminate\Support\Facades\Blade::render($bladeView, [
+                    'demoUrl' => $demoUrl,
+                    'mensagem' => $mensagem,
+                    'corAviso' => $corAviso
+                ]));
+            });
+    }
 }

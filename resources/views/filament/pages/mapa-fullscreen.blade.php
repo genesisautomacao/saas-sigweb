@@ -204,6 +204,11 @@
                                     <x-heroicon-o-link class="w-4 h-4 text-purple-500" /> Unificar Lotes (Solda)
                                 </button>
 
+                                <button wire:click="mountAction('abrirNuvemPontosAction')" @click="openTools = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
+                                    <x-heroicon-o-cube class="w-4 h-4 text-blue-500" /> Visualizador 3D (LiDAR)
+                                </button>
+
                                 <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
 
                                 <button id="btn-measure-line" @click="openTools = false"
