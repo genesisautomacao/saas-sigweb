@@ -679,6 +679,46 @@ document.addEventListener('DOMContentLoaded', function () {
             return; // Impede que faça outras coisas no mapa
         }
 
+        // 🛑 INTERCEPTADOR DE UNIFICAÇÃO (PASSO 1 E 2)
+        if (activeTool.startsWith('unificar')) {
+            const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
+            const clickedLote = features ? features.find(f => f.get('layer') === 'lotes') : null;
+
+            if (clickedLote) {
+                const id = clickedLote.get('id');
+                const highlightFeature = clickedLote.clone(); // Clona o desenho para pintar de roxo
+
+                if (activeTool === 'unificar_step1') {
+                    lotePrincipalId = id;
+                    unificacaoSource.addFeature(highlightFeature);
+                    activeTool = 'unificar_step2';
+                    alert("✅ Lote Principal selecionado!\n\nPASSO 2: Agora clique no LOTE VIZINHO que será anexado/absorvido.");
+                
+                } else if (activeTool === 'unificar_step2') {
+                    if (id === lotePrincipalId) {
+                        alert("⚠️ Você clicou no mesmo lote! Clique no lote VIZINHO.");
+                        return;
+                    }
+                    
+                    loteSecundarioId = id;
+                    unificacaoSource.addFeature(highlightFeature);
+                    
+                    // Limpa a tela e volta o mouse ao normal
+                    setTimeout(() => unificacaoSource.clear(), 1000);
+                    window.resetToPan();
+
+                    // Dispara a Mágica no Livewire!
+                    Livewire.dispatch('processarUnificacaoLotes', {
+                        lotePrincipalId: lotePrincipalId,
+                        loteSecundarioId: loteSecundarioId
+                    });
+                }
+            } else {
+                alert("❌ Clique dentro de um Lote válido.");
+            }
+            return; // Impede a ficha de abrir
+        }
+
 
         if (activeTool !== 'pan') return;
         const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
@@ -1189,10 +1229,39 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // CAMADA VISUAL PARA A UNIFICAÇÃO (Roxa)
+    const unificacaoSource = new ol.source.Vector();
+    const unificacaoLayer = new ol.layer.Vector({
+        source: unificacaoSource,
+        style: new ol.style.Style({
+            stroke: new ol.style.Stroke({ color: '#9333ea', width: 4 }), // Roxo brilhante
+            fill: new ol.style.Fill({ color: 'rgba(147, 51, 234, 0.4)' })
+        }),
+        zIndex: 10001
+    });
+    map.addLayer(unificacaoLayer);
+
+    let lotePrincipalId = null;
+    let loteSecundarioId = null;
+
+    const btnToolUnificar = document.getElementById('btn-tool-unificar');
+    if (btnToolUnificar) {
+        btnToolUnificar.addEventListener('click', function () {
+            window.resetToPan();
+            activeTool = 'unificar_step1';
+            lotePrincipalId = null;
+            loteSecundarioId = null;
+            map.getTargetElement().style.cursor = 'crosshair';
+            alert("🔗 MODO UNIFICAÇÃO ATIVADO\n\nPASSO 1: Clique no LOTE PRINCIPAL (Este é o lote que vai 'absorver' o vizinho e herdar as edificações).");
+        });
+    }
+
     window.resetToPan = function () {
         if (currentMeasureInteraction) map.removeInteraction(currentMeasureInteraction);
         if (currentDrawInteraction) map.removeInteraction(currentDrawInteraction);
         if (currentSnapInteraction) map.removeInteraction(currentSnapInteraction);
+
+        unificacaoSource.clear();
 
         drawSource.clear();
         measureTooltipElement.style.display = 'none';
@@ -1554,5 +1623,50 @@ document.addEventListener('DOMContentLoaded', function () {
     window.addEventListener('limpar-preview-numeracao', () => {
         previewNumSource.clear();
     });
+
+    // =========================================================================
+    // FERRAMENTA DE DESMEMBRAMENTO DE LOTES (A TESOURA)
+    // =========================================================================
+    let loteParaDesmembrarId = null;
+
+    window.ativarFerramentaCorteLote = function (loteId) {
+        window.resetToPan(); // Limpa qualquer outra ferramenta ativa
+        activeTool = 'cortar_lote';
+        loteParaDesmembrarId = loteId;
+
+        // Fecha a ficha lateral suavemente para dar espaço na tela
+        const livewireComponent = Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id'));
+        if (livewireComponent) livewireComponent.fecharFicha();
+
+        alert("✂️ MODO DESMEMBRAMENTO ATIVADO\n\n1. Clique fora do lote para iniciar a linha de corte.\n2. Atravesse o lote.\n3. Dê dois cliques fora do lote do outro lado para finalizar o corte.");
+
+        map.getTargetElement().style.cursor = 'crosshair';
+
+        // Cria a interação de desenhar Linha (LineString) cor Laranja
+        currentDrawInteraction = new ol.interaction.Draw({
+            source: drawSource,
+            type: 'LineString',
+            style: new ol.style.Style({
+                stroke: new ol.style.Stroke({ color: '#ea580c', width: 4, lineDash: [5, 5] }) // Laranja tracejado
+            })
+        });
+
+        currentDrawInteraction.on('drawend', function (e) {
+            const linhaDeCorteGeoJson = formatGeoJSON.writeGeometryObject(e.feature.getGeometry());
+
+            // Limpa o mapa e devolve a mãozinha
+            setTimeout(() => drawSource.clear(), 500);
+            map.removeInteraction(currentDrawInteraction);
+            window.resetToPan();
+
+            // Manda a linha desenhada para a "Mágica do PostGIS" no Livewire
+            Livewire.dispatch('processarDesmembramentoLote', {
+                loteId: loteParaDesmembrarId,
+                linhaCorte: linhaDeCorteGeoJson
+            });
+        });
+
+        map.addInteraction(currentDrawInteraction);
+    };
 
 }); // <-- Fim do DOMContentLoaded

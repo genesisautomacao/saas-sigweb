@@ -18,6 +18,7 @@ use Illuminate\Support\HtmlString;
 
 trait HasLoteActions
 {
+
     /**
      * Ação: Criar Novo Lote e Unidade Automática
      */
@@ -283,7 +284,8 @@ trait HasLoteActions
                                         $set('dados_tributarios', json_encode($dados, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
                                         Notification::make()->title('Sincronizado!')->success()->send();
                                     }
-                                } catch (\Exception $e) {}
+                                } catch (\Exception $e) {
+                                }
                             })
                     ),
 
@@ -451,7 +453,7 @@ trait HasLoteActions
                                     Notification::make()->title('Unidade removida!')->success()->send();
                                 }
                             }
-                           $this->replaceMountedAction('verUnidades');
+                            $this->replaceMountedAction('verUnidades');
                         }),
 
                     Action::make('voltar')
@@ -520,7 +522,7 @@ trait HasLoteActions
     public function imprimirBic($unidadeId, $mapImageBase64)
     {
         $unidade = \App\Models\UnidadeImobiliaria::find($unidadeId);
-        
+
         if (!$unidade) {
             \Filament\Notifications\Notification::make()->title('Erro')->body('Unidade não encontrada.')->danger()->send();
             return;
@@ -689,7 +691,8 @@ trait HasLoteActions
                             // 🛑 O TRUQUE: O Alpine lê a variável do HTML sem usar nenhuma aspa!
                             'x-on:click.prevent' => "capturarMapaEImprimir({$this->loteAtivoId}, \$el.dataset.cnaes)"
                         ])
-                        ->action(function () { /* Vazio propositalmente */})
+                        ->action(function () { /* Vazio propositalmente */
+                        })
                 ];
             });
     }
@@ -764,7 +767,7 @@ trait HasLoteActions
     {
         // Carrega o lote e as relações necessárias para o PDF
         $lote = \App\Models\Lote::with(['quadra.bairro', 'zona'])->find($loteId);
-        
+
         if (!$lote) {
             \Filament\Notifications\Notification::make()->title('Erro')->body('Lote não encontrado.')->danger()->send();
             return;
@@ -843,4 +846,6 @@ trait HasLoteActions
                 return new \Illuminate\Support\HtmlString(\Illuminate\Support\Facades\Blade::render($bladeView, ['lat' => $lat, 'lng' => $lng]));
             });
     }
+
+    
 }

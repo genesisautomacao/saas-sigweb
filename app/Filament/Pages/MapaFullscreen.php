@@ -64,6 +64,16 @@ class MapaFullscreen extends Page
     public float $loteAreaConstruida = 0.0;
     public float $loteFacePrincipal = 0.0;
 
+    /* desmembramento */
+    public ?int $loteParaDesmembrarId = null;
+    public ?string $linhaDeCorteGeoJson = null;
+    public array $previewDesmembramento = [];
+
+    /* unificação */
+    public ?int $lotePrincipalToUnifyId = null;
+    public ?int $loteSecundarioToUnifyId = null;
+    public array $previewUnificacao = [];
+
     // Propriedades de Rascunho e Edificação
     public ?array $geometriaRascunho = null;
     public ?int $quadraRascunhoId = null;
@@ -164,7 +174,6 @@ class MapaFullscreen extends Page
 
             // 🛑 MÁGICA: Monta a ação do Lote aqui e encerra
             $this->mountAction('criarLote');
-
         } elseif ($entityType === 'edificacao') {
             $contido = Lote::where('id', $this->loteAtivoId)
                 ->whereRaw("ST_Area(ST_Difference($polyWKT, geo)::geography) <= 0.1")
@@ -180,21 +189,16 @@ class MapaFullscreen extends Page
 
             // 🛑 MÁGICA: Monta a ação da Edificação aqui e encerra
             $this->mountAction('criarEdificacao');
-
         } elseif ($entityType === 'logradouro') {
             // 🛑 MÁGICA: Monta a ação do Logradouro aqui e encerra
             $this->mountAction('criarLogradouro');
-
         } elseif ($entityType === 'poste') {
             // 🛑 MÁGICA: Monta a ação do Poste aqui e encerra
             $this->mountAction('criarPoste');
-
         } elseif ($entityType === 'arvore') { // <-- NOVO BLOCO
             $this->mountAction('criarArvore');
-
         } elseif ($entityType === 'cemiterio') { // <-- NOVO BLOCO
             $this->mountAction('criarCemiterio');
-
         } elseif ($entityType === 'quadra_cemiterio') {
 
             // 🛑 MÁGICA TOPOLÓGICA: Verifica se o centro do desenho caiu dentro de um Cemitério
@@ -217,7 +221,6 @@ class MapaFullscreen extends Page
             $this->cemiterioPreSelecionadoId = $cemiterio->id;
 
             $this->mountAction('criarQuadraCemiterio');
-
         } elseif ($entityType === 'logradouro_cemiterio') {
 
             // Verifica se a linha desenhada passa por dentro de algum cemitério
@@ -238,7 +241,6 @@ class MapaFullscreen extends Page
 
             $this->cemiterioPreSelecionadoId = $cemiterio->id;
             $this->mountAction('criarLogradouroCemiterio');
-
         } elseif ($entityType === 'jazigo') {
 
             // 🛑 MÁGICA TOPOLÓGICA: O Jazigo precisa estar dentro de uma Quadra de Cemitério!
@@ -261,7 +263,6 @@ class MapaFullscreen extends Page
             $this->quadraCemiterioPreSelecionadaId = $quadra->id;
             $this->mountAction('criarJazigo');
         }
-
     }
 
     public function habilitarEdicaoGeometria()
@@ -829,4 +830,254 @@ class MapaFullscreen extends Page
             });
     }
 
+    /**
+     * MOTOR POSTGIS: Recebe a linha do mapa, valida conflitos e fatia o polígono
+     */
+    #[On('processarDesmembramentoLote')]
+    public function processarDesmembramentoLote($loteId, $linhaCorte)
+    {
+        $this->loteParaDesmembrarId = $loteId;
+        $this->linhaDeCorteGeoJson = json_encode($linhaCorte);
+
+        // 1. VALIDAÇÃO RIGOROSA: A linha cruza alguma edificação DESTE LOTE? (ST_Intersects)
+        $conflito = DB::selectOne("
+            WITH linha AS (
+                SELECT ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) AS geom
+            )
+            SELECT e.id 
+            FROM edificacoes e CROSS JOIN linha l
+            WHERE e.tenant_id = ?
+            AND e.lote_id = ? -- Otimização: Testa apenas as casas do lote que está sendo cortado
+            AND ST_Intersects(e.geo::geometry, l.geom)
+            LIMIT 1
+        ", [$this->linhaDeCorteGeoJson, $this->tenantId, $this->loteParaDesmembrarId]);
+
+        if ($conflito) {
+            \Filament\Notifications\Notification::make()
+                ->title('Operação Ilegal 🛑')
+                ->body('O traçado do desmembramento cruza uma Edificação existente! Refaça o desenho contornando a construção (criando um corredor/servidão).')
+                ->danger()
+                ->persistent()
+                ->send();
+            return;
+        }
+
+        // 2. A MÁGICA DO CORTE: Extrai o polígono puro e fatia usando a Linha (ST_Split)
+        $fatias = DB::select("
+            WITH linha AS (
+                SELECT ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) AS geom
+            ),
+            lote_bruto AS (
+                SELECT geo::geometry AS geom FROM lotes WHERE id = ?
+            ),
+            lote_poly AS (
+                -- Tira a blindagem de MultiPolygon para a faca do ST_Split funcionar sem dar Erro 500
+                SELECT (ST_Dump(geom)).geom AS geom FROM lote_bruto LIMIT 1
+            ),
+            cortado AS (
+                SELECT (ST_Dump(ST_Split(lote_poly.geom, linha.geom))).geom AS parte
+                FROM lote_poly CROSS JOIN linha
+            )
+            SELECT 
+                ST_AsGeoJSON(parte) as geojson,
+                ST_Area(parte::geography) as area_m2
+            FROM cortado
+        ", [$this->linhaDeCorteGeoJson, $this->loteParaDesmembrarId]);
+
+        // Se a linha não atravessou o lote de um lado ao outro, não dividiu.
+        if (count($fatias) < 2) {
+            \Filament\Notifications\Notification::make()
+                ->title('Corte Inválido ⚠️')
+                ->body('A linha não dividiu o lote. Inicie o traço FORA do lote e dê os dois cliques finais do outro lado, FORA do lote.')
+                ->warning()
+                ->send();
+            return;
+        }
+
+        // 3. Organiza os pedaços: o MAIOR pedaço fica como Lote Original, o menor vira Lote Novo
+        $arrayFatias = json_decode(json_encode($fatias), true);
+        usort($arrayFatias, fn($a, $b) => $b['area_m2'] <=> $a['area_m2']);
+
+        $this->previewDesmembramento = $arrayFatias;
+
+        // Abre a modal para o Engenheiro confirmar o ato!
+        $this->mountAction('confirmarDesmembramentoAction');
+    }
+
+    /**
+     * MODAL DE CONFIRMAÇÃO E SALVAMENTO NO BANCO (UPDATE + INSERT)
+     */
+    public function confirmarDesmembramentoAction(): \Filament\Actions\Action
+    {
+        // 🛑 CORREÇÃO: O nome da Action agora bate exatamente com a chamada do mountAction!
+        return \Filament\Actions\Action::make('confirmarDesmembramentoAction')
+            ->modalHeading('Confirmar Desmembramento de Lote')
+            ->modalDescription(fn() => new \Illuminate\Support\HtmlString(
+                "O sistema fatiou a geometria perfeitamente.<br><br>" .
+                    "🔸 <b>Lote Original (Área Remanescente):</b> " . number_format($this->previewDesmembramento[0]['area_m2'] ?? 0, 2, ',', '.') . " m²<br>" .
+                    "🔹 <b>Novo Lote Gerado (Desmembrado):</b> " . number_format($this->previewDesmembramento[1]['area_m2'] ?? 0, 2, ',', '.') . " m²<br><br>" .
+                    "Deseja gravar as alterações no banco de dados e redistribuir as edificações?"
+            ))
+            ->modalSubmitActionLabel('✂️ Confirmar Corte')
+            ->color('warning')
+            ->action(function () {
+                $loteOriginal = \App\Models\Lote::find($this->loteParaDesmembrarId);
+
+                $partePrincipal = $this->previewDesmembramento[0];
+                $parteDesmembrada = $this->previewDesmembramento[1];
+
+                // 1. UPDATE: Reduz o tamanho do Lote Original 
+                // 🛑 CORREÇÃO: Apenas decodificamos a string do PostGIS para Array, e o seu Model (setGeoAttribute) faz o resto!
+                $loteOriginal->geo = json_decode($partePrincipal['geojson'], true);
+                $loteOriginal->area_geo = $partePrincipal['area_m2'];
+                $loteOriginal->save();
+
+                // 2. INSERT: Cria o NOVO Lote (Clone com nova Geometria)
+                $novoLote = $loteOriginal->replicate();
+                $novoLote->sequential_id = null;
+                $novoLote->code = (string) \Illuminate\Support\Str::uuid();
+                $novoLote->numero_lote = ($loteOriginal->numero_lote ?? 'S/N') . ' (Desmembrado)';
+
+                // 🛑 CORREÇÃO AQUI TAMBÉM
+                $novoLote->geo = json_decode($parteDesmembrada['geojson'], true);
+                $novoLote->area_geo = $parteDesmembrada['area_m2'];
+                $novoLote->save();
+
+                // 3. INJEÇÃO DE REGRA DE NEGÓCIO: Cria a Unidade Imobiliária nova
+                \App\Models\UnidadeImobiliaria::create([
+                    'tenant_id' => $novoLote->tenant_id,
+                    'code' => (string) \Illuminate\Support\Str::uuid(),
+                    'lote_id' => $novoLote->id,
+                ]);
+
+                // 4. ATUALIZAÇÃO MÁGICA DAS EDIFICAÇÕES: 
+                DB::statement("
+                    UPDATE edificacoes 
+                    SET lote_id = ? 
+                    WHERE lote_id = ? 
+                    AND ST_Contains(
+                        ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 
+                        ST_Centroid(geo::geometry)
+                    )
+                ", [$novoLote->id, $loteOriginal->id, $parteDesmembrada['geojson']]);
+
+                \Filament\Notifications\Notification::make()->title('Desmembramento Concluído!')->success()->send();
+
+                // 5. Limpa a tela e desenha os lotes novos no mapa instantaneamente
+                $this->dispatch('remover-lote-mapa', ['id' => $loteOriginal->id]);
+                $this->dispatch('adicionar-lote-mapa', ['id' => $loteOriginal->id, 'numero_lote' => $loteOriginal->numero_lote, 'geo' => json_decode($partePrincipal['geojson'])]);
+                $this->dispatch('adicionar-lote-mapa', ['id' => $novoLote->id, 'numero_lote' => $novoLote->numero_lote, 'geo' => json_decode($parteDesmembrada['geojson'])]);
+
+                $this->fecharFicha(); // Recolhe a aba lateral
+            });
+    }
+
+    /**
+     * MOTOR POSTGIS: Verifica se são vizinhos e realiza a solda (ST_Union)
+     */
+    #[On('processarUnificacaoLotes')]
+    public function processarUnificacaoLotes($lotePrincipalId, $loteSecundarioId)
+    {
+        $this->lotePrincipalToUnifyId = $lotePrincipalId;
+        $this->loteSecundarioToUnifyId = $loteSecundarioId;
+
+        // 1. VALIDAÇÃO ESPACIAL: Eles encostam um no outro? (ST_Intersects pega as divisas que se tocam)
+        $vizinhos = DB::selectOne("
+            SELECT ST_Intersects(l1.geo::geometry, l2.geo::geometry) as sao_vizinhos
+            FROM lotes l1, lotes l2
+            WHERE l1.id = ? AND l2.id = ?
+        ", [$lotePrincipalId, $loteSecundarioId]);
+
+        if (!$vizinhos || !$vizinhos->sao_vizinhos) {
+            \Filament\Notifications\Notification::make()
+                ->title('Ação Inválida 🛑')
+                ->body('Os lotes selecionados não fazem divisa um com o outro! Só é possível unificar lotes lindeiros (vizinhos).')
+                ->danger()->send();
+            return;
+        }
+
+        // 2. A SOLDA GEOMÉTRICA: Une os polígonos e soma as áreas
+        $uniao = DB::selectOne("
+            WITH poly1 AS (SELECT geo::geometry as geom FROM lotes WHERE id = ?),
+                 poly2 AS (SELECT geo::geometry as geom FROM lotes WHERE id = ?)
+            SELECT 
+                ST_AsGeoJSON(ST_Union(poly1.geom, poly2.geom)) as geojson,
+                ST_Area(ST_Union(poly1.geom, poly2.geom)::geography) as nova_area
+            FROM poly1, poly2
+        ", [$lotePrincipalId, $loteSecundarioId]);
+
+        $this->previewUnificacao = [
+            'geojson' => $uniao->geojson,
+            'nova_area' => $uniao->nova_area
+        ];
+
+        // 3. Abre a Modal pedindo o novo código
+        $this->mountAction('confirmarUnificacaoAction');
+    }
+
+    /**
+     * MODAL DE CONFIRMAÇÃO DA UNIFICAÇÃO (Salva no Banco e Herda Edificações)
+     */
+    public function confirmarUnificacaoAction(): \Filament\Actions\Action
+    {
+        return \Filament\Actions\Action::make('confirmarUnificacaoAction')
+            ->modalHeading('Confirmar Unificação de Lotes')
+            ->modalDescription(function () {
+                $lote1 = \App\Models\Lote::find($this->lotePrincipalToUnifyId);
+                $lote2 = \App\Models\Lote::find($this->loteSecundarioToUnifyId);
+                $novaArea = number_format($this->previewUnificacao['nova_area'] ?? 0, 2, ',', '.');
+
+                return new \Illuminate\Support\HtmlString(
+                    "O Lote <b>{$lote2->numero_lote}</b> será anexado/absorvido pelo Lote Principal <b>{$lote1->numero_lote}</b>.<br><br>" .
+                        "✅ <b>Nova Área Total:</b> {$novaArea} m²<br>" .
+                        "✅ Todas as casas e unidades imobiliárias do lote secundário serão migradas automaticamente.<br><br>" .
+                        "Por favor, confirme o número final para esta nova grande parcela territorial:"
+                );
+            })
+            ->form([
+                \Filament\Forms\Components\TextInput::make('novo_numero_lote')
+                    ->label('Número do Lote Unificado')
+                    ->required()
+                    ->default(fn() => \App\Models\Lote::find($this->lotePrincipalToUnifyId)->numero_lote),
+            ])
+            ->modalSubmitActionLabel('🔗 Confirmar Unificação')
+            ->color('success')
+            ->action(function (array $data) {
+                $lotePrincipal = \App\Models\Lote::find($this->lotePrincipalToUnifyId);
+                $loteSecundario = \App\Models\Lote::find($this->loteSecundarioToUnifyId);
+                $loteSecundarioIdParaDeletar = $loteSecundario->id;
+
+                $novaTestada = ($lotePrincipal->main_facade_length ?? 0) + ($loteSecundario->main_facade_length ?? 0);
+
+                // 1. ATUALIZA O LOTE PRINCIPAL (Com a solda do PostGIS)
+                // Usando o seu mutator json_decode que validamos na etapa anterior!
+                $lotePrincipal->geo = json_decode($this->previewUnificacao['geojson'], true);
+                $lotePrincipal->area_geo = $this->previewUnificacao['nova_area'];
+                $lotePrincipal->numero_lote = $data['novo_numero_lote'];
+                $lotePrincipal->main_facade_length = $novaTestada;
+                $lotePrincipal->save();
+
+                // 2. MIGRAÇÃO DE HERANÇA (Transfere Unidades e Edificações)
+                \App\Models\UnidadeImobiliaria::where('lote_id', $loteSecundarioIdParaDeletar)->update(['lote_id' => $lotePrincipal->id]);
+                \App\Models\Edificacao::where('lote_id', $loteSecundarioIdParaDeletar)->update(['lote_id' => $lotePrincipal->id]);
+
+                // 3. APAGA O LOTE SECUNDÁRIO (Sofre SoftDelete e sai do mapa)
+                $loteSecundario->delete();
+
+                \Filament\Notifications\Notification::make()->title('Unificação Concluída!')->success()->send();
+
+                // 4. ATUALIZA O MAPA EM TEMPO REAL
+                $this->dispatch('remover-lote-mapa', ['id' => $loteSecundarioIdParaDeletar]); // Tira o velho
+                $this->dispatch('remover-lote-mapa', ['id' => $lotePrincipal->id]); // Tira o principal antigo
+
+                // Insere o Lote Principal novo e gigante!
+                $this->dispatch('adicionar-lote-mapa', [
+                    'id' => $lotePrincipal->id,
+                    'numero_lote' => $lotePrincipal->numero_lote,
+                    'geo' => json_decode($this->previewUnificacao['geojson'])
+                ]);
+
+                $this->fecharFicha();
+            });
+    }
 }

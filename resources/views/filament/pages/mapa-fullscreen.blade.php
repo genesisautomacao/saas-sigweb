@@ -199,6 +199,11 @@
                                     (Altimetria)
                                 </button>
 
+                                <button id="btn-tool-unificar" @click="openTools = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-purple-50 dark:hover:bg-gray-700 hover:text-purple-600 flex items-center gap-2 font-bold transition-colors">
+                                    <x-heroicon-o-link class="w-4 h-4 text-purple-500" /> Unificar Lotes (Solda)
+                                </button>
+
                                 <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
 
                                 <button id="btn-measure-line" @click="openTools = false"
@@ -608,8 +613,14 @@
         </div>
 
         @if($loteAtivoId)
-            <div
-                class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-row gap-2">
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-row gap-2">
+               
+                {{-- DESMEMBRAR LOTE --}}
+                <button onclick="ativarFerramentaCorteLote({{ $loteAtivoId }})" title="Desmembrar / Cortar Lote"
+                    class="flex-1 flex justify-center py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold border border-blue-100 transition-colors">
+                    <x-heroicon-o-scissors class="w-5 h-5" />
+                </button>
+               
                 {{-- STREET VIEW LOTE --}}
                 <button wire:click="mountAction('abrirStreetViewAction')" title="Explorar Street View"
                     class="flex-1 flex justify-center py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold border border-blue-100 transition-colors">
