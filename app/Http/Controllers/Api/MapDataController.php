@@ -78,8 +78,52 @@ class MapDataController extends Controller
                 break;
 
             case 'lotes':
-                $lotes = Lote::where('tenant_id', $tenantId)->select('id', 'numero_lote', 'geo')->get();
-                $data = $buildFeatureCollection($lotes, 'lotes');
+                // 🛑 A MÁGICA: Buscamos os lotes e já trazemos a contagem de vulnerabilidades sociais!
+                $lotes = Lote::where('lotes.tenant_id', $tenantId)
+                    ->select('lotes.id', 'lotes.numero_lote', 'lotes.geo', 'lotes.code')
+                    ->withExists([
+                        // Verifica se existe alguma Unidade no Lote que tenha um Cadastro Social em Área de Risco
+                        'unidadesImobiliarias as tem_area_risco' => function ($query) {
+                            $query->join('cadastros_sociais', 'unidade_imobiliarias.id', '=', 'cadastros_sociais.unidade_imobiliaria_id')
+                                  ->where('cadastros_sociais.em_area_de_risco', true)
+                                  ->whereNull('cadastros_sociais.deleted_at');
+                        },
+                        // Verifica se existe alguém recebendo benefício
+                        'unidadesImobiliarias as tem_beneficio' => function ($query) {
+                            $query->join('cadastros_sociais', 'unidade_imobiliarias.id', '=', 'cadastros_sociais.unidade_imobiliaria_id')
+                                  ->where('cadastros_sociais.recebe_beneficios', true)
+                                  ->whereNull('cadastros_sociais.deleted_at');
+                        },
+                        // Verifica PCD
+                        'unidadesImobiliarias as tem_pcd' => function ($query) {
+                            $query->join('cadastros_sociais', 'unidade_imobiliarias.id', '=', 'cadastros_sociais.unidade_imobiliaria_id')
+                                  ->where('cadastros_sociais.possui_membro_com_deficiencia', true)
+                                  ->whereNull('cadastros_sociais.deleted_at');
+                        }
+                    ])
+                    ->get();
+
+                // Customizamos o construtor do GeoJSON só para os lotes para injetar essas variáveis
+                $features = [];
+                foreach ($lotes as $lote) {
+                    if (!empty($lote->geo_json) && !empty($lote->geo_json->coordinates)) {
+                        $features[] = [
+                            'type' => 'Feature',
+                            'properties' => [
+                                'id' => $lote->id,
+                                'name' => $lote->numero_lote ?? 'S/N',
+                                'codigo' => $lote->code,
+                                'layer' => 'lotes',
+                                // 👇 AS ETIQUETAS DE BI PARA O MAPA 👇
+                                'social_risco' => (bool) $lote->tem_area_risco,
+                                'social_beneficio' => (bool) $lote->tem_beneficio,
+                                'social_pcd' => (bool) $lote->tem_pcd,
+                            ],
+                            'geometry' => $lote->geo_json
+                        ];
+                    }
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
                 break;
 
             case 'edificacoes':

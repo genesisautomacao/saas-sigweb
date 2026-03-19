@@ -185,6 +185,7 @@ class TenantResource extends Resource
                                 'estoque' => 'ADM - Estoque',
                                 'manutencao' => 'ADM - Manutenção e Serviços',
                                 'cemiterio' => 'GIS - Gestão de Cemitérios',
+                                'social' => 'ADM - Cadastro Social',
                                 
                                 'mob_infra' => 'Mobilidade - Infraestrutura',
                                 // Adicione os módulos do CSV que você me mandou aqui!

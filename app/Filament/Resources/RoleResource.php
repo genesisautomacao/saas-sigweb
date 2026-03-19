@@ -269,6 +269,20 @@ class RoleResource extends Resource
                                     ->columns(4),
                             ])->columns(1)->columnSpanFull(),
 
+                            // CAIXA 13: CADASTRO SOCIAL
+                        Forms\Components\Fieldset::make('Módulo: Cadastro Social')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_social')
+                                    ->label('Gestão de Cadastros Sociais')
+                                    ->options([
+                                        'view_cadastros_sociais' => 'Visualizar Cadastros sociais',
+                                        'create_cadastros_sociais' => 'Criar Cadastros sociais',
+                                        'edit_cadastros_sociais' => 'Editar Cadastros sociais',
+                                        'delete_cadastros_sociais' => 'Excluir Cadastros sociais',
+                                    ])
+                                    ->bulkToggleable(),
+                            ])->columns(1)->columnSpan(1),
+
                     ])->columns(4),
 
             ]);

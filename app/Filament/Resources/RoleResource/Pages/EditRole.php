@@ -88,6 +88,8 @@ class EditRole extends EditRecord
             'delete_zonas'
         ]));
 
+        $data['permissions_social'] = array_values(array_intersect($permissions, ['view_cadastros_sociais', 'create_cadastros_sociais', 'edit_cadastros_sociais', 'delete_cadastros_sociais']));
+
         return $data;
     }
 
@@ -105,6 +107,7 @@ class EditRole extends EditRecord
         $manutencaoData = $data['permissions_manutencao'] ?? [];
         $cemiterioData = $data['permissions_cemiterio'] ?? [];
         $imobiliarioData = $data['permissions_imobiliario'] ?? [];
+        $socialData = $data['permissions_social'] ?? [];
 
         $users = is_array($usersData) ? $usersData : ($usersData === true ? ['view_users', 'create_users', 'edit_users', 'delete_users'] : []);
         $roles = is_array($rolesData) ? $rolesData : ($rolesData === true ? ['view_roles', 'create_roles', 'edit_roles', 'delete_roles'] : []);
@@ -163,6 +166,8 @@ class EditRole extends EditRecord
             'delete_zonas'
         ] : []);
 
+        $social = is_array($socialData) ? $socialData : ($socialData === true ? ['view_cadastros_sociais', 'create_cadastros_sociais', 'edit_cadastros_sociais', 'delete_cadastros_sociais'] : []);
+
         // 🟢 ATUALIZADO
         $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $iluminacao, $arborizacao, $estoque, $manutencao, $cemiterio, $imobiliario);
 
@@ -178,7 +183,8 @@ class EditRole extends EditRecord
             $data['permissions_estoque'],
             $data['permissions_manutencao'],
             $data['permissions_cemiterio'],
-            $data['permissions_imobiliario']
+            $data['permissions_imobiliario'],
+            $data['permissions_social']
         );
 
         return $data;

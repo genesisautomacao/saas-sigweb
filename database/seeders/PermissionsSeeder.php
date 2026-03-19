@@ -91,6 +91,12 @@ class PermissionsSeeder extends Seeder
             'view_loteamentos', 'create_loteamentos', 'edit_loteamentos', 'delete_loteamentos',
             'view_quadras', 'create_quadras', 'edit_quadras', 'delete_quadras',
             'view_zonas', 'create_zonas', 'edit_zonas', 'delete_zonas',
+
+            /* Módulo de Cadastro Social */
+            'view_cadastros_sociais', 
+            'create_cadastros_sociais', 
+            'edit_cadastros_sociais', 
+            'delete_cadastros_sociais',
         ];
 
         foreach ($permissions as $permission) {

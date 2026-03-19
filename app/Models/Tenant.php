@@ -267,4 +267,10 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(Jazigo::class);
     }
 
+    // Módulo Social
+    public function cadastroSocials(): HasMany
+    {
+        return $this->hasMany(CadastroSocial::class);
+    }
+
 }

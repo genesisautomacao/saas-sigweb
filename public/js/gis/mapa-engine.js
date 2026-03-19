@@ -9,6 +9,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const config = window.mapConfig || {};
     let zonasAtivas = [];
 
+    // VARIÁVEIS DE ESTADO SOCIAL (Filtros do Mapa de Calor)
+    let filtroRiscoAtivo = false;
+    let filtroBeneficioAtivo = false;
+    let filtroPcdAtivo = false;
+
     // 2. CONFIGURA A CÂMERA DO MAPA
     const view = new ol.View({
         center: ol.proj.fromLonLat([config.mapLon, config.mapLat]),
@@ -174,22 +179,47 @@ document.addEventListener('DOMContentLoaded', function () {
             minZoom: 15.5,
             style: function (feature, resolution) {
                 const zoom = view.getZoomForResolution(resolution);
+
+                // --- 🛑 A MÁGICA SOCIAL COMEÇA AQUI ---
+                // Verifica se a API mandou as variáveis e se o botão do painel está ligado!
+                const isRisco = feature.get('social_risco') && filtroRiscoAtivo;
+                const isBeneficio = feature.get('social_beneficio') && filtroBeneficioAtivo;
+                const isPcd = feature.get('social_pcd') && filtroPcdAtivo;
+
+                // Definimos as cores. A prioridade máxima é a Área de Risco (Vermelho).
+                let strokeColor = '#10b981'; // Verde Padrão (Emerald)
+                let fillColor = 'rgba(16, 185, 129, 0.15)';
+
+                if (isRisco) {
+                    strokeColor = '#e11d48'; // Vermelho (Rose)
+                    fillColor = 'rgba(225, 29, 72, 0.6)'; // Vermelho forte
+                } else if (isPcd) {
+                    strokeColor = '#9333ea'; // Roxo (Purple)
+                    fillColor = 'rgba(147, 51, 234, 0.5)';
+                } else if (isBeneficio) {
+                    strokeColor = '#f59e0b'; // Amarelo (Amber)
+                    fillColor = 'rgba(245, 158, 11, 0.5)';
+                }
+                // --- 🛑 FIM DA MÁGICA ---
+
                 const style = new ol.style.Style({
-                    stroke: new ol.style.Stroke({ color: '#10b981', width: 1 }),
-                    fill: new ol.style.Fill({ color: 'rgba(16, 185, 129, 0.15)' })
+                    stroke: new ol.style.Stroke({ color: strokeColor, width: isRisco ? 2 : 1 }), // Borda mais grossa se for risco
+                    fill: new ol.style.Fill({ color: fillColor })
                 });
+
                 if (zoom >= 18) {
                     style.setText(new ol.style.Text({
                         text: feature.get('name') ? feature.get('name').toString() : '',
                         font: 'bold 12px Arial, sans-serif',
-                        fill: new ol.style.Fill({ color: '#064e3b' }),
-                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                        fill: new ol.style.Fill({ color: isRisco ? '#ffffff' : '#064e3b' }), // Se for risco, texto branco para dar contraste
+                        stroke: new ol.style.Stroke({ color: isRisco ? '#9f1239' : '#ffffff', width: 3 }),
                         overflow: true
                     }));
                 }
                 return style;
             }
         },
+
         'edificacoes': { z: 70, minZoom: 16, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#b45309', width: 1 }), fill: new ol.style.Fill({ color: 'rgba(180, 83, 9, 0.5)' }) }) },
 
         'cemiterios': {
@@ -693,16 +723,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     unificacaoSource.addFeature(highlightFeature);
                     activeTool = 'unificar_step2';
                     alert("✅ Lote Principal selecionado!\n\nPASSO 2: Agora clique no LOTE VIZINHO que será anexado/absorvido.");
-                
+
                 } else if (activeTool === 'unificar_step2') {
                     if (id === lotePrincipalId) {
                         alert("⚠️ Você clicou no mesmo lote! Clique no lote VIZINHO.");
                         return;
                     }
-                    
+
                     loteSecundarioId = id;
                     unificacaoSource.addFeature(highlightFeature);
-                    
+
                     // Limpa a tela e volta o mouse ao normal
                     setTimeout(() => unificacaoSource.clear(), 1000);
                     window.resetToPan();
@@ -1668,5 +1698,47 @@ document.addEventListener('DOMContentLoaded', function () {
 
         map.addInteraction(currentDrawInteraction);
     };
+
+    // =========================================================================
+    // LISTENERS DO MAPA DE CALOR SOCIAL
+    // =========================================================================
+
+    // Função utilitária para "piscar" os lotes e aplicar as novas cores
+    function atualizarCoresDosLotes() {
+        if (loadedLayers['lotes']) {
+            loadedLayers['lotes'].changed(); // Força o OpenLayers a re-ler a função de "style"
+        } else {
+            // Se a camada de lotes estiver desligada, nós a ligamos à força para o gestor ver o resultado!
+            const checkboxLotes = document.querySelector('input[data-layer="lotes"]');
+            if (checkboxLotes && !checkboxLotes.checked) {
+                checkboxLotes.checked = true;
+                checkboxLotes.dispatchEvent(new Event('change'));
+            }
+        }
+    }
+
+    const checkRisco = document.getElementById('filtro-social-risco');
+    if (checkRisco) {
+        checkRisco.addEventListener('change', function () {
+            filtroRiscoAtivo = this.checked;
+            atualizarCoresDosLotes();
+        });
+    }
+
+    const checkBeneficio = document.getElementById('filtro-social-beneficio');
+    if (checkBeneficio) {
+        checkBeneficio.addEventListener('change', function () {
+            filtroBeneficioAtivo = this.checked;
+            atualizarCoresDosLotes();
+        });
+    }
+
+    const checkPcd = document.getElementById('filtro-social-pcd');
+    if (checkPcd) {
+        checkPcd.addEventListener('change', function () {
+            filtroPcdAtivo = this.checked;
+            atualizarCoresDosLotes();
+        });
+    }
 
 }); // <-- Fim do DOMContentLoaded

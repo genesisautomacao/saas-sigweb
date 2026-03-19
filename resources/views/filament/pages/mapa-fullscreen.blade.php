@@ -385,7 +385,53 @@
                     </div>
                 </div>
 
-                {{-- GRUPO 2: ZONEAMENTO URBANO --}}
+                {{-- GRUPO 2: INTELIGÊNCIA SOCIAL --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50 bg-rose-50/30 dark:bg-rose-900/10">
+                    <button @click="activeTab = activeTab === 'social' ? '' : 'social'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-rose-700 dark:text-rose-300 hover:bg-rose-100/50 dark:hover:bg-rose-800/50 flex justify-between items-center transition-colors">
+                        <span class="flex items-center gap-2">Inteligência Social</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'social' ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="activeTab === 'social'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden">
+                        
+                        <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-2 font-bold mt-2">Mapa de Vulnerabilidade (Lotes)</div>
+
+                        {{-- FILTRO: ÁREA DE RISCO --}}
+                        <label class="flex items-center space-x-3 cursor-pointer w-full group">
+                            <input type="checkbox" id="filtro-social-risco"
+                                class="rounded border-gray-300 text-rose-600 focus:ring-rose-500 w-4 h-4 flex-shrink-0 transition-all">
+                            <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-1">
+                                <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10 group-hover:animate-pulse" style="background-color: #e11d48;"></div>
+                                <span class="layer-text truncate font-bold text-gray-700 dark:text-gray-300">Famílias em Área de Risco</span>
+                            </span>
+                        </label>
+
+                        {{-- FILTRO: BENEFÍCIOS --}}
+                        <label class="flex items-center space-x-3 cursor-pointer w-full group">
+                            <input type="checkbox" id="filtro-social-beneficio"
+                                class="rounded border-gray-300 text-amber-500 focus:ring-amber-500 w-4 h-4 flex-shrink-0 transition-all">
+                            <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-1">
+                                <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10" style="background-color: #f59e0b;"></div>
+                                <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300">Recebem Benefícios</span>
+                            </span>
+                        </label>
+
+                        {{-- FILTRO: PCD --}}
+                        <label class="flex items-center space-x-3 cursor-pointer w-full group">
+                            <input type="checkbox" id="filtro-social-pcd"
+                                class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-4 h-4 flex-shrink-0 transition-all">
+                            <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-1">
+                                <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10" style="background-color: #9333ea;"></div>
+                                <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300">Membros com Deficiência (PCD)</span>
+                            </span>
+                        </label>
+
+                    </div>
+                </div>
+
+                {{-- GRUPO 3: ZONEAMENTO URBANO --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'zonas' ? '' : 'zonas'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
@@ -414,7 +460,7 @@
                     </div>
                 </div>
 
-                {{-- GRUPO 3: INFRAESTRUTURA --}}
+                {{-- GRUPO 4: INFRAESTRUTURA --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'infra' ? '' : 'infra'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
@@ -446,7 +492,7 @@
                     </div>
                 </div>
 
-                {{-- GRUPO 4: CEMITÉRIOS --}}
+                {{-- GRUPO 5: CEMITÉRIOS --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'cemiterios' ? '' : 'cemiterios'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">

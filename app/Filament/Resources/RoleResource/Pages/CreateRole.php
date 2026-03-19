@@ -25,6 +25,7 @@ class CreateRole extends CreateRecord
         $manutencaoData = $data['permissions_manutencao'] ?? []; 
         $cemiterioData = $data['permissions_cemiterio'] ?? [];
         $imobiliarioData = $data['permissions_imobiliario'] ?? [];
+        $socialData = $data['permissions_social'] ?? [];
 
         $users = is_array($usersData) ? $usersData : ($usersData === true ? ['view_users', 'create_users', 'edit_users', 'delete_users'] : []);
         $roles = is_array($rolesData) ? $rolesData : ($rolesData === true ? ['view_roles', 'create_roles', 'edit_roles', 'delete_roles'] : []);
@@ -36,6 +37,7 @@ class CreateRole extends CreateRecord
         $arborizacao = is_array($arborizacaoData) ? $arborizacaoData : ($arborizacaoData === true ? ['view_arvores', 'create_arvores', 'edit_arvores', 'delete_arvores'] : []);
         $estoque = is_array($estoqueData) ? $estoqueData : ($estoqueData === true ? ['view_locais_estoque', 'create_locais_estoque', 'edit_locais_estoque', 'delete_locais_estoque', 'view_marcas', 'create_marcas', 'edit_marcas', 'delete_marcas', 'view_produtos', 'create_produtos', 'edit_produtos', 'delete_produtos', 'view_estoques', 'view_movimentacoes', 'create_movimentacoes', 'edit_movimentacoes', 'delete_movimentacoes'] : []);
         $manutencao = is_array($manutencaoData) ? $manutencaoData : ($manutencaoData === true ? ['view_solicitacoes', 'create_solicitacoes', 'edit_solicitacoes', 'delete_solicitacoes', 'view_ordens_servico', 'create_ordens_servico', 'edit_ordens_servico', 'delete_ordens_servico'] : []); 
+        
         
         // 🟢 NOVO
         $cemiterio = is_array($cemiterioData) ? $cemiterioData : ($cemiterioData === true ? [
@@ -54,14 +56,16 @@ class CreateRole extends CreateRecord
             'view_zonas', 'create_zonas', 'edit_zonas', 'delete_zonas'
         ] : []);
 
-        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $iluminacao, $arborizacao, $estoque, $manutencao, $cemiterio, $imobiliario);
+        $social = is_array($socialData) ? $socialData : ($socialData === true ? ['view_cadastros_sociais', 'create_cadastros_sociais', 'edit_cadastros_sociais', 'delete_cadastros_sociais'] : []);
+
+        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $iluminacao, $arborizacao, $estoque, $manutencao, $cemiterio, $imobiliario, $social);
 
         unset(
             $data['permissions_users'], $data['permissions_roles'], $data['permissions_pessoas'],
             $data['permissions_contatos'], $data['permissions_enderecos'], $data['permissions_documentos'],
             $data['permissions_iluminacao'], $data['permissions_arborizacao'], $data['permissions_estoque'],
             $data['permissions_manutencao'], $data['permissions_cemiterio'],
-            $data['permissions_imobiliario']
+            $data['permissions_imobiliario'], $data['permissions_social']
         );
 
         return $data;
