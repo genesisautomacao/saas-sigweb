@@ -77,9 +77,11 @@ class AppPanelProvider extends PanelProvider
             ], isPersistent: true)
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
+
             ->pages([
-                Pages\Dashboard::class,
+                \App\Filament\Pages\Dashboard::class, // <-- Agora ele usa o seu Dashboard customizado!
             ])
+            
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 //Widgets\AccountWidget::class,

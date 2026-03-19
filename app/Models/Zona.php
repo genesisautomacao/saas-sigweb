@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasTenantSequentialId;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Zona extends Model
 {
@@ -51,5 +52,10 @@ class Zona extends Model
     public function perimetro()
     {
         return $this->belongsTo(PerimetroUrbano::class, 'perimetro_id');
+    }
+
+    public function lotes(): HasMany
+    {
+        return $this->hasMany(Lote::class);
     }
 }
