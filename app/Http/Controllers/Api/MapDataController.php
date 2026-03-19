@@ -161,10 +161,15 @@ class MapDataController extends Controller
                 ->whereNotNull('lotes.geo')
                 ->whereNull('lotes.deleted_at')
                 ->where(function ($q) use ($termo) {
-                    // Usando ILIKE para permitir partes do nome/número
                     $q->where('lotes.numero_lote', $termo)
                         ->orWhere('unidade_imobiliarias.inscricao_imobiliaria', $termo)
-                        ->orWhere('unidade_imobiliarias.codigo_imovel_tributario', $termo);
+                        ->orWhere('unidade_imobiliarias.codigo_imovel_tributario', $termo)
+                        // Busca apenas pelo nome da rua
+                        ->orWhere('unidade_imobiliarias.logradouro_nome', 'ilike', "%{$termo}%")
+                        // 🛑 A MÁGICA: Junta Rua e Número COM vírgula (Ex: "Rua X, 100")
+                        ->orWhereRaw("CONCAT(unidade_imobiliarias.logradouro_nome, ', ', unidade_imobiliarias.numero_imovel) ILIKE ?", ["%{$termo}%"])
+                        // 🛑 A MÁGICA 2: Junta Rua e Número SEM vírgula (Ex: "Rua X 100")
+                        ->orWhereRaw("CONCAT(unidade_imobiliarias.logradouro_nome, ' ', unidade_imobiliarias.numero_imovel) ILIKE ?", ["%{$termo}%"]);
                 })
                 ->selectRaw('
                     lotes.id, 

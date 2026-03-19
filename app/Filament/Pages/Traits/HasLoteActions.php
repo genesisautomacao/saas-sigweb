@@ -249,7 +249,7 @@ trait HasLoteActions
     }
 
     /**
-     * Ação: Criar Nova Unidade Imobiliária
+     * Ação: Criar Nova Unidade Imobiliária (inserir o Helper)
      */
     public function criarUnidadeAction(): Action
     {
@@ -278,13 +278,25 @@ trait HasLoteActions
                                 $codigo = $get('codigo_imovel_tributario');
                                 if (!$codigo) return;
                                 try {
-                                    $dados = app(\App\Services\ApiTools\IntegraPrefeituraService::class)->buscarImovelPorCodigo($codigo);
+                                    // 🛑 Passando o tenantId pro serviço para o futuro
+                                    $dados = app(\App\Services\ApiTools\IntegraPrefeituraService::class)->buscarImovelPorCodigo($codigo, $this->tenantId);
                                     if ($dados) {
-                                        $set('inscricao_imobiliaria', $dados['inscricao_imobiliaria']);
-                                        $set('dados_tributarios', json_encode($dados, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                                        // 🛑 Usa o nosso Helper para extrair endereço e criar a pessoa
+                                        $payload = $this->processarDadosSincronizacao($dados);
+
+                                        // 🛑 Preenche os campos do formulário visualmente
+                                        $set('inscricao_imobiliaria', $payload['inscricao_imobiliaria']);
+                                        $set('logradouro_nome', $payload['logradouro_nome']);
+                                        $set('numero_imovel', $payload['numero_imovel']);
+                                        $set('proprietario_id', $payload['proprietario_id']);
+                                        
+                                        // Mantém a visualização do JSON bonitinha no Textarea
+                                        $set('dados_tributarios', json_encode($payload['dados_tributarios'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                                        
                                         Notification::make()->title('Sincronizado!')->success()->send();
                                     }
                                 } catch (\Exception $e) {
+                                    Notification::make()->title('Erro')->body($e->getMessage())->danger()->send();
                                 }
                             })
                     ),
@@ -332,6 +344,7 @@ trait HasLoteActions
             ]);
     }
 
+    /* Ação de Editar unidade (inserir o Helper) */
     public function editarUnidadeAction(): Action
     {
         return Action::make('editarUnidadeAction')
@@ -386,12 +399,22 @@ trait HasLoteActions
                                         return;
                                     }
                                     try {
+                                        // 🛑 Passando o tenantId pro serviço para o futuro
                                         $apiService = app(\App\Services\ApiTools\IntegraPrefeituraService::class);
-                                        $dados = $apiService->buscarImovelPorCodigo($codigo);
+                                        $dados = $apiService->buscarImovelPorCodigo($codigo, $this->tenantId);
+                                        
                                         if ($dados) {
-                                            $set('inscricao_imobiliaria', $dados['inscricao_imobiliaria']);
-                                            // 🛑 BUG 3 RESOLVIDO (Parte 1): Transforma o Array em String identada para o Textarea
-                                            $set('dados_tributarios', json_encode($dados, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                                            // 🛑 Usa o nosso Helper
+                                            $payload = $this->processarDadosSincronizacao($dados);
+
+                                            // 🛑 Atualiza os campos na tela do usuário
+                                            $set('inscricao_imobiliaria', $payload['inscricao_imobiliaria']);
+                                            $set('logradouro_nome', $payload['logradouro_nome']);
+                                            $set('numero_imovel', $payload['numero_imovel']);
+                                            $set('proprietario_id', $payload['proprietario_id']);
+
+                                            $set('dados_tributarios', json_encode($payload['dados_tributarios'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                                            
                                             Notification::make()->title('Sincronizado!')->success()->send();
                                         } else {
                                             Notification::make()->title('Não Encontrado')->danger()->send();
@@ -465,7 +488,7 @@ trait HasLoteActions
     }
 
     /**
-     * 🛑 MÉTODOS LIVEWIRE PARA SINCRONIZAÇÃO NA TABELA DO MAPA
+     * método de sincronização de forma individual por unidade (não esta sendo usado)
      */
     public function sincronizarUnidade($id)
     {
@@ -482,7 +505,11 @@ trait HasLoteActions
         try {
 
             if ($dados) {
-                $unidade->update(['inscricao_imobiliaria' => $dados['inscricao_imobiliaria'], 'dados_tributarios' => $dados]);
+
+                $payload = $this->processarDadosSincronizacao($dados);
+                $unidade->update($payload);
+
+                //$unidade->update(['inscricao_imobiliaria' => $dados['inscricao_imobiliaria'], 'dados_tributarios' => $dados]);
                 Notification::make()->title('Sincronizado!')->success()->send();
             } else {
                 Notification::make()->title('Não Encontrado')->body('O código não foi localizado na prefeitura.')->danger()->send();
@@ -494,26 +521,75 @@ trait HasLoteActions
         $this->mountAction('verUnidades');
     }
 
+    /** 
+     * método de sincronização de todas as unidades na modal de unidades
+     */
     public function sincronizarTodasUnidades()
     {
-        $unidades = UnidadeImobiliaria::where('lote_id', $this->loteAtivoId)->whereNotNull('codigo_imovel_tributario')->get();
+        $unidades = UnidadeImobiliaria::where('lote_id', $this->loteAtivoId)
+            ->whereNotNull('codigo_imovel_tributario')
+            ->get();
 
         $sucesso = 0;
+        $erros = 0;
         $apiService = app(\App\Services\ApiTools\IntegraPrefeituraService::class);
 
         foreach ($unidades as $unidade) {
             try {
                 $dados = $apiService->buscarImovelPorCodigo($unidade->codigo_imovel_tributario);
                 if ($dados) {
-                    $unidade->update(['inscricao_imobiliaria' => $dados['inscricao_imobiliaria'], 'dados_tributarios' => $dados]);
+                    // Usa o helper que mastiga os dados, extrai o endereço e cria o proprietário!
+                    $payload = $this->processarDadosSincronizacao($dados);
+                    $unidade->update($payload);
                     $sucesso++;
+                } else {
+                    $erros++;
                 }
             } catch (\Exception $e) {
+                $erros++;
+                // Se der erro na primeira vez, ele joga na tela para a gente ver o que quebrou de verdade
+                Notification::make()->title('Erro Oculto')->body($e->getMessage())->danger()->send();
             }
         }
 
-        Notification::make()->title('Concluído')->body("{$sucesso} unidades sincronizadas com sucesso.")->success()->send();
+        if ($sucesso > 0) {
+            Notification::make()->title('Concluído')->body("{$sucesso} unidades sincronizadas, endereços extraídos e proprietários cadastrados.")->success()->send();
+        } elseif ($erros > 0) {
+            Notification::make()->title('Aviso')->body('Nenhuma unidade foi sincronizada. Verifique os erros.')->warning()->send();
+        }
+
         $this->replaceMountedAction('verUnidades');
+    }
+
+    /**
+     * HELPER: Processa o JSON da API, extrai o endereço e auto-cadastra a Pessoa
+     */
+    private function processarDadosSincronizacao(array $dados): array
+    {
+        $nomeProprietario = $dados['proprietario_name'] ?? null;
+        $pessoaId = null;
+
+        // AUTO-CADASTRO DE PESSOA (Adicionando o 'type' obrigatório no momento da criação)
+        if ($nomeProprietario) {
+            $pessoa = \App\Models\Pessoa::firstOrCreate(
+                // 1º Array: O que ele vai pesquisar no banco
+                ['name' => $nomeProprietario, 'tenant_id' => $this->tenantId],
+                // 2º Array: O que ele vai preencher JUNTO com o 1º array SE precisar criar um novo
+                ['type' => 'fisica']
+            );
+            $pessoaId = $pessoa->id;
+        }
+
+        // Junta o Tipo (Rua) com o Nome do Logradouro
+        $logradouroNome = trim(($dados['tipo_logradouro'] ?? '') . ' ' . ($dados['logradouro'] ?? ''));
+
+        return [
+            'inscricao_imobiliaria' => $dados['inscricao_imobiliaria'] ?? null,
+            'logradouro_nome' => $logradouroNome ?: null,
+            'numero_imovel' => (string) ($dados['numero_logradouro'] ?? 'S/N'),
+            'proprietario_id' => $pessoaId,
+            'dados_tributarios' => $dados, // Mantém o JSON original salvo
+        ];
     }
 
     /**
@@ -846,6 +922,4 @@ trait HasLoteActions
                 return new \Illuminate\Support\HtmlString(\Illuminate\Support\Facades\Blade::render($bladeView, ['lat' => $lat, 'lng' => $lng]));
             });
     }
-
-    
 }

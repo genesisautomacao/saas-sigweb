@@ -1088,7 +1088,7 @@ class MapaFullscreen extends Page
     {
         return \Filament\Actions\Action::make('abrirNuvemPontosAction')
             ->modalHeading('Visualizador 3D - Nuvem de Pontos (LiDAR)')
-            ->modalWidth('7xl') 
+            ->modalWidth('5xl') 
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Fechar Visualizador')
             ->modalContent(function () {

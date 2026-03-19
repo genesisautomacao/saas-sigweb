@@ -12,12 +12,24 @@ class UnidadeImobiliaria extends Model
 {
     use SoftDeletes, BelongsToTenant, HasTenantSequentialId;
 
-    protected $fillable = ['tenant_id', 'sequential_id', 'lote_id', 'codigo_imovel_tributario', 'inscricao_imobiliaria', 'proprietario_id', 'code', 'geo', 'dados_tributarios']; // <-- Adicionado
+    protected $fillable = [
+        'tenant_id',
+        'sequential_id',
+        'lote_id',
+        'codigo_imovel_tributario',
+        'inscricao_imobiliaria',
+        'proprietario_id',
+        'code',
+        'geo',
+        'dados_tributarios',
+        'logradouro_nome',
+        'numero_imovel',
+    ]; 
 
     protected $casts = [
-        'dados_tributarios' => 'array', // <-- Adicionado para o Laravel converter o JSON sozinho
+        'dados_tributarios' => 'array', 
     ];
-    
+
     protected $hidden = ['geo'];
     protected $appends = ['geo_json'];
 
@@ -38,7 +50,7 @@ class UnidadeImobiliaria extends Model
             $this->attributes['geo'] = null;
             return;
         }
-        
+
         $this->attributes['geo'] = DB::raw("ST_GeomFromGeoJSON('" . json_encode($value) . "')");
     }
 

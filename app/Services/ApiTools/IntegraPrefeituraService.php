@@ -10,7 +10,7 @@ class IntegraPrefeituraService
      * Simula a busca de um imóvel na API da Prefeitura.
      * Na fase de PoC, lê o arquivo JSON local.
      */
-    public function buscarImovelPorCodigo(string $codigoTributario): ?array
+    public function buscarImovelPorCodigo(string $codigoTributario, $tenantId = null): ?array
     {
         $caminhoMock = storage_path('app/mocks/imoveis_santacecilia.json');
         
