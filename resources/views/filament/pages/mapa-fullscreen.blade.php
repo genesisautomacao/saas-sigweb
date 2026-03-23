@@ -137,8 +137,13 @@
                                     <x-heroicon-o-sparkles class="w-4 h-4 text-emerald-500" /> Árvores
                                 </button>
 
+                                <button onclick="enableDrawing('setor_fiscal')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 dark:hover:bg-gray-700 hover:text-amber-600 flex items-center gap-2 ">
+                                    <x-heroicon-o-currency-dollar class="w-4 h-4 text-amber-500" /> Setor Fiscal (Polígono)
+                                </button>
+
                                 <button onclick="enableDrawing('cemiterio')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2 border-t border-gray-200">
                                     <x-heroicon-o-stop class="w-4 h-4 text-purple-600" /> Cemitério (Polígono)
                                 </button>
 
@@ -156,6 +161,7 @@
                                     class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
                                     <x-heroicon-o-archive-box class="w-4 h-4 text-stone-600" /> Jazigo / Túmulo
                                 </button>
+
 
                             </div>
                         </div>
@@ -207,6 +213,11 @@
                                 <button wire:click="mountAction('abrirNuvemPontosAction')" @click="openTools = false"
                                     class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
                                     <x-heroicon-o-cube class="w-4 h-4 text-blue-500" /> Visualizador 3D (LiDAR)
+                                </button>
+
+                                <button wire:click="mountAction('configurarPgvAction')" @click="openTools = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors border-b border-gray-100 pb-3 mb-1">
+                                    <x-heroicon-o-banknotes class="w-4 h-4 text-emerald-500" /> Simulador de Valores (PGV)
                                 </button>
 
                                 <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
@@ -300,6 +311,24 @@
 
             <button wire:click="cancelarNumeracaoAction"
                 class="text-sm font-black text-red-600 hover:text-red-700 uppercase transition-colors">
+                Cancelar
+            </button>
+        </div>
+
+        {{-- BARRA FLUTUANTE DE REVISÃO DA PGV --}}
+        <div x-data="{ previewPgv: @entangle('previewPgvAtivo') }" x-show="previewPgv" style="display: none; position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 9999;"
+            class="bg-white dark:bg-gray-800 shadow-2xl rounded-full border-2 border-emerald-500 px-6 py-3 flex items-center gap-4 animate-bounce-short">
+
+            <span class="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                <span class="relative flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>
+                Revisão da PGV (Simulador Ativo)
+            </span>
+            <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+            <button wire:click="homologarPgvAction" class="text-sm font-black text-emerald-600 hover:text-emerald-700 uppercase">
+                Salvar & Homologar
+            </button>
+            <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+            <button wire:click="cancelarPgvAction" class="text-sm font-black text-red-600 hover:text-red-700 uppercase">
                 Cancelar
             </button>
         </div>
@@ -492,7 +521,27 @@
                     </div>
                 </div>
 
-                {{-- GRUPO 5: CEMITÉRIOS --}}
+                {{-- GRUPO 5: GESTÃO TRIBUTÁRIA --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50 bg-amber-50/30 dark:bg-amber-900/10">
+                    <button @click="activeTab = activeTab === 'pgv' ? '' : 'pgv'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-amber-700 dark:text-amber-500 hover:bg-amber-100/50 flex justify-between items-center transition-colors">
+                        <span class="flex items-center gap-2">Gestão Tributária (PGV)</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'pgv' ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="activeTab === 'pgv'" x-collapse class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full">
+                        <label class="flex items-center space-x-3 cursor-pointer w-full mt-2">
+                            <input type="checkbox" data-layer="setores_fiscais"
+                                class="layer-toggle rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1">
+                                <div class="w-3 h-3 bg-amber-500 rounded-sm opacity-80 flex-shrink-0"></div>
+                                <span class="layer-text font-bold text-gray-700 dark:text-gray-300">Zonas de Valor (Setores Fiscais)</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                {{-- GRUPO 6: CEMITÉRIOS --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'cemiterios' ? '' : 'cemiterios'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">

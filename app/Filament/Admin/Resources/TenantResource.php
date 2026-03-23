@@ -186,7 +186,8 @@ class TenantResource extends Resource
                                 'manutencao' => 'ADM - Manutenção e Serviços',
                                 'cemiterio' => 'GIS - Gestão de Cemitérios',
                                 'social' => 'ADM - Cadastro Social',
-                                
+                                'pgv' => 'PGV - Planta Genérica de Valores',
+
                                 'mob_infra' => 'Mobilidade - Infraestrutura',
                                 // Adicione os módulos do CSV que você me mandou aqui!
                             ]),

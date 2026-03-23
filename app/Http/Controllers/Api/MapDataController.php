@@ -85,20 +85,20 @@ class MapDataController extends Controller
                         // Verifica se existe alguma Unidade no Lote que tenha um Cadastro Social em Área de Risco
                         'unidadesImobiliarias as tem_area_risco' => function ($query) {
                             $query->join('cadastros_sociais', 'unidade_imobiliarias.id', '=', 'cadastros_sociais.unidade_imobiliaria_id')
-                                  ->where('cadastros_sociais.em_area_de_risco', true)
-                                  ->whereNull('cadastros_sociais.deleted_at');
+                                ->where('cadastros_sociais.em_area_de_risco', true)
+                                ->whereNull('cadastros_sociais.deleted_at');
                         },
                         // Verifica se existe alguém recebendo benefício
                         'unidadesImobiliarias as tem_beneficio' => function ($query) {
                             $query->join('cadastros_sociais', 'unidade_imobiliarias.id', '=', 'cadastros_sociais.unidade_imobiliaria_id')
-                                  ->where('cadastros_sociais.recebe_beneficios', true)
-                                  ->whereNull('cadastros_sociais.deleted_at');
+                                ->where('cadastros_sociais.recebe_beneficios', true)
+                                ->whereNull('cadastros_sociais.deleted_at');
                         },
                         // Verifica PCD
                         'unidadesImobiliarias as tem_pcd' => function ($query) {
                             $query->join('cadastros_sociais', 'unidade_imobiliarias.id', '=', 'cadastros_sociais.unidade_imobiliaria_id')
-                                  ->where('cadastros_sociais.possui_membro_com_deficiencia', true)
-                                  ->whereNull('cadastros_sociais.deleted_at');
+                                ->where('cadastros_sociais.possui_membro_com_deficiencia', true)
+                                ->whereNull('cadastros_sociais.deleted_at');
                         }
                     ])
                     ->get();
@@ -173,6 +173,13 @@ class MapDataController extends Controller
                 // Enviamos o código em vez de name para exibir na label
                 $jazigos = \App\Models\Jazigo::where('tenant_id', $tenantId)->select('id', 'codigo as name', 'code', 'geo')->get();
                 $data = $buildFeatureCollection($jazigos, 'jazigos');
+                break;
+
+            case 'setores_fiscais':
+                $setores = \App\Models\SetorFiscal::where('tenant_id', $tenantId)
+                    ->select('id', 'nome as name', 'geo') // REMOVIDO O 'code' DAQUI!
+                    ->get();
+                $data = $buildFeatureCollection($setores, 'setores_fiscais');
                 break;
 
             default:
@@ -280,10 +287,8 @@ class MapDataController extends Controller
             }
 
             return response()->json($results);
-
         } catch (\Exception $e) {
             return response()->json(['message' => 'Erro DB: ' . $e->getMessage()], 500);
         }
     }
-
 }

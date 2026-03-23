@@ -273,4 +273,11 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(CadastroSocial::class);
     }
 
+    // Módulo PGV
+    public function pgvParametros(): HasMany
+    {
+        return $this->hasMany(PgvParametro::class);
+    }
+
+
 }

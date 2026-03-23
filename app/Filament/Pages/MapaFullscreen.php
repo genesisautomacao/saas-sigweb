@@ -26,6 +26,7 @@ use Filament\Facades\Filament;
 use Livewire\Attributes\On;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
+use \App\Filament\Pages\Traits\HasSetorFiscalActions;
 
 class MapaFullscreen extends Page
 {
@@ -38,8 +39,8 @@ class MapaFullscreen extends Page
     use HasCemiterioActions;
     use HasQuadraCemiterioActions;
     use HasLogradouroCemiterioActions;
-    use HasJazigoActions; // <-- INJETAR AQUI
-
+    use HasJazigoActions;
+    use HasSetorFiscalActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';
@@ -94,6 +95,11 @@ class MapaFullscreen extends Page
 
     /* altimetria */
     public array $altimetriaData = [];
+
+    // Propriedades do PGV
+    public ?int $setorFiscalAtivoId = null;
+    public bool $previewPgvAtivo = false;
+    public array $resultadosPgv = [];
 
     public function mount()
     {
@@ -262,6 +268,26 @@ class MapaFullscreen extends Page
             // Salva o ID da Quadra detectada
             $this->quadraCemiterioPreSelecionadaId = $quadra->id;
             $this->mountAction('criarJazigo');
+        } elseif ($entityType === 'setor_fiscal') {
+
+            // Impede sobreposição (Tolerância de 5m² para o Ímã funcionar sem falsos positivos de borda)
+            $sobreposicao = \App\Models\SetorFiscal::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Intersects(geo, $polyWKT)")
+                ->whereRaw("ST_Area(ST_Intersection(geo::geometry, $polyWKT)::geography) > 5.0")
+                ->exists();
+
+            if ($sobreposicao) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Sobreposição Detectada')
+                    ->body('Um Setor Fiscal não pode invadir a área de outro setor. Use a ferramenta com o ímã ativado para colar as bordas sem cruzar para dentro.')
+                    ->danger()
+                    ->send();
+
+                $this->dispatch('limpar-rascunho-mapa');
+                return;
+            }
+
+            $this->mountAction('criarSetorFiscal');
         }
     }
 
@@ -1081,18 +1107,18 @@ class MapaFullscreen extends Page
             });
     }
 
-   /**
+    /**
      * Ação: Abrir o Visualizador 3D de Nuvem de Pontos (Potree) com Fallback Inteligente
      */
     public function abrirNuvemPontosAction(): \Filament\Actions\Action
     {
         return \Filament\Actions\Action::make('abrirNuvemPontosAction')
             ->modalHeading('Visualizador 3D - Nuvem de Pontos (LiDAR)')
-            ->modalWidth('5xl') 
+            ->modalWidth('5xl')
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Fechar Visualizador')
             ->modalContent(function () {
-                
+
                 // 1. O SISTEMA PROCURA O ARQUIVO REAL DO MUNICÍPIO NA PASTA PUBLIC
                 // Estrutura esperada: public/nuvem-pontos/bom-principio/index.html
                 $pastaMunicipio = "nuvem-pontos/{$this->tenantSlug}";
@@ -1131,5 +1157,156 @@ class MapaFullscreen extends Page
                     'corAviso' => $corAviso
                 ]));
             });
+    }
+
+    #[On('abrirOpcoesSetorFiscal')]
+    public function abrirOpcoesSetorFiscal($id)
+    {
+        $this->setorFiscalAtivoId = $id;
+        $this->mountAction('opcoesSetorFiscal');
+    }
+
+    #[On('salvarNovaGeometriaSetorFiscal')]
+    public function salvarNovaGeometriaSetorFiscal($id, $geoJson)
+    {
+        $setor = \App\Models\SetorFiscal::find($id);
+        if ($setor) {
+            $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
+
+            // Validação de sobreposição com tolerância de 5m² para edição com Ímã (Ignorando a si mesmo)
+            $sobreposicao = \App\Models\SetorFiscal::where('tenant_id', $this->tenantId)
+                ->where('id', '!=', $setor->id)
+                ->whereRaw("ST_Intersects(geo, $polyWKT)")
+                ->whereRaw("ST_Area(ST_Intersection(geo::geometry, $polyWKT)::geography) > 5.0")
+                ->exists();
+
+            if ($sobreposicao) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Edição Cancelada 🛑')
+                    ->body('O polígono editado invade outro Setor Fiscal. A edição foi revertida.')
+                    ->danger()
+                    ->send();
+
+                $this->dispatch('desfazer-edicao-geometria');
+                return;
+            }
+
+            $setor->update(['geo' => $geoJson]);
+            DB::statement("UPDATE setores_fiscais SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$setor->id]);
+            \Filament\Notifications\Notification::make()->title('Geometria do Setor Atualizada!')->success()->send();
+        }
+    }
+
+    /**
+     * MÓDULO PGV - A MÁGICA DA SIMULAÇÃO ESPACIAL E FINANCEIRA
+     */
+    public function configurarPgvAction(): \Filament\Actions\Action
+    {
+        return \Filament\Actions\Action::make('configurarPgvAction')
+            ->hiddenLabel()
+            ->modalHeading('Simulador - Planta Genérica de Valores')
+            ->modalDescription('Defina os parâmetros para simular o IPTU/Valor Venal. O sistema cruzará os Lotes com os Setores Fiscais desenhados no mapa.')
+            ->modalSubmitActionLabel('Calcular no Mapa')
+            ->modalIcon('heroicon-o-banknotes')
+            ->form([
+                \Filament\Forms\Components\Select::make('bairros')
+                    ->label('Restringir por Bairro(s)')
+                    ->options(\App\Models\Bairro::where('tenant_id', $this->tenantId)->pluck('name', 'id'))
+                    ->multiple()
+                    ->helperText('Deixe em branco para calcular a cidade inteira.'),
+
+                \Filament\Forms\Components\TextInput::make('ano_vigente')
+                    ->label('Ano de Referência')
+                    ->numeric()
+                    ->default(now()->year)
+                    ->required(),
+            ])
+            ->action(function (array $data) {
+                $bairros = $data['bairros'] ?? [];
+
+                // MÁGICA POSTGIS: Pega os Lotes, cruza com o Setor Fiscal que ele cai dentro, e junta com a Tabela de Preços
+                $query = "
+                    SELECT 
+                        l.id as lote_id, 
+                        ST_AsGeoJSON(ST_Centroid(l.geo)) as centroid_geo,
+                        l.area_geo,
+                        COALESCE((SELECT SUM(area_geo) FROM edificacoes WHERE lote_id = l.id), 0) as area_construida,
+                        p.valor_m2_terreno,
+                        p.valor_m2_edificacao,
+                        s.id as setor_id
+                    FROM lotes l
+                    JOIN setores_fiscais s ON ST_Intersects(ST_Centroid(l.geo), s.geo)
+                    JOIN pgv_parametros p ON s.pgv_parametro_id = p.id
+                    WHERE l.tenant_id = ? AND l.deleted_at IS NULL
+                ";
+
+                $bindings = [$this->tenantId];
+
+                // Filtro opcional por bairro
+                if (!empty($bairros)) {
+                    $placeholders = implode(',', array_fill(0, count($bairros), '?'));
+                    $query .= " AND l.quadra_id IN (SELECT id FROM quadras WHERE bairro_id IN ($placeholders))";
+                    $bindings = array_merge($bindings, $bairros);
+                }
+
+                $lotes = DB::select($query, $bindings);
+
+                $this->resultadosPgv = [];
+
+                foreach ($lotes as $l) {
+                    $valorTerreno = $l->area_geo * $l->valor_m2_terreno;
+                    $valorEdificacao = $l->area_construida * $l->valor_m2_edificacao;
+                    $total = $valorTerreno + $valorEdificacao;
+
+                    $this->resultadosPgv[] = [
+                        'lote_id' => $l->lote_id,
+                        'setor_id' => $l->setor_id,
+                        'ano_vigente' => $data['ano_vigente'],
+                        'valor_terreno' => $valorTerreno,
+                        'valor_edificacao' => $valorEdificacao,
+                        'valor_total' => $total,
+                        'valor_formatado' => 'R$ ' . number_format($total, 2, ',', '.'),
+                        'geo' => json_decode($l->centroid_geo)
+                    ];
+                }
+
+                if (count($this->resultadosPgv) === 0) {
+                    Notification::make()->title('Sem resultados')->body('Nenhum lote cruzou com os Setores Fiscais cadastrados.')->warning()->send();
+                    return;
+                }
+
+                $this->previewPgvAtivo = true;
+                $this->dispatch('mostrar-preview-pgv', dados: $this->resultadosPgv);
+                Notification::make()->title('Cálculo Realizado!')->body('Revise as etiquetas verdes no mapa.')->success()->send();
+            });
+    }
+
+    public function cancelarPgvAction()
+    {
+        $this->previewPgvAtivo = false;
+        $this->resultadosPgv = [];
+        $this->dispatch('limpar-preview-pgv');
+    }
+
+    public function homologarPgvAction()
+    {
+        // Aqui nós faremos o INSERT na tabela lote_valores_historicos.
+        // Já vou deixar estruturado para a sua chamada!
+
+        foreach ($this->resultadosPgv as $pgv) {
+            \App\Models\LoteValorHistorico::updateOrCreate(
+                ['lote_id' => $pgv['lote_id'], 'ano_vigente' => $pgv['ano_vigente']],
+                [
+                    'tenant_id' => $this->tenantId,
+                    'setor_fiscal_id' => $pgv['setor_id'],
+                    'valor_terreno' => $pgv['valor_terreno'],
+                    'valor_edificacao' => $pgv['valor_edificacao'],
+                    'valor_total' => $pgv['valor_total'],
+                ]
+            );
+        }
+
+        Notification::make()->title('PGV Homologada!')->body('Os valores foram gravados no histórico financeiro com sucesso.')->success()->send();
+        $this->cancelarPgvAction();
     }
 }

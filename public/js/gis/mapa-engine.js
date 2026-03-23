@@ -299,6 +299,29 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         },
 
+        'setores_fiscais': {
+            z: 22, // Fica abaixo dos lotes mas acima dos bairros
+            minZoom: 12,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#f59e0b', width: 3, lineDash: [8, 8] }), // Laranja tracejado forte
+                    fill: new ol.style.Fill({ color: 'rgba(245, 158, 11, 0.15)' })
+                });
+
+                if (zoom >= 14) {
+                    style.setText(new ol.style.Text({
+                        text: feature.get('name') ? feature.get('name').toString() : 'Setor Fiscal',
+                        font: 'bold 15px Arial, sans-serif',
+                        fill: new ol.style.Fill({ color: '#78350f' }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                        overflow: true
+                    }));
+                }
+                return style;
+            }
+        },
+
     };
 
     // 5. INICIA O MAPA
@@ -485,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const feature = map.forEachFeatureAtPixel(e.pixel, feature => feature, { hitTolerance: 5 });
 
         // 2. Define quais camadas ganham a "mãozinha" (pointer) ao passar o mouse
-        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'quadras', 'postes', 'arvores', 'cemiterios', 'quadras_cemiterio', 'logradouros_cemiterio'];
+        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'quadras', 'postes', 'arvores', 'cemiterios', 'quadras_cemiterio', 'logradouros_cemiterio', 'setores_fiscais'];
         const isHoverable = feature && hoverableLayers.includes(feature.get('layer'));
         map.getTargetElement().style.cursor = isHoverable ? 'pointer' : '';
 
@@ -666,8 +689,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (activeTool.startsWith('numeracao')) {
             if (activeTool === 'numeracao_step1') {
                 const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
-                const clickedLogradouro = features ? features.find(f => f.get('layer') === 'logradouros') : null;
 
+                const clickedLogradouro = features ? features.find(f => f.get('layer') === 'logradouros') : null;
                 if (clickedLogradouro) {
                     ruaSelecionadaNumeracao = clickedLogradouro;
                     activeTool = 'numeracao_step2';
@@ -749,7 +772,6 @@ document.addEventListener('DOMContentLoaded', function () {
             return; // Impede a ficha de abrir
         }
 
-
         if (activeTool !== 'pan') return;
         const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
 
@@ -819,6 +841,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const clickedCemiterio = features.find(f => f.get('layer') === 'cemiterios');
             if (clickedCemiterio) {
                 Livewire.dispatch('abrirOpcoesCemiterio', { id: clickedCemiterio.get('id') });
+                return;
+            }
+
+            /* CLIQUE NO SETOR FISCAL (PGV) COLADO AQUI NO LUGAR CERTO! */
+            const clickedSetor = features.find(f => f.get('layer') === 'setores_fiscais');
+            if (clickedSetor) {
+                Livewire.dispatch('abrirOpcoesSetorFiscal', { id: clickedSetor.get('id') });
                 return;
             }
 
@@ -915,6 +944,15 @@ document.addEventListener('DOMContentLoaded', function () {
             currentSnapInteraction = new ol.interaction.Snap({
                 source: loadedLayers['lotes'].getSource(),
                 pixelTolerance: 10
+            });
+            map.addInteraction(currentSnapInteraction);
+        }
+
+        // NOVO: ÍMÃ PARA OS SETORES FISCAIS (Cola as bordas perfeitamente)
+        if (entityType === 'setor_fiscal' && loadedLayers['setores_fiscais']) {
+            currentSnapInteraction = new ol.interaction.Snap({
+                source: loadedLayers['setores_fiscais'].getSource(),
+                pixelTolerance: 15 // Ímã um pouco mais forte para grandes escalas
             });
             map.addInteraction(currentSnapInteraction);
         }
@@ -1143,6 +1181,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    window.addEventListener('iniciar-edicao-geometria-setor_fiscal', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['setores_fiscais']) return;
+        const source = loadedLayers['setores_fiscais'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#f59e0b' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
+            });
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
     window.salvarEdicaoGeometria = function () {
         if (featureEmEdicao) {
             const geoJson = formatGeoJSON.writeGeometryObject(featureEmEdicao.getGeometry());
@@ -1171,6 +1228,8 @@ document.addEventListener('DOMContentLoaded', function () {
             else if (layerName === 'logradouros_cemiterio') Livewire.dispatch('salvarNovaGeometriaLogradouroCemiterio', { id: id, geoJson: geoJson });
 
             else if (layerName === 'jazigos') Livewire.dispatch('salvarNovaGeometriaJazigo', { id: id, geoJson: geoJson });
+
+            else if (layerName === 'setores_fiscais') Livewire.dispatch('salvarNovaGeometriaSetorFiscal', { id: id, geoJson: geoJson });
 
             encerrarModoEdicao();
         }
@@ -1438,7 +1497,8 @@ document.addEventListener('DOMContentLoaded', function () {
         { layer: 'arvores', singular: 'arvore' },
         { layer: 'quadras_cemiterio', singular: 'quadra_cemiterio' },
         { layer: 'logradouros_cemiterio', singular: 'logradouro_cemiterio' },
-        { layer: 'jazigos', singular: 'jazigo' }
+        { layer: 'jazigos', singular: 'jazigo' },
+        { layer: 'setores_fiscais', singular: 'setor_fiscal' }
     ];
 
     entidadesSurgical.forEach(entidade => {
@@ -1540,7 +1600,8 @@ document.addEventListener('DOMContentLoaded', function () {
             'cemiterios': { label: 'do novo Cemitério', func: 'cemiterio' },
             'quadras_cemiterio': { label: 'da nova Quadra', func: 'quadra_cemiterio' },
             'logradouros_cemiterio': { label: 'da nova Rua Interna', func: 'logradouro_cemiterio' },
-            'jazigos': { label: 'do novo Jazigo', func: 'jazigo' }
+            'jazigos': { label: 'do novo Jazigo', func: 'jazigo' },
+            'setores_fiscais': { label: 'do novo Setor Fiscal', func: 'setor_fiscal' },
         };
 
         if (drawableEntities[layerParams]) {
@@ -1740,5 +1801,52 @@ document.addEventListener('DOMContentLoaded', function () {
             atualizarCoresDosLotes();
         });
     }
+
+    // =========================================================================
+    // MOTOR DE PRÉVIA DA PLANTA GENÉRICA DE VALORES (PGV)
+    // =========================================================================
+
+    const previewPgvSource = new ol.source.Vector();
+    const previewPgvLayer = new ol.layer.Vector({
+        source: previewPgvSource,
+        style: function (feature) {
+            return new ol.style.Style({
+                text: new ol.style.Text({
+                    text: feature.get('valor_formatado'),
+                    font: 'bold 13px Arial, sans-serif',
+                    fill: new ol.style.Fill({ color: '#ffffff' }),
+                    backgroundFill: new ol.style.Fill({ color: '#10b981' }), // Emerald/Verde Dinheiro
+                    backgroundStroke: new ol.style.Stroke({ color: '#047857', width: 2 }),
+                    padding: [4, 6, 4, 6],
+                    offsetY: -15
+                })
+            });
+        },
+        zIndex: 10002 // Acima da numeração predial
+    });
+    map.addLayer(previewPgvLayer);
+
+    window.addEventListener('mostrar-preview-pgv', (e) => {
+        const lotes = e.detail[0] || e.detail.dados || e.detail;
+        previewPgvSource.clear();
+
+        if (lotes && Array.isArray(lotes)) {
+            const features = [];
+            lotes.forEach(lote => {
+                if (lote.geo) {
+                    try {
+                        const feature = new ol.Feature({
+                            geometry: new ol.format.GeoJSON().readGeometry(lote.geo, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' }),
+                            valor_formatado: lote.valor_formatado
+                        });
+                        features.push(feature);
+                    } catch (err) { console.error("Erro no JSON da PGV", err); }
+                }
+            });
+            previewPgvSource.addFeatures(features);
+        }
+    });
+
+    window.addEventListener('limpar-preview-pgv', () => previewPgvSource.clear());
 
 }); // <-- Fim do DOMContentLoaded
