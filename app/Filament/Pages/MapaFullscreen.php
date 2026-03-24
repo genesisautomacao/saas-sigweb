@@ -60,6 +60,7 @@ class MapaFullscreen extends Page
     // Propriedades do Lote Ativo
     public ?int $loteAtivoId = null;
     public ?string $loteAtivoNome = null;
+    public ?string $loteSequentialId = null;
     public bool $showFicha = false;
     public float $loteAreaGeo = 0.0;
     public float $loteAreaConstruida = 0.0;
@@ -140,6 +141,7 @@ class MapaFullscreen extends Page
         $this->loteAreaGeo = $lote ? (float) $lote->area_geo : 0.0;
         $this->loteFacePrincipal = $lote ? (float) $lote->main_facade_length : 0.0;
         $this->loteAreaConstruida = (float) Edificacao::where('lote_id', $loteId)->sum('area_geo');
+        $this->loteSequentialId = $lote ? $lote->sequential_id : 'S/N';
 
         $this->showFicha = true;
     }

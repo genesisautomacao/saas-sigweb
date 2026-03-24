@@ -32,7 +32,7 @@ class EditLote extends EditRecord
             // Só faz o auto-sync se tiver o código, mas o JSON ainda estiver vazio
             if ($unidade->codigo_imovel_tributario && empty($unidade->dados_tributarios)) {
                 try {
-                    $dadosPrefeitura = $apiService->buscarImovelPorCodigo($unidade->codigo_imovel_tributario);
+                    $dadosPrefeitura = $apiService->buscarImovelPorCodigo($unidade->codigo_imovel_tributario, $unidade->tenant_id);
                     if ($dadosPrefeitura) {
                         $unidade->update([
                             'inscricao_imobiliaria' => $dadosPrefeitura['inscricao_imobiliaria'],

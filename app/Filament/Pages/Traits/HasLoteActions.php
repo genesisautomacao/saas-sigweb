@@ -500,7 +500,7 @@ trait HasLoteActions
         }
 
         $apiService = app(\App\Services\ApiTools\IntegraPrefeituraService::class);
-        $dados = $apiService->buscarImovelPorCodigo($unidade->codigo_imovel_tributario);
+        $dados = $apiService->buscarImovelPorCodigo($unidade->codigo_imovel_tributario, $this->tenantId); //$codigo, $this->tenantId
 
         try {
 
@@ -536,7 +536,7 @@ trait HasLoteActions
 
         foreach ($unidades as $unidade) {
             try {
-                $dados = $apiService->buscarImovelPorCodigo($unidade->codigo_imovel_tributario);
+                $dados = $apiService->buscarImovelPorCodigo($unidade->codigo_imovel_tributario, $this->tenantId);
                 if ($dados) {
                     // Usa o helper que mastiga os dados, extrai o endereço e cria o proprietário!
                     $payload = $this->processarDadosSincronizacao($dados);

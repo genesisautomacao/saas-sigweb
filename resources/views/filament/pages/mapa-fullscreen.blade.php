@@ -616,7 +616,7 @@
                 <div class="mb-6 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
                     <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Lote / Inscrição</p>
                     <p class="text-xl font-black text-gray-800 dark:text-white">{{ $loteAtivoNome }}</p>
-                    <p class="text-xs text-gray-500 mt-1">ID Sistema: #{{ $loteAtivoId }}</p>
+                    <p class="text-xs text-gray-500 mt-1">ID Sistema: #{{ $loteSequentialId }}</p>
 
                     <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 grid grid-cols-2 gap-4">
                         <div>
