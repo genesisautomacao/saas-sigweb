@@ -271,6 +271,7 @@ class TenantResource extends Resource
                         }),
 
                     // --- NOVA AÇÃO: IMPORTADOR GIS (SUPER ADMIN) ---
+                    // --- NOVA AÇÃO: IMPORTADOR GIS (SUPER ADMIN) ---
                     Tables\Actions\Action::make('importar_gis')
                         ->label('Importar Mapa (GIS)')
                         ->icon('heroicon-o-map')
@@ -338,7 +339,7 @@ class TenantResource extends Resource
                                     $agrupados[$id] = ['props' => $props, 'coords' => [], 'type' => null];
                                 }
 
-                                // O SEGREDO ESTÁ AQUI: Proteção real contra propriedades sem mapa (geometry = null)
+                                // Proteção real contra propriedades sem mapa (geometry = null)
                                 if (isset($feature->geometry) && !empty($feature->geometry) && isset($feature->geometry->type)) {
                                     $geomType = $feature->geometry->type;
                                     
@@ -361,6 +362,15 @@ class TenantResource extends Resource
 
                             \Illuminate\Support\Facades\DB::beginTransaction();
                             try {
+                                
+                                // Helper para buscar o ID global real no banco com base no ID do JSON (salvo como sequential_id)
+                                $resolveRelacionamento = function ($modelStr, $jsonId) use ($record) {
+                                    if (!$jsonId) return null;
+                                    $realId = $modelStr::where('tenant_id', $record->id)->where('sequential_id', $jsonId)->value('id');
+                                    // Se não achar, usa o próprio ID do JSON (fallback de segurança caso o jsonId já seja o ID global)
+                                    return $realId ?? $jsonId;
+                                };
+
                                 foreach ($agrupados as $originalId => $item) {
                                     $props = $item['props'];
 
@@ -392,13 +402,15 @@ class TenantResource extends Resource
                                     if (isset($props->rgb)) $fillData['rgb'] = $props->rgb;
                                     if (isset($props->setor)) $fillData['setor'] = $props->setor;
 
-                                    if (isset($props->perimetro_id)) $fillData['perimetro_id'] = $props->perimetro_id;
-                                    if (isset($props->bairro_id)) $fillData['bairro_id'] = $props->bairro_id;
-                                    if (isset($props->loteamento_id)) $fillData['loteamento_id'] = $props->loteamento_id;
-                                    if (isset($props->quadra_id)) $fillData['quadra_id'] = $props->quadra_id;
-                                    if (isset($props->zona_id)) $fillData['zona_id'] = $props->zona_id;
-                                    if (isset($props->lote_id)) $fillData['lote_id'] = $props->lote_id;
+                                    // 🛑 A MÁGICA DOS RELACIONAMENTOS: Traduz o ID do JSON para o ID Real do Banco
+                                    if (isset($props->perimetro_id)) $fillData['perimetro_id'] = $resolveRelacionamento(\App\Models\PerimetroUrbano::class, $props->perimetro_id);
+                                    if (isset($props->bairro_id)) $fillData['bairro_id'] = $resolveRelacionamento(\App\Models\Bairro::class, $props->bairro_id);
+                                    if (isset($props->loteamento_id)) $fillData['loteamento_id'] = $resolveRelacionamento(\App\Models\Loteamento::class, $props->loteamento_id);
+                                    if (isset($props->quadra_id)) $fillData['quadra_id'] = $resolveRelacionamento(\App\Models\Quadra::class, $props->quadra_id);
+                                    if (isset($props->zona_id)) $fillData['zona_id'] = $resolveRelacionamento(\App\Models\Zona::class, $props->zona_id);
+                                    if (isset($props->lote_id)) $fillData['lote_id'] = $resolveRelacionamento(\App\Models\Lote::class, $props->lote_id);
 
+                                    // Demais propriedades
                                     if (isset($props->numero_lot) || isset($props->numero)) $fillData['numero_lote'] = $props->numero_lot ?? $props->numero;
                                     if (isset($props->area_geo)) $fillData['area_geo'] = $props->area_geo;
                                     if (isset($props->main_facade_length)) $fillData['main_facade_length'] = $props->main_facade_length;
@@ -412,18 +424,13 @@ class TenantResource extends Resource
                                     // 4. SALVAR NO BANCO
                                     $entidade = new $modelClass();
 
+                                    // 🛑 O PULO DO GATO: Guarda o ID que veio do JSON dentro do "sequential_id".
+                                    // Deixamos a coluna primária "id" livre para o PostgreSQL gerar automaticamente e não dar erro Multi-Tenant.
                                     if (is_numeric($originalId)) {
-                                        $entidade->id = $originalId;
+                                        $fillData['sequential_id'] = $originalId;
                                     }
 
                                     $entidade->forceFill($fillData)->save();
-                                }
-
-                                // 5. CORREÇÃO DE SEQUENCE
-                                $tabela = (new $modelClass())->getTable();
-                                $maxId = $modelClass::max('id') ?? 0;
-                                if ($maxId > 0) {
-                                    \Illuminate\Support\Facades\DB::statement("SELECT setval(pg_get_serial_sequence('{$tabela}', 'id'), {$maxId}, false)");
                                 }
 
                                 \Illuminate\Support\Facades\DB::commit();
