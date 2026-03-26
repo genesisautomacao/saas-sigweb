@@ -7,6 +7,7 @@ use App\Traits\HasTenantSequentialId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str; 
 
 class SolicitacaoManutencao extends Model
 {
@@ -17,6 +18,7 @@ class SolicitacaoManutencao extends Model
     protected $fillable = [
         'tenant_id',
         'sequential_id',
+        'code',
         'asset_type',
         'asset_id',
         'tipo_servico',
@@ -26,6 +28,16 @@ class SolicitacaoManutencao extends Model
         'observacao',
         'foto_ocorrencia',
     ];
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            // Se estiver criando e não tiver um 'code' (UUID), o sistema gera sozinho!
+            if (empty($model->code)) {
+                $model->code = (string) Str::uuid();
+            }
+        });
+    }
 
     /**
      * O Relacionamento Polimórfico Mágico!

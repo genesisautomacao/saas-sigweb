@@ -19,6 +19,7 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Filament\View\PanelsRenderHook;
 
 use Filament\Navigation\NavigationItem;
 
@@ -32,6 +33,7 @@ class AppPanelProvider extends PanelProvider
             ->path('app')
             ->login()
             ->passwordReset()
+            ->profile()
             ->colors([
                 'primary' => Color::Indigo,
             ])
@@ -51,6 +53,11 @@ class AppPanelProvider extends PanelProvider
                     ->sort(10),
             ])
 
+            // 🛑 GATILHO PARA A BARRA DE BUSCA NO MENU LATERAL
+            ->renderHook(
+                PanelsRenderHook::SIDEBAR_NAV_START,
+                fn () => view('filament.components.sidebar-search')
+            )
 
             // 1. SIDEBAR RETRÁTIL (Cria o ícone do menu hamburger e encolhe a barra)
             ->sidebarCollapsibleOnDesktop()

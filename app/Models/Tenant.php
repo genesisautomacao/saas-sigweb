@@ -279,5 +279,10 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(PgvParametro::class);
     }
 
+    // Módulo BPMN
+    public function bpmnFluxos(): HasMany
+    {
+        return $this->hasMany(BpmnFluxo::class);
+    }
 
 }

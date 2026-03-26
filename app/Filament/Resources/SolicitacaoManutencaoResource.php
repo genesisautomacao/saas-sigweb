@@ -95,8 +95,9 @@ class SolicitacaoManutencaoResource extends Resource
                                 ],
                                 'Arborização' => [
                                     'Poda de Limpeza' => 'Poda de Limpeza',
-                                    'Supressão (Corte)' => 'Supressão (Corte)',
-                                    'Risco de Queda' => 'Risco de Queda',
+                                    'Poda por Interferência' => 'Poda por Interferência (Fios/Placas)',
+                                    'Remoção' => 'Remoção',
+                                    'Tratamento Fitossanitário' => 'Tratamento Fitossanitário',
                                 ]
                             ])
                             ->required()

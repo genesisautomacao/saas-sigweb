@@ -114,7 +114,7 @@ trait HasArvoreActions
                             // 🛑 CORREÇÃO 1: Limpeza Polimórfica (Evita quebrar a lista de Solicitações/OS)
                             $solicitacoes = \App\Models\SolicitacaoManutencao::where('asset_type', \App\Models\Arvore::class)
                                 ->where('asset_id', $this->arvoreAtivaId)->get();
-                            
+
                             foreach ($solicitacoes as $solicitacao) {
                                 // Se existir tabela de OS atrelada à solicitação, apaga também
                                 if (class_exists(\App\Models\OrdemServico::class)) {
@@ -125,7 +125,7 @@ trait HasArvoreActions
 
                             Arvore::where('id', $this->arvoreAtivaId)->delete();
                             Notification::make()->title('Árvore Excluída!')->success()->send();
-                            
+
                             $this->dispatch('remover-arvore-mapa', ['id' => $this->arvoreAtivaId]);
                             $this->dispatch('fechar-modal-filament');
                         }),
@@ -179,10 +179,10 @@ trait HasArvoreActions
                     $arvore->logradouros()->sync($logradourosIds);
 
                     Notification::make()->title('Árvore Atualizada!')->success()->send();
-                    
+
                     // 🛑 Ação Cirúrgica de Atualização de Nome (Corrigida)
                     $this->dispatch('atualizar-label-arvore', [
-                        'id' => $arvore->id, 
+                        'id' => $arvore->id,
                         'name' => $data['botanical_species'] ?? 'Não Identificada'
                     ]);
                 }
@@ -200,11 +200,10 @@ trait HasArvoreActions
                 \Filament\Forms\Components\Select::make('tipo_servico')
                     ->label('Tipo de Serviço / Manejo')
                     ->options([
-                        'Poda de Limpeza' => 'Poda de Limpeza (Galhos Secos)',
-                        'Poda de Elevação' => 'Poda de Elevação de Copa',
+                        'Poda de Limpeza' => 'Poda de Limpeza',
                         'Poda por Interferência' => 'Poda por Interferência (Fios/Placas)',
-                        'Supressão (Corte)' => 'Supressão / Corte (Morta/Risco)',
-                        'Análise' => 'Análise Fitossanitária (Laudo)',
+                        'Remoção' => 'Remoção',
+                        'Tratamento Fitossanitário' => 'Tratamento Fitossanitário',
                     ])
                     ->required(),
 
