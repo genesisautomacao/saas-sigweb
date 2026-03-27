@@ -285,4 +285,35 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(BpmnFluxo::class);
     }
 
+    // Módulo de Cadastro Rural
+    public function ruralLocalidades(): HasMany
+    {
+        return $this->hasMany(RuralLocalidade::class);
+    }
+    
+    public function ruralPropriedades(): HasMany
+    {
+        return $this->hasMany(RuralPropriedade::class);
+    }
+
+    public function ruralEstradas(): HasMany
+    {
+        return $this->hasMany(RuralEstrada::class);
+    }
+
+    public function ruralHidrografias(): HasMany
+    {
+        return $this->hasMany(RuralHidrografia::class);
+    }
+
+    public function ruralPontes(): HasMany
+    {
+        return $this->hasMany(RuralPonte::class);
+    }
+
+    public function ruralPontosInteresse(): HasMany
+    {
+        return $this->hasMany(RuralPontoInteresse::class);
+    }
+
 }

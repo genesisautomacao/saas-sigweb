@@ -188,7 +188,7 @@ class TenantResource extends Resource
                                 'social' => 'ADM - Cadastro Social',
                                 'pgv' => 'PGV - Planta Genérica de Valores',
                                 'processos' => 'BPMN - Processos Digitais',
-
+                                'rural' => 'GIS - Módulo Rural',
                                 'mob_infra' => 'Mobilidade - Infraestrutura',
                                 // Adicione os módulos do CSV que você me mandou aqui!
                             ]),

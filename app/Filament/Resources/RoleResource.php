@@ -244,22 +244,27 @@ class RoleResource extends Resource
                                         'create_lotes' => 'Criar Lotes',
                                         'edit_lotes' => 'Editar Lotes',
                                         'delete_lotes' => 'Excluir Lotes',
+                                        
                                         'view_logradouros' => 'Vis. Ruas',
                                         'create_logradouros' => 'Criar Ruas',
                                         'edit_logradouros' => 'Editar Ruas',
                                         'delete_logradouros' => 'Excluir Ruas',
+                                        
                                         'view_bairros' => 'Vis. Bairros',
                                         'create_bairros' => 'Criar Bairros',
                                         'edit_bairros' => 'Editar Bairros',
                                         'delete_bairros' => 'Excluir Bairros',
+                                        
                                         'view_loteamentos' => 'Vis. Loteamentos',
                                         'create_loteamentos' => 'Criar Loteam.',
                                         'edit_loteamentos' => 'Editar Loteam.',
                                         'delete_loteamentos' => 'Excluir Loteam.',
+                                        
                                         'view_quadras' => 'Vis. Quadras',
                                         'create_quadras' => 'Criar Quadras',
                                         'edit_quadras' => 'Editar Quadras',
                                         'delete_quadras' => 'Excluir Quadras',
+                                        
                                         'view_zonas' => 'Vis. Zonas',
                                         'create_zonas' => 'Criar Zonas',
                                         'edit_zonas' => 'Editar Zonas',
@@ -269,7 +274,7 @@ class RoleResource extends Resource
                                     ->columns(4),
                             ])->columns(1)->columnSpanFull(),
 
-                            // CAIXA 13: CADASTRO SOCIAL
+                        // CAIXA 13: CADASTRO SOCIAL
                         Forms\Components\Fieldset::make('Módulo: Cadastro Social')
                             ->schema([
                                 Forms\Components\CheckboxList::make('permissions_social')
@@ -282,6 +287,46 @@ class RoleResource extends Resource
                                     ])
                                     ->bulkToggleable(),
                             ])->columns(1)->columnSpan(1),
+
+                        // CAIXA 14: MÓDULO RURAL
+                        Forms\Components\Fieldset::make('Módulo: Imobiliário e Geográfico (SIGWEB)')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_rural')
+                                    ->label('Gestão de Zona Rural')
+                                    ->options([
+                                        'view_rural_localidades' => 'Ver Localidades/Distritos',
+                                        'create_rural_localidades' => 'Criar Localidades/Distritos',
+                                        'edit_rural_localidades' => 'Editar Localidades/Distritos',
+                                        'delete_rural_localidades' => 'Excluir Localidades/Distritos',
+
+                                        'view_rural_propriedades' => 'Ver Propriedades (CAR/INCRA)',
+                                        'create_rural_propriedades' => 'Criar Propriedades (CAR/INCRA)',
+                                        'edit_rural_propriedades' => 'Editar Propriedades (CAR/INCRA)',
+                                        'delete_rural_propriedades' => 'Excluir Propriedades (CAR/INCRA)',
+
+                                        'view_rural_estradas' => 'Ver Estradas',
+                                        'create_rural_estradas' => 'Criar Estradas',
+                                        'edit_rural_estradas' => 'Editar Estradas',
+                                        'delete_rural_estradas' => 'Excluir Estradas',
+
+                                        'view_rural_hidrografias' => 'Ver Rios/Lagos',
+                                        'create_rural_hidrografias' => 'Criar Rios/Lagos',
+                                        'edit_rural_hidrografias' => 'Editar Rios/Lagos',
+                                        'delete_rural_hidrografias' => 'Excluir Rios/Lagos',
+
+                                        'view_rural_pontes' => 'Ver Pontes',
+                                        'create_rural_pontes' => 'Criar Pontes',
+                                        'edit_rural_pontes' => 'Editar Pontes',
+                                        'delete_rural_pontes' => 'Excluir Pontes',
+
+                                        'view_rural_pontos_interesse' => 'Ver Pontos de Interesse',
+                                        'create_rural_pontos_interesse' => 'Criar Pontos de Interesse',
+                                        'edit_rural_pontos_interesse' => 'Editar Pontos de Interesse',
+                                        'delete_rural_pontos_interesse' => 'Excluir Pontos de Interesse',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(4),
+                            ])->columns(1)->columnSpanFull(),
 
                     ])->columns(4),
 

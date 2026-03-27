@@ -93,6 +93,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return style;
             }
         },
+
         'quadras': {
             z: 40,
             minZoom: 13,
@@ -322,6 +323,59 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         },
 
+        // Dentro de const layerConfigs = { ... }
+        'rural-localidades': {
+            z: 15, // Acima do mapa base, abaixo dos lotes urbanos
+            minZoom: 0,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: '#57534e', // Stone 600
+                        width: 2,
+                        lineDash: [4, 4]
+                    }),
+                    fill: new ol.style.Fill({
+                        color: 'rgba(120, 113, 108, 0.2)' // Stone 500 translúcido
+                    })
+                });
+
+                if (zoom >= 13) {
+                    style.setText(new ol.style.Text({
+                        text: feature.get('name') ? feature.get('name').toString() : '',
+                        font: 'bold 13px Arial, sans-serif',
+                        fill: new ol.style.Fill({ color: '#292524' }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                        overflow: true
+                    }));
+                }
+                return style;
+            }
+        },
+
+        'rural-propriedades': {
+            z: 16, // Fica uma camada ACIMA das localidades para ser clicável
+            minZoom: 13,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#f59e0b', width: 2 }), // Amber 500
+                    fill: new ol.style.Fill({ color: 'rgba(245, 158, 11, 0.2)' }) // Fundo transparente
+                });
+
+                if (zoom >= 14) {
+                    style.setText(new ol.style.Text({
+                        text: feature.get('name') ? feature.get('name').toString() : '',
+                        font: 'bold 12px Arial, sans-serif',
+                        fill: new ol.style.Fill({ color: '#78350f' }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                        overflow: true
+                    }));
+                }
+                return style;
+            }
+        },
+
     };
 
     // 5. INICIA O MAPA
@@ -508,7 +562,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const feature = map.forEachFeatureAtPixel(e.pixel, feature => feature, { hitTolerance: 5 });
 
         // 2. Define quais camadas ganham a "mãozinha" (pointer) ao passar o mouse
-        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'quadras', 'postes', 'arvores', 'cemiterios', 'quadras_cemiterio', 'logradouros_cemiterio', 'setores_fiscais'];
+        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'quadras', 'postes', 'arvores', 'cemiterios', 'quadras_cemiterio', 'logradouros_cemiterio', 'setores_fiscais', 'rural-localidades', 'rural-propriedades'];
         const isHoverable = feature && hoverableLayers.includes(feature.get('layer'));
         map.getTargetElement().style.cursor = isHoverable ? 'pointer' : '';
 
@@ -673,10 +727,39 @@ document.addEventListener('DOMContentLoaded', function () {
                             stroke: new ol.style.Stroke({ color: '#292524', width: 3 })
                         }) : null
                     }));
+
+                } else if (layer === 'rural-localidades') {
+                    feature.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#57534e', width: 4 }), // Stone 600 mais grosso
+                        fill: new ol.style.Fill({ color: 'rgba(120, 113, 108, 0.5)' }), // Fundo mais opaco
+                        text: zoom >= 13 ? new ol.style.Text({
+                            text: name,
+                            font: 'bold 14px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: '#ffffff' }),
+                            stroke: new ol.style.Stroke({ color: '#292524', width: 3 }),
+                            overflow: true
+                        }) : null
+                    }));
+
+                } else if (layer === 'rural-propriedades') {
+                    feature.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#d97706', width: 3 }), // Borda mais forte
+                        fill: new ol.style.Fill({ color: 'rgba(245, 158, 11, 0.5)' }), // Fundo aceso
+                        text: zoom >= 14 ? new ol.style.Text({
+                            text: name,
+                            font: 'bold 14px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: '#ffffff' }), // Texto branco
+                            stroke: new ol.style.Stroke({ color: '#92400e', width: 3 }),
+                            overflow: true
+                        }) : null
+                    }));
+
                 }
 
 
             }
+
+
         } else {
             // Limpa tudo se clicar fora
             if (featureTooltip) featureTooltip.style.display = 'none';
@@ -851,6 +934,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            // Clique nas Propriedades Rurais (CAR)
+            const clickedRuralPropriedade = features.find(f => f.get('layer') === 'rural-propriedades');
+            if (clickedRuralPropriedade) {
+                Livewire.dispatch('abrirOpcoesRuralPropriedade', { id: clickedRuralPropriedade.get('id') });
+                return;
+            }
+
+            // Clique nas Localidades Rurais
+            const clickedRuralLocalidade = features.find(f => f.get('layer') === 'rural-localidades');
+            if (clickedRuralLocalidade) {
+                // Aqui nós chamamos o evento exato que criamos no MapaFullscreen no Passo 1
+                Livewire.dispatch('abrirOpcoesRuralLocalidade', { id: clickedRuralLocalidade.get('id') });
+                return;
+            }
+
         } else {
             if (featureEmEdicao) window.cancelarEdicaoGeometria();
         }
@@ -953,6 +1051,14 @@ document.addEventListener('DOMContentLoaded', function () {
             currentSnapInteraction = new ol.interaction.Snap({
                 source: loadedLayers['setores_fiscais'].getSource(),
                 pixelTolerance: 15 // Ímã um pouco mais forte para grandes escalas
+            });
+            map.addInteraction(currentSnapInteraction);
+        }
+
+        if (entityType === 'rural_localidade' && loadedLayers['rural-localidades']) {
+            currentSnapInteraction = new ol.interaction.Snap({
+                source: loadedLayers['rural-localidades'].getSource(),
+                pixelTolerance: 15
             });
             map.addInteraction(currentSnapInteraction);
         }
@@ -1200,6 +1306,63 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    window.addEventListener('iniciar-edicao-geometria-rural_localidade', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['rural-localidades']) return;
+
+        const source = loadedLayers['rural-localidades'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 7,
+                        fill: new ol.style.Fill({ color: '#57534e' }), // Cor Stone-600 para manter o padrão
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                    })
+                })
+            });
+
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+
+            // Dispara a barra flutuante animada lá em cima
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
+    window.addEventListener('iniciar-edicao-geometria-rural_propriedade', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['rural-propriedades']) return;
+
+        const source = loadedLayers['rural-propriedades'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 7,
+                        fill: new ol.style.Fill({ color: '#57534e' }), // Stone-600
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                    })
+                })
+            });
+
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
     window.salvarEdicaoGeometria = function () {
         if (featureEmEdicao) {
             const geoJson = formatGeoJSON.writeGeometryObject(featureEmEdicao.getGeometry());
@@ -1230,6 +1393,10 @@ document.addEventListener('DOMContentLoaded', function () {
             else if (layerName === 'jazigos') Livewire.dispatch('salvarNovaGeometriaJazigo', { id: id, geoJson: geoJson });
 
             else if (layerName === 'setores_fiscais') Livewire.dispatch('salvarNovaGeometriaSetorFiscal', { id: id, geoJson: geoJson });
+
+            else if (layerName === 'rural-localidades') Livewire.dispatch('salvarNovaGeometriaRuralLocalidade', { id: id, geoJson: geoJson });
+
+            else if (layerName === 'rural-propriedades') Livewire.dispatch('salvarNovaGeometriaRuralPropriedade', { id: id, geoJson: geoJson });
 
             encerrarModoEdicao();
         }
@@ -1498,7 +1665,9 @@ document.addEventListener('DOMContentLoaded', function () {
         { layer: 'quadras_cemiterio', singular: 'quadra_cemiterio' },
         { layer: 'logradouros_cemiterio', singular: 'logradouro_cemiterio' },
         { layer: 'jazigos', singular: 'jazigo' },
-        { layer: 'setores_fiscais', singular: 'setor_fiscal' }
+        { layer: 'setores_fiscais', singular: 'setor_fiscal' },
+        { layer: 'rural-localidades', singular: 'rural_localidade' },
+        { layer: 'rural-propriedades', singular: 'rural_propriedade' },
     ];
 
     entidadesSurgical.forEach(entidade => {
@@ -1602,6 +1771,8 @@ document.addEventListener('DOMContentLoaded', function () {
             'logradouros_cemiterio': { label: 'da nova Rua Interna', func: 'logradouro_cemiterio' },
             'jazigos': { label: 'do novo Jazigo', func: 'jazigo' },
             'setores_fiscais': { label: 'do novo Setor Fiscal', func: 'setor_fiscal' },
+            'rural-localidades': { label: 'da nova Localidade Rural', func: 'rural_localidade' },
+            'rural-propriedades': { label: 'da nova Propriedade Rural', func: 'rural_propriedade' },
         };
 
         if (drawableEntities[layerParams]) {
@@ -1635,6 +1806,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const focusLon = urlParams.get('focus_lon');
     const targetLayer = urlParams.get('layer');
 
+    const focusZoom = urlParams.get('zoom') ? parseInt(urlParams.get('zoom')) : 20;
+
     if (focusLat && focusLon) {
         // 1. Liga a camada no menu lateral automaticamente se ela existir
         if (targetLayer) {
@@ -1658,7 +1831,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const coords = ol.proj.fromLonLat([parseFloat(focusLon), parseFloat(focusLat)]);
             view.animate({
                 center: coords,
-                zoom: 20, // Zoom bem fechado para ver a rua e o poste de perto
+                zoom: focusZoom, // Zoom bem fechado para ver a rua e o poste de perto
                 duration: 2500 // 2.5 segundos de animação suave
             });
         }, 800); // Um delay de 800ms para dar tempo do mapa renderizar o DOM e carregar os blocos

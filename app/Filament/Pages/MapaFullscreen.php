@@ -11,6 +11,14 @@ use App\Filament\Pages\Traits\HasCemiterioActions;
 use App\Filament\Pages\Traits\HasQuadraCemiterioActions;
 use App\Filament\Pages\Traits\HasLogradouroCemiterioActions;
 use App\Filament\Pages\Traits\HasJazigoActions;
+use \App\Filament\Pages\Traits\HasSetorFiscalActions;
+use App\Filament\Pages\Traits\HasRuralLocalidadeActions;
+use App\Filament\Pages\Traits\HasRuralPropriedadeActions;
+use App\Filament\Pages\Traits\HasRuralEstradaActions;
+use App\Filament\Pages\Traits\HasRuralHidrografiaActions;
+use App\Filament\Pages\Traits\HasRuralPonteActions;
+use App\Filament\Pages\Traits\HasRuralPontoInteresseActions;
+
 use App\Models\Lote;
 use App\Models\Edificacao;
 use App\Models\Zona;
@@ -26,7 +34,7 @@ use Filament\Facades\Filament;
 use Livewire\Attributes\On;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
-use \App\Filament\Pages\Traits\HasSetorFiscalActions;
+
 
 class MapaFullscreen extends Page
 {
@@ -41,6 +49,12 @@ class MapaFullscreen extends Page
     use HasLogradouroCemiterioActions;
     use HasJazigoActions;
     use HasSetorFiscalActions;
+    use HasRuralLocalidadeActions;
+    use HasRuralPropriedadeActions;
+    use HasRuralEstradaActions;
+    use HasRuralHidrografiaActions;
+    use HasRuralPonteActions;
+    use HasRuralPontoInteresseActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';
@@ -101,6 +115,9 @@ class MapaFullscreen extends Page
     public ?int $setorFiscalAtivoId = null;
     public bool $previewPgvAtivo = false;
     public array $resultadosPgv = [];
+
+    //Rural
+    public ?int $ruralLocalidadePreSelecionadaId = null;
 
     public function mount()
     {
@@ -290,6 +307,34 @@ class MapaFullscreen extends Page
             }
 
             $this->mountAction('criarSetorFiscal');
+        } elseif ($entityType === 'rural_localidade') {
+            // 🛑 Aqui o PHP recebe o desenho do JS e abre a modal da Trait
+            $this->mountAction('criarRuralLocalidadeAction');
+
+        } elseif ($entityType === 'rural_propriedade') {
+            
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+
+            // 🛑 REGRA 1: Tenta achar uma localidade que cubra 100% da propriedade desenhada (com 1m² de tolerância de borda)
+            $localidade = \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Area(ST_Difference($polyWKT, geo::geometry)::geography) <= 1.0")
+                ->first();
+
+            if (!$localidade) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Limites Vazados!')
+                    ->body('A Propriedade Rural deve ser desenhada inteiramente DENTRO de uma Localidade existente, sem vazar para fora.')
+                    ->danger()
+                    ->send();
+
+                $this->dispatch('limpar-rascunho-mapa');
+                return; // Aborta e nem abre a modal!
+            }
+
+            // O PostGIS achou a localidade! Guardamos o ID para injetar no Select da modal.
+            $this->ruralLocalidadePreSelecionadaId = $localidade->id;
+
+            $this->mountAction('criarRuralPropriedade');
         }
     }
 
@@ -1310,5 +1355,62 @@ class MapaFullscreen extends Page
 
         Notification::make()->title('PGV Homologada!')->body('Os valores foram gravados no histórico financeiro com sucesso.')->success()->send();
         $this->cancelarPgvAction();
+    }
+
+    /* MÓDULO RURAL */
+    #[On('abrirOpcoesRuralLocalidade')]
+    public function abrirOpcoesRuralLocalidade($id)
+    {
+        $this->ruralLocalidadeAtivaId = $id;
+        $this->mountAction('opcoesRuralLocalidade');
+    }
+
+    #[On('salvarNovaGeometriaRuralLocalidade')] // Crie este novo Listener
+    public function salvarNovaGeometriaRuralLocalidade($id, $geoJson)
+    {
+        $reg = \App\Models\RuralLocalidade::find($id);
+        if ($reg) {
+            $reg->update(['geo' => $geoJson]);
+            DB::statement("UPDATE rural_localidades SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]);
+            Notification::make()->title('Geometria da Localidade Atualizada!')->success()->send();
+        }
+    }
+
+    #[On('abrirOpcoesRuralPropriedade')]
+    public function abrirOpcoesRuralPropriedade($id)
+    {
+        $this->ruralPropriedadeAtivaId = $id;
+        $this->mountAction('opcoesRuralPropriedade');
+    }
+
+    #[On('salvarNovaGeometriaRuralPropriedade')]
+    public function salvarNovaGeometriaRuralPropriedade($id, $geoJson)
+    {
+        $reg = \App\Models\RuralPropriedade::find($id);
+        if ($reg) {
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            
+            // 🛑 REGRA 3: Verifica se o polígono arrastado continua dentro da sua localidade base
+            $validacao = DB::selectOne("
+                SELECT ST_Area(ST_Difference(
+                    $polyWKT,
+                    (SELECT geo::geometry FROM rural_localidades WHERE id = ?)
+                )::geography) as area_fora
+            ", [$reg->rural_localidade_id]);
+
+            if ($validacao && $validacao->area_fora > 1.0) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Erro Topológico')
+                    ->body('Você não pode mover esta propriedade para fora dos limites da sua Localidade / Distrito atual.')
+                    ->danger()->send();
+                
+                $this->dispatch('desfazer-edicao-geometria');
+                return;
+            }
+
+            $reg->update(['geo' => $geoJson]);
+            DB::statement("UPDATE rural_propriedades SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]);
+            \Filament\Notifications\Notification::make()->title('Geometria da Propriedade Atualizada!')->success()->send();
+        }
     }
 }

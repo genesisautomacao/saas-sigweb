@@ -142,6 +142,7 @@
                                     <x-heroicon-o-currency-dollar class="w-4 h-4 text-amber-500" /> Setor Fiscal (Polígono)
                                 </button>
 
+                                {{-- Cemitério --}}
                                 <button onclick="enableDrawing('cemiterio')" @click="openDraw = false"
                                     class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2 border-t border-gray-200">
                                     <x-heroicon-o-stop class="w-4 h-4 text-purple-600" /> Cemitério (Polígono)
@@ -162,6 +163,36 @@
                                     <x-heroicon-o-archive-box class="w-4 h-4 text-stone-600" /> Jazigo / Túmulo
                                 </button>
 
+                                {{-- Rural --}}
+                                <button onclick="enableDrawing('rural_localidade')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2 border-t border-gray-200">
+                                    <x-heroicon-o-map class="w-4 h-4 text-stone-600" /> Localidade / Distrito
+                                </button>
+                                
+                                <button onclick="enableDrawing('rural_propriedade')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <x-heroicon-o-home-modern class="w-4 h-4 text-stone-600" /> Propriedade (CAR)
+                                </button>
+
+                                <button onclick="enableDrawing('rural_estrada')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <x-heroicon-o-lifebuoy class="w-4 h-4 text-stone-600" /> Estrada / Vicinal
+                                </button>
+
+                                <button onclick="enableDrawing('rural_hidrografia')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <x-heroicon-o-flag class="w-4 h-4 text-stone-600" /> Hidrografia
+                                </button>
+
+                                <button onclick="enableDrawing('rural_ponte')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <x-heroicon-o-bars-2 class="w-4 h-4 text-stone-600" /> Ponte
+                                </button>
+
+                                <button onclick="enableDrawing('rural_ponto_interesse')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <x-heroicon-o-star class="w-4 h-4 text-stone-600" /> Ponto de Interesse
+                                </button>
 
                             </div>
                         </div>
@@ -585,6 +616,75 @@
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-3 bg-stone-600 rounded-sm opacity-70 flex-shrink-0"></div>
                                 <span class="layer-text truncate">Jazigos / Túmulos</span>
+                            </span>
+                        </label>
+
+                    </div>
+                </div>
+
+                {{-- GRUPO 7: ZONA RURAL --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'rural' ? '' : 'rural'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                        <span class="flex items-center gap-2">Cadastro Rural</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'rural' ? 'rotate-180' : ''" />
+                    </button>
+
+                    <div x-show="activeTab === 'rural'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
+
+                        <label class="flex items-center space-x-3 cursor-pointer w-full">
+                            <input type="checkbox" data-layer="rural-localidades"
+                                class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-stone-600 rounded-sm opacity-70 flex-shrink-0"></div>
+                                <span class="layer-text truncate">Localidades e Distritos</span>
+                            </span>
+                        </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer w-full">
+                            <input type="checkbox" data-layer="rural-propriedades"
+                                class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-stone-600 rounded-sm opacity-70 flex-shrink-0"></div>
+                                <span class="layer-text truncate">Propriedades (INCRA/CAR)</span>
+                            </span>
+                        </label>
+
+                         <label class="flex items-center space-x-3 cursor-pointer w-full">
+                            <input type="checkbox" data-layer="rural-estradas"
+                                class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-stone-600 rounded-sm opacity-70 flex-shrink-0"></div>
+                                <span class="layer-text truncate">Estradas e Vicinais</span>
+                            </span>
+                        </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer w-full">
+                            <input type="checkbox" data-layer="rural-hidrografias"
+                                class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-stone-600 rounded-sm opacity-70 flex-shrink-0"></div>
+                                <span class="layer-text truncate">Rios, Lagos e Nascentes</span>
+                            </span>
+                        </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer w-full">
+                            <input type="checkbox" data-layer="rural-pontes"
+                                class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-stone-600 rounded-sm opacity-70 flex-shrink-0"></div>
+                                <span class="layer-text truncate">Pontes Rurais</span>
+                            </span>
+                        </label>
+
+                         <label class="flex items-center space-x-3 cursor-pointer w-full">
+                            <input type="checkbox" data-layer="rural-pontos-interesse"
+                                class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-stone-600 rounded-sm opacity-70 flex-shrink-0"></div>
+                                <span class="layer-text truncate">Pontos de Interesse</span>
                             </span>
                         </label>
 

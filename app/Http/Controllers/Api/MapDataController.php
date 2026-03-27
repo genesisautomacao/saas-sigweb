@@ -15,6 +15,13 @@ use App\Models\UnidadeImobiliaria;
 use App\Models\Poste;
 use App\Models\Arvore;
 use App\Models\Cemiterio;
+use App\Models\RuralLocalidade;
+use App\Models\RuralPropriedade;
+use App\Models\RuralEstrada;
+use App\Models\RuralHidrografia;
+use App\Models\RuralPonte;
+use App\Models\RuralPontoInteresse;
+
 
 class MapDataController extends Controller
 {
@@ -45,6 +52,7 @@ class MapDataController extends Controller
                             'phytosanitary_condition' => $item->phytosanitary_condition ?? null,
                             'size' => $item->size ?? null,
                             'tem_chamado' => (bool) ($item->tem_chamado ?? false),
+                            'name' => $item->nome ?? $item->nome_propriedade ?? $item->nome_referencia ?? $item->name ?? 'S/N',
                         ],
                         'geometry' => $item->geo_json
                     ];
@@ -180,6 +188,44 @@ class MapDataController extends Controller
                     ->select('id', 'nome as name', 'geo') // REMOVIDO O 'code' DAQUI!
                     ->get();
                 $data = $buildFeatureCollection($setores, 'setores_fiscais');
+                break;
+
+            case 'rural-localidades':
+                $itens = RuralLocalidade::where('tenant_id', $tenantId)->get();
+                $data = $buildFeatureCollection($itens, 'rural-localidades');
+                break;
+
+            case 'rural-propriedades':
+                $itens = RuralPropriedade::where('tenant_id', $tenantId)->get();
+                $data = $buildFeatureCollection($itens, 'rural-propriedades');
+                break;
+
+            case 'rural-estradas':
+                $itens = RuralEstrada::where('tenant_id', $tenantId)->get();
+                $data = $buildFeatureCollection($itens, 'rural-estradas');
+                break;
+
+            case 'rural-hidrografias':
+                $itens = RuralHidrografia::where('tenant_id', $tenantId)->get();
+                $data = $buildFeatureCollection($itens, 'rural-hidrografias');
+                break;
+
+            case 'rural-pontes':
+                $itens = RuralPonte::where('tenant_id', $tenantId)->get();
+                $data = $buildFeatureCollection($itens, 'rural-pontes');
+                break;
+
+            case 'rural-pontos-interesse':
+                $itens = RuralPontoInteresse::where('tenant_id', $tenantId)->get();
+                $data = $buildFeatureCollection($itens, 'rural-pontos-interesse');
+                break;
+
+            case 'rural-propriedades':
+                $itens = RuralPropriedade::where('tenant_id', $tenantId)
+                    // Selecionamos apenas as colunas necessárias e apelidamos o nome para o padrão do JS
+                    ->select('id', 'nome_propriedade as name', 'code', 'geo')
+                    ->get();
+                $data = $buildFeatureCollection($itens, 'rural-propriedades');
                 break;
 
             default:
