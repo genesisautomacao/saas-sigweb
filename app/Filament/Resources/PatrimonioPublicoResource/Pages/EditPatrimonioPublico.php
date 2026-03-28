@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Filament\Resources\BairroResource\Pages;
+namespace App\Filament\Resources\PatrimonioPublicoResource\Pages;
 
-use App\Filament\Resources\BairroResource;
+use App\Filament\Resources\PatrimonioPublicoResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
-class EditBairro extends EditRecord
+class EditPatrimonioPublico extends EditRecord
 {
-    protected static string $resource = BairroResource::class;
+    protected static string $resource = PatrimonioPublicoResource::class;
 
     protected function getHeaderActions(): array
     {
@@ -31,7 +31,7 @@ class EditBairro extends EditRecord
             try {
                 $data['geo'] = json_decode($data['geo_json_input'], true);
             } catch (\Exception $e) {
-                // Se for inválido, ignora a alteração geográfica
+                // Se o JSON for inválido, ignora a alteração geográfica
             }
         }
         

@@ -145,7 +145,7 @@ class PermissionsSeeder extends Seeder
 
             /* Faltou o módulo de PGV */
 
-            /* FAltou o Módulo de Processos BPMN */
+            /* Faltou o Módulo de Processos BPMN */
 
             /* Módulo de Cadastro Rural */
             'view_rural_localidades',
@@ -172,6 +172,10 @@ class PermissionsSeeder extends Seeder
             'create_rural_pontos_interesse',
             'edit_rural_pontos_interesse',
             'delete_rural_pontos_interesse',
+
+            /* Módulo de Patrimônios Públicos */
+            'view_tipo_patrimonios', 'create_tipo_patrimonios', 'edit_tipo_patrimonios', 'delete_tipo_patrimonios',
+            'view_patrimonio_publicos', 'create_patrimonio_publicos', 'edit_patrimonio_publicos', 'delete_patrimonio_publicos',
         ];
 
         foreach ($permissions as $permission) {

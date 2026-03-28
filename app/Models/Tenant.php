@@ -316,4 +316,15 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(RuralPontoInteresse::class);
     }
 
+    // Módulo de Patrimônios Públicos
+    public function tipoPatrimonios(): HasMany
+    {
+        return $this->hasMany(TipoPatrimonio::class);
+    }
+
+    public function patrimonioPublicos(): HasMany
+    {
+        return $this->hasMany(PatrimonioPublico::class);
+    }
+
 }

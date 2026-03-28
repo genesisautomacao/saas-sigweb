@@ -182,7 +182,7 @@ class RoleResource extends Resource
                                         'delete_movimentacoes' => 'Excluir Movimentações',
                                     ])
                                     ->bulkToggleable()
-                                    ->columns(2),
+                                    ->columns(4),
                             ])->columns(1)->columnSpanFull(),
 
                         // CAIXA 10: MANUTENÇÃO E SERVIÇOS
@@ -244,27 +244,27 @@ class RoleResource extends Resource
                                         'create_lotes' => 'Criar Lotes',
                                         'edit_lotes' => 'Editar Lotes',
                                         'delete_lotes' => 'Excluir Lotes',
-                                        
+
                                         'view_logradouros' => 'Vis. Ruas',
                                         'create_logradouros' => 'Criar Ruas',
                                         'edit_logradouros' => 'Editar Ruas',
                                         'delete_logradouros' => 'Excluir Ruas',
-                                        
+
                                         'view_bairros' => 'Vis. Bairros',
                                         'create_bairros' => 'Criar Bairros',
                                         'edit_bairros' => 'Editar Bairros',
                                         'delete_bairros' => 'Excluir Bairros',
-                                        
+
                                         'view_loteamentos' => 'Vis. Loteamentos',
                                         'create_loteamentos' => 'Criar Loteam.',
                                         'edit_loteamentos' => 'Editar Loteam.',
                                         'delete_loteamentos' => 'Excluir Loteam.',
-                                        
+
                                         'view_quadras' => 'Vis. Quadras',
                                         'create_quadras' => 'Criar Quadras',
                                         'edit_quadras' => 'Editar Quadras',
                                         'delete_quadras' => 'Excluir Quadras',
-                                        
+
                                         'view_zonas' => 'Vis. Zonas',
                                         'create_zonas' => 'Criar Zonas',
                                         'edit_zonas' => 'Editar Zonas',
@@ -326,6 +326,26 @@ class RoleResource extends Resource
                                     ])
                                     ->bulkToggleable()
                                     ->columns(4),
+                            ])->columns(1)->columnSpanFull(),
+
+                        //CAIXA 15: PATRIMÔNIOS PÚBLICOS
+                        Forms\Components\Fieldset::make('Módulo de Patrimônios Públicos')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_patrimonio')
+                                    ->label('Administração Patrimônios Públicos')
+                                    ->options([
+                                        'view_tipo_patrimonios' => 'Ver Tipos de Patrimônio',
+                                        'create_tipo_patrimonios' => 'Criar Tipos de Patrimônio',
+                                        'edit_tipo_patrimonios' => 'Editar Tipos de Patrimônio',
+                                        'delete_tipo_patrimonios' => 'Excluir Tipos de Patrimônio',
+
+                                        'view_patrimonio_publicos' => 'Ver Patrimônios Públicos',
+                                        'create_patrimonio_publicos' => 'Criar Patrimônios Públicos',
+                                        'edit_patrimonio_publicos' => 'Editar Patrimônios Públicos',
+                                        'delete_patrimonio_publicos' => 'Excluir Patrimônios Públicos',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(2),
                             ])->columns(1)->columnSpanFull(),
 
                     ])->columns(4),

@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Filament\Resources\LoteamentoResource\Pages;
+namespace App\Filament\Resources\PatrimonioPublicoResource\Pages;
 
-use App\Filament\Resources\LoteamentoResource;
+use App\Filament\Resources\PatrimonioPublicoResource;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Str;
 
-class CreateLoteamento extends CreateRecord
+class CreatePatrimonioPublico extends CreateRecord
 {
-    protected static string $resource = LoteamentoResource::class;
+    protected static string $resource = PatrimonioPublicoResource::class;
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {

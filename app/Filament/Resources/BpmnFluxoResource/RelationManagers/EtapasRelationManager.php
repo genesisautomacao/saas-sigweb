@@ -35,7 +35,7 @@ class EtapasRelationManager extends RelationManager
                                     ->default('#f59e0b'), // Default Amber/Amarelo
                                     
                                 Forms\Components\TextInput::make('tempo_medio_minutos')
-                                    ->label('SLA / Tempo Médio (Minutos)')
+                                    ->label('SLA / Tempo Médio (dias)')
                                     ->numeric()
                                     ->default(0)
                                     ->helperText('Tempo previsto para conclusão desta fase.'),
@@ -114,7 +114,7 @@ class EtapasRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\ColorColumn::make('cor_mapa')->label('Cor'),
                 Tables\Columns\TextColumn::make('nome')->label('Etapa')->weight('bold'),
-                Tables\Columns\TextColumn::make('tempo_medio_minutos')->label('SLA (min)'),
+                Tables\Columns\TextColumn::make('tempo_medio_minutos')->label('SLA (dias)'),
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()
