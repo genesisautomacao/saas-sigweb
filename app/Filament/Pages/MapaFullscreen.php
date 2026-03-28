@@ -19,6 +19,8 @@ use App\Filament\Pages\Traits\HasRuralHidrografiaActions;
 use App\Filament\Pages\Traits\HasRuralPonteActions;
 use App\Filament\Pages\Traits\HasRuralPontoInteresseActions;
 
+
+
 use App\Models\Lote;
 use App\Models\Edificacao;
 use App\Models\Zona;
@@ -53,6 +55,9 @@ class MapaFullscreen extends Page
     use HasRuralPropriedadeActions;
     use HasRuralEstradaActions;
     use HasRuralHidrografiaActions;
+    use HasRuralPonteActions;
+    use HasRuralPontoInteresseActions;
+    use HasRuralEstradaActions;
     use HasRuralPonteActions;
     use HasRuralPontoInteresseActions;
 
@@ -310,9 +315,8 @@ class MapaFullscreen extends Page
         } elseif ($entityType === 'rural_localidade') {
             // 🛑 Aqui o PHP recebe o desenho do JS e abre a modal da Trait
             $this->mountAction('criarRuralLocalidadeAction');
-
         } elseif ($entityType === 'rural_propriedade') {
-            
+
             $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
 
             // 🛑 REGRA 1: Tenta achar uma localidade que cubra 100% da propriedade desenhada (com 1m² de tolerância de borda)
@@ -335,6 +339,109 @@ class MapaFullscreen extends Page
             $this->ruralLocalidadePreSelecionadaId = $localidade->id;
 
             $this->mountAction('criarRuralPropriedade');
+        } elseif ($entityType === 'rural_estrada') {
+
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+
+            // 🛑 REGRA INTELIGENTE: Pega a localidade onde o primeiro ponto da estrada tocou
+            $localidade = \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Intersects(geo, ST_StartPoint($polyWKT))")
+                ->first();
+
+            // Se o usuário começou a desenhar de fora pra dentro, procura qualquer localidade que a linha corte
+            if (!$localidade) {
+                $localidade = \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)
+                    ->whereRaw("ST_Intersects(geo, $polyWKT)")
+                    ->first();
+            }
+
+            if (!$localidade) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Estrada Desconectada!')
+                    ->body('Uma estrada precisa passar ou fazer fronteira com pelo menos uma Localidade rural cadastrada.')
+                    ->danger()
+                    ->send();
+
+                $this->dispatch('limpar-rascunho-mapa');
+                return;
+            }
+
+            $this->ruralLocalidadePreSelecionadaId = $localidade->id;
+            $this->mountAction('criarRuralEstrada');
+        } elseif (str_starts_with($entityType, 'rural_hidro_')) {
+
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+
+            // Intersecta com qualquer localidade (rios e lagos cruzam fronteiras)
+            $localidade = \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Intersects(geo, $polyWKT)")
+                ->first();
+
+            if (!$localidade) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Fora de Localidade!')
+                    ->body('A hidrografia deve estar contida ou cruzar uma Localidade rural cadastrada no sistema.')
+                    ->danger()
+                    ->send();
+
+                $this->dispatch('limpar-rascunho-mapa');
+                return;
+            }
+
+            $this->ruralLocalidadePreSelecionadaId = $localidade->id;
+            $this->mountAction('criarRuralHidrografia'); // Cai sempre na mesma Action!
+
+        } elseif ($entityType === 'rural_ponte') {
+
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+
+            // REGRA 1: Verifica em qual Localidade o ponto caiu
+            $localidade = \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Intersects(geo, $polyWKT)")
+                ->first();
+
+            if (!$localidade) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Fora de Localidade!')
+                    ->body('A ponte deve ser registrada dentro dos limites de uma Localidade rural cadastrada.')
+                    ->danger()
+                    ->send();
+
+                $this->dispatch('limpar-rascunho-mapa');
+                return;
+            }
+
+            // MÁGICA 2: Procura se o clique do mouse ocorreu num raio de 20 metros de alguma Estrada!
+            $estrada = \App\Models\RuralEstrada::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_DWithin(geo::geography, $polyWKT::geography, 20)")
+                ->first();
+
+            $this->ruralLocalidadePreSelecionadaId = $localidade->id;
+            $this->ruralEstradaPreSelecionadaId = $estrada ? $estrada->id : null;
+
+            $this->mountAction('criarRuralPonte');
+
+        } elseif ($entityType === 'rural_ponto_interesse') {
+            
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+
+            $localidade = \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Intersects(geo, $polyWKT)")
+                ->first();
+
+            if (!$localidade) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Fora de Localidade!')
+                    ->body('Um Ponto de Interesse deve estar inserido dentro dos limites de uma Localidade / Distrito rural.')
+                    ->danger()
+                    ->send();
+
+                $this->dispatch('limpar-rascunho-mapa');
+                return; 
+            }
+
+            $this->ruralLocalidadePreSelecionadaId = $localidade->id;
+            $this->mountAction('criarRuralPontoInteresse');
         }
     }
 
@@ -1389,7 +1496,7 @@ class MapaFullscreen extends Page
         $reg = \App\Models\RuralPropriedade::find($id);
         if ($reg) {
             $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
-            
+
             // 🛑 REGRA 3: Verifica se o polígono arrastado continua dentro da sua localidade base
             $validacao = DB::selectOne("
                 SELECT ST_Area(ST_Difference(
@@ -1403,7 +1510,7 @@ class MapaFullscreen extends Page
                     ->title('Erro Topológico')
                     ->body('Você não pode mover esta propriedade para fora dos limites da sua Localidade / Distrito atual.')
                     ->danger()->send();
-                
+
                 $this->dispatch('desfazer-edicao-geometria');
                 return;
             }
@@ -1411,6 +1518,76 @@ class MapaFullscreen extends Page
             $reg->update(['geo' => $geoJson]);
             DB::statement("UPDATE rural_propriedades SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]);
             \Filament\Notifications\Notification::make()->title('Geometria da Propriedade Atualizada!')->success()->send();
+        }
+    }
+
+    #[On('abrirOpcoesRuralEstrada')]
+    public function abrirOpcoesRuralEstrada($id)
+    {
+        $this->ruralEstradaAtivaId = $id;
+        $this->mountAction('opcoesRuralEstrada');
+    }
+
+    #[On('salvarNovaGeometriaRuralEstrada')]
+    public function salvarNovaGeometriaRuralEstrada($id, $geoJson)
+    {
+        $reg = \App\Models\RuralEstrada::find($id);
+        if ($reg) {
+            $reg->update(['geo' => $geoJson]);
+            // O recalculo mágico de distância em metros sempre que a linha for puxada para o lado
+            DB::statement("UPDATE rural_estradas SET extensao_geo = ST_Length(geo::geography) WHERE id = ?", [$reg->id]);
+            Notification::make()->title('Traçado da Estrada Atualizado!')->success()->send();
+        }
+    }
+
+    #[On('abrirOpcoesRuralHidrografia')]
+    public function abrirOpcoesRuralHidrografia($id)
+    {
+        $this->ruralHidrografiaAtivaId = $id;
+        $this->mountAction('opcoesRuralHidrografia');
+    }
+
+    #[On('salvarNovaGeometriaRuralHidrografia')]
+    public function salvarNovaGeometriaRuralHidrografia($id, $geoJson)
+    {
+        $reg = \App\Models\RuralHidrografia::find($id);
+        if ($reg) {
+            $reg->update(['geo' => $geoJson]);
+            Notification::make()->title('Geometria da Hidrografia Atualizada!')->success()->send();
+        }
+    }
+
+    #[On('abrirOpcoesRuralPonte')]
+    public function abrirOpcoesRuralPonte($id)
+    {
+        $this->ruralPonteAtivaId = $id;
+        $this->mountAction('opcoesRuralPonte');
+    }
+
+    #[On('salvarNovaGeometriaRuralPonte')]
+    public function salvarNovaGeometriaRuralPonte($id, $geoJson)
+    {
+        $reg = \App\Models\RuralPonte::find($id);
+        if ($reg) {
+            $reg->update(['geo' => $geoJson]);
+            Notification::make()->title('Posição da Ponte Atualizada!')->success()->send();
+        }
+    }
+
+    #[On('abrirOpcoesRuralPontoInteresse')]
+    public function abrirOpcoesRuralPontoInteresse($id)
+    {
+        $this->ruralPontoInteresseAtivaId = $id;
+        $this->mountAction('opcoesRuralPontoInteresse');
+    }
+
+    #[On('salvarNovaGeometriaRuralPontoInteresse')]
+    public function salvarNovaGeometriaRuralPontoInteresse($id, $geoJson)
+    {
+        $reg = \App\Models\RuralPontoInteresse::find($id);
+        if ($reg) {
+            $reg->update(['geo' => $geoJson]);
+            Notification::make()->title('Localização do Ponto Atualizada!')->success()->send();
         }
     }
 }

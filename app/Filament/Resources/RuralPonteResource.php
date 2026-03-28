@@ -108,7 +108,7 @@ class RuralPonteResource extends Resource
                         if ($record->geo_json && $record->geo_json->type === 'Point') {
                             $coords = $record->geo_json->coordinates;
                             if (isset($coords[0]) && isset($coords[1])) {
-                                return url('/app/' . $tenant->slug . '/mapa-interativo?layer=rural_pontes&focus_lat=' . $coords[1] . '&focus_lon=' . $coords[0]);
+                                return url('/app/' . $tenant->slug . '/mapa-interativo?layer=rural-pontes&focus_lat=' . $coords[1] . '&focus_lon=' . $coords[0]);
                             }
                         }
                         return null;

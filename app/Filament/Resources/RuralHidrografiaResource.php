@@ -99,7 +99,7 @@ class RuralHidrografiaResource extends Resource
                             }
 
                             if (isset($coords[0]) && isset($coords[1])) {
-                                return url('/app/' . $tenant->slug . '/mapa-interativo?layer=rural_hidrografias&focus_lat=' . $coords[1] . '&focus_lon=' . $coords[0]);
+                                return url('/app/' . $tenant->slug . '/mapa-interativo?layer=rural-hidrografias&focus_lat=' . $coords[1] . '&focus_lon=' . $coords[0]);
                             }
                         }
                         return null;

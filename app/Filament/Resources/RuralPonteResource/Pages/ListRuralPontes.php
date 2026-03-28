@@ -59,7 +59,7 @@ class ListRuralPontes extends ListRecords
                 ->action(function (array $data) {
                     if ($data['metodo'] === 'mapa') {
                         $tenant = \Filament\Facades\Filament::getTenant();
-                        $mapUrl = url('/app/' . $tenant->slug . '/mapa-interativo?layer=rural_pontes&action=create');
+                        $mapUrl = url('/app/' . $tenant->slug . '/mapa-interativo?layer=rural-pontes&action=create');
                         return redirect()->to($mapUrl);
                     } else {
                         return redirect()->to(RuralPonteResource::getUrl('create'));

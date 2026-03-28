@@ -59,7 +59,7 @@ class ListRuralPontoInteresses extends ListRecords
                 ->action(function (array $data) {
                     if ($data['metodo'] === 'mapa') {
                         $tenant = \Filament\Facades\Filament::getTenant();
-                        $mapUrl = url('/app/' . $tenant->slug . '/mapa-interativo?layer=rural_pontos_interesse&action=create');
+                        $mapUrl = url('/app/' . $tenant->slug . '/mapa-interativo?layer=rural-pontos-interesse&action=create');
                         return redirect()->to($mapUrl);
                     } else {
                         return redirect()->to(RuralPontoInteresseResource::getUrl('create'));

@@ -179,9 +179,14 @@
                                     <x-heroicon-o-lifebuoy class="w-4 h-4 text-stone-600" /> Estrada / Vicinal
                                 </button>
 
-                                <button onclick="enableDrawing('rural_hidrografia')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-flag class="w-4 h-4 text-stone-600" /> Hidrografia
+                                <button onclick="enableDrawing('rural_hidro_linha')" @click="openDraw = false" class="px-4 py-2 text-sm text-left text-gray-700 hover:bg-primary-50 flex items-center gap-2">
+                                    <x-heroicon-o-minus class="w-4 h-4 text-blue-500" /> Rio / Córrego (Linha)
+                                </button>
+                                <button onclick="enableDrawing('rural_hidro_poligono')" @click="openDraw = false" class="px-4 py-2 text-sm text-left text-gray-700 hover:bg-primary-50 flex items-center gap-2">
+                                    <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Lago / Represa (Polígono)
+                                </button>
+                                <button onclick="enableDrawing('rural_hidro_ponto')" @click="openDraw = false" class="px-4 py-2 text-sm text-left text-gray-700 hover:bg-primary-50 flex items-center gap-2">
+                                    <x-heroicon-o-sparkles class="w-4 h-4 text-blue-500" /> Nascente (Ponto)
                                 </button>
 
                                 <button onclick="enableDrawing('rural_ponte')" @click="openDraw = false"

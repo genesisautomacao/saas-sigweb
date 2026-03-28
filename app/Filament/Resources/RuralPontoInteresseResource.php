@@ -80,15 +80,15 @@ class RuralPontoInteresseResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('categoria')
                     ->options([
-                        'Educação' => 'Educação',
-                        'Religião' => 'Religião',
-                        'Saúde' => 'Saúde',
-                        'Segurança' => 'Segurança',
-                        'Lazer e Cultura' => 'Lazer e Cultura',
-                        'Associação' => 'Associação',
-                        'Outros' => 'Outros',
+                        'Escola' => 'Escola / Educação',
+                        'Saúde' => 'Posto de Saúde',
+                        'Igreja' => 'Igreja / Templo',
+                        'Turismo' => 'Ponto Turístico / Lazer',
+                        'Comércio' => 'Comércio Local',
+                        'Outro' => 'Outro'
                     ]),
             ])
+           
             ->actions([
                 Tables\Actions\Action::make('ver_no_mapa')
                     ->label('Mapa')
@@ -99,7 +99,7 @@ class RuralPontoInteresseResource extends Resource
                         if ($record->geo_json && $record->geo_json->type === 'Point') {
                             $coords = $record->geo_json->coordinates;
                             if (isset($coords[0]) && isset($coords[1])) {
-                                return url('/app/' . $tenant->slug . '/mapa-interativo?layer=rural_pontos_interesse&focus_lat=' . $coords[1] . '&focus_lon=' . $coords[0]);
+                                return url('/app/' . $tenant->slug . '/mapa-interativo?layer=rural-pontos-interesse&focus_lat=' . $coords[1] . '&focus_lon=' . $coords[0]);
                             }
                         }
                         return null;

@@ -108,7 +108,7 @@ class RuralEstradaResource extends Resource
                                 : $record->geo_json->coordinates[0];
 
                             if (isset($coords[0]) && isset($coords[1])) {
-                                return url('/app/' . $tenant->slug . '/mapa-interativo?layer=rural_estradas&focus_lat=' . $coords[1] . '&focus_lon=' . $coords[0]);
+                                return url('/app/' . $tenant->slug . '/mapa-interativo?layer=rural-estradas&focus_lat=' . $coords[1] . '&focus_lon=' . $coords[0]);
                             }
                         }
                         return null;

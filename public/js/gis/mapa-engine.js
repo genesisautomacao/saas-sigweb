@@ -246,7 +246,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         },
 
-        // 🛑 CAMADA DAS QUADRAS DO CEMITÉRIO
         'quadras_cemiterio': {
             z: 26, // Z-index maior que o cemitério (25) para a quadra ficar por cima e ser clicável
             minZoom: 16,
@@ -363,13 +362,152 @@ document.addEventListener('DOMContentLoaded', function () {
                     fill: new ol.style.Fill({ color: 'rgba(245, 158, 11, 0.2)' }) // Fundo transparente
                 });
 
-                if (zoom >= 14) {
+                if (zoom >= 13) {
                     style.setText(new ol.style.Text({
                         text: feature.get('name') ? feature.get('name').toString() : '',
                         font: 'bold 12px Arial, sans-serif',
                         fill: new ol.style.Fill({ color: '#78350f' }),
                         stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
                         overflow: true
+                    }));
+                }
+                return style;
+            }
+        },
+
+        'rural-estradas': {
+            z: 17, // Acima das localidades, abaixo dos lotes
+            minZoom: 12,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const pavimento = feature.get('tipo_pavimento');
+
+                let strokeColor = '#78350f'; // Marrom (Terra)
+                let lineDash = [];
+
+                if (pavimento === 'Asfalto') strokeColor = '#374151'; // Cinza Escuro (Asfalto)
+                else if (pavimento === 'Cascalho') lineDash = [4, 4]; // Tracejado
+
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: strokeColor,
+                        width: 4,
+                        lineDash: lineDash
+                    })
+                });
+
+                if (zoom >= 14) {
+                    style.setText(new ol.style.Text({
+                        text: feature.get('name') ? feature.get('name').toString() : '',
+                        font: 'bold 12px Arial, sans-serif',
+                        fill: new ol.style.Fill({ color: strokeColor }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                        placement: 'line', // 🛑 MÁGICA: O texto faz a curva junto com a estrada!
+                        textBaseline: 'bottom',
+                        offsetY: -5
+                    }));
+                }
+                return style;
+            }
+        },
+
+        'rural-hidrografias': {
+            z: 17, // Abaixo das localidades e lotes, para a água ficar por baixo
+            minZoom: 12,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const geomType = feature.getGeometry().getType();
+                let style;
+
+                if (geomType === 'Point' || geomType === 'MultiPoint') {
+                    style = new ol.style.Style({ image: new ol.style.Circle({ radius: 6, fill: new ol.style.Fill({ color: '#0ea5e9' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) });
+                } else if (geomType === 'LineString' || geomType === 'MultiLineString') {
+                    style = new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#0ea5e9', width: 3 }) });
+                } else { // Polygon
+                    style = new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#0284c7', width: 2 }),
+                        fill: new ol.style.Fill({ color: 'rgba(14, 165, 233, 0.4)' })
+                    });
+                }
+
+                if (zoom >= 14 && feature.get('name')) {
+                    style.setText(new ol.style.Text({
+                        text: feature.get('name').toString(),
+                        font: 'bold 12px Arial, sans-serif',
+                        fill: new ol.style.Fill({ color: '#0c4a6e' }), // Azul muito escuro
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                        placement: (geomType === 'LineString' || geomType === 'MultiLineString') ? 'line' : 'point',
+                        offsetY: (geomType === 'Point' || geomType === 'MultiPoint') ? -15 : 0
+                    }));
+                }
+                return style;
+            }
+        },
+
+        'rural-pontes': {
+            z: 110, // Super alto para ficar por cima da água e da estrada
+            minZoom: 13,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const estado = feature.get('estado_conservacao');
+
+                // Muda a cor da borda se estiver interditada ou ruim!
+                let borderColor = '#f59e0b'; // Amber (Padrão)
+                if (estado === 'Ruim') borderColor = '#ef4444'; // Vermelho
+                else if (estado === 'Interditada') borderColor = '#000000'; // Preto
+
+                const style = new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 6,
+                        fill: new ol.style.Fill({ color: '#78350f' }), // Marrom Madeira Escuro
+                        stroke: new ol.style.Stroke({ color: borderColor, width: 2 })
+                    })
+                });
+
+                if (zoom >= 15) {
+                    style.setText(new ol.style.Text({
+                        text: feature.get('name') ? feature.get('name').toString() : 'Ponte',
+                        font: 'bold 12px Arial, sans-serif',
+                        fill: new ol.style.Fill({ color: '#451a03' }), // Marrom Quase Preto
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                        offsetY: -15
+                    }));
+                }
+                return style;
+            }
+        },
+
+        'rural-pontos-interesse': {
+            z: 120, // O mais alto de todos os pontos rurais
+            minZoom: 13,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const categoria = feature.get('categoria');
+
+                console.log(categoria)
+
+                let dotColor = '#14b8a6'; // Teal (Padrão/Outros)
+                if (categoria === 'Escola') dotColor = '#3b82f6'; // Azul
+                else if (categoria === 'Saúde') dotColor = '#ef4444'; // Vermelho
+                else if (categoria === 'Igreja') dotColor = '#a855f7'; // Roxo
+                else if (categoria === 'Turismo') dotColor = '#f59e0b'; // Laranja
+                else if (categoria === 'Comércio') dotColor = '#84cc16'; // Verde Lima
+
+                const style = new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 6,
+                        fill: new ol.style.Fill({ color: dotColor }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                    })
+                });
+
+                if (zoom >= 14) {
+                    style.setText(new ol.style.Text({
+                        text: feature.get('name') ? feature.get('name').toString() : 'PoI',
+                        font: 'bold 12px Arial, sans-serif',
+                        fill: new ol.style.Fill({ color: '#1c1917' }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                        offsetY: -15
                     }));
                 }
                 return style;
@@ -562,7 +700,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const feature = map.forEachFeatureAtPixel(e.pixel, feature => feature, { hitTolerance: 5 });
 
         // 2. Define quais camadas ganham a "mãozinha" (pointer) ao passar o mouse
-        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'quadras', 'postes', 'arvores', 'cemiterios', 'quadras_cemiterio', 'logradouros_cemiterio', 'setores_fiscais', 'rural-localidades', 'rural-propriedades'];
+        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'quadras', 'postes', 'arvores', 'cemiterios', 'quadras_cemiterio', 'logradouros_cemiterio', 'setores_fiscais', 'rural-localidades', 'rural-propriedades', 'rural-estradas', 'rural-hidrografias', 'rural-pontes', 'rural-pontos-interesse'];
         const isHoverable = feature && hoverableLayers.includes(feature.get('layer'));
         map.getTargetElement().style.cursor = isHoverable ? 'pointer' : '';
 
@@ -754,8 +892,81 @@ document.addEventListener('DOMContentLoaded', function () {
                         }) : null
                     }));
 
-                }
+                } else if (layer === 'rural-estradas') {
+                    feature.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#f59e0b', width: 6 }), // Acende Laranja Forte
+                        text: zoom >= 14 ? new ol.style.Text({
+                            text: name,
+                            font: 'bold 14px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: '#b45309' }),
+                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                            placement: 'line',
+                            textBaseline: 'bottom',
+                            offsetY: -5
+                        }) : null
+                    }));
 
+                } else if (layer === 'rural-hidrografias') {
+                    const geomType = feature.getGeometry().getType();
+                    let hoverStyle;
+                    if (geomType === 'Point' || geomType === 'MultiPoint') {
+                        hoverStyle = new ol.style.Style({ image: new ol.style.Circle({ radius: 9, fill: new ol.style.Fill({ color: '#38bdf8' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }) }) });
+                    } else if (geomType === 'LineString' || geomType === 'MultiLineString') {
+                        hoverStyle = new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#38bdf8', width: 5 }) });
+                    } else {
+                        hoverStyle = new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#0284c7', width: 3 }), fill: new ol.style.Fill({ color: 'rgba(56, 189, 248, 0.6)' }) });
+                    }
+
+                    if (zoom >= 14 && name) {
+                        hoverStyle.setText(new ol.style.Text({
+                            text: name, font: 'bold 14px Arial, sans-serif', fill: new ol.style.Fill({ color: '#082f49' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                            placement: (geomType === 'LineString' || geomType === 'MultiLineString') ? 'line' : 'point',
+                            offsetY: (geomType === 'Point' || geomType === 'MultiPoint') ? -18 : 0
+                        }));
+                    }
+                    feature.setStyle(hoverStyle);
+
+                } else if (layer === 'rural-pontes') {
+                    feature.setStyle(new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: 9, // Cresce a bolinha
+                            fill: new ol.style.Fill({ color: '#b45309' }), // Marrom mais claro/vivo
+                            stroke: new ol.style.Stroke({ color: '#fbbf24', width: 3 }) // Borda Amarela
+                        }),
+                        text: zoom >= 14 ? new ol.style.Text({
+                            text: name,
+                            font: 'bold 14px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: '#78350f' }),
+                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                            offsetY: -18
+                        }) : null
+                    }));
+
+                } else if (layer === 'rural-pontos-interesse') {
+                    const cat = feature.get('categoria');
+                    let hoverColor = '#0f766e'; // Teal escuro padrão
+                    if (cat === 'Escola') hoverColor = '#1d4ed8';
+                    else if (cat === 'Saúde') hoverColor = '#b91c1c';
+                    else if (cat === 'Igreja') hoverColor = '#7e22ce';
+                    else if (cat === 'Turismo') hoverColor = '#b45309';
+                    else if (cat === 'Comércio') hoverColor = '#4d7c0f';
+
+                    feature.setStyle(new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: 10,
+                            fill: new ol.style.Fill({ color: hoverColor }),
+                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 })
+                        }),
+                        text: zoom >= 13 ? new ol.style.Text({
+                            text: `${name} (${cat})`,
+                            font: 'bold 14px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: hoverColor }),
+                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                            offsetY: -18
+                        }) : null
+                    }));
+
+                }
 
             }
 
@@ -915,12 +1126,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            // CLIQUE EM QUADRA CEMITÉRIOS
             const clickedQuadraCem = features.find(f => f.get('layer') === 'quadras_cemiterio');
             if (clickedQuadraCem) {
                 Livewire.dispatch('abrirOpcoesQuadraCemiterio', { id: clickedQuadraCem.get('id') });
                 return;
             }
 
+            /* CLIQUE EM CEMITÉRIOS */
             const clickedCemiterio = features.find(f => f.get('layer') === 'cemiterios');
             if (clickedCemiterio) {
                 Livewire.dispatch('abrirOpcoesCemiterio', { id: clickedCemiterio.get('id') });
@@ -931,6 +1144,34 @@ document.addEventListener('DOMContentLoaded', function () {
             const clickedSetor = features.find(f => f.get('layer') === 'setores_fiscais');
             if (clickedSetor) {
                 Livewire.dispatch('abrirOpcoesSetorFiscal', { id: clickedSetor.get('id') });
+                return;
+            }
+
+            // Clique nas Pontes Rurais
+            const clickedRuralPonte = features.find(f => f.get('layer') === 'rural-pontes');
+            if (clickedRuralPonte) {
+                Livewire.dispatch('abrirOpcoesRuralPonte', { id: clickedRuralPonte.get('id') });
+                return;
+            }
+
+            // Clique nas Estradas Rurais
+            const clickedRuralEstrada = features.find(f => f.get('layer') === 'rural-estradas');
+            if (clickedRuralEstrada) {
+                Livewire.dispatch('abrirOpcoesRuralEstrada', { id: clickedRuralEstrada.get('id') });
+                return;
+            }
+
+            // Clique na Hidrografia
+            const clickedRuralHidro = features.find(f => f.get('layer') === 'rural-hidrografias');
+            if (clickedRuralHidro) {
+                Livewire.dispatch('abrirOpcoesRuralHidrografia', { id: clickedRuralHidro.get('id') });
+                return;
+            }
+
+            // Clique no Ponto de Interesse
+            const clickedRuralPoi = features.find(f => f.get('layer') === 'rural-pontos-interesse');
+            if (clickedRuralPoi) {
+                Livewire.dispatch('abrirOpcoesRuralPontoInteresse', { id: clickedRuralPoi.get('id') });
                 return;
             }
 
@@ -948,6 +1189,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 Livewire.dispatch('abrirOpcoesRuralLocalidade', { id: clickedRuralLocalidade.get('id') });
                 return;
             }
+
+
 
         } else {
             if (featureEmEdicao) window.cancelarEdicaoGeometria();
@@ -1003,9 +1246,13 @@ document.addEventListener('DOMContentLoaded', function () {
         measureTooltipElement.style.display = 'none';
 
         let geometryType = 'Polygon';
-        if (['arvore', 'poste'].includes(entityType)) geometryType = 'Point';
 
-        if (entityType === 'logradouro' || entityType === 'logradouro_cemiterio') geometryType = 'LineString';
+        //point
+        if (['arvore', 'poste', 'rural_hidro_ponto', 'rural_ponte', 'rural_ponto_interesse'].includes(entityType)) geometryType = 'Point';
+
+        //linestring
+        if (['logradouro', 'logradouro_cemiterio', 'rural_estrada', 'rural_hidro_linha'].includes(entityType)) geometryType = 'LineString';
+        // Se for 'rural_hidro_poligono', ele cai no padrão Polygon!
 
         map.getTargetElement().style.cursor = 'crosshair';
 
@@ -1103,6 +1350,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let featureEmEdicao = null;
     let geometriaOriginal = null;
 
+    // OUVINTES
     window.addEventListener('iniciar-edicao-geometria', (e) => {
         const data = e.detail[0] || e.detail;
         if (!loadedLayers['lotes']) return;
@@ -1363,6 +1611,93 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    window.addEventListener('iniciar-edicao-geometria-rural_estrada', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['rural-estradas']) return;
+
+        const source = loadedLayers['rural-estradas'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({
+                    image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#78350f' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) })
+                })
+            });
+
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
+    window.addEventListener('iniciar-edicao-geometria-rural_hidrografia', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['rural-hidrografias']) return;
+
+        const source = loadedLayers['rural-hidrografias'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#0ea5e9' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
+            });
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
+    window.addEventListener('iniciar-edicao-geometria-rural_ponte', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['rural-pontes']) return;
+
+        const source = loadedLayers['rural-pontes'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({
+                    image: new ol.style.Circle({ radius: 8, fill: new ol.style.Fill({ color: '#f59e0b' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) })
+                })
+            });
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
+    window.addEventListener('iniciar-edicao-geometria-rural_ponto_interesse', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (!loadedLayers['rural-pontos-interesse']) return;
+        
+        const source = loadedLayers['rural-pontos-interesse'].getSource();
+        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+
+        if (featureEmEdicao) {
+            geometriaOriginal = featureEmEdicao.getGeometry().clone();
+            currentModifyInteraction = new ol.interaction.Modify({
+                features: new ol.Collection([featureEmEdicao]),
+                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 8, fill: new ol.style.Fill({ color: '#14b8a6' }), stroke: new ol.style.Stroke({ color: '#000000', width: 2 }) }) })
+            });
+            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
+            map.addInteraction(currentModifyInteraction);
+            map.addInteraction(editSnapInteraction);
+            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
+        }
+    });
+
+    // SALVAR GEOMETRIA PARA TODOS
     window.salvarEdicaoGeometria = function () {
         if (featureEmEdicao) {
             const geoJson = formatGeoJSON.writeGeometryObject(featureEmEdicao.getGeometry());
@@ -1397,6 +1732,14 @@ document.addEventListener('DOMContentLoaded', function () {
             else if (layerName === 'rural-localidades') Livewire.dispatch('salvarNovaGeometriaRuralLocalidade', { id: id, geoJson: geoJson });
 
             else if (layerName === 'rural-propriedades') Livewire.dispatch('salvarNovaGeometriaRuralPropriedade', { id: id, geoJson: geoJson });
+
+            else if (layerName === 'rural-estradas') Livewire.dispatch('salvarNovaGeometriaRuralEstrada', { id: id, geoJson: geoJson });
+
+            else if (layerName === 'rural-hidrografias') Livewire.dispatch('salvarNovaGeometriaRuralHidrografia', { id: id, geoJson: geoJson });
+
+            else if (layerName === 'rural-pontes') Livewire.dispatch('salvarNovaGeometriaRuralPonte', { id: id, geoJson: geoJson });
+
+            else if (layerName === 'rural-pontos-interesse') Livewire.dispatch('salvarNovaGeometriaRuralPontoInteresse', { id: id, geoJson: geoJson });
 
             encerrarModoEdicao();
         }
@@ -1655,7 +1998,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // =========================================================================
-    // CIRURGIA EM MEMÓRIA: LOGRADOUROS, POSTES E ÁRVORES (Laço Dinâmico)
+    // CIRURGIA EM MEMÓRIA: LOGRADOUROS, POSTES E ÁRVORES ETC...
     // =========================================================================
 
     const entidadesSurgical = [
@@ -1668,6 +2011,10 @@ document.addEventListener('DOMContentLoaded', function () {
         { layer: 'setores_fiscais', singular: 'setor_fiscal' },
         { layer: 'rural-localidades', singular: 'rural_localidade' },
         { layer: 'rural-propriedades', singular: 'rural_propriedade' },
+        { layer: 'rural-estradas', singular: 'rural_estrada' },
+        { layer: 'rural-hidrografias', singular: 'rural_hidrografia' },
+        { layer: 'rural-pontes', singular: 'rural_ponte' },
+        { layer: 'rural-pontos-interesse', singular: 'rural_ponto_interesse' },
     ];
 
     entidadesSurgical.forEach(entidade => {
@@ -1732,8 +2079,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const actionParams = urlParams.get('action');
     const layerParams = urlParams.get('layer');
 
-    // 🛑 1. MODO DE PONTOS (Árvores e Postes - Redireciona com Lat/Lon)
-    if (actionParams === 'create' && (layerParams === 'postes' || layerParams === 'arvores')) {
+    // 🛑 1. MODO DE PONTOS (Árvores, Postes e Ponto de Nascente - Redireciona com Lat/Lon)
+    if (actionParams === 'create' && (layerParams === 'postes' || layerParams === 'arvores' || layerParams === 'rural_hidro_ponto')) {
 
         const entityName = layerParams === 'postes' ? 'Poste' : 'Árvore';
 
@@ -1759,7 +2106,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // 🛑 2. MODO DE DESENHO (Polígonos e Linhas - Abre modal nativa do mapa)
+    // 🛑 2. MODO DE DESENHO (Polígonos e Linhas - Abre modal nativa do mapa)
     else if (actionParams === 'create') {
+
+        let drawKey = layerParams;
+
+        // 🛑 TRUQUE CAMALEÃO: A hidrografia pergunta qual é a forma geométrica antes!
+        if (layerParams === 'rural-hidrografias') {
+            const opcao = prompt(
+                "🌊 Múltiplas formas detectadas para Hidrografia.\nO que você deseja desenhar no mapa?\n\n1 - Rio / Córrego (Linha)\n2 - Lago / Represa (Polígono)\n3 - Nascente (Ponto)\n\nDigite o número da opção (1, 2 ou 3):"
+            );
+            
+            if (opcao === '1') drawKey = 'rural_hidro_linha';
+            else if (opcao === '2') drawKey = 'rural_hidro_poligono';
+            else if (opcao === '3') drawKey = 'rural_hidro_ponto';
+            else return; // Se o usuário cancelar ou digitar errado, aborta a ação!
+        }
 
         // Dicionário inteligente de entidades que desenham na tela
         const drawableEntities = {
@@ -1773,18 +2135,29 @@ document.addEventListener('DOMContentLoaded', function () {
             'setores_fiscais': { label: 'do novo Setor Fiscal', func: 'setor_fiscal' },
             'rural-localidades': { label: 'da nova Localidade Rural', func: 'rural_localidade' },
             'rural-propriedades': { label: 'da nova Propriedade Rural', func: 'rural_propriedade' },
+            'rural-estradas': { label: 'da nova Estrada Rural', func: 'rural_estrada' },
+            'rural-pontes': { label: 'da nova Ponte', func: 'rural_ponte' },
+            'rural-pontos-interesse': { label: 'do novo Ponto de Interesse', func: 'rural_ponto_interesse' },
+            
+            // 👇 As 3 formas da Hidrografia mapeadas aqui para a ferramenta certa
+            'rural_hidro_linha': { label: 'do novo Rio/Córrego (Linha)', func: 'rural_hidro_linha' },
+            'rural_hidro_poligono': { label: 'do novo Lago/Represa (Polígono)', func: 'rural_hidro_poligono' },
+            'rural_hidro_ponto': { label: 'da nova Nascente (Ponto)', func: 'rural_hidro_ponto' },
         };
 
-        if (drawableEntities[layerParams]) {
-            let labelEnt = drawableEntities[layerParams].label;
-            let funcEnt = drawableEntities[layerParams].func;
+        if (drawableEntities[drawKey]) {
+            let labelEnt = drawableEntities[drawKey].label;
+            let funcEnt = drawableEntities[drawKey].func;
 
             console.log(`Modo de inserção de ${funcEnt} ativado via Backoffice!`);
 
             setTimeout(() => {
-                alert(`🗺️ Desenhe a geometria ${labelEnt} no mapa.`);
+                // Removemos o alert para não encher a tela de popups se já usou o Prompt
+                if (layerParams !== 'rural-hidrografias') {
+                    alert(`🗺️ Desenhe a geometria ${labelEnt} no mapa.`);
+                }
 
-                // Liga o checkbox da camada automaticamente para o usuário ver o que tá fazendo
+                // Usa o layerParams original para achar o checkbox e ligar a camada azulzinha!
                 const checkbox = document.querySelector(`input[data-layer="${layerParams}"]`);
                 if (checkbox && !checkbox.checked) {
                     checkbox.checked = true;
@@ -1795,7 +2168,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (typeof window.enableDrawing === 'function') {
                     window.enableDrawing(funcEnt);
                 }
-            }, 800); // 800ms garante que o mapa carregou completamente antes de acionar a ferramenta
+            }, 800); 
         }
     }
 
