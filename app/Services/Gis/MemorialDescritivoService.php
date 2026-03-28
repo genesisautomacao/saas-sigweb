@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 class MemorialDescritivoService
 {
     /**
-     * 1. A QUERY MONSTRO: Agora calculando do CENTRO do segmento!
+     * 1. A QUERY MONSTRO: Agora calculando do CENTRO do segmento e exportando em UTM SIRGAS 2000!
      */
     public function gerarDadosPerimetro(int $loteId): array
     {
@@ -40,8 +40,10 @@ class MemorialDescritivoService
                 ROW_NUMBER() OVER(ORDER BY s.seq) AS seq,
                 ROUND(s.distancia::numeric, 2) AS distancia,
                 ROUND(s.azimute::numeric, 4) AS azimute,
-                ST_X(s.start_pt) AS start_lon,
-                ST_Y(s.start_pt) AS start_lat,
+                
+                -- 🛑 A MÁGICA TOPOGRÁFICA AQUI: Conversão para SIRGAS 2000 / UTM 22S (EPSG: 31982)
+                ST_X(ST_Transform(s.start_pt, 31982)) AS start_e,
+                ST_Y(ST_Transform(s.start_pt, 31982)) AS start_n,
                 
                 -- Busca o Lote vizinho mais próximo do CENTRO do muro (Tolerância base de 2m)
                 (
@@ -87,7 +89,7 @@ class MemorialDescritivoService
     }
 
     /**
-     * 2. GERA O TEXTO CORRIDO DO MEMORIAL (Atualizado com lógica inteligente)
+     * 2. GERA O TEXTO CORRIDO DO MEMORIAL (Atualizado para Metros/UTM)
      */
     public function gerarTextoMemorial(int $loteId): string
     {
@@ -97,9 +99,10 @@ class MemorialDescritivoService
             return "Não foi possível gerar a descrição do perímetro. Geometria inválida ou inexistente.";
         }
 
-        $texto = "Inicia-se a descrição deste perímetro no vértice V1, de coordenadas Longitude " . 
-                 number_format($segmentos[0]->start_lon, 6, ',', '.') . " e Latitude " . 
-                 number_format($segmentos[0]->start_lat, 6, ',', '.') . "; deste, segue ";
+        // 🛑 Atualizado de Lat/Lon para Coordenadas Planas (E, N)
+        $texto = "Inicia-se a descrição deste perímetro no vértice V1, definido pelas coordenadas planas UTM E: " . 
+                 number_format($segmentos[0]->start_e, 2, ',', '.') . " m e N: " . 
+                 number_format($segmentos[0]->start_n, 2, ',', '.') . " m, referenciadas ao Sistema Geodésico SIRGAS 2000, Fuso 22S; deste, segue ";
 
         $totalSegmentos = count($segmentos);
 
@@ -111,10 +114,7 @@ class MemorialDescritivoService
             $azimuteDMS = $this->converterGrausMinutosSegundos((float) $seg->azimute);
             $direcao = $this->grausParaDirecao((float) $seg->azimute);
 
-            // 🛑 LÓGICA DE DESEMPATE INTELIGENTE 🛑
-            // Se o lote vizinho está colado no meio do muro (até 1.5 metros de erro de desenho), é Lote.
             $temLote = !is_null($seg->confrontante_lote) && $seg->dist_lote <= 1.5; 
-            // A rua ganha 15 metros de folga por ser uma linha no meio do asfalto
             $temLogradouro = !is_null($seg->confrontante_logradouro) && $seg->dist_logradouro <= 15.0;
 
             if ($temLote) {

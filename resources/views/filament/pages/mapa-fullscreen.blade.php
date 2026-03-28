@@ -422,7 +422,7 @@
                     title="Fechar Janela">
                     <x-heroicon-o-x-mark class="w-5 h-5" />
                 </button>
-                
+
             </div>
             <div class="overflow-y-auto overflow-x-hidden max-h-[65vh] custom-scrollbar">
 
@@ -859,7 +859,7 @@
                     </button>
 
                     {{-- BOTÃO DE CROQUI DE LOCALIZAÇÃO --}}
-                    <button onclick="capturarMapaEImprimirCroqui({{ $loteAtivoId }})"
+                    <button wire:click="mountAction('exportarCroqui')"
                         class="w-full text-left px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-blue-500 hover:shadow-md transition-all group flex items-center justify-between">
                         <span class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-blue-600">
                             Croqui de Localização
@@ -1090,14 +1090,24 @@
             }, 500);
         };
 
-        /* IMPRIMIR CROQUI DE LOCALIZAÇÃO DO LOTE */
+        /* IMPRIMIR CROQUI DE LOCALIZAÇÃO DO LOTE (COM DESTAQUE) */
         window.capturarMapaEImprimirCroqui = function (loteId) {
 
-            // Opcional: Feedback visual de que está carregando
-            const btnSpan = event.currentTarget.querySelector('span');
-            const originalText = btnSpan.innerText;
-            btnSpan.innerHTML = '<span class="animate-pulse">Gerando Croqui...</span>';
+            // 🛑 MÁGICA 1: Encontrar a feature do lote e aplicar um "marca-texto" antes da foto!
+            let featureToHighlight = null;
+            if (window.loadedLayers && window.loadedLayers['lotes']) {
+                const source = window.loadedLayers['lotes'].getSource();
+                featureToHighlight = source.getFeatures().find(f => f.get('id') == loteId);
+                
+                if (featureToHighlight) {
+                    featureToHighlight.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#ff0000', width: 4 }), // Borda vermelha chamativa
+                        fill: new ol.style.Fill({ color: 'rgba(250, 204, 21, 0.5)' }) // Fundo amarelo translúcido
+                    }));
+                }
+            }
 
+            // Aumentamos o delay para 800ms para dar tempo da placa de vídeo renderizar o amarelo antes do print
             setTimeout(() => {
                 try {
                     const mapCanvas = document.createElement('canvas');
@@ -1133,10 +1143,12 @@
                     console.error("Erro na captura do mapa para o Croqui:", error);
                     alert("Não foi possível capturar a imagem do mapa.");
                 } finally {
-                    // Restaura o texto original do botão
-                    btnSpan.innerText = originalText;
+                    // 🛑 MÁGICA 2: "Limpar a tinta". Devolve a cor original ao lote!
+                    if (featureToHighlight) {
+                        featureToHighlight.setStyle(undefined); 
+                    }
                 }
-            }, 500);
+            }, 800);
         };
 
     </script>

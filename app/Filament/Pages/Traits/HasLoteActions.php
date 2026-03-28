@@ -289,10 +289,10 @@ trait HasLoteActions
                                         $set('logradouro_nome', $payload['logradouro_nome']);
                                         $set('numero_imovel', $payload['numero_imovel']);
                                         $set('proprietario_id', $payload['proprietario_id']);
-                                        
+
                                         // Mantém a visualização do JSON bonitinha no Textarea
                                         $set('dados_tributarios', json_encode($payload['dados_tributarios'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-                                        
+
                                         Notification::make()->title('Sincronizado!')->success()->send();
                                     }
                                 } catch (\Exception $e) {
@@ -402,7 +402,7 @@ trait HasLoteActions
                                         // 🛑 Passando o tenantId pro serviço para o futuro
                                         $apiService = app(\App\Services\ApiTools\IntegraPrefeituraService::class);
                                         $dados = $apiService->buscarImovelPorCodigo($codigo, $this->tenantId);
-                                        
+
                                         if ($dados) {
                                             // 🛑 Usa o nosso Helper
                                             $payload = $this->processarDadosSincronizacao($dados);
@@ -414,7 +414,7 @@ trait HasLoteActions
                                             $set('proprietario_id', $payload['proprietario_id']);
 
                                             $set('dados_tributarios', json_encode($payload['dados_tributarios'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-                                            
+
                                             Notification::make()->title('Sincronizado!')->success()->send();
                                         } else {
                                             Notification::make()->title('Não Encontrado')->danger()->send();
@@ -834,6 +834,158 @@ trait HasLoteActions
                     echo $pdf->output();
                 }, 'memorial_lote_' . ($lote->numero_lote ?? $lote->id) . '.pdf');
             });
+    }
+
+    /**
+     * Ação: Abrir Modal de Opções de Exportação do Croqui
+     */
+    /**
+     * Ação: Abrir Modal de Opções de Exportação do Croqui
+     */
+    public function exportarCroquiAction(): Action
+    {
+        return Action::make('exportarCroqui')
+            ->modalHeading('Exportar Lote / Croqui')
+            ->modalDescription(fn() => 'Selecione o formato de exportação desejado para o Lote ' . $this->loteAtivoNome)
+            ->modalSubmitAction(false) 
+            ->modalCancelActionLabel('Cancelar')
+            ->modalWidth('3xl')
+            ->extraModalFooterActions([
+                Action::make('export_pdf')
+                    ->label('Gerar PDF')
+                    ->color('danger')
+                    ->icon('heroicon-o-document')
+                    ->extraAttributes([
+                        'onclick' => "capturarMapaEImprimirCroqui({$this->loteAtivoId})",
+                        'x-on:click' => 'close()',
+                    ])
+                    ->action(function() {}), 
+                    
+                // 🛑 ROTINA 1: EXPORTAÇÃO PARA AUTOCAD (DXF) VIA GDAL
+                Action::make('export_dwg')
+                    ->label('Gerar CAD (DXF)')
+                    ->color('info')
+                    ->icon('heroicon-o-swatch')
+                    ->action(function() {
+                        $lote = \App\Models\Lote::find($this->loteAtivoId);
+                        
+                        // 1. Gera o GeoJSON base
+                        $geoJsonQuery = \Illuminate\Support\Facades\DB::selectOne("SELECT ST_AsGeoJSON(geo) as geojson FROM lotes WHERE id = ?", [$lote->id]);
+                        
+                        // 2. Prepara o formato. O Driver DXF do GDAL lê a propriedade 'Layer' para nomear a camada no AutoCAD
+                        $featureCollection = [
+                            'type' => 'FeatureCollection',
+                            'features' => [
+                                [
+                                    'type' => 'Feature',
+                                    'properties' => [
+                                        'Layer' => 'Lote_' . ($lote->numero_lote ?? $lote->id), 
+                                    ],
+                                    'geometry' => json_decode($geoJsonQuery->geojson)
+                                ]
+                            ]
+                        ];
+                        
+                        $jsonContent = json_encode($featureCollection);
+                        
+                        try {
+                            $tempDir = storage_path('app/temp_dxf_' . uniqid());
+                            if (!is_dir($tempDir)) mkdir($tempDir);
+                            
+                            $geoJsonPath = $tempDir . '/lote.geojson';
+                            file_put_contents($geoJsonPath, $jsonContent);
+                            
+                            $dxfPath = $tempDir . '/Lote_' . ($lote->numero_lote ?? $lote->id) . '.dxf';
+                            
+                            // 3. Invoca o conversor do servidor (ogr2ogr) mandando cuspir um DXF
+                            $process = \Illuminate\Support\Facades\Process::run("ogr2ogr -f \"DXF\" {$dxfPath} {$geoJsonPath}");
+                            
+                            if ($process->successful() && file_exists($dxfPath)) {
+                                return response()->download($dxfPath)->deleteFileAfterSend(true);
+                            }
+                        } catch (\Exception $e) {
+                            // Silencioso para cair na notificação abaixo
+                        }
+                        
+                        // 4. FALLBACK: Se o Laragon (Windows) não tiver o GDAL instalado, ele avisa elegantemente
+                        \Filament\Notifications\Notification::make()
+                            ->title('Aviso de Ambiente')
+                            ->body('O conversor GDAL (ogr2ogr) não foi detectado no seu servidor local. A exportação CAD funcionará nativamente quando o sistema estiver no servidor Linux de produção.')
+                            ->danger()
+                            ->send();
+                    }),
+                    
+                // 🛑 ROTINA 2: EXPORTAÇÃO SHAPEFILE / GEOJSON
+                Action::make('export_shp')
+                    ->label('Gerar Shapefile / GeoJSON')
+                    ->color('success')
+                    ->icon('heroicon-o-map')
+                    ->action(function() {
+                        $lote = \App\Models\Lote::find($this->loteAtivoId);
+                        
+                        // Gera o GeoJSON puro pelo banco
+                        $geoJsonQuery = \Illuminate\Support\Facades\DB::selectOne("SELECT ST_AsGeoJSON(geo) as geojson FROM lotes WHERE id = ?", [$lote->id]);
+                        
+                        // Adiciona as propriedades (Tabela de Atributos)
+                        $featureCollection = [
+                            'type' => 'FeatureCollection',
+                            'features' => [
+                                [
+                                    'type' => 'Feature',
+                                    'properties' => [
+                                        'id' => $lote->id,
+                                        'numero' => $lote->numero_lote,
+                                        'area_m2' => $lote->area_geo,
+                                        'testada' => $lote->main_facade_length
+                                    ],
+                                    'geometry' => json_decode($geoJsonQuery->geojson)
+                                ]
+                            ]
+                        ];
+                        
+                        $jsonContent = json_encode($featureCollection);
+                        
+                        // Tentativa de usar o conversor GDAL (ogr2ogr) do servidor para empacotar o ZIP do Shapefile
+                        try {
+                            $tempDir = storage_path('app/temp_shp_' . uniqid());
+                            if (!is_dir($tempDir)) mkdir($tempDir);
+                            
+                            $geoJsonPath = $tempDir . '/lote.geojson';
+                            file_put_contents($geoJsonPath, $jsonContent);
+                            
+                            $shpPath = $tempDir . '/Lote_' . $lote->numero_lote . '.shp';
+                            
+                            // Invoca o conversor do servidor
+                            $process = \Illuminate\Support\Facades\Process::run("ogr2ogr -f \"ESRI Shapefile\" {$shpPath} {$geoJsonPath}");
+                            
+                            if ($process->successful() && file_exists($shpPath)) {
+                                $zipPath = $tempDir . '/Lote_' . $lote->numero_lote . '.zip';
+                                $zip = new \ZipArchive();
+                                $zip->open($zipPath, \ZipArchive::CREATE);
+                                $zip->addFile($tempDir . '/Lote_' . $lote->numero_lote . '.shp', 'Lote_' . $lote->numero_lote . '.shp');
+                                $zip->addFile($tempDir . '/Lote_' . $lote->numero_lote . '.shx', 'Lote_' . $lote->numero_lote . '.shx');
+                                $zip->addFile($tempDir . '/Lote_' . $lote->numero_lote . '.dbf', 'Lote_' . $lote->numero_lote . '.dbf');
+                                $zip->addFile($tempDir . '/Lote_' . $lote->numero_lote . '.prj', 'Lote_' . $lote->numero_lote . '.prj');
+                                $zip->close();
+                                
+                                return response()->download($zipPath)->deleteFileAfterSend(true);
+                            }
+                        } catch (\Exception $e) {
+                            // Se não tiver GDAL instalado, ignora silenciosamente e cai pro Fallback
+                        }
+                        
+                        // FALLBACK GARANTIDO: Retorna o GeoJSON (o padrão moderno)
+                        Notification::make()
+                            ->title('Exportado como GeoJSON')
+                            ->body('O conversor GDAL (ogr2ogr) não foi detectado no seu ambiente. O arquivo foi exportado no formato universal GeoJSON, compatível nativamente com QGIS e ArcGIS.')
+                            ->warning()
+                            ->send();
+                            
+                        return response()->streamDownload(function () use ($jsonContent) {
+                            echo $jsonContent;
+                        }, 'Lote_' . ($lote->numero_lote ?? $lote->id) . '.geojson');
+                    }),
+            ]);
     }
 
     /**

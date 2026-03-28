@@ -71,7 +71,7 @@
                     <th>Segmento</th>
                     <th>Distância (m)</th>
                     <th>Azimute</th>
-                    <th>Coordenadas (Lon, Lat)</th>
+                    <th>Coordenadas UTM (E, N)</th>
                     <th>Confrontante</th>
                 </tr>
             </thead>
@@ -81,7 +81,10 @@
                         <td>V{{ $loop->iteration }} - V{{ $loop->last ? 1 : $loop->iteration + 1 }}</td>
                         <td>{{ number_format($seg->distancia, 2, ',', '.') }}</td>
                         <td>{{ number_format($seg->azimute, 2, ',', '.') }}°</td>
-                        <td>{{ number_format($seg->start_lon, 6, ',', '.') }}, {{ number_format($seg->start_lat, 6, ',', '.') }}</td>
+                        <td class="text-center">
+                            E: {{ number_format($seg->start_e, 2, ',', '.') }}<br>
+                            N: {{ number_format($seg->start_n, 2, ',', '.') }}
+                        </td>
                         <td>
                             @if($seg->confrontante_logradouro)
                                 Rua {{ $seg->confrontante_logradouro }}

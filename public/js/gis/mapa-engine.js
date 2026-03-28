@@ -546,7 +546,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const dblClickZoom = map.getInteractions().getArray().find(i => i instanceof ol.interaction.DoubleClickZoom);
     if (dblClickZoom) map.removeInteraction(dblClickZoom);
 
-    const loadedLayers = {};
+    window.window.loadedLayers = {};
 
     // 6. EVENTOS DE SATÉLITE
     let showSat = false;
@@ -572,8 +572,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 7. CARREGAMENTO DE CAMADAS (API AJAX)
     const fetchAndDrawLayer = (layerName, checkboxElement) => {
-        if (loadedLayers[layerName]) {
-            loadedLayers[layerName].setVisible(true);
+        if (window.window.loadedLayers[layerName]) {
+            window.window.loadedLayers[layerName].setVisible(true);
             return;
         }
 
@@ -605,7 +605,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         minZoom: layerConfigs[layerName].minZoom
                     });
                     map.addLayer(vectorLayer);
-                    loadedLayers[layerName] = vectorLayer;
+                    window.window.loadedLayers[layerName] = vectorLayer;
                 }
             })
             .catch(err => console.error(`Erro ao carregar ${layerName}:`, err))
@@ -621,7 +621,7 @@ document.addEventListener('DOMContentLoaded', function () {
         checkbox.addEventListener('change', function () {
             const layerName = this.getAttribute('data-layer');
             if (this.checked) fetchAndDrawLayer(layerName, this);
-            else if (loadedLayers[layerName]) loadedLayers[layerName].setVisible(false);
+            else if (window.window.loadedLayers[layerName]) window.window.loadedLayers[layerName].setVisible(false);
         });
         if (checkbox.checked) fetchAndDrawLayer(checkbox.getAttribute('data-layer'), checkbox);
     });
@@ -635,11 +635,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 zonasAtivas = zonasAtivas.filter(s => s !== sigla);
             }
 
-            if (!loadedLayers['zonas']) {
+            if (!window.window.loadedLayers['zonas']) {
                 fetchAndDrawLayer('zonas', this);
             } else {
-                loadedLayers['zonas'].changed();
-                loadedLayers['zonas'].setVisible(zonasAtivas.length > 0);
+                window.window.loadedLayers['zonas'].changed();
+                window.window.loadedLayers['zonas'].setVisible(zonasAtivas.length > 0);
             }
         });
     });
@@ -1264,26 +1264,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
         map.addInteraction(currentDrawInteraction);
 
-        if (['lote', 'edificacao'].includes(entityType) && loadedLayers['lotes']) {
+        if (['lote', 'edificacao'].includes(entityType) && window.window.loadedLayers['lotes']) {
             currentSnapInteraction = new ol.interaction.Snap({
-                source: loadedLayers['lotes'].getSource(),
+                source: window.window.loadedLayers['lotes'].getSource(),
                 pixelTolerance: 10
             });
             map.addInteraction(currentSnapInteraction);
         }
 
         // NOVO: ÍMÃ PARA OS SETORES FISCAIS (Cola as bordas perfeitamente)
-        if (entityType === 'setor_fiscal' && loadedLayers['setores_fiscais']) {
+        if (entityType === 'setor_fiscal' && window.window.loadedLayers['setores_fiscais']) {
             currentSnapInteraction = new ol.interaction.Snap({
-                source: loadedLayers['setores_fiscais'].getSource(),
+                source: window.window.loadedLayers['setores_fiscais'].getSource(),
                 pixelTolerance: 15 // Ímã um pouco mais forte para grandes escalas
             });
             map.addInteraction(currentSnapInteraction);
         }
 
-        if (entityType === 'rural_localidade' && loadedLayers['rural-localidades']) {
+        if (entityType === 'rural_localidade' && window.loadedLayers['rural-localidades']) {
             currentSnapInteraction = new ol.interaction.Snap({
-                source: loadedLayers['rural-localidades'].getSource(),
+                source: window.loadedLayers['rural-localidades'].getSource(),
                 pixelTolerance: 15
             });
             map.addInteraction(currentSnapInteraction);
@@ -1297,27 +1297,27 @@ document.addEventListener('DOMContentLoaded', function () {
         const data = e.detail[0] || e.detail;
         if (drawSource) drawSource.clear();
         const checkbox = document.querySelector('input[data-layer="lotes"]');
-        if (checkbox && checkbox.checked && loadedLayers['lotes']) {
+        if (checkbox && checkbox.checked && window.loadedLayers['lotes']) {
             const feature = new ol.Feature({
                 geometry: new ol.format.GeoJSON().readGeometry(data.geo, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' }),
                 id: data.id, name: data.numero_lote, layer: 'lotes'
             });
-            loadedLayers['lotes'].getSource().addFeature(feature);
+            window.loadedLayers['lotes'].getSource().addFeature(feature);
         }
     });
 
     window.addEventListener('atualizar-label-lote', (e) => {
         const data = e.detail[0] || e.detail;
-        if (loadedLayers['lotes']) {
-            const feature = loadedLayers['lotes'].getSource().getFeatures().find(f => f.get('id') == data.id);
+        if (window.loadedLayers['lotes']) {
+            const feature = window.loadedLayers['lotes'].getSource().getFeatures().find(f => f.get('id') == data.id);
             if (feature) { feature.set('name', data.numero_lote); feature.changed(); }
         }
     });
 
     window.addEventListener('remover-lote-mapa', (e) => {
         const data = e.detail[0] || e.detail;
-        if (loadedLayers['lotes']) {
-            const source = loadedLayers['lotes'].getSource();
+        if (window.loadedLayers['lotes']) {
+            const source = window.loadedLayers['lotes'].getSource();
             const feature = source.getFeatures().find(f => f.get('id') == data.id);
             if (feature) source.removeFeature(feature);
         }
@@ -1332,8 +1332,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // OUVINTES
     window.addEventListener('iniciar-edicao-geometria', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['lotes']) return;
-        const source = loadedLayers['lotes'].getSource();
+        if (!window.loadedLayers['lotes']) return;
+        const source = window.loadedLayers['lotes'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1369,8 +1369,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('iniciar-edicao-geometria-logradouro', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['logradouros']) return;
-        const source = loadedLayers['logradouros'].getSource();
+        if (!window.loadedLayers['logradouros']) return;
+        const source = window.loadedLayers['logradouros'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1388,8 +1388,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('iniciar-edicao-geometria-poste', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['postes']) return;
-        const source = loadedLayers['postes'].getSource();
+        if (!window.loadedLayers['postes']) return;
+        const source = window.loadedLayers['postes'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1414,8 +1414,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // ARRASTAR ÁRVORE
     window.addEventListener('iniciar-edicao-geometria-arvore', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['arvores']) return;
-        const source = loadedLayers['arvores'].getSource();
+        if (!window.loadedLayers['arvores']) return;
+        const source = window.loadedLayers['arvores'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1434,8 +1434,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // BAIRRO
     window.addEventListener('iniciar-edicao-geometria-bairro', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['bairros']) return;
-        const source = loadedLayers['bairros'].getSource();
+        if (!window.loadedLayers['bairros']) return;
+        const source = window.loadedLayers['bairros'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1454,8 +1454,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // LOTEAMENTOS
     window.addEventListener('iniciar-edicao-geometria-loteamento', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['loteamentos']) return;
-        const source = loadedLayers['loteamentos'].getSource();
+        if (!window.loadedLayers['loteamentos']) return;
+        const source = window.loadedLayers['loteamentos'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1475,8 +1475,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('iniciar-edicao-geometria-quadra', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['quadras']) return;
-        const source = loadedLayers['quadras'].getSource();
+        if (!window.loadedLayers['quadras']) return;
+        const source = window.loadedLayers['quadras'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1497,8 +1497,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // 🛑 INJEÇÃO 2: Habilitar modo arraste para Cemitério
     window.addEventListener('iniciar-edicao-geometria-cemiterio', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['cemiterios']) return;
-        const source = loadedLayers['cemiterios'].getSource();
+        if (!window.loadedLayers['cemiterios']) return;
+        const source = window.loadedLayers['cemiterios'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1522,8 +1522,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('iniciar-edicao-geometria-quadra_cemiterio', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['quadras_cemiterio']) return;
-        const source = loadedLayers['quadras_cemiterio'].getSource();
+        if (!window.loadedLayers['quadras_cemiterio']) return;
+        const source = window.loadedLayers['quadras_cemiterio'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1541,8 +1541,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('iniciar-edicao-geometria-logradouro_cemiterio', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['logradouros_cemiterio']) return;
-        const source = loadedLayers['logradouros_cemiterio'].getSource();
+        if (!window.loadedLayers['logradouros_cemiterio']) return;
+        const source = window.loadedLayers['logradouros_cemiterio'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1560,8 +1560,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('iniciar-edicao-geometria-jazigo', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['jazigos']) return;
-        const source = loadedLayers['jazigos'].getSource();
+        if (!window.loadedLayers['jazigos']) return;
+        const source = window.loadedLayers['jazigos'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1579,8 +1579,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('iniciar-edicao-geometria-setor_fiscal', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['setores_fiscais']) return;
-        const source = loadedLayers['setores_fiscais'].getSource();
+        if (!window.loadedLayers['setores_fiscais']) return;
+        const source = window.loadedLayers['setores_fiscais'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1598,9 +1598,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('iniciar-edicao-geometria-rural_localidade', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['rural-localidades']) return;
+        if (!window.loadedLayers['rural-localidades']) return;
 
-        const source = loadedLayers['rural-localidades'].getSource();
+        const source = window.loadedLayers['rural-localidades'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1627,9 +1627,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('iniciar-edicao-geometria-rural_propriedade', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['rural-propriedades']) return;
+        if (!window.loadedLayers['rural-propriedades']) return;
 
-        const source = loadedLayers['rural-propriedades'].getSource();
+        const source = window.loadedLayers['rural-propriedades'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1655,9 +1655,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('iniciar-edicao-geometria-rural_estrada', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['rural-estradas']) return;
+        if (!window.loadedLayers['rural-estradas']) return;
 
-        const source = loadedLayers['rural-estradas'].getSource();
+        const source = window.loadedLayers['rural-estradas'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1679,9 +1679,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('iniciar-edicao-geometria-rural_hidrografia', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['rural-hidrografias']) return;
+        if (!window.loadedLayers['rural-hidrografias']) return;
 
-        const source = loadedLayers['rural-hidrografias'].getSource();
+        const source = window.loadedLayers['rural-hidrografias'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1699,9 +1699,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('iniciar-edicao-geometria-rural_ponte', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['rural-pontes']) return;
+        if (!window.loadedLayers['rural-pontes']) return;
 
-        const source = loadedLayers['rural-pontes'].getSource();
+        const source = window.loadedLayers['rural-pontes'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -1721,9 +1721,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.addEventListener('iniciar-edicao-geometria-rural_ponto_interesse', (e) => {
         const data = e.detail[0] || e.detail;
-        if (!loadedLayers['rural-pontos-interesse']) return;
+        if (!window.loadedLayers['rural-pontos-interesse']) return;
 
-        const source = loadedLayers['rural-pontos-interesse'].getSource();
+        const source = window.loadedLayers['rural-pontos-interesse'].getSource();
         featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
 
         if (featureEmEdicao) {
@@ -2012,22 +2012,22 @@ document.addEventListener('DOMContentLoaded', function () {
         if (drawSource) drawSource.clear();
         const checkbox = document.querySelector('input[data-layer="cemiterios"]');
 
-        if (checkbox && checkbox.checked && loadedLayers['cemiterios']) {
+        if (checkbox && checkbox.checked && window.loadedLayers['cemiterios']) {
             const feature = new ol.Feature({
                 geometry: new ol.format.GeoJSON().readGeometry(data.geo, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' }),
                 id: data.id,
                 name: data.name,
                 layer: 'cemiterios' // Essencial para o clique e hover funcionarem
             });
-            loadedLayers['cemiterios'].getSource().addFeature(feature);
+            window.loadedLayers['cemiterios'].getSource().addFeature(feature);
         }
     });
 
     // Atualiza só o texto do hover se alterar o nome no banco
     window.addEventListener('atualizar-label-cemiterio', (e) => {
         const data = e.detail[0] || e.detail;
-        if (loadedLayers['cemiterios']) {
-            const feature = loadedLayers['cemiterios'].getSource().getFeatures().find(f => f.get('id') == data.id);
+        if (window.loadedLayers['cemiterios']) {
+            const feature = window.loadedLayers['cemiterios'].getSource().getFeatures().find(f => f.get('id') == data.id);
             if (feature) {
                 feature.set('name', data.name);
                 feature.changed(); // Força a re-renderização visual do polígono
@@ -2038,8 +2038,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Arranca o polígono do mapa sem precisar baixar os outros do banco
     window.addEventListener('remover-cemiterio-mapa', (e) => {
         const data = e.detail[0] || e.detail;
-        if (loadedLayers['cemiterios']) {
-            const source = loadedLayers['cemiterios'].getSource();
+        if (window.loadedLayers['cemiterios']) {
+            const source = window.loadedLayers['cemiterios'].getSource();
             const feature = source.getFeatures().find(f => f.get('id') == data.id);
             if (feature) source.removeFeature(feature);
         }
@@ -2075,22 +2075,22 @@ document.addEventListener('DOMContentLoaded', function () {
             if (drawSource) drawSource.clear();
             const checkbox = document.querySelector(`input[data-layer="${entidade.layer}"]`);
 
-            if (checkbox && checkbox.checked && loadedLayers[entidade.layer]) {
+            if (checkbox && checkbox.checked && window.loadedLayers[entidade.layer]) {
                 const feature = new ol.Feature({
                     geometry: new ol.format.GeoJSON().readGeometry(data.geo, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' }),
                     id: data.id,
                     name: data.name || '',
                     layer: entidade.layer
                 });
-                loadedLayers[entidade.layer].getSource().addFeature(feature);
+                window.loadedLayers[entidade.layer].getSource().addFeature(feature);
             }
         });
 
         // 2. Atualizar Label (Após Editar Nome)
         window.addEventListener(`atualizar-label-${entidade.singular}`, (e) => {
             const data = e.detail[0] || e.detail;
-            if (loadedLayers[entidade.layer]) {
-                const feature = loadedLayers[entidade.layer].getSource().getFeatures().find(f => f.get('id') == data.id);
+            if (window.loadedLayers[entidade.layer]) {
+                const feature = window.loadedLayers[entidade.layer].getSource().getFeatures().find(f => f.get('id') == data.id);
                 if (feature) {
                     feature.set('name', data.name);
                     feature.changed();
@@ -2101,8 +2101,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // 3. Remover do Mapa (Após Excluir)
         window.addEventListener(`remover-${entidade.singular}-mapa`, (e) => {
             const data = e.detail[0] || e.detail;
-            if (loadedLayers[entidade.layer]) {
-                const source = loadedLayers[entidade.layer].getSource();
+            if (window.loadedLayers[entidade.layer]) {
+                const source = window.loadedLayers[entidade.layer].getSource();
                 const feature = source.getFeatures().find(f => f.get('id') == data.id);
                 if (feature) source.removeFeature(feature);
             }
@@ -2111,8 +2111,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // 4. Atualizar Status de Manutenção (Ficar Roxo no Mapa)
         window.addEventListener(`atualizar-manutencao-${entidade.singular}`, (e) => {
             const data = e.detail[0] || e.detail;
-            if (loadedLayers[entidade.layer]) {
-                const feature = loadedLayers[entidade.layer].getSource().getFeatures().find(f => f.get('id') == data.id);
+            if (window.loadedLayers[entidade.layer]) {
+                const feature = window.loadedLayers[entidade.layer].getSource().getFeatures().find(f => f.get('id') == data.id);
                 if (feature) {
                     // Injeta a propriedade "tem_chamado" no cache do OpenLayers e força redesenhar
                     feature.set('tem_chamado', data.tem_chamado);
@@ -2367,8 +2367,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Função utilitária para "piscar" os lotes e aplicar as novas cores
     function atualizarCoresDosLotes() {
-        if (loadedLayers['lotes']) {
-            loadedLayers['lotes'].changed(); // Força o OpenLayers a re-ler a função de "style"
+        if (window.loadedLayers['lotes']) {
+            window.loadedLayers['lotes'].changed(); // Força o OpenLayers a re-ler a função de "style"
         } else {
             // Se a camada de lotes estiver desligada, nós a ligamos à força para o gestor ver o resultado!
             const checkboxLotes = document.querySelector('input[data-layer="lotes"]');
