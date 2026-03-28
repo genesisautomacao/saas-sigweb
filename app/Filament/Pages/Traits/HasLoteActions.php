@@ -773,11 +773,25 @@ trait HasLoteActions
             });
     }
 
-    /**
+   /**
      * Ação Global: Recebe a Imagem do Mapa via JS e devolve o PDF
      */
     public function imprimirViabilidade($mapImageBase64, $cnaes, $loteId)
     {
+        // 🛑 VÁLVULA DE SEGURANÇA: Se o Livewire serializar o Array como String, desfazemos isso na hora!
+        if (is_string($cnaes)) {
+            // Tenta decodificar de JSON, se falhar, divide pela vírgula
+            $decodificado = json_decode($cnaes, true);
+            $cnaes = (json_last_error() === JSON_ERROR_NONE && is_array($decodificado)) 
+                        ? $decodificado 
+                        : explode(',', $cnaes);
+        }
+
+        // Prevenção extra caso venha nulo
+        if (!is_array($cnaes)) {
+            $cnaes = [];
+        }
+
         $service = app(\App\Services\Viabilidade\ViabilidadeService::class);
         $dadosAnalise = $service->analisar($loteId, $cnaes);
 
@@ -786,10 +800,10 @@ trait HasLoteActions
             return;
         }
 
-        // 🛑 A MÁGICA: Injetamos o número do lote diretamente no array usando o estado atual do Livewire!
+        // Injetamos o número do lote diretamente no array usando o estado atual do Livewire
         $dadosAnalise['numero_lote'] = $this->loteAtivoNome ?? 'S/N';
 
-        // Chama o Serviço de PDF e devolve o Stream direto pro navegador baixar!
+        // Chama o Serviço de PDF e devolve o Stream direto pro navegador baixar
         $pdfService = app(\App\Services\Viabilidade\ViabilidadePdfService::class);
         return $pdfService->generatePdf($dadosAnalise, $mapImageBase64);
     }

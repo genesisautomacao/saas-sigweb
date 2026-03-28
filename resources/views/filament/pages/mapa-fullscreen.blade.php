@@ -948,15 +948,24 @@
 
     <script>
 
-        // IMPRIMIR CONSULTA E VIABILIDADE COM LOTE DO MAPA
-        window.capturarMapaEImprimir = function (loteId, cnaesString) {
+       /* IMPRIMIR CONSULTA DE VIABILIDADE DO LOTE (COM DESTAQUE) */
+        window.capturarMapaEImprimir = function (loteId, cnaes) { // 🛑 Nome restaurado e parâmetro cnaes de volta!
 
-            const btn = document.getElementById('btn-imprimir-viab');
-            if (btn) btn.innerHTML = '<span class="animate-pulse">Gerando PDF...</span>';
+            // 🛑 MÁGICA 1: Encontrar a feature do lote e aplicar o "marca-texto" antes da foto!
+            let featureToHighlight = null;
+            if (window.loadedLayers && window.loadedLayers['lotes']) {
+                const source = window.loadedLayers['lotes'].getSource();
+                featureToHighlight = source.getFeatures().find(f => f.get('id') == loteId);
+                
+                if (featureToHighlight) {
+                    featureToHighlight.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#ff0000', width: 4 }), // Borda vermelha chamativa
+                        fill: new ol.style.Fill({ color: 'rgba(250, 204, 21, 0.5)' }) // Fundo amarelo translúcido
+                    }));
+                }
+            }
 
-            // 🛑 O TRUQUE 2: O Javascript pega a string e corta em um Array perfeito!
-            const cnaesArray = cnaesString ? cnaesString.split(',') : [];
-
+            // Aumentamos o delay para 800ms para garantir a renderização do destaque antes do print
             setTimeout(() => {
                 try {
                     const mapCanvas = document.createElement('canvas');
@@ -985,18 +994,19 @@
 
                         const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
 
-                        // Manda para o Livewire gerando o PDF com o Array correto!
-                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirViabilidade(dataURL, cnaesArray, loteId);
-                    } else {
-                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirViabilidade(null, cnaesArray, loteId);
+                        // 🛑 Manda para o Livewire chamando imprimirViabilidade na ordem certa!
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirViabilidade(dataURL, cnaes, loteId);
                     }
                 } catch (error) {
-                    console.error("Erro na captura do mapa:", error);
-                    Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirViabilidade(null, cnaesArray, loteId);
+                    console.error("Erro na captura do mapa para a Consulta:", error);
+                    alert("Não foi possível capturar a imagem do mapa.");
                 } finally {
-                    if (btn) btn.innerHTML = 'Imprimir Relatório';
+                    // 🛑 MÁGICA 2: "Limpar a tinta". Devolve a cor original ao lote!
+                    if (featureToHighlight) {
+                        featureToHighlight.setStyle(undefined); 
+                    }
                 }
-            }, 500);
+            }, 800);
         };
 
         /* IMPRIMIR NUMERAÇÃO PREDIAL COM MAPA */
