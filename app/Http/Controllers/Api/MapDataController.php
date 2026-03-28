@@ -82,6 +82,11 @@ class MapDataController extends Controller
                 $data = $buildFeatureCollection(Bairro::where('tenant_id', $tenantId)->get(), 'bairros');
                 break;
 
+            case 'loteamentos':
+                $itens = \App\Models\Loteamento::where('tenant_id', $tenantId)->get();
+                $data = $buildFeatureCollection($itens, 'loteamentos');
+                break;
+
             case 'quadras':
                 $data = $buildFeatureCollection(Quadra::where('tenant_id', $tenantId)->get(), 'quadras');
                 break;

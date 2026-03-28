@@ -106,6 +106,22 @@
                                     Artefato</span>
                             </div>
                             <div class="py-1 flex flex-col">
+
+                                <button onclick="enableDrawing('bairro')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Bairro (Polígono)
+                                </button>
+
+                                <button onclick="enableDrawing('loteamento')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
+                                    <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Loteamento (Polígono)
+                                </button>
+
+                                <button onclick="enableDrawing('quadra')" @click="openDraw = false"
+                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-orange-50 dark:hover:bg-gray-700 hover:text-orange-600 flex items-center gap-2">
+                                    <x-heroicon-o-squares-2x2 class="w-4 h-4 text-orange-500" /> Quadra Urbana
+                                </button>
+
                                 <button onclick="enableDrawing('lote')" @click="openDraw = false"
                                     class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
                                     <x-heroicon-o-stop class="w-4 h-4" /> Lote (Polígono)
@@ -407,6 +423,15 @@
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-3 bg-blue-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
                                 <span class="layer-text truncate">Bairros</span>
+                            </span>
+                        </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer w-full">
+                            <input type="checkbox" data-layer="loteamentos"
+                                class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-blue-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                <span class="layer-text truncate">Loteamentos</span>
                             </span>
                         </label>
 

@@ -18,8 +18,9 @@ use App\Filament\Pages\Traits\HasRuralEstradaActions;
 use App\Filament\Pages\Traits\HasRuralHidrografiaActions;
 use App\Filament\Pages\Traits\HasRuralPonteActions;
 use App\Filament\Pages\Traits\HasRuralPontoInteresseActions;
-
-
+use App\Filament\Pages\Traits\HasBairroActions;
+use App\Filament\Pages\Traits\HasLoteamentoActions;
+use App\Filament\Pages\Traits\HasQuadraActions;
 
 use App\Models\Lote;
 use App\Models\Edificacao;
@@ -60,6 +61,9 @@ class MapaFullscreen extends Page
     use HasRuralEstradaActions;
     use HasRuralPonteActions;
     use HasRuralPontoInteresseActions;
+    use HasBairroActions;
+    use HasLoteamentoActions;
+    use HasQuadraActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';
@@ -420,9 +424,8 @@ class MapaFullscreen extends Page
             $this->ruralEstradaPreSelecionadaId = $estrada ? $estrada->id : null;
 
             $this->mountAction('criarRuralPonte');
-
         } elseif ($entityType === 'rural_ponto_interesse') {
-            
+
             $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
 
             $localidade = \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)
@@ -437,11 +440,55 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('limpar-rascunho-mapa');
-                return; 
+                return;
             }
 
             $this->ruralLocalidadePreSelecionadaId = $localidade->id;
             $this->mountAction('criarRuralPontoInteresse');
+        } elseif ($entityType === 'bairro') {
+
+            // Simples e direto: desenhou, abriu a modal de criar!
+            $this->mountAction('criarBairro');
+        } elseif ($entityType === 'loteamento') {
+
+            $this->mountAction('criarLoteamento');
+        } elseif ($entityType === 'quadra') {
+
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+
+            // 1. Procura o Bairro que contém a quadra (com 1m² de tolerância de borda)
+            $bairro = \App\Models\Bairro::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Area(ST_Difference($polyWKT, geo::geometry)::geography) <= 1.0")
+                ->first();
+
+            // 2. Procura o Loteamento que contém a quadra (com 1m² de tolerância)
+            $loteamento = \App\Models\Loteamento::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Area(ST_Difference($polyWKT, geo::geometry)::geography) <= 1.0")
+                ->first();
+
+            // REGRA: Tem que estar DENTRO de pelo menos um dos dois!
+            if (!$bairro && !$loteamento) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Fora dos Limites!')
+                    ->body('Uma Quadra deve ser desenhada inteiramente DENTRO de um Bairro ou Loteamento existente.')
+                    ->danger()
+                    ->send();
+
+                $this->dispatch('limpar-rascunho-mapa');
+                return;
+            }
+
+            // 3. Identifica automaticamente o Perímetro Urbano (basta cruzar ou estar dentro)
+            $perimetro = \App\Models\PerimetroUrbano::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Intersects(geo, $polyWKT)")
+                ->first();
+
+            // Injeta as descobertas nas variáveis da Trait para auto-preencher o formulário
+            $this->quadraBairroPreSelecionadoId = $bairro ? $bairro->id : null;
+            $this->quadraLoteamentoPreSelecionadoId = $loteamento ? $loteamento->id : null;
+            $this->quadraPerimetroPreSelecionadoId = $perimetro ? $perimetro->id : null;
+
+            $this->mountAction('criarQuadra');
         }
     }
 
@@ -1588,6 +1635,123 @@ class MapaFullscreen extends Page
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
             Notification::make()->title('Localização do Ponto Atualizada!')->success()->send();
+        }
+    }
+
+    // --- MÓDULO BAIRROS ---
+    #[On('abrirOpcoesBairro')]
+    public function abrirOpcoesBairro($id)
+    {
+        $this->bairroAtivoId = $id;
+        $this->mountAction('opcoesBairro');
+    }
+
+    #[On('salvarNovaGeometriaBairro')]
+    public function salvarNovaGeometriaBairro($id, $geoJson)
+    {
+        $reg = \App\Models\Bairro::find($id);
+        if ($reg) {
+            $reg->update(['geo' => $geoJson]);
+
+            // Tenta atualizar a área (ignora silenciosamente se a coluna area_geo não existir em bairros)
+            try {
+                DB::statement("UPDATE bairros SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]);
+            } catch (\Exception $e) {
+            }
+
+            \Filament\Notifications\Notification::make()->title('Limites do Bairro Atualizados!')->success()->send();
+        }
+    }
+
+    // --- MÓDULO LOTEAMENTOS ---
+    #[On('abrirOpcoesLoteamento')]
+    public function abrirOpcoesLoteamento($id)
+    {
+        $this->loteamentoAtivoId = $id;
+        $this->mountAction('opcoesLoteamento');
+    }
+
+    #[On('salvarNovaGeometriaLoteamento')]
+    public function salvarNovaGeometriaLoteamento($id, $geoJson)
+    {
+        $reg = \App\Models\Loteamento::find($id);
+        if ($reg) {
+            $reg->update(['geo' => $geoJson]);
+
+            // Tenta atualizar a área via PostGIS
+            try {
+                DB::statement("UPDATE loteamentos SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]);
+            } catch (\Exception $e) {
+            }
+
+            \Filament\Notifications\Notification::make()->title('Limites do Loteamento Atualizados!')->success()->send();
+        }
+    }
+
+    // --- MÓDULO QUADRAS URBANAS ---
+    #[On('abrirOpcoesQuadra')]
+    public function abrirOpcoesQuadra($id)
+    {
+        $this->quadraAtivaId = $id;
+        $this->mountAction('opcoesQuadra');
+    }
+
+   #[On('salvarNovaGeometriaQuadra')]
+    public function salvarNovaGeometriaQuadra($id, $geoJson)
+    {
+        $reg = \App\Models\Quadra::find($id);
+        if ($reg) {
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+
+            // 🛑 NOVA REGRA TOPOLÓGICA: A Quadra não pode abandonar seus lotes!
+            // Verifica se algum lote desta quadra ficará de fora da nova geometria (Tolerância de 1m²)
+            $lotesOrfaos = DB::selectOne("
+                SELECT count(*) as qtd
+                FROM lotes
+                WHERE quadra_id = ?
+                AND tenant_id = ?
+                AND deleted_at IS NULL
+                AND ST_Area(ST_Difference(geo::geometry, $polyWKT)::geography) > 1.0
+            ", [$reg->id, $this->tenantId]);
+
+            if ($lotesOrfaos && $lotesOrfaos->qtd > 0) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Erro Topológico: Lotes Órfãos!')
+                    ->body("A nova geometria deixaria {$lotesOrfaos->qtd} lote(s) para fora da quadra. Mova os lotes primeiro ou ajuste o traçado da quadra para englobá-los.")
+                    ->danger()
+                    ->send();
+                
+                $this->dispatch('desfazer-edicao-geometria');
+                return;
+            }
+
+            // Descobre em qual Bairro a quadra caiu agora
+            $bairro = \App\Models\Bairro::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Area(ST_Difference($polyWKT, geo::geometry)::geography) <= 1.0")
+                ->first();
+
+            // Descobre em qual Loteamento a quadra caiu agora
+            $loteamento = \App\Models\Loteamento::where('tenant_id', $this->tenantId)
+                ->whereRaw("ST_Area(ST_Difference($polyWKT, geo::geometry)::geography) <= 1.0")
+                ->first();
+
+            if (!$bairro && !$loteamento) {
+                \Filament\Notifications\Notification::make()->title('Fora dos Limites!')->body('A Quadra foi arrastada para fora de um Bairro/Loteamento.')->danger()->send();
+                $this->dispatch('desfazer-edicao-geometria');
+                return;
+            }
+
+            $perimetro = \App\Models\PerimetroUrbano::where('tenant_id', $this->tenantId)->whereRaw("ST_Intersects(geo, $polyWKT)")->first();
+
+            $reg->update([
+                'geo' => $geoJson,
+                'bairro_id' => $bairro ? $bairro->id : null,
+                'loteamento_id' => $loteamento ? $loteamento->id : null,
+                'perimetro_id' => $perimetro ? $perimetro->id : null,
+            ]);
+            
+            try { DB::statement("UPDATE quadras SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]); } catch (\Exception $e) {}
+            \Filament\Notifications\Notification::make()->title('Limites e Vínculos Atualizados!')->success()->send();
         }
     }
 }

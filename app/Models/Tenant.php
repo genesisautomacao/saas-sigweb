@@ -183,16 +183,26 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(Logradouro::class);
     }
 
+    public function bairros(): HasMany
+    {
+        return $this->hasMany(Bairro::class);
+    }
+
+    public function loteamentos(): HasMany
+    {
+        return $this->hasMany(Loteamento::class);
+    }
+
     public function quadras(): HasMany
     {
         return $this->hasMany(Quadra::class);
     }
-    
+
     public function zonas(): HasMany
     {
         return $this->hasMany(Zona::class);
     }
-    
+
     public function edificacoes(): HasMany
     {
         return $this->hasMany(Edificacao::class);
@@ -290,7 +300,7 @@ class Tenant extends Model implements HasAvatar
     {
         return $this->hasMany(RuralLocalidade::class);
     }
-    
+
     public function ruralPropriedades(): HasMany
     {
         return $this->hasMany(RuralPropriedade::class);
@@ -326,5 +336,4 @@ class Tenant extends Model implements HasAvatar
     {
         return $this->hasMany(PatrimonioPublico::class);
     }
-
 }
