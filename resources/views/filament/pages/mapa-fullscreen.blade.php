@@ -91,130 +91,149 @@
                 </div>
 
                 <div class="flex items-center gap-1 px-1">
-                    {{-- DROPDOWN DE CRIAÇÃO --}}
-                    <div x-data="{ openDraw: false }" class="relative">
-                        <button @click="openDraw = !openDraw" @click.outside="openDraw = false" title="Desenhar no Mapa"
+                   {{-- DROPDOWN DE CRIAÇÃO (COM SANFONA) --}}
+                    <div x-data="{ openDraw: false, activeTabDraw: 'urbano' }" class="relative">
+                        <button type="button" @click="openDraw = !openDraw" @click.outside="openDraw = false" title="Desenhar no Mapa"
                             class="p-2 hover:bg-primary-100 dark:hover:bg-primary-900/20 rounded-xl text-gray-600 dark:text-gray-400 transition-colors focus:outline-none flex items-center gap-1">
                             <x-heroicon-o-pencil-square class="w-5 h-5" />
                             <x-heroicon-o-chevron-down class="w-3 h-3" />
                         </button>
-                        <div x-show="openDraw" style="display: none;"
-                            class="fixed left-0 mt-2 w-[300px] bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
-                            <div
-                                class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
-                                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Criar
-                                    Artefato</span>
+                        
+                        {{-- A LARGURA FOI FIXADA VIA STYLE INLINE (360px) --}}
+                        <div x-show="openDraw" style="display: none; width: 300px;"
+                            class="fixed left-0 mt-2 bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 flex flex-col">
+                            
+                            {{-- Cabeçalho Fixo --}}
+                            <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shadow-sm z-10">
+                                <span class="text-xs font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                                    <x-heroicon-o-paint-brush class="w-4 h-4 text-primary-500"/> Criar Artefato
+                                </span>
                             </div>
-                            <div class="py-1 flex flex-col">
 
-                                <button onclick="enableDrawing('bairro')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Bairro (Polígono)
-                                </button>
+                            {{-- Área de Rolagem e Sanfonas --}}
+                            <div class="overflow-y-auto max-h-[65vh] custom-scrollbar flex flex-col bg-white dark:bg-gray-800">
 
-                                <button onclick="enableDrawing('loteamento')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Loteamento (Polígono)
-                                </button>
+                                {{-- GRUPO 1: URBANO --}}
+                                <div class="border-b border-gray-100 dark:border-gray-700">
+                                    {{-- ADICIONADO TYPE="BUTTON" E .PREVENT.STOP --}}
+                                    <button type="button" @click.stop.prevent="activeTabDraw = activeTabDraw === 'urbano' ? '' : 'urbano'"
+                                        class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
+                                        <span class="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                                            <x-heroicon-o-building-office-2 class="w-4 h-4" /> Cadastro Urbano
+                                        </span>
+                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200" x-bind:class="activeTabDraw === 'urbano' ? 'rotate-180' : ''" />
+                                    </button>
+                                    
+                                    <div x-show="activeTabDraw === 'urbano'" x-collapse class="py-1">
+                                        <button type="button" onclick="enableDrawing('bairro')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Bairro (Polígono)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('loteamento')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Loteamento (Polígono)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('quadra')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-squares-2x2 class="w-4 h-4 text-orange-500" /> Quadra Urbana
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('lote')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-stop class="w-4 h-4 text-emerald-500" /> Lote (Polígono)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('edificacao')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-home class="w-4 h-4 text-amber-600" /> Edificação (Polígono)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('logradouro')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-slate-100 hover:text-slate-700 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-minus class="w-4 h-4 text-slate-500" /> Logradouro (Linha)
+                                        </button>
+                                    </div>
+                                </div>
 
-                                <button onclick="enableDrawing('quadra')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-orange-50 dark:hover:bg-gray-700 hover:text-orange-600 flex items-center gap-2">
-                                    <x-heroicon-o-squares-2x2 class="w-4 h-4 text-orange-500" /> Quadra Urbana
-                                </button>
+                                {{-- GRUPO 2: INFRAESTRUTURA E FISCAL --}}
+                                <div class="border-b border-gray-100 dark:border-gray-700">
+                                    <button type="button" @click.stop.prevent="activeTabDraw = activeTabDraw === 'infra' ? '' : 'infra'"
+                                        class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
+                                        <span class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                                            <x-heroicon-o-light-bulb class="w-4 h-4" /> Infra. & Fiscal
+                                        </span>
+                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200" x-bind:class="activeTabDraw === 'infra' ? 'rotate-180' : ''" />
+                                    </button>
+                                    
+                                    <div x-show="activeTabDraw === 'infra'" x-collapse class="py-1 bg-gray-50/30 dark:bg-gray-900/20">
+                                        <button type="button" onclick="enableDrawing('poste')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-yellow-50 hover:text-yellow-600 flex items-center gap-3 transition-colors">
+                                            <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                                            Poste / Ponto de Luz
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('arvore')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-sparkles class="w-4 h-4 text-emerald-500" /> Árvore
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('setor_fiscal')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-currency-dollar class="w-4 h-4 text-amber-500" /> Setor Fiscal (PGV)
+                                        </button>
+                                    </div>
+                                </div>
 
-                                <button onclick="enableDrawing('lote')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-stop class="w-4 h-4" /> Lote (Polígono)
-                                </button>
+                                {{-- GRUPO 3: CEMITÉRIOS --}}
+                                <div class="border-b border-gray-100 dark:border-gray-700">
+                                    <button type="button" @click.stop.prevent="activeTabDraw = activeTabDraw === 'cemiterio' ? '' : 'cemiterio'"
+                                        class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
+                                        <span class="flex items-center gap-2 text-purple-600 dark:text-purple-400">
+                                            <x-heroicon-o-view-columns class="w-4 h-4" /> Cemitérios
+                                        </span>
+                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200" x-bind:class="activeTabDraw === 'cemiterio' ? 'rotate-180' : ''" />
+                                    </button>
+                                    
+                                    <div x-show="activeTabDraw === 'cemiterio'" x-collapse class="py-1">
+                                        <button type="button" onclick="enableDrawing('cemiterio')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-purple-50 hover:text-purple-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-stop class="w-4 h-4 text-purple-600" /> Cemitério Base (Polígono)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('quadra_cemiterio')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-squares-2x2 class="w-4 h-4 text-indigo-500" /> Quadra de Cemitério
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('logradouro_cemiterio')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-slate-100 hover:text-slate-700 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-arrows-right-left class="w-4 h-4 text-slate-500" /> Rua Interna
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('jazigo')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-700 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-archive-box class="w-4 h-4 text-stone-600" /> Jazigo / Túmulo
+                                        </button>
+                                    </div>
+                                </div>
 
-                                <button onclick="enableDrawing('edificacao')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-home class="w-4 h-4" /> Edificação (Polígono)
-                                </button>
-
-                                <button onclick="enableDrawing('logradouro')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-minus class="w-4 h-4" /> Logradouro (Linha)
-                                </button>
-
-                                <button onclick="enableDrawing('poste')" @click="openDraw = false"
-                                    class="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
-                                        </path>
-                                    </svg>
-                                    Poste / Ponto de Luz
-                                </button>
-
-                                <button onclick="enableDrawing('arvore')" @click="openDraw = false"
-                                    class="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-sparkles class="w-4 h-4 text-emerald-500" /> Árvores
-                                </button>
-
-                                <button onclick="enableDrawing('setor_fiscal')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 dark:hover:bg-gray-700 hover:text-amber-600 flex items-center gap-2 ">
-                                    <x-heroicon-o-currency-dollar class="w-4 h-4 text-amber-500" /> Setor Fiscal (Polígono)
-                                </button>
-
-                                {{-- Cemitério --}}
-                                <button onclick="enableDrawing('cemiterio')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2 border-t border-gray-200">
-                                    <x-heroicon-o-stop class="w-4 h-4 text-purple-600" /> Cemitério (Polígono)
-                                </button>
-
-                                <button onclick="enableDrawing('quadra_cemiterio')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-squares-2x2 class="w-4 h-4 text-indigo-500" /> Quadra de Cemitério
-                                </button>
-
-                                <button onclick="enableDrawing('logradouro_cemiterio')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-arrows-right-left class="w-4 h-4 text-slate-500" /> Rua de Cemitério
-                                </button>
-
-                                <button onclick="enableDrawing('jazigo')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-archive-box class="w-4 h-4 text-stone-600" /> Jazigo / Túmulo
-                                </button>
-
-                                {{-- Rural --}}
-                                <button onclick="enableDrawing('rural_localidade')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2 border-t border-gray-200">
-                                    <x-heroicon-o-map class="w-4 h-4 text-stone-600" /> Localidade / Distrito
-                                </button>
+                                {{-- GRUPO 4: RURAL --}}
+                                <div>
+                                    <button type="button" @click.stop.prevent="activeTabDraw = activeTabDraw === 'rural' ? '' : 'rural'"
+                                        class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
+                                        <span class="flex items-center gap-2 text-stone-600 dark:text-stone-400">
+                                            <x-heroicon-o-globe-americas class="w-4 h-4" /> Zona Rural
+                                        </span>
+                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200" x-bind:class="activeTabDraw === 'rural' ? 'rotate-180' : ''" />
+                                    </button>
+                                    
+                                    <div x-show="activeTabDraw === 'rural'" x-collapse class="py-1 bg-stone-50/50 dark:bg-stone-900/20">
+                                        <button type="button" onclick="enableDrawing('rural_localidade')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-map class="w-4 h-4 text-stone-600" /> Localidade / Distrito
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('rural_propriedade')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-home-modern class="w-4 h-4 text-stone-600" /> Propriedade (CAR)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('rural_estrada')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-lifebuoy class="w-4 h-4 text-stone-600" /> Estrada / Vicinal
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('rural_hidro_linha')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-minus class="w-4 h-4 text-cyan-500" /> Rio / Córrego (Linha)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('rural_hidro_poligono')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-stop class="w-4 h-4 text-cyan-500" /> Lago / Represa (Polígono)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('rural_hidro_ponto')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-sparkles class="w-4 h-4 text-cyan-500" /> Nascente (Ponto)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('rural_ponte')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-bars-2 class="w-4 h-4 text-amber-600" /> Ponte
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('rural_ponto_interesse')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-teal-50 hover:text-teal-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-star class="w-4 h-4 text-teal-500" /> Ponto de Interesse
+                                        </button>
+                                    </div>
+                                </div>
                                 
-                                <button onclick="enableDrawing('rural_propriedade')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-home-modern class="w-4 h-4 text-stone-600" /> Propriedade (CAR)
-                                </button>
-
-                                <button onclick="enableDrawing('rural_estrada')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-lifebuoy class="w-4 h-4 text-stone-600" /> Estrada / Vicinal
-                                </button>
-
-                                <button onclick="enableDrawing('rural_hidro_linha')" @click="openDraw = false" class="px-4 py-2 text-sm text-left text-gray-700 hover:bg-primary-50 flex items-center gap-2">
-                                    <x-heroicon-o-minus class="w-4 h-4 text-blue-500" /> Rio / Córrego (Linha)
-                                </button>
-                                <button onclick="enableDrawing('rural_hidro_poligono')" @click="openDraw = false" class="px-4 py-2 text-sm text-left text-gray-700 hover:bg-primary-50 flex items-center gap-2">
-                                    <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Lago / Represa (Polígono)
-                                </button>
-                                <button onclick="enableDrawing('rural_hidro_ponto')" @click="openDraw = false" class="px-4 py-2 text-sm text-left text-gray-700 hover:bg-primary-50 flex items-center gap-2">
-                                    <x-heroicon-o-sparkles class="w-4 h-4 text-blue-500" /> Nascente (Ponto)
-                                </button>
-
-                                <button onclick="enableDrawing('rural_ponte')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-bars-2 class="w-4 h-4 text-stone-600" /> Ponte
-                                </button>
-
-                                <button onclick="enableDrawing('rural_ponto_interesse')" @click="openDraw = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 flex items-center gap-2">
-                                    <x-heroicon-o-star class="w-4 h-4 text-stone-600" /> Ponto de Interesse
-                                </button>
-
                             </div>
                         </div>
                     </div>
@@ -394,6 +413,16 @@
                     class="font-bold text-sm text-gray-700 dark:text-gray-200 flex items-center gap-2 uppercase tracking-wider">
                     <x-heroicon-o-bars-3 class="w-4 h-4 text-gray-500" /> Camadas do Mapa
                 </h3>
+
+                {{-- 🛑 BOTÃO DE FECHAR --}}
+                <button type="button" 
+                    onmousedown="event.stopPropagation()" 
+                    onclick="document.getElementById('layers-panel').classList.add('hidden')"
+                    class="p-1 -mr-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all cursor-pointer focus:outline-none"
+                    title="Fechar Janela">
+                    <x-heroicon-o-x-mark class="w-5 h-5" />
+                </button>
+                
             </div>
             <div class="overflow-y-auto overflow-x-hidden max-h-[65vh] custom-scrollbar">
 

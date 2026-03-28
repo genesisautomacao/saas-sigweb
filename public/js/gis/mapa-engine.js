@@ -1106,153 +1106,75 @@ document.addEventListener('DOMContentLoaded', function () {
         const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
 
         if (features && features.length > 0) {
-            const clickedEdif = features.find(f => f.get('layer') === 'edificacao_ativa');
-            if (clickedEdif) {
-                Livewire.dispatch('abrirOpcoesEdificacao', { id: clickedEdif.get('id') });
-                return;
-            }
 
-            /* CLIQUE NO LOTE */
-            const clickedLote = features.find(f => f.get('layer') === 'lotes');
-            if (clickedLote) {
-                const loteId = clickedLote.get('id');
-                if (featureEmEdicao) {
-                    if (featureEmEdicao.get('id') != loteId) window.cancelarEdicaoGeometria();
-                    else return;
+            // 🛑 HIERARQUIA INTELIGENTE DE CLIQUES: Quem estiver mais no topo da lista "rouba" o clique!
+            const clickPriority = [
+                'edificacao_ativa', // Modo edição ganha de tudo
+                'postes', 'arvores', 'rural-pontos-interesse', 'rural-pontes', // PONTOS (Maior prioridade)
+                'logradouros', 'logradouros_cemiterio', 'rural-estradas', // LINHAS
+                'jazigos', // Polígono Micro
+                'rural-hidrografias', // Pode ser misto, prioridade alta
+                'lotes', 'rural-propriedades', // Polígonos Pequenos
+                'quadras_cemiterio', 'quadras', // Polígonos Médios
+                'cemiterios', 'setores_fiscais', // Polígonos Grandes
+                'bairros', 'loteamentos', 'rural-localidades' // Polígonos Gigantes (Menor prioridade)
+            ];
+
+            let clickedFeature = null;
+            let clickedLayer = null;
+
+            // Varre as entidades sob o mouse na ordem de prioridade definida acima
+            for (const layerName of clickPriority) {
+                const found = features.find(f => f.get('layer') === layerName);
+                if (found) {
+                    clickedFeature = found;
+                    clickedLayer = layerName;
+                    break; // Achou o mais prioritário? PARA A BUSCA NA HORA!
                 }
-                const loteNome = clickedLote.get('name') || 'S/N';
-                if (loteId) {
-                    // Abre a barra lateral
-                    Livewire.dispatch('abrirFichaImovel', { loteId: loteId, loteNome: loteNome });
+            }
+
+            if (clickedFeature) {
+                const id = clickedFeature.get('id');
+
+                // Envia a ação dependendo da camada que ganhou a prioridade
+                switch (clickedLayer) {
+                    case 'edificacao_ativa': Livewire.dispatch('abrirOpcoesEdificacao', { id: id }); break;
+                    case 'postes': Livewire.dispatch('abrirOpcoesPoste', { id: id }); break;
+                    case 'arvores': Livewire.dispatch('abrirOpcoesArvore', { id: id }); break;
+                    case 'rural-pontos-interesse': Livewire.dispatch('abrirOpcoesRuralPontoInteresse', { id: id }); break;
+                    case 'rural-pontes': Livewire.dispatch('abrirOpcoesRuralPonte', { id: id }); break;
+                    case 'logradouros': Livewire.dispatch('abrirOpcoesLogradouro', { id: id }); break;
+                    case 'logradouros_cemiterio': Livewire.dispatch('abrirOpcoesLogradouroCemiterio', { id: id }); break;
+                    case 'rural-estradas': Livewire.dispatch('abrirOpcoesRuralEstrada', { id: id }); break;
+                    case 'jazigos': Livewire.dispatch('abrirOpcoesJazigo', { id: id }); break;
+                    case 'rural-hidrografias': Livewire.dispatch('abrirOpcoesRuralHidrografia', { id: id }); break;
+                    case 'rural-propriedades': Livewire.dispatch('abrirOpcoesRuralPropriedade', { id: id }); break;
+                    case 'quadras_cemiterio': Livewire.dispatch('abrirOpcoesQuadraCemiterio', { id: id }); break;
+                    case 'quadras': Livewire.dispatch('abrirOpcoesQuadra', { id: id }); break;
+                    case 'cemiterios': Livewire.dispatch('abrirOpcoesCemiterio', { id: id }); break;
+                    case 'setores_fiscais': Livewire.dispatch('abrirOpcoesSetorFiscal', { id: id }); break;
+                    case 'bairros': Livewire.dispatch('abrirOpcoesBairro', { id: id }); break;
+                    case 'loteamentos': Livewire.dispatch('abrirOpcoesLoteamento', { id: id }); break;
+                    case 'rural-localidades': Livewire.dispatch('abrirOpcoesRuralLocalidade', { id: id }); break;
+
+                    case 'lotes':
+                        if (featureEmEdicao) {
+                            if (featureEmEdicao.get('id') != id) window.cancelarEdicaoGeometria();
+                            else return;
+                        }
+                        const loteNome = clickedFeature.get('name') || 'S/N';
+                        Livewire.dispatch('abrirFichaImovel', { loteId: id, loteNome: loteNome });
+                        break;
                 }
+
+                return; // 🛑 FUNDAMENTAL: Encerra o evento aqui para não abrir modais empilhadas!
             }
-
-            /* CLIQUE NO LOGRADOURO */
-            const clickedLogradouro = features.find(f => f.get('layer') === 'logradouros');
-            if (clickedLogradouro) {
-                Livewire.dispatch('abrirOpcoesLogradouro', { id: clickedLogradouro.get('id') });
-                return;
-            }
-
-            /* CLIQUE NO POSTE */
-            const clickedPoste = features.find(f => f.get('layer') === 'postes');
-            if (clickedPoste) {
-                Livewire.dispatch('abrirOpcoesPoste', { id: clickedPoste.get('id') });
-                return;
-            }
-
-            /* CLIQUE NA ÁRVORE */
-            const clickedArvore = features.find(f => f.get('layer') === 'arvores');
-            if (clickedArvore) {
-                Livewire.dispatch('abrirOpcoesArvore', { id: clickedArvore.get('id') });
-                return;
-            }
-
-            /* CLIQUE NAS QUADRAS URBANAS */
-            const clickedQuadra = features.find(f => f.get('layer') === 'quadras');
-            if (clickedQuadra) {
-                Livewire.dispatch('abrirOpcoesQuadra', { id: clickedQuadra.get('id') });
-                return;
-            }
-
-            /* CLIQUE NOS BAIRROS */
-            const clickedBairro = features.find(f => f.get('layer') === 'bairros');
-            if (clickedBairro) {
-                Livewire.dispatch('abrirOpcoesBairro', { id: clickedBairro.get('id') });
-                return;
-            }
-
-            /* CLIQUE NOS LOTEAMENTOS */
-            const clickedLoteamento = features.find(f => f.get('layer') === 'loteamentos');
-            if (clickedLoteamento) {
-                Livewire.dispatch('abrirOpcoesLoteamento', { id: clickedLoteamento.get('id') });
-                return;
-            }
-
-            // 🛑 PRIORIDADE 0: JAZIGO (Elemento mais interno de todos)
-            const clickedJazigo = features.find(f => f.get('layer') === 'jazigos');
-            if (clickedJazigo) {
-                Livewire.dispatch('abrirOpcoesJazigo', { id: clickedJazigo.get('id') });
-                return;
-            }
-
-            // 🛑 PRIORIDADE 1: Rua de Cemitério
-            const clickedRuaCem = features.find(f => f.get('layer') === 'logradouros_cemiterio');
-            if (clickedRuaCem) {
-                Livewire.dispatch('abrirOpcoesLogradouroCemiterio', { id: clickedRuaCem.get('id') });
-                return;
-            }
-
-            // CLIQUE EM QUADRA CEMITÉRIOS
-            const clickedQuadraCem = features.find(f => f.get('layer') === 'quadras_cemiterio');
-            if (clickedQuadraCem) {
-                Livewire.dispatch('abrirOpcoesQuadraCemiterio', { id: clickedQuadraCem.get('id') });
-                return;
-            }
-
-            /* CLIQUE EM CEMITÉRIOS */
-            const clickedCemiterio = features.find(f => f.get('layer') === 'cemiterios');
-            if (clickedCemiterio) {
-                Livewire.dispatch('abrirOpcoesCemiterio', { id: clickedCemiterio.get('id') });
-                return;
-            }
-
-            /* CLIQUE NO SETOR FISCAL (PGV) COLADO AQUI NO LUGAR CERTO! */
-            const clickedSetor = features.find(f => f.get('layer') === 'setores_fiscais');
-            if (clickedSetor) {
-                Livewire.dispatch('abrirOpcoesSetorFiscal', { id: clickedSetor.get('id') });
-                return;
-            }
-
-            // Clique nas Pontes Rurais
-            const clickedRuralPonte = features.find(f => f.get('layer') === 'rural-pontes');
-            if (clickedRuralPonte) {
-                Livewire.dispatch('abrirOpcoesRuralPonte', { id: clickedRuralPonte.get('id') });
-                return;
-            }
-
-            // Clique nas Estradas Rurais
-            const clickedRuralEstrada = features.find(f => f.get('layer') === 'rural-estradas');
-            if (clickedRuralEstrada) {
-                Livewire.dispatch('abrirOpcoesRuralEstrada', { id: clickedRuralEstrada.get('id') });
-                return;
-            }
-
-            // Clique na Hidrografia
-            const clickedRuralHidro = features.find(f => f.get('layer') === 'rural-hidrografias');
-            if (clickedRuralHidro) {
-                Livewire.dispatch('abrirOpcoesRuralHidrografia', { id: clickedRuralHidro.get('id') });
-                return;
-            }
-
-            // Clique no Ponto de Interesse
-            const clickedRuralPoi = features.find(f => f.get('layer') === 'rural-pontos-interesse');
-            if (clickedRuralPoi) {
-                Livewire.dispatch('abrirOpcoesRuralPontoInteresse', { id: clickedRuralPoi.get('id') });
-                return;
-            }
-
-            // Clique nas Propriedades Rurais (CAR)
-            const clickedRuralPropriedade = features.find(f => f.get('layer') === 'rural-propriedades');
-            if (clickedRuralPropriedade) {
-                Livewire.dispatch('abrirOpcoesRuralPropriedade', { id: clickedRuralPropriedade.get('id') });
-                return;
-            }
-
-            // Clique nas Localidades Rurais
-            const clickedRuralLocalidade = features.find(f => f.get('layer') === 'rural-localidades');
-            if (clickedRuralLocalidade) {
-                // Aqui nós chamamos o evento exato que criamos no MapaFullscreen no Passo 1
-                Livewire.dispatch('abrirOpcoesRuralLocalidade', { id: clickedRuralLocalidade.get('id') });
-                return;
-            }
-
-
 
         } else {
             if (featureEmEdicao) window.cancelarEdicaoGeometria();
         }
-    });
+
+    });// Fim do map.on('singleclick')
 
     // 10. MEDIÇÕES E RASCUNHOS
     const measureTooltipElement = document.getElementById('measure-tooltip');
