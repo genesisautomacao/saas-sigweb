@@ -1701,7 +1701,7 @@ class MapaFullscreen extends Page
     {
         $reg = \App\Models\Quadra::find($id);
         if ($reg) {
-            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $polyWKT = "ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326))";
 
             // 🛑 NOVA REGRA TOPOLÓGICA: A Quadra não pode abandonar seus lotes!
             // Verifica se algum lote desta quadra ficará de fora da nova geometria (Tolerância de 1m²)

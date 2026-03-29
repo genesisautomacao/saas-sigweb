@@ -324,30 +324,106 @@
         </div>
 
         {{-- BARRA FLUTUANTE DE EDIÇÃO ESPACIAL (Alpine.js) --}}
-        <div x-data="{ editandoId: null }" x-show="editandoId !== null"
-            @iniciar-edicao.window="editandoId = $event.detail.id" @encerrar-edicao.window="editandoId = null"
+        <div x-data="{ editandoId: null, modoLocal: 'mover' }" 
+            x-show="editandoId !== null"
+            {{-- MÁGICA: Ao iniciar a edição, zera o input de rotação --}}
+            @iniciar-edicao.window="
+                editandoId = $event.detail.id; 
+                modoLocal = 'mover'; 
+                if(document.getElementById('slider-rotacao')) { 
+                    document.getElementById('slider-rotacao').value = 0; 
+                    document.getElementById('input-rotacao').value = 0; 
+                }
+            " 
+            @encerrar-edicao.window="editandoId = null"
             style="display: none; position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 9999;"
-            class="bg-white dark:bg-gray-800 shadow-2xl rounded-full border-2 border-emerald-500 px-6 py-3 flex items-center gap-4 animate-bounce-short">
-            <span class="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                <span class="relative flex h-3 w-3">
-                    <span
-                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            class="bg-white dark:bg-gray-800 shadow-2xl rounded-full border-2 border-emerald-500 px-4 py-2 flex items-center gap-3 animate-bounce-short">
+            
+            {{-- BARRA PRINCIPAL (BOTÕES) --}}
+            <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-full border-2 border-emerald-500 px-4 py-2 flex items-center gap-3 pointer-events-auto animate-bounce-short">
+                
+                <span class="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2 pr-2 hidden sm:flex">
+                    <span class="relative flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </span>
+                    Editando...
                 </span>
-                Editando Geometria...
-            </span>
-            <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
-            <button onclick="salvarEdicaoGeometria()"
-                class="text-sm font-black text-emerald-600 hover:text-emerald-700 uppercase">
-                Salvar
-            </button>
 
-            <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+                <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 hidden sm:block"></div>
 
-            <button onclick="cancelarEdicaoGeometria()"
-                class="text-sm font-black text-red-600 hover:text-red-700 uppercase">
-                Cancelar
-            </button>
+                {{-- TOGGLE MOVER / REDIMENSIONAR / GIRAR --}}
+                <div class="flex items-center bg-gray-100 dark:bg-gray-900 rounded-full p-1 border border-gray-200 dark:border-gray-700">
+                    <button 
+                        @click="modoLocal = 'mover'; window.alternarFerramentaEdicao('mover');"
+                        :class="modoLocal === 'mover' ? 'bg-white dark:bg-gray-700 shadow text-emerald-600 dark:text-emerald-400' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+                        class="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 transition-all">
+                        <x-heroicon-o-arrows-pointing-out class="w-4 h-4" /> Arrastar
+                    </button>
+                    <button 
+                        @click="modoLocal = 'redimensionar'; window.alternarFerramentaEdicao('redimensionar');"
+                        :class="modoLocal === 'redimensionar' ? 'bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-blue-400' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+                        class="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 transition-all">
+                        <x-heroicon-o-squares-plus class="w-4 h-4" /> Pontos
+                    </button>
+                    <button 
+                        @click="modoLocal = 'girar'; window.alternarFerramentaEdicao('girar');"
+                        :class="modoLocal === 'girar' ? 'bg-white dark:bg-gray-700 shadow text-purple-600 dark:text-purple-400' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+                        class="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 transition-all">
+                        <x-heroicon-o-arrow-path class="w-4 h-4" /> Girar
+                    </button>
+                </div>
+
+                <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+
+                <button onclick="salvarEdicaoGeometria()" class="text-sm font-black text-emerald-600 hover:text-emerald-700 uppercase flex items-center gap-1 transition-transform hover:scale-110">
+                    <x-heroicon-o-check class="w-5 h-5" />
+                </button>
+
+                <button onclick="cancelarEdicaoGeometria()" class="text-sm font-black text-red-600 hover:text-red-700 uppercase flex items-center gap-1 transition-transform hover:scale-110">
+                    <x-heroicon-o-x-mark class="w-5 h-5" />
+                </button>
+            </div>
+
+            {{-- 🎛️ MESA DE DESENHO (GIRAR) QUE ABRE EMBAIXO DA BARRA --}}
+            <div x-show="modoLocal === 'girar'" 
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 -translate-y-4"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 -translate-y-4"
+                 style="display: none;"
+                 class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl border-2 border-purple-500 px-6 py-4 flex flex-col gap-2 w-[400px] pointer-events-auto">
+                 
+                 <div class="flex justify-between items-center mb-1">
+                     <label class="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                         <x-heroicon-o-arrow-path class="w-4 h-4 text-purple-500"/> Rotação Exata
+                     </label>
+                     <span class="text-[10px] text-gray-400 font-bold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-md">Turf.js</span>
+                 </div>
+
+                 <div class="flex items-center gap-4">
+                     {{-- O SLIDER --}}
+                     <input type="range" id="slider-rotacao" min="-180" max="180" value="0" step="1"
+                            oninput="window.aplicarRotacao(this.value); document.getElementById('input-rotacao').value = this.value;"
+                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600">
+                     
+                     {{-- O INPUT MANUAL --}}
+                     <div class="relative">
+                         <input type="number" id="input-rotacao" value="0"
+                                oninput="window.aplicarRotacao(this.value); document.getElementById('slider-rotacao').value = this.value;"
+                                class="w-20 pl-2 pr-6 py-1.5 text-center border-2 border-gray-300 dark:border-gray-600 rounded-xl text-sm font-bold text-purple-700 dark:text-purple-400 focus:ring-purple-500 focus:border-purple-500 bg-gray-50 dark:bg-gray-900 transition-all">
+                         <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xs pointer-events-none">º</span>
+                     </div>
+                 </div>
+
+                 <div class="flex justify-between text-[10px] text-gray-400 font-bold px-1 mt-1">
+                     <span>-180º</span>
+                     <span>0º</span>
+                     <span>+180º</span>
+                 </div>
+            </div>
         </div>
 
         {{-- BARRA FLUTUANTE DE REVISÃO DA NUMERAÇÃO PREDIAL (Padrão Pílula) --}}
@@ -905,6 +981,9 @@
         @endif
     </div>
 
+    {{-- MOTOR MATEMÁTICO ESPACIAL (POSTGIS DE BOLSO) --}}
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
     {{-- SCRIPTS (Apenas o Alpine.js de Busca de UI ficou aqui) --}}
     <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>
     <script src="{{ asset('js/gis/mapa-engine.js') }}"></script>
@@ -1162,6 +1241,7 @@
         };
 
     </script>
+
 
     {{-- Carrega o Google Maps com a biblioteca de Geometria (para calcular o ângulo do olhar) --}}
     <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=geometry" async

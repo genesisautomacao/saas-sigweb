@@ -1015,6 +1015,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     map.on('singleclick', function (evt) {
 
+        // 🛑 TRAVA MESTRA DE EDIÇÃO: Se estiver editando geometria, ignora cliques em outros artefatos!
+        if (featureEmEdicao) {
+            return; // Encerra o clique aqui, impedindo que abra qualquer ficha ou modal
+        }
+
         // 🛑 INTERCEPTADOR DA NUMERAÇÃO PREDIAL (NOVO FLUXO: DESENHAR TRAJETO)
         if (activeTool.startsWith('numeracao')) {
             if (activeTool === 'numeracao_step1') {
@@ -1158,10 +1163,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     case 'rural-localidades': Livewire.dispatch('abrirOpcoesRuralLocalidade', { id: id }); break;
 
                     case 'lotes':
-                        if (featureEmEdicao) {
-                            if (featureEmEdicao.get('id') != id) window.cancelarEdicaoGeometria();
-                            else return;
-                        }
                         const loteNome = clickedFeature.get('name') || 'S/N';
                         Livewire.dispatch('abrirFichaImovel', { loteId: id, loteNome: loteNome });
                         break;
@@ -1176,6 +1177,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     });// Fim do map.on('singleclick')
 
+    // 10. MEDIÇÕES E RASCUNHOS
     // 10. MEDIÇÕES E RASCUNHOS
     const measureTooltipElement = document.getElementById('measure-tooltip');
     const measureOverlay = new ol.Overlay({ element: measureTooltipElement, offset: [0, -15], positioning: 'bottom-center' });
@@ -1194,8 +1196,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let currentMeasureInteraction = null;
     let currentDrawInteraction = null;
-    let currentSnapInteraction = null;
+    let currentTranslateInteraction = null; // NOVO: Para arrastar polígonos inteiros
+    let currentSnapInteraction = null;      // BUGFIX: Mantido para não quebrar as ferramentas de medição antigas
     let activeTool = 'pan';
+
+    // NOVO: GERENCIADOR DE ÍMÃ UNIVERSAL (SNAP)
+    let activeSnaps = [];
+
+    window.enableUniversalSnap = function () {
+        window.disableUniversalSnap(); // Limpa resquícios anteriores
+
+        // Varre todas as camadas carregadas no objeto global
+        Object.keys(window.loadedLayers).forEach(layerName => {
+            const layer = window.loadedLayers[layerName];
+
+            // Aplica o ímã APENAS nas camadas que o usuário ligou no menu lateral
+            if (layer && layer.getVisible()) {
+                const snap = new ol.interaction.Snap({
+                    source: layer.getSource(),
+                    pixelTolerance: 12 // Força do ímã (aumentei um pouco para facilitar)
+                });
+                map.addInteraction(snap);
+                activeSnaps.push(snap);
+            }
+        });
+    };
+
+    window.disableUniversalSnap = function () {
+        activeSnaps.forEach(snap => map.removeInteraction(snap));
+        activeSnaps = [];
+    };
+
 
     // 11. DESENHO DE ARTEFATOS (FUNÇÃO GLOBAL PARA O HTML)
     let currentDrawEntity = null;
@@ -1264,30 +1295,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         map.addInteraction(currentDrawInteraction);
 
-        if (['lote', 'edificacao'].includes(entityType) && window.window.loadedLayers['lotes']) {
-            currentSnapInteraction = new ol.interaction.Snap({
-                source: window.window.loadedLayers['lotes'].getSource(),
-                pixelTolerance: 10
-            });
-            map.addInteraction(currentSnapInteraction);
-        }
-
-        // NOVO: ÍMÃ PARA OS SETORES FISCAIS (Cola as bordas perfeitamente)
-        if (entityType === 'setor_fiscal' && window.window.loadedLayers['setores_fiscais']) {
-            currentSnapInteraction = new ol.interaction.Snap({
-                source: window.window.loadedLayers['setores_fiscais'].getSource(),
-                pixelTolerance: 15 // Ímã um pouco mais forte para grandes escalas
-            });
-            map.addInteraction(currentSnapInteraction);
-        }
-
-        if (entityType === 'rural_localidade' && window.loadedLayers['rural-localidades']) {
-            currentSnapInteraction = new ol.interaction.Snap({
-                source: window.loadedLayers['rural-localidades'].getSource(),
-                pixelTolerance: 15
-            });
-            map.addInteraction(currentSnapInteraction);
-        }
+        // 🧲 LIGA O ÍMÃ UNIVERSAL PARA O DESENHO
+        window.enableUniversalSnap();
     };
 
     window.addEventListener('limpar-rascunho-mapa', () => { if (drawSource) drawSource.clear(); });
@@ -1323,420 +1332,131 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // 13. EDIÇÃO DE GEOMETRIA (MODIFICAR)
+    // 13. EDIÇÃO DE GEOMETRIA (MODIFICAR + MOVER)
     let currentModifyInteraction = null;
-    let editSnapInteraction = null;
     let featureEmEdicao = null;
     let geometriaOriginal = null;
 
+    // 🛠️ NOVA FUNÇÃO MESTRA DE EDIÇÃO (Mover + Redimensionar + Ímã)
+    window.ativarModoEdicaoAvancado = function(feature, corHex) {
+        geometriaOriginal = feature.getGeometry().clone();
+        featureEmEdicao = feature;
+
+        const collection = new ol.Collection([feature]);
+
+        // 1. INTERAÇÃO DE MODIFICAR (Puxar os cantos/nós)
+        currentModifyInteraction = new ol.interaction.Modify({
+            features: collection,
+            style: new ol.style.Style({ 
+                image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: corHex }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) 
+            })
+        });
+
+        // 2. INTERAÇÃO DE MOVER (Arrastar o polígono inteiro)
+        currentTranslateInteraction = new ol.interaction.Translate({
+            features: collection
+        });
+
+        // 🛑 INICIA POR PADRÃO APENAS COM O ARRASTAR ATIVO
+        map.addInteraction(currentTranslateInteraction);
+
+        // 3. LIGA O ÍMÃ UNIVERSAL PARA A EDIÇÃO
+        window.enableUniversalSnap();
+
+        window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: feature.get('id') } }));
+    };
+
+    // 🔄 NOVA FUNÇÃO: ALTERNAR ENTRE ARRASTAR E REDIMENSIONAR (Chamada pelo Blade)
+    // Variável para guardar o estado exato do polígono antes de começar a girar
+    let geometriaParaRotacaoGeoJSON = null; 
+
+    // 🔄 NOVA FUNÇÃO: ALTERNAR FERRAMENTAS
+    window.alternarFerramentaEdicao = function(modo) {
+        if (!featureEmEdicao) return;
+        
+        // Remove as interações para não dar briga
+        map.removeInteraction(currentModifyInteraction);
+        map.removeInteraction(currentTranslateInteraction);
+
+        if (modo === 'mover') {
+            map.addInteraction(currentTranslateInteraction);
+        } else if (modo === 'redimensionar') {
+            map.addInteraction(currentModifyInteraction);
+        } else if (modo === 'girar') {
+            // Quando entra no modo girar, "tira uma foto" da geometria atual em EPSG:4326 (padrão do Turf)
+            geometriaParaRotacaoGeoJSON = formatGeoJSON.writeFeatureObject(featureEmEdicao);
+        }
+
+        // 🧲 Sempre reativa o ímã
+        window.enableUniversalSnap();
+    };
+
+    // 📐 MÁGICA DO TURF.JS: GIRA O POLÍGONO EM TEMPO REAL
+    window.aplicarRotacao = function(graus) {
+        if (!featureEmEdicao || !geometriaParaRotacaoGeoJSON || !window.turf) return;
+
+        const angulo = parseFloat(graus) || 0;
+
+        // 1. Acha o centro (pivô) da geometria original
+        const centro = turf.centroid(geometriaParaRotacaoGeoJSON);
+
+        // 2. Manda o Turf girar usando o centro como eixo
+        const featureRotacionada = turf.transformRotate(geometriaParaRotacaoGeoJSON, angulo, { 
+            pivot: centro.geometry.coordinates 
+        });
+
+        // 3. Converte de volta pro formato do OpenLayers (EPSG:3857) e atualiza a tela instantaneamente
+        const novaGeometriaOL = formatGeoJSON.readGeometry(featureRotacionada.geometry);
+        featureEmEdicao.setGeometry(novaGeometriaOL);
+    };
+
     // OUVINTES
-    window.addEventListener('iniciar-edicao-geometria', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['lotes']) return;
-        const source = window.loadedLayers['lotes'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
+    // 🗂️ DICIONÁRIO DE EDIÇÃO (Mapeia o evento do Livewire para a Camada e a Cor do Nó)
+    const configsEdicao = [
+        { evento: 'iniciar-edicao-geometria', layer: 'lotes', cor: '#10b981' },
+        { evento: 'iniciar-edicao-geometria-edificacao', layer: 'edificacao_ativa', cor: '#ea580c' },
+        { evento: 'iniciar-edicao-geometria-logradouro', layer: 'logradouros', cor: '#38bdf8' },
+        { evento: 'iniciar-edicao-geometria-poste', layer: 'postes', cor: '#eab308' },
+        { evento: 'iniciar-edicao-geometria-arvore', layer: 'arvores', cor: '#22c55e' },
+        { evento: 'iniciar-edicao-geometria-bairro', layer: 'bairros', cor: '#3b82f6' },
+        { evento: 'iniciar-edicao-geometria-loteamento', layer: 'loteamentos', cor: '#2563eb' },
+        { evento: 'iniciar-edicao-geometria-quadra', layer: 'quadras', cor: '#f97316' },
+        { evento: 'iniciar-edicao-geometria-cemiterio', layer: 'cemiterios', cor: '#9333ea' },
+        { evento: 'iniciar-edicao-geometria-quadra_cemiterio', layer: 'quadras_cemiterio', cor: '#6366f1' },
+        { evento: 'iniciar-edicao-geometria-logradouro_cemiterio', layer: 'logradouros_cemiterio', cor: '#64748b' },
+        { evento: 'iniciar-edicao-geometria-jazigo', layer: 'jazigos', cor: '#57534e' },
+        { evento: 'iniciar-edicao-geometria-setor_fiscal', layer: 'setores_fiscais', cor: '#f59e0b' },
+        { evento: 'iniciar-edicao-geometria-rural_localidade', layer: 'rural-localidades', cor: '#57534e' },
+        { evento: 'iniciar-edicao-geometria-rural_propriedade', layer: 'rural-propriedades', cor: '#57534e' },
+        { evento: 'iniciar-edicao-geometria-rural_estrada', layer: 'rural-estradas', cor: '#78350f' },
+        { evento: 'iniciar-edicao-geometria-rural_hidrografia', layer: 'rural-hidrografias', cor: '#0ea5e9' },
+        { evento: 'iniciar-edicao-geometria-rural_ponte', layer: 'rural-pontes', cor: '#f59e0b' },
+        { evento: 'iniciar-edicao-geometria-rural_ponto_interesse', layer: 'rural-pontos-interesse', cor: '#14b8a6' }
+    ];
 
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#10b981' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
+    // 🔄 REGISTRA TODOS OS OUVINTES DE UMA VEZ SÓ
+    configsEdicao.forEach(config => {
+        window.addEventListener(config.evento, (e) => {
+            const data = e.detail[0] || e.detail;
+            let featureAlvo = null;
 
-    window.addEventListener('iniciar-edicao-geometria-edificacao', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!edifAtivasSource) return;
-        featureEmEdicao = edifAtivasSource.getFeatures().find(f => f.get('id') == data.id);
+            // Tratamento especial para edificação (que vive em uma camada temporária separada)
+            if (config.layer === 'edificacao_ativa') {
+                if (typeof edifAtivasSource !== 'undefined') {
+                    featureAlvo = edifAtivasSource.getFeatures().find(f => f.get('id') == data.id);
+                }
+            } else {
+                // Busca o polígono/linha/ponto no cache de camadas do mapa
+                if (window.loadedLayers[config.layer]) {
+                    featureAlvo = window.loadedLayers[config.layer].getSource().getFeatures().find(f => f.get('id') == data.id);
+                }
+            }
 
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#ea580c' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: edifAtivasSource, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    window.addEventListener('iniciar-edicao-geometria-logradouro', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['logradouros']) return;
-        const source = window.loadedLayers['logradouros'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#38bdf8' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    window.addEventListener('iniciar-edicao-geometria-poste', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['postes']) return;
-        const source = window.loadedLayers['postes'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({
-                    image: new ol.style.Circle({
-                        radius: 7,
-                        fill: new ol.style.Fill({ color: '#eab308' }), // Amarelo enquanto arrasta
-                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
-                    })
-                })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    // ARRASTAR ÁRVORE
-    window.addEventListener('iniciar-edicao-geometria-arvore', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['arvores']) return;
-        const source = window.loadedLayers['arvores'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 8, fill: new ol.style.Fill({ color: '#22c55e' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    // BAIRRO
-    window.addEventListener('iniciar-edicao-geometria-bairro', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['bairros']) return;
-        const source = window.loadedLayers['bairros'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#3b82f6' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    // LOTEAMENTOS
-    window.addEventListener('iniciar-edicao-geometria-loteamento', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['loteamentos']) return;
-        const source = window.loadedLayers['loteamentos'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({
-                    image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#2563eb' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) })
-                })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    window.addEventListener('iniciar-edicao-geometria-quadra', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['quadras']) return;
-        const source = window.loadedLayers['quadras'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({
-                    image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#f97316' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) })
-                }) // Bolinha Laranja para combinar com a quadra!
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    // 🛑 INJEÇÃO 2: Habilitar modo arraste para Cemitério
-    window.addEventListener('iniciar-edicao-geometria-cemiterio', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['cemiterios']) return;
-        const source = window.loadedLayers['cemiterios'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({
-                    image: new ol.style.Circle({
-                        radius: 7,
-                        fill: new ol.style.Fill({ color: '#9333ea' }), // Bolinha Roxa
-                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
-                    })
-                })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    window.addEventListener('iniciar-edicao-geometria-quadra_cemiterio', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['quadras_cemiterio']) return;
-        const source = window.loadedLayers['quadras_cemiterio'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#6366f1' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    window.addEventListener('iniciar-edicao-geometria-logradouro_cemiterio', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['logradouros_cemiterio']) return;
-        const source = window.loadedLayers['logradouros_cemiterio'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#64748b' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    window.addEventListener('iniciar-edicao-geometria-jazigo', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['jazigos']) return;
-        const source = window.loadedLayers['jazigos'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 6, fill: new ol.style.Fill({ color: '#57534e' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    window.addEventListener('iniciar-edicao-geometria-setor_fiscal', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['setores_fiscais']) return;
-        const source = window.loadedLayers['setores_fiscais'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#f59e0b' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    window.addEventListener('iniciar-edicao-geometria-rural_localidade', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['rural-localidades']) return;
-
-        const source = window.loadedLayers['rural-localidades'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({
-                    image: new ol.style.Circle({
-                        radius: 7,
-                        fill: new ol.style.Fill({ color: '#57534e' }), // Cor Stone-600 para manter o padrão
-                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
-                    })
-                })
-            });
-
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-
-            // Dispara a barra flutuante animada lá em cima
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    window.addEventListener('iniciar-edicao-geometria-rural_propriedade', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['rural-propriedades']) return;
-
-        const source = window.loadedLayers['rural-propriedades'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({
-                    image: new ol.style.Circle({
-                        radius: 7,
-                        fill: new ol.style.Fill({ color: '#57534e' }), // Stone-600
-                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
-                    })
-                })
-            });
-
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    window.addEventListener('iniciar-edicao-geometria-rural_estrada', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['rural-estradas']) return;
-
-        const source = window.loadedLayers['rural-estradas'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({
-                    image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#78350f' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) })
-                })
-            });
-
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    window.addEventListener('iniciar-edicao-geometria-rural_hidrografia', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['rural-hidrografias']) return;
-
-        const source = window.loadedLayers['rural-hidrografias'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#0ea5e9' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    window.addEventListener('iniciar-edicao-geometria-rural_ponte', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['rural-pontes']) return;
-
-        const source = window.loadedLayers['rural-pontes'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({
-                    image: new ol.style.Circle({ radius: 8, fill: new ol.style.Fill({ color: '#f59e0b' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) })
-                })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
-    });
-
-    window.addEventListener('iniciar-edicao-geometria-rural_ponto_interesse', (e) => {
-        const data = e.detail[0] || e.detail;
-        if (!window.loadedLayers['rural-pontos-interesse']) return;
-
-        const source = window.loadedLayers['rural-pontos-interesse'].getSource();
-        featureEmEdicao = source.getFeatures().find(f => f.get('id') == data.id);
-
-        if (featureEmEdicao) {
-            geometriaOriginal = featureEmEdicao.getGeometry().clone();
-            currentModifyInteraction = new ol.interaction.Modify({
-                features: new ol.Collection([featureEmEdicao]),
-                style: new ol.style.Style({ image: new ol.style.Circle({ radius: 8, fill: new ol.style.Fill({ color: '#14b8a6' }), stroke: new ol.style.Stroke({ color: '#000000', width: 2 }) }) })
-            });
-            editSnapInteraction = new ol.interaction.Snap({ source: source, pixelTolerance: 10 });
-            map.addInteraction(currentModifyInteraction);
-            map.addInteraction(editSnapInteraction);
-            window.dispatchEvent(new CustomEvent('iniciar-edicao', { detail: { id: data.id } }));
-        }
+            // Se achou o desenho, liga os motores!
+            if (featureAlvo) {
+                window.ativarModoEdicaoAvancado(featureAlvo, config.cor);
+            }
+        });
     });
 
     // SALVAR GEOMETRIA PARA TODOS
@@ -1822,8 +1542,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function encerrarModoEdicao() {
         if (currentModifyInteraction) map.removeInteraction(currentModifyInteraction);
-        if (editSnapInteraction) map.removeInteraction(editSnapInteraction);
-        currentModifyInteraction = null; editSnapInteraction = null; featureEmEdicao = null; geometriaOriginal = null;
+        if (currentTranslateInteraction) map.removeInteraction(currentTranslateInteraction);
+        window.disableUniversalSnap(); // Desliga o ímã universal
+
+        currentModifyInteraction = null; 
+        currentTranslateInteraction = null;
+        featureEmEdicao = null; 
+        geometriaOriginal = null;
+        
         window.dispatchEvent(new Event('encerrar-edicao'));
     }
 
@@ -1907,6 +1633,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (currentMeasureInteraction) map.removeInteraction(currentMeasureInteraction);
         if (currentDrawInteraction) map.removeInteraction(currentDrawInteraction);
         if (currentSnapInteraction) map.removeInteraction(currentSnapInteraction);
+        if (currentTranslateInteraction) map.removeInteraction(currentTranslateInteraction); // Limpa o arrastar
+
+        window.disableUniversalSnap(); // 🧲 DESLIGA O ÍMÃ UNIVERSAL
 
         unificacaoSource.clear();
 
@@ -1995,7 +1724,11 @@ document.addEventListener('DOMContentLoaded', function () {
             measureOverlay.setPosition(position);
             map.removeInteraction(currentMeasureInteraction);
         });
+        
         map.addInteraction(currentMeasureInteraction);
+
+        // 🧲 LIGA O ÍMÃ UNIVERSAL PARA A MEDIÇÃO AQUI!
+        window.enableUniversalSnap();
     }
 
     if (btnMeasureLine) btnMeasureLine.addEventListener('click', function () { enableMeasurement('line', this); });
