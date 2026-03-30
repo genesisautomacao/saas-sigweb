@@ -1152,14 +1152,24 @@
                     const canvases = document.querySelectorAll('.ol-layer canvas');
 
                     if (canvases.length > 0) {
-                        mapCanvas.width = canvases[0].width;
-                        mapCanvas.height = canvases[0].height;
+                        // 🛑 CORREÇÃO 1: Mede a div HTML diretamente, sem depender da variável 'map' interna
+                        const mapaElement = document.getElementById('sigweb-map');
+                        mapCanvas.width = mapaElement.clientWidth;
+                        mapCanvas.height = mapaElement.clientHeight;
                         const mapContext = mapCanvas.getContext('2d');
+
+                        // 🛑 CORREÇÃO 2: Pinta o fundo de branco OBRIGATORIAMENTE para JPEGs
+                        mapContext.fillStyle = '#ffffff';
+                        mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
 
                         Array.prototype.forEach.call(canvases, function (canvas) {
                             if (canvas.width > 0) {
                                 const opacity = canvas.parentNode.style.opacity;
                                 mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+                                
+                                // Limpa a matriz antiga antes de aplicar a nova
+                                mapContext.setTransform(1, 0, 0, 1, 0, 0);
+
                                 const transform = canvas.style.transform;
                                 if (transform) {
                                     const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
@@ -1171,6 +1181,10 @@
                                 mapContext.drawImage(canvas, 0, 0);
                             }
                         });
+
+                        // 🛑 CORREÇÃO 3: Devolve tudo ao normal no final para não bugar outras leituras
+                        mapContext.globalAlpha = 1;
+                        mapContext.setTransform(1, 0, 0, 1, 0, 0);
 
                         const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
 
@@ -1201,14 +1215,24 @@
                     const canvases = document.querySelectorAll('.ol-layer canvas');
 
                     if (canvases.length > 0) {
-                        mapCanvas.width = canvases[0].width;
-                        mapCanvas.height = canvases[0].height;
+                        // 🛑 CORREÇÃO 1: Mede a div HTML diretamente, sem depender da variável 'map' interna
+                        const mapaElement = document.getElementById('sigweb-map');
+                        mapCanvas.width = mapaElement.clientWidth;
+                        mapCanvas.height = mapaElement.clientHeight;
                         const mapContext = mapCanvas.getContext('2d');
+
+                        // 🛑 CORREÇÃO 2: Pinta o fundo de branco OBRIGATORIAMENTE para JPEGs
+                        mapContext.fillStyle = '#ffffff';
+                        mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
 
                         Array.prototype.forEach.call(canvases, function (canvas) {
                             if (canvas.width > 0) {
                                 const opacity = canvas.parentNode.style.opacity;
                                 mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+                                
+                                // Limpa a matriz antiga antes de aplicar a nova
+                                mapContext.setTransform(1, 0, 0, 1, 0, 0);
+
                                 const transform = canvas.style.transform;
                                 if (transform) {
                                     const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
@@ -1220,6 +1244,10 @@
                                 mapContext.drawImage(canvas, 0, 0);
                             }
                         });
+
+                        // 🛑 CORREÇÃO 3: Devolve tudo ao normal no final para não bugar outras leituras
+                        mapContext.globalAlpha = 1;
+                        mapContext.setTransform(1, 0, 0, 1, 0, 0);
 
                         const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
 
@@ -1244,14 +1272,24 @@
                     const canvases = document.querySelectorAll('.ol-layer canvas');
 
                     if (canvases.length > 0) {
-                        mapCanvas.width = canvases[0].width;
-                        mapCanvas.height = canvases[0].height;
+                        // 🛑 CORREÇÃO 1: Mede a div HTML diretamente, sem depender da variável 'map' interna
+                        const mapaElement = document.getElementById('sigweb-map');
+                        mapCanvas.width = mapaElement.clientWidth;
+                        mapCanvas.height = mapaElement.clientHeight;
                         const mapContext = mapCanvas.getContext('2d');
+
+                        // 🛑 CORREÇÃO 2: Pinta o fundo de branco OBRIGATORIAMENTE para JPEGs
+                        mapContext.fillStyle = '#ffffff';
+                        mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
 
                         Array.prototype.forEach.call(canvases, function (canvas) {
                             if (canvas.width > 0) {
                                 const opacity = canvas.parentNode.style.opacity;
                                 mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+                                
+                                // Limpa a matriz antiga antes de aplicar a nova
+                                mapContext.setTransform(1, 0, 0, 1, 0, 0);
+
                                 const transform = canvas.style.transform;
                                 if (transform) {
                                     const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
@@ -1263,6 +1301,10 @@
                                 mapContext.drawImage(canvas, 0, 0);
                             }
                         });
+
+                        // 🛑 CORREÇÃO 3: Devolve tudo ao normal no final para não bugar outras leituras
+                        mapContext.globalAlpha = 1;
+                        mapContext.setTransform(1, 0, 0, 1, 0, 0);
 
                         const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
 
@@ -1304,14 +1346,24 @@
                     const canvases = document.querySelectorAll('.ol-layer canvas');
 
                     if (canvases.length > 0) {
-                        mapCanvas.width = canvases[0].width;
-                        mapCanvas.height = canvases[0].height;
+                        // 🛑 CORREÇÃO 1: Mede a div HTML diretamente, sem depender da variável 'map' interna
+                        const mapaElement = document.getElementById('sigweb-map');
+                        mapCanvas.width = mapaElement.clientWidth;
+                        mapCanvas.height = mapaElement.clientHeight;
                         const mapContext = mapCanvas.getContext('2d');
+
+                        // 🛑 CORREÇÃO 2: Pinta o fundo de branco OBRIGATORIAMENTE para JPEGs
+                        mapContext.fillStyle = '#ffffff';
+                        mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
 
                         Array.prototype.forEach.call(canvases, function (canvas) {
                             if (canvas.width > 0) {
                                 const opacity = canvas.parentNode.style.opacity;
                                 mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+                                
+                                // Limpa a matriz antiga antes de aplicar a nova
+                                mapContext.setTransform(1, 0, 0, 1, 0, 0);
+
                                 const transform = canvas.style.transform;
                                 if (transform) {
                                     const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
@@ -1323,6 +1375,10 @@
                                 mapContext.drawImage(canvas, 0, 0);
                             }
                         });
+
+                        // 🛑 CORREÇÃO 3: Devolve tudo ao normal no final para não bugar outras leituras
+                        mapContext.globalAlpha = 1;
+                        mapContext.setTransform(1, 0, 0, 1, 0, 0);
 
                         const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
 
