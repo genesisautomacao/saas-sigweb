@@ -704,6 +704,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     map.on('pointermove', function (e) {
 
+        // 📐 CRUZAMENTO ORTOGONAL DINÂMICO (Estilo AutoCAD)
+        if (window.isOrtogonalActive) {
+            if (window.ortogonalLastFix) {
+                window.atualizarGuiasOrtogonais(window.ortogonalLastFix); // Trava no último clique
+            } else {
+                window.atualizarGuiasOrtogonais(e.coordinate); // Segue o mouse livremente
+            }
+        }
+
         // 🛑 A TRAVA MESTRA: Se estiver editando geometria, desliga o hover na hora!
         if (featureEmEdicao) {
             if (hoveredFeature) {
@@ -1104,7 +1113,326 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 alert("❌ Clique dentro de um Lote válido.");
             }
-            return; // Impede a ficha de abrir
+            return; // Impede a ficha de abrir ou outro clique processar
+        }
+
+        // 🛑 INTERCEPTADOR DO CAD (CLONAR) - AGORA SOLTO E NO LUGAR CERTO!
+        if (activeTool === 'cad_clonar') {
+            const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
+            if (features && features.length > 0) {
+                const featureToClone = features[0];
+                const layerName = featureToClone.get('layer');
+
+                // Evita clonar o próprio rascunho ou o mapa base
+                if (layerName && layerName !== 'cad_draft') {
+                    const clone = featureToClone.clone();
+                    clone.set('id', 'clone_temp');
+                    clone.set('layer', 'cad_draft'); // Identificador da Mesa de Desenho
+                    featureCloneOriginalLayer = layerName; // Guarda a origem (ex: 'lotes')
+
+                    cadSource.clear();
+                    cadSource.addFeature(clone);
+
+                    // Transforma o clone no "featureEmEdicao" usando a nossa Mestra!
+                    activeTool = 'pan'; // Devolve o mouse pro normal
+                    window.ativarModoEdicaoAvancado(clone, '#4f46e5');
+                }
+            }
+            return; // Impede que abra a ficha lateral
+        }
+
+        // 🛑 INTERCEPTADOR DO CAD (BUFFER)
+        if (activeTool === 'cad_buffer') {
+            const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
+            if (features && features.length > 0) {
+                const featureToBuffer = features[0];
+                const layerName = featureToBuffer.get('layer');
+
+                // Impede de dar buffer no próprio rascunho
+                if (layerName && layerName !== 'cad_draft') {
+
+                    // 1. Pega o valor digitado e garante a conversão de vírgula para ponto
+                    const inputElement = document.getElementById('input-cad-buffer');
+                    let valorDigitado = inputElement ? inputElement.value.replace(',', '.') : '5';
+                    let distMetros = parseFloat(valorDigitado);
+
+                    if (isNaN(distMetros) || distMetros <= 0) {
+                        alert("⚠️ Digite uma distância válida maior que zero no campinho da barra inferior.");
+                        return;
+                    }
+
+                    try {
+                        // 2. Transforma o artefato original em GeoJSON
+                        const geojsonOriginal = formatGeoJSON.writeFeatureObject(featureToBuffer);
+
+                        // 3. 🪄 A MÁGICA: O Turf infla a geometria instantaneamente!
+                        // Adicionado "steps: 1" para diminuir a curvatura das pontas e deixar mais "chanfrado/reto"
+                        const bufferedGeojson = turf.buffer(geojsonOriginal, distMetros, { units: 'meters' });
+
+                        // 4. Converte de volta para Feature do OpenLayers EPSG:3857
+                        const featureBuffer = formatGeoJSON.readFeature(bufferedGeojson);
+
+                        // 5. Carimba como "Mesa de Desenho"
+                        featureBuffer.set('id', 'clone_temp');
+                        featureBuffer.set('layer', 'cad_draft');
+                        featureCloneOriginalLayer = layerName; // Guarda a origem
+
+                        cadSource.clear();
+                        cadSource.addFeature(featureBuffer);
+
+                        // 6. Joga o resultado pro topo com as ferramentas ativas
+                        activeTool = 'pan'; // Solta a ferramenta
+                        window.ativarModoEdicaoAvancado(featureBuffer, '#4f46e5');
+
+                        // 7. 🛑 AVISA O HTML PARA ESCONDER A CAIXINHA DE METROS
+                        window.dispatchEvent(new Event('fechar-submenus-cad'));
+
+                    } catch (error) {
+                        console.error("Erro no motor Turf.js:", error);
+                        alert("⚠️ Não foi possível calcular o Buffer desta geometria.");
+                    }
+                }
+            }
+            return; // Impede que a ficha abra
+        }
+
+        // 🛑 INTERCEPTADOR DO CAD (UNIR GENÉRICO - SOMA BOOLEANA)
+        if (activeTool.startsWith('cad_unir')) {
+            const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
+
+            if (features && features.length > 0) {
+                // Procura o primeiro polígono clicado (ignora linhas/pontos e ignora o próprio rascunho)
+                const clickedFeature = features.find(f => f.get('layer') && f.get('layer') !== 'cad_draft' && f.getGeometry().getType().includes('Polygon'));
+
+                if (clickedFeature) {
+
+                    if (activeTool === 'cad_unir_step1') {
+                        window.cadFeatureToUnite = clickedFeature;
+
+                        // Joga uma cópia na mesa de rascunho só para ficar roxo/azul e mostrar que foi selecionado
+                        const cloneHighlight = clickedFeature.clone();
+                        cadSource.clear();
+                        cadSource.addFeature(cloneHighlight);
+
+                        activeTool = 'cad_unir_step2';
+                        alert("✅ Primeiro polígono selecionado!\n\nPASSO 2: Clique no SEGUNDO polígono para processar a união geométrica.");
+
+                    } else if (activeTool === 'cad_unir_step2') {
+
+                        if (clickedFeature.get('id') === window.cadFeatureToUnite.get('id')) {
+                            alert("⚠️ Você clicou no mesmo polígono! Clique no polígono vizinho para unir.");
+                            return;
+                        }
+
+                        if (clickedFeature.get('layer') !== window.cadFeatureToUnite.get('layer')) {
+                            alert("⚠️ Operação Inválida: Você só pode unir artefatos da mesma camada (ex: Setor Fiscal com Setor Fiscal).");
+                            return;
+                        }
+
+                        try {
+                            // 1. Extrai as duas geometrias para o padrão GeoJSON do Turf
+                            const geo1 = formatGeoJSON.writeFeatureObject(window.cadFeatureToUnite);
+                            const geo2 = formatGeoJSON.writeFeatureObject(clickedFeature);
+
+                            // 2. 🪄 MÁGICA: O Turf.js faz a soma booleana das duas formas
+                            const unionGeo = turf.union(geo1, geo2);
+
+                            if (!unionGeo) {
+                                alert("❌ Ocorreu um erro matemático ao tentar unir essas geometrias.");
+                                return;
+                            }
+
+                            // 3. Converte de volta para o OpenLayers
+                            const featureUnida = formatGeoJSON.readFeature(unionGeo);
+
+                            // 4. Carimba como Rascunho para abrir a modal de criação ao salvar
+                            featureUnida.set('id', 'clone_temp');
+                            featureUnida.set('layer', 'cad_draft');
+                            featureCloneOriginalLayer = clickedFeature.get('layer'); // Salva de onde veio (ex: 'setores_fiscais')
+
+                            cadSource.clear();
+                            cadSource.addFeature(featureUnida);
+
+                            // 5. Joga pra barra de edição do topo!
+                            activeTool = 'pan';
+                            window.ativarModoEdicaoAvancado(featureUnida, '#4f46e5');
+                            window.dispatchEvent(new Event('fechar-submenus-cad'));
+
+                        } catch (error) {
+                            console.error("Erro no motor Turf.js (Union):", error);
+                            alert("⚠️ Não foi possível unir. Verifique se os polígonos possuem erros topológicos.");
+                        }
+                    }
+                } else {
+                    alert("❌ Clique num polígono válido.");
+                }
+            }
+            return; // Impede abrir ficha
+        }
+
+        // 🛑 INTERCEPTADOR DO CAD (CORTAR GENÉRICO)
+        if (activeTool.startsWith('cad_cortar')) {
+
+            // PASSO 1: Selecionar o polígono
+            if (activeTool === 'cad_cortar_step1') {
+                const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
+                const clickedFeature = features ? features.find(f => f.get('layer') && f.get('layer') !== 'cad_draft' && f.getGeometry().getType().includes('Polygon')) : null;
+
+                if (clickedFeature) {
+                    window.cadFeatureToCut = clickedFeature;
+
+                    // Joga o polígono destacado na mesa
+                    const cloneHighlight = clickedFeature.clone();
+                    cadSource.clear();
+                    cadSource.addFeature(cloneHighlight);
+
+                    activeTool = 'cad_cortar_step2';
+                    alert("✅ Polígono selecionado!\n\nPASSO 2: Agora DESENHE UMA LINHA cruzando o polígono de fora a fora. Dê DOIS CLIQUES para finalizar a linha.");
+
+                    // Liga a ferramenta de desenho de Linha (aproveitando nosso Motor Ortogonal!)
+                    const drawOptionsCorte = {
+                        source: cadSource,
+                        type: 'LineString',
+                        style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#ea580c', width: 4, lineDash: [5, 5] }) })
+                    };
+                    drawOptionsCorte.geometryFunction = window.getOrtogonalGeometryFunction('LineString');
+                    currentDrawInteraction = new ol.interaction.Draw(drawOptionsCorte);
+
+                    currentDrawInteraction.on('drawend', function (e) {
+                        window.ortogonalLastFix = null;
+                        const linhaGeoJson = formatGeoJSON.writeFeatureObject(e.feature);
+                        const polyGeoJson = formatGeoJSON.writeFeatureObject(window.cadFeatureToCut);
+                        const layerOrigem = window.cadFeatureToCut.get('layer');
+
+                        map.removeInteraction(currentDrawInteraction);
+                        currentDrawInteraction = null;
+                        activeTool = 'wait'; // Trava o mapa enquanto o servidor pensa
+                        document.body.style.cursor = 'wait';
+
+                        // Manda pro Livewire cortar
+                        Livewire.dispatch('processarCorteGenerico', {
+                            polygonGeoJson: polyGeoJson.geometry,
+                            lineGeoJson: linhaGeoJson.geometry,
+                            layerOrigem: layerOrigem
+                        });
+                    });
+
+                    map.addInteraction(currentDrawInteraction);
+                } else {
+                    alert("❌ Clique num polígono válido.");
+                }
+            }
+            // PASSO 3: O usuário escolhe a fatia na "Vitrine"
+            else if (activeTool === 'cad_cortar_step3') {
+                const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
+                const clickedFatia = features ? features.find(f => f.get('is_fatia') === true) : null;
+
+                if (clickedFatia) {
+                    cadSource.clear(); // Limpa as fatias rejeitadas
+
+                    // Configura a fatia vencedora como rascunho
+                    clickedFatia.set('id', 'clone_temp');
+                    clickedFatia.set('layer', 'cad_draft');
+                    clickedFatia.unset('is_fatia');
+
+                    cadSource.addFeature(clickedFatia);
+
+                    activeTool = 'pan'; // Libera o mouse
+                    window.ativarModoEdicaoAvancado(clickedFatia, '#4f46e5');
+                    window.dispatchEvent(new Event('fechar-submenus-cad'));
+                } else {
+                    alert("❌ Clique DENTRO de uma das fatias pontilhadas para escolher.");
+                }
+            }
+            return;
+        }
+
+        // 🛑 INTERCEPTADOR DO CAD (COTAR / GABARITO)
+        if (activeTool === 'cad_cotar') {
+            const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
+            const clickedFeature = features ? features.find(f => f.get('layer') && f.get('layer') !== 'cad_draft') : null;
+
+            if (clickedFeature) {
+                const geom = clickedFeature.getGeometry();
+                const geomType = geom.getType();
+
+                // Ignora Pontos (Árvores, Postes), pois não têm área nem lados
+                if (geomType.includes('Point')) {
+                    alert("⚠️ Esta ferramenta só funciona em Polígonos (Lotes, Quadras) ou Linhas (Ruas).");
+                    return;
+                }
+
+                cadSource.clear(); // Limpa a cota do artefato anterior
+                const labels = [];
+
+                // 1. Destaca o artefato selecionado com uma cor suave
+                const clone = clickedFeature.clone();
+                clone.setStyle(new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#ea580c', width: 2 }), // Laranja
+                    fill: new ol.style.Fill({ color: 'rgba(234, 88, 12, 0.1)' })
+                }));
+                cadSource.addFeature(clone);
+
+                // Função auxiliar que "carimba" os textos no mapa
+                const criarEtiqueta = (coords, texto, isCenter = false) => {
+                    const feat = new ol.Feature(new ol.geom.Point(coords));
+                    feat.setStyle(new ol.style.Style({
+                        text: new ol.style.Text({
+                            text: texto,
+                            font: isCenter ? 'bold 13px Arial' : 'bold 11px Arial',
+                            fill: new ol.style.Fill({ color: isCenter ? '#ffffff' : '#ea580c' }),
+                            backgroundFill: new ol.style.Fill({ color: isCenter ? '#ea580c' : '#ffffff' }),
+                            backgroundStroke: new ol.style.Stroke({ color: '#ea580c', width: 1 }),
+                            padding: [2, 4, 2, 4]
+                        }),
+                        zIndex: 10010
+                    }));
+                    return feat;
+                };
+
+                // 2. Se for Polígono/MultiPolígono, calcula a Área e as Arestas
+                if (geomType.includes('Polygon')) {
+                    // 🛡️ BLINDAGEM: Descobre se é MultiPolygon e pega a forma principal
+                    const basePoly = geomType === 'MultiPolygon' ? geom.getPolygon(0) : geom;
+
+                    // Área Central (Calcula a área total de tudo, mas pega o centro só da forma principal)
+                    const area = ol.sphere.getArea(geom);
+                    const center = basePoly.getInteriorPoint().getCoordinates();
+                    labels.push(criarEtiqueta(center, (area).toFixed(2) + ' m²', true));
+
+                    // Lados (Itera sobre cada linha do anel externo)
+                    const anelExterno = basePoly.getCoordinates()[0];
+                    for (let i = 0; i < anelExterno.length - 1; i++) {
+                        const p1 = anelExterno[i];
+                        const p2 = anelExterno[i + 1];
+
+                        const segmento = new ol.geom.LineString([p1, p2]);
+                        const distancia = ol.sphere.getLength(segmento);
+                        const meio = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
+
+                        // Só plota a etiqueta se a linha tiver mais de 0.5 metros (evita poluição em nós muito juntos)
+                        if (distancia > 0.5) {
+                            labels.push(criarEtiqueta(meio, distancia.toFixed(2) + ' m', false));
+                        }
+                    }
+                }
+                // 3. Se for Linha/MultiLinha (Logradouro), calcula apenas o comprimento total
+                else if (geomType.includes('LineString')) {
+                    const comp = ol.sphere.getLength(geom);
+                    // 🛡️ BLINDAGEM: Descobre se é MultiLineString e pega a linha principal
+                    const baseLine = geomType === 'MultiLineString' ? geom.getLineString(0) : geom;
+                    const meio = baseLine.getCoordinateAt(0.5); // Pega exatamente o ponto médio
+
+                    labels.push(criarEtiqueta(meio, comp.toFixed(2) + ' m', true));
+                }
+
+                // Joga todas as etiquetas visuais na Mesa de Desenho
+                cadSource.addFeatures(labels);
+
+            } else {
+                alert("❌ Clique num artefato válido para cotar.");
+            }
+            return; // Impede que abra a ficha
         }
 
         if (activeTool !== 'pan') return;
@@ -1227,6 +1555,92 @@ document.addEventListener('DOMContentLoaded', function () {
         activeSnaps = [];
     };
 
+    // =========================================================================
+    // 📐 MOTOR ORTOGONAL UNIVERSAL (AutoCAD Style Ortho)
+    // =========================================================================
+    window.isOrtogonalActive = false;
+    window.ortogonalLastFix = null; // Guarda o último ponto fixado na tela
+
+    // Camada visual para as linhas guias "infinitas"
+    window.ortogonalGuideSource = new ol.source.Vector();
+    const ortogonalGuideLayer = new ol.layer.Vector({
+        source: window.ortogonalGuideSource,
+        style: new ol.style.Style({
+            stroke: new ol.style.Stroke({ color: 'rgba(16, 185, 129, 0.8)', width: 1.5, lineDash: [5, 5] }) // Verde esmeralda tracejado mais visível
+        }),
+        zIndex: 10006 // Topo absoluto
+    });
+    map.addLayer(ortogonalGuideLayer);
+
+    window.atualizarGuiasOrtogonais = function (centerCoord) {
+        if (!window.isOrtogonalActive || !centerCoord) {
+            window.ortogonalGuideSource.clear();
+            return;
+        }
+        const ext = map.getView().calculateExtent(map.getSize());
+        const maxDist = (ext[2] - ext[0]) * 2;
+
+        const guideX = new ol.Feature(new ol.geom.LineString([
+            [centerCoord[0] - maxDist, centerCoord[1]],
+            [centerCoord[0] + maxDist, centerCoord[1]]
+        ]));
+        const guideY = new ol.Feature(new ol.geom.LineString([
+            [centerCoord[0], centerCoord[1] - maxDist],
+            [centerCoord[0], centerCoord[1] + maxDist]
+        ]));
+
+        window.ortogonalGuideSource.clear();
+        window.ortogonalGuideSource.addFeatures([guideX, guideY]);
+    };
+
+    window.toggleOrtogonal = function (isActive) {
+        window.isOrtogonalActive = isActive;
+        if (!isActive) {
+            window.ortogonalGuideSource.clear();
+            window.ortogonalLastFix = null;
+        }
+    };
+
+    window.getOrtogonalGeometryFunction = function (type) {
+        return function (coordinates, geometry) {
+            if (!geometry) {
+                geometry = type === 'Polygon' ? new ol.geom.Polygon(coordinates) : new ol.geom.LineString(coordinates);
+            }
+
+            if (window.isOrtogonalActive) {
+                let pts = type === 'Polygon' ? coordinates[0] : coordinates;
+
+                if (pts && pts.length >= 2) {
+                    // O Segredo: No Polígono, o mouse é o penúltimo ponto. O último é a âncora de fechamento (intocável!)
+                    let mouseIdx = type === 'Polygon' ? pts.length - 2 : pts.length - 1;
+                    let lastFixIdx = type === 'Polygon' ? pts.length - 3 : pts.length - 2;
+
+                    if (lastFixIdx >= 0 && pts[lastFixIdx]) {
+                        let lastFix = pts[lastFixIdx];
+                        let mouse = pts[mouseIdx];
+
+                        // Trava o eixo ortogonal matematicamente APENAS no nó do mouse!
+                        if (Math.abs(mouse[0] - lastFix[0]) > Math.abs(mouse[1] - lastFix[1])) {
+                            mouse[1] = lastFix[1]; // Trava Y (Linha Horizontal)
+                        } else {
+                            mouse[0] = lastFix[0]; // Trava X (Linha Vertical)
+                        }
+
+                        // 🛑 BLINDAGEM: Retiramos a sobrescrita do nó de fechamento. 
+                        // O OpenLayers cuida disso sozinho, garantindo que você consiga 
+                        // clicar quantas vezes quiser até fechar o lote!
+
+                        // Guarda a referência do último clique para a Linha Guia verde seguir
+                        window.ortogonalLastFix = [lastFix[0], lastFix[1]];
+                    }
+                }
+            }
+
+            geometry.setCoordinates(coordinates);
+            return geometry;
+        };
+    };
+
 
     // 11. DESENHO DE ARTEFATOS (FUNÇÃO GLOBAL PARA O HTML)
     let currentDrawEntity = null;
@@ -1266,7 +1680,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         map.getTargetElement().style.cursor = 'crosshair';
 
-        currentDrawInteraction = new ol.interaction.Draw({
+        const drawOptions = {
             source: drawSource,
             type: geometryType,
             style: new ol.style.Style({
@@ -1274,9 +1688,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.2)' }),
                 image: new ol.style.Circle({ radius: 6, fill: new ol.style.Fill({ color: '#3b82f6' }) })
             })
-        });
+        };
+
+        // 📐 MÁGICA: Injeta o limitador ortogonal se a entidade for polígono ou linha
+        if (geometryType === 'Polygon' || geometryType === 'LineString') {
+            drawOptions.geometryFunction = window.getOrtogonalGeometryFunction(geometryType);
+        }
+
+        currentDrawInteraction = new ol.interaction.Draw(drawOptions);
 
         currentDrawInteraction.on('drawend', function (e) {
+
+            window.ortogonalLastFix = null; // 🧹 SOLTA A LINHA GUIA
+
             const geoJson = formatGeoJSON.writeFeatureObject(e.feature);
             setTimeout(() => drawSource.clear(), 500);
             map.getTargetElement().style.cursor = '';
@@ -1338,7 +1762,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let geometriaOriginal = null;
 
     // 🛠️ NOVA FUNÇÃO MESTRA DE EDIÇÃO (Mover + Redimensionar + Ímã)
-    window.ativarModoEdicaoAvancado = function(feature, corHex) {
+    window.ativarModoEdicaoAvancado = function (feature, corHex) {
         geometriaOriginal = feature.getGeometry().clone();
         featureEmEdicao = feature;
 
@@ -1347,8 +1771,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // 1. INTERAÇÃO DE MODIFICAR (Puxar os cantos/nós)
         currentModifyInteraction = new ol.interaction.Modify({
             features: collection,
-            style: new ol.style.Style({ 
-                image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: corHex }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) 
+            style: new ol.style.Style({
+                image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: corHex }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) })
             })
         });
 
@@ -1368,12 +1792,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 🔄 NOVA FUNÇÃO: ALTERNAR ENTRE ARRASTAR E REDIMENSIONAR (Chamada pelo Blade)
     // Variável para guardar o estado exato do polígono antes de começar a girar
-    let geometriaParaRotacaoGeoJSON = null; 
+    let geometriaParaRotacaoGeoJSON = null;
 
     // 🔄 NOVA FUNÇÃO: ALTERNAR FERRAMENTAS
-    window.alternarFerramentaEdicao = function(modo) {
+    window.alternarFerramentaEdicao = function (modo) {
         if (!featureEmEdicao) return;
-        
+
         // Remove as interações para não dar briga
         map.removeInteraction(currentModifyInteraction);
         map.removeInteraction(currentTranslateInteraction);
@@ -1392,7 +1816,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // 📐 MÁGICA DO TURF.JS: GIRA O POLÍGONO EM TEMPO REAL
-    window.aplicarRotacao = function(graus) {
+    window.aplicarRotacao = function (graus) {
         if (!featureEmEdicao || !geometriaParaRotacaoGeoJSON || !window.turf) return;
 
         const angulo = parseFloat(graus) || 0;
@@ -1401,8 +1825,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const centro = turf.centroid(geometriaParaRotacaoGeoJSON);
 
         // 2. Manda o Turf girar usando o centro como eixo
-        const featureRotacionada = turf.transformRotate(geometriaParaRotacaoGeoJSON, angulo, { 
-            pivot: centro.geometry.coordinates 
+        const featureRotacionada = turf.transformRotate(geometriaParaRotacaoGeoJSON, angulo, {
+            pivot: centro.geometry.coordinates
         });
 
         // 3. Converte de volta pro formato do OpenLayers (EPSG:3857) e atualiza a tela instantaneamente
@@ -1466,6 +1890,27 @@ document.addEventListener('DOMContentLoaded', function () {
             const id = featureEmEdicao.get('id');
             const layerName = featureEmEdicao.get('layer');
 
+            // 🛑 MÁGICA DO CAD: Se for o rascunho, ABRE A MODAL DE CRIAR em vez de dar Update!
+            if (layerName === 'cad_draft') {
+                // Dicionário de tradução do plural (camada) para o singular (entidade)
+                const mapSingular = {
+                    'lotes': 'lote', 'quadras': 'quadra', 'bairros': 'bairro', 'loteamentos': 'loteamento',
+                    'edificacao_ativa': 'edificacao', 'logradouros': 'logradouro', 'postes': 'poste', 'arvores': 'arvore',
+                    'cemiterios': 'cemiterio', 'quadras_cemiterio': 'quadra_cemiterio', 'logradouros_cemiterio': 'logradouro_cemiterio', 'jazigos': 'jazigo',
+                    'setores_fiscais': 'setor_fiscal', 'rural-localidades': 'rural_localidade', 'rural-propriedades': 'rural_propriedade',
+                    'rural-estradas': 'rural_estrada', 'rural-hidrografias': 'rural_hidrografia', 'rural-pontes': 'rural_ponte', 'rural-pontos-interesse': 'rural_ponto_interesse'
+                };
+
+                const entityToCreate = mapSingular[featureCloneOriginalLayer];
+
+                if (entityToCreate) {
+                    Livewire.dispatch('abrirModalCriacao', { entityType: entityToCreate, geoJson: geoJson });
+                    cadSource.clear();
+                }
+                encerrarModoEdicao();
+                return; // Encerra o salvamento aqui!
+            }
+
             window._featureBackup = featureEmEdicao;
             window._geometriaBackup = geometriaOriginal;
 
@@ -1514,9 +1959,15 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     window.cancelarEdicaoGeometria = function () {
-        if (featureEmEdicao && geometriaOriginal) {
-            featureEmEdicao.setGeometry(geometriaOriginal);
-            featureEmEdicao.changed();
+        if (featureEmEdicao) {
+            // Se for o rascunho, só apaga da tela
+            if (featureEmEdicao.get('layer') === 'cad_draft') {
+                cadSource.clear();
+            } else if (geometriaOriginal) {
+                // Se for edição normal, devolve a geometria original
+                featureEmEdicao.setGeometry(geometriaOriginal);
+                featureEmEdicao.changed();
+            }
         }
         encerrarModoEdicao();
     };
@@ -1545,13 +1996,47 @@ document.addEventListener('DOMContentLoaded', function () {
         if (currentTranslateInteraction) map.removeInteraction(currentTranslateInteraction);
         window.disableUniversalSnap(); // Desliga o ímã universal
 
-        currentModifyInteraction = null; 
+        currentModifyInteraction = null;
         currentTranslateInteraction = null;
-        featureEmEdicao = null; 
+        featureEmEdicao = null;
         geometriaOriginal = null;
-        
+
         window.dispatchEvent(new Event('encerrar-edicao'));
     }
+
+    // 🔪 OUVINTE DA TESOURA: Quando o PHP devolve as fatias cortadas
+    window.addEventListener('mostrar-fatias-corte', (e) => {
+        const data = e.detail[0] || e.detail;
+        const fatias = data.fatias;
+        featureCloneOriginalLayer = data.layerOrigem; // Grava a entidade original (ex: setor_fiscal)
+
+        cadSource.clear(); // Limpa a linha de desenho
+        document.body.style.cursor = 'default';
+
+        // Desenha as fatias na tela como uma "Vitrine"
+        fatias.forEach((fatia, index) => {
+            const feature = formatGeoJSON.readFeature(fatia.geojson, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' });
+            feature.set('is_fatia', true); // Etiqueta identificadora
+
+            // Pinta a fatia maior de verde, a fatia menor de azul
+            feature.setStyle(new ol.style.Style({
+                stroke: new ol.style.Stroke({ color: index === 0 ? '#10b981' : '#3b82f6', width: 3, lineDash: [5, 5] }),
+                fill: new ol.style.Fill({ color: index === 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(59, 130, 246, 0.4)' })
+            }));
+            cadSource.addFeature(feature);
+        });
+
+        activeTool = 'cad_cortar_step3'; // Muda o estado
+        alert("✂️ CORTE REALIZADO!\n\nPASSO 3: Clique na fatia que você deseja EXTRAIR E MANTER. A outra será descartada.");
+    });
+
+    // Se o corte der errado, destrava o mapa
+    window.addEventListener('cancelar-corte-generico', () => {
+        cadSource.clear();
+        window.resetToPan();
+        document.body.style.cursor = 'default';
+        window.dispatchEvent(new Event('fechar-submenus-cad'));
+    });
 
     // 14. CAMADA TEMPORÁRIA DE EDIFICAÇÕES (Laranja)
     const edifAtivasSource = new ol.source.Vector();
@@ -1634,6 +2119,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (currentDrawInteraction) map.removeInteraction(currentDrawInteraction);
         if (currentSnapInteraction) map.removeInteraction(currentSnapInteraction);
         if (currentTranslateInteraction) map.removeInteraction(currentTranslateInteraction); // Limpa o arrastar
+
+        // 🧹 Limpa as guias SÓ SE a ferramenta tiver sido desligada
+        if (!window.isOrtogonalActive && window.ortogonalGuideSource) window.ortogonalGuideSource.clear();
+        window.ortogonalLastFix = null; // Solta o clique
 
         window.disableUniversalSnap(); // 🧲 DESLIGA O ÍMÃ UNIVERSAL
 
@@ -1724,7 +2213,7 @@ document.addEventListener('DOMContentLoaded', function () {
             measureOverlay.setPosition(position);
             map.removeInteraction(currentMeasureInteraction);
         });
-        
+
         map.addInteraction(currentMeasureInteraction);
 
         // 🧲 LIGA O ÍMÃ UNIVERSAL PARA A MEDIÇÃO AQUI!
@@ -2050,6 +2539,63 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // =========================================================================
+    // 🛠️ MESA DE DESENHO CAD (RASCUNHOS AVANÇADOS)
+    // =========================================================================
+    const cadSource = new ol.source.Vector();
+    const cadLayer = new ol.layer.Vector({
+        source: cadSource,
+        style: new ol.style.Style({
+            stroke: new ol.style.Stroke({ color: '#4f46e5', width: 3, lineDash: [8, 4] }), // Indigo-600 tracejado
+            fill: new ol.style.Fill({ color: 'rgba(79, 70, 229, 0.3)' }) // Fundo translúcido
+        }),
+        zIndex: 10005 // Acima de quase tudo no mapa
+    });
+    map.addLayer(cadLayer);
+
+    let featureCloneOriginalLayer = null;
+
+    window.setFerramentaCAD = function (ferramenta) {
+        window.resetToPan(); // Limpa as ferramentas antigas
+
+        if (!ferramenta) {
+            activeTool = 'pan';
+            cadSource.clear();
+            return;
+        }
+
+        activeTool = 'cad_' + ferramenta; // Ex: 'cad_clonar'
+
+        if (ferramenta === 'clonar') {
+            alert("📝 MODO CLONE ATIVADO\n\nClique no artefato (lote, quadra, poste, etc) que deseja copiar.");
+            map.getTargetElement().style.cursor = 'copy';
+
+        } else if (ferramenta === 'buffer') {
+            alert("📏 MODO BUFFER ATIVADO\n\nDefina os metros na caixinha inferior e clique no artefato para inflá-lo.");
+            map.getTargetElement().style.cursor = 'crosshair';
+
+            // 👇 INICIA O BLOCO DO UNIR GENÉRICO AQUI 👇
+        } else if (ferramenta === 'unir') {
+            activeTool = 'cad_unir_step1';
+            window.cadFeatureToUnite = null; // Variável para guardar o primeiro polígono
+            alert("🔗 MODO UNIR (SOMA BOOLEANA)\n\nPASSO 1: Clique no PRIMEIRO polígono que deseja fundir.");
+            map.getTargetElement().style.cursor = 'crosshair';
+
+            // 👇 INICIA O BLOCO DA TESOURA AQUI 👇
+        } else if (ferramenta === 'desmembrar') {
+            activeTool = 'cad_cortar_step1';
+            window.cadFeatureToCut = null;
+            alert("✂️ MODO CORTAR (TESOURA)\n\nPASSO 1: Clique no polígono que deseja fatiar.");
+            map.getTargetElement().style.cursor = 'crosshair';
+
+            // 👇 INICIA O BLOCO COTAR AQUI 👇
+        } else if (ferramenta === 'cotar') {
+            activeTool = 'cad_cotar';
+            alert("📏 MODO COTAR ATIVADO\n\nClique em um Lote, Bairro ou Rua para extrair a área e a medida de todos os lados instantaneamente.");
+            map.getTargetElement().style.cursor = 'help'; // Cursor de dúvida/informação
+        }
+    };
+
+    // =========================================================================
     // FERRAMENTA DE DESMEMBRAMENTO DE LOTES (A TESOURA)
     // =========================================================================
     let loteParaDesmembrarId = null;
@@ -2077,6 +2623,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         currentDrawInteraction.on('drawend', function (e) {
+
+            window.ortogonalLastFix = null; // 🧹 SOLTA A LINHA GUIA
+
             const linhaDeCorteGeoJson = formatGeoJSON.writeGeometryObject(e.feature.getGeometry());
 
             // Limpa o mapa e devolve a mãozinha

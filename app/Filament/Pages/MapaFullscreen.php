@@ -180,8 +180,22 @@ class MapaFullscreen extends Page
     #[On('abrirModalCriacao')]
     public function interceptarDesenho($entityType, $geoJson)
     {
+        if (is_array($geoJson) && isset($geoJson['type']) && $geoJson['type'] === 'Polygon') {
+            if (!empty($geoJson['coordinates'][0])) {
+                $primeiroPonto = $geoJson['coordinates'][0][0];
+                $ultimoPonto = end($geoJson['coordinates'][0]);
+                
+                // Se o primeiro ponto for diferente do último, nós injetamos o fechamento
+                if ($primeiroPonto !== $ultimoPonto) {
+                    $geoJson['coordinates'][0][] = $primeiroPonto; 
+                }
+            }
+        }
+
         $this->geometriaRascunho = $geoJson;
-        $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
+        
+        // 🛡️ BÔNUS: Já envelopamos no ST_MakeValid para evitar erros de "quina torcida" na criação
+        $polyWKT = "ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326))";
         $centroidWKT = "ST_Centroid($polyWKT)";
 
         if ($entityType === 'lote') {
@@ -1753,5 +1767,53 @@ class MapaFullscreen extends Page
             try { DB::statement("UPDATE quadras SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]); } catch (\Exception $e) {}
             \Filament\Notifications\Notification::make()->title('Limites e Vínculos Atualizados!')->success()->send();
         }
+    }
+
+    /**
+     * MOTOR POSTGIS CAD: Fatia genérica de qualquer polígono (Retorna para a Vitrine do JS)
+     */
+    #[On('processarCorteGenerico')]
+    public function processarCorteGenerico($polygonGeoJson, $lineGeoJson, $layerOrigem)
+    {
+        // A MÁGICA DO CORTE: Extrai o polígono puro e fatia usando a Linha (ST_Split)
+        $fatias = DB::select("
+            WITH linha AS (
+                SELECT ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) AS geom
+            ),
+            poly_base AS (
+                SELECT ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326)) AS geom
+            ),
+            poly_dump AS (
+                -- Tira a blindagem de MultiPolygon para a faca do ST_Split funcionar
+                SELECT (ST_Dump(geom)).geom AS geom FROM poly_base LIMIT 1
+            ),
+            cortado AS (
+                SELECT (ST_Dump(ST_Split(poly_dump.geom, linha.geom))).geom AS parte
+                FROM poly_dump CROSS JOIN linha
+            )
+            SELECT 
+                ST_AsGeoJSON(parte) as geojson,
+                ST_Area(parte::geography) as area_m2
+            FROM cortado
+        ", [json_encode($lineGeoJson), json_encode($polygonGeoJson)]);
+
+        // Se a linha não atravessou de um lado ao outro, o banco não consegue cortar!
+        if (count($fatias) < 2) {
+            \Filament\Notifications\Notification::make()
+                ->title('Corte Inválido ⚠️')
+                ->body('A linha não dividiu o polígono completamente. Desenhe a linha cruzando de um lado ao outro, começando e terminando FORA do polígono.')
+                ->warning()
+                ->send();
+            
+            $this->dispatch('cancelar-corte-generico');
+            return;
+        }
+
+        // Organiza do maior pedaço para o menor
+        $arrayFatias = json_decode(json_encode($fatias), true);
+        usort($arrayFatias, fn($a, $b) => $b['area_m2'] <=> $a['area_m2']);
+
+        // Devolve os pedaços cortados para o JavaScript exibir na vitrine
+        $this->dispatch('mostrar-fatias-corte', fatias: $arrayFatias, layerOrigem: $layerOrigem);
     }
 }

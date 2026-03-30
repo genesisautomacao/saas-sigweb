@@ -313,11 +313,22 @@
                         <x-heroicon-o-globe-americas class="w-5 h-5" />
                         <span id="satelite-text" class="hidden md:inline">Satélite</span>
                     </button>
-                    <button id="btn-toggle-layers"
+
+                    <button id="btn-toggle-layers" title="Camadas do Mapa"
                         class="px-4 py-2 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 rounded-xl text-primary-600 dark:text-primary-400 font-bold text-sm flex items-center gap-2">
                         <x-heroicon-o-square-3-stack-3d class="w-5 h-5" />
                         <span class="hidden md:inline">Camadas</span>
                     </button>
+
+                    {{-- BOTÃO TOGGLE CAD AVANÇADO --}}
+                    <button type="button" 
+                        @click="$dispatch('toggle-cad-avancado')" 
+                        class="px-4 py-2 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 rounded-xl text-primary-600 dark:text-primary-400 font-bold text-sm flex items-center gap-2"
+                        title="Módulo CAD Avançado">
+                        <x-heroicon-o-cpu-chip class="w-5 h-5" />
+                        <span class="hidden md:inline text-sm">CAD</span>
+                    </button>
+
                 </div>
             </div>
             <div class="w-10"></div>
@@ -828,6 +839,96 @@
 
             </div>
         </div>
+
+        {{-- 🛠️ BARRA INFERIOR: VETORIZAÇÃO AVANÇADA (CAD) --}}
+        <div x-data="{ openCad: false, ferramentaCadAtiva: null, ortogonalAtiva: false }" 
+             @toggle-cad-avancado.window="openCad = !openCad; if(!openCad) ferramentaCadAtiva = null;"
+             @fechar-submenus-cad.window="ferramentaCadAtiva = null"
+             x-show="openCad" 
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 translate-y-10"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-y-0"
+             x-transition:leave-end="opacity-0 translate-y-10"
+             style="display: none; position: fixed !important; bottom: 15px !important; left: 50% !important; transform: translateX(-50%) !important; z-index: 9998 !important;"
+             class="bg-white dark:bg-gray-900/80 backdrop-blur-md shadow-lg rounded-2xl border border-gray-200 dark:border-gray-700 px-3 py-1.5 flex items-center gap-2 pointer-events-auto transition-all">
+             
+
+             {{-- Ferramentas --}}
+             <div class="flex items-center gap-1">
+                 {{-- 1. CLONAR --}}
+                 <button @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'clonar' ? null : 'clonar'); window.setFerramentaCAD(ferramentaCadAtiva);"
+                     :class="ferramentaCadAtiva === 'clonar' ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
+                     class="w-14 h-11 me-4 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
+                     <x-heroicon-o-document-duplicate class="w-4 h-4" />
+                     <span class="text-[9px] font-bold">Clonar</span>
+                 </button>
+
+                 {{-- 2. BUFFER (Botão + Input Dinâmico) --}}
+                 <div class="flex items-center gap-1 transition-all me-4" :class="ferramentaCadAtiva === 'buffer' ? 'bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-700 rounded-xl pr-2' : ''">
+                     <button @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'buffer' ? null : 'buffer'); window.setFerramentaCAD(ferramentaCadAtiva);"
+                         :class="ferramentaCadAtiva === 'buffer' ? 'text-indigo-600 dark:text-indigo-400' : 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400 me-2'"
+                         class="w-14 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
+                         <x-heroicon-o-arrows-pointing-out class="w-4 h-4" />
+                         <span class="text-[9px] font-bold">Buffer</span>
+                     </button>
+                     
+                     {{-- O Campinho de Metros (Aparece apenas quando o Buffer é clicado) --}}
+                     <div x-show="ferramentaCadAtiva === 'buffer'" style="display: none;" class="flex items-center gap-1 animate-fade-in-right">
+                         <input type="text" id="input-cad-buffer" value="5.5"
+                                class="w-10 h-7 px-1 text-center text-xs font-bold text-indigo-700 bg-white border border-indigo-300 rounded-lg focus:ring-0 focus:border-indigo-500"
+                                title="Distância em metros (Use ponto ou vírgula)">
+                         <span class="text-[10px] font-bold text-indigo-400">m</span>
+                     </div>
+                 </div>
+
+                 {{-- 3. UNIR --}}
+                 <button @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'unir' ? null : 'unir'); window.setFerramentaCAD(ferramentaCadAtiva);"
+                     :class="ferramentaCadAtiva === 'unir' ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
+                     class="w-14 h-11 me-4 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
+                     <x-heroicon-o-link class="w-4 h-4" />
+                     <span class="text-[9px] font-bold">Unir</span>
+                 </button>
+
+                 {{-- 4. DESMEMBRAR --}}
+                 <button @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'desmembrar' ? null : 'desmembrar'); window.setFerramentaCAD(ferramentaCadAtiva);"
+                     :class="ferramentaCadAtiva === 'desmembrar' ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
+                     class="w-14 h-11 me-4 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
+                     <x-heroicon-o-scissors class="w-4 h-4" />
+                     <span class="text-[9px] font-bold">Cortar</span>
+                 </button>
+
+                 {{-- 5. LINHA ORTOGONAL --}}
+                 <button @click="ortogonalAtiva = !ortogonalAtiva; window.toggleOrtogonal(ortogonalAtiva);"
+                     :class="ortogonalAtiva ? 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
+                     class="w-16 h-11 me-4 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all relative">
+                     <span x-show="ortogonalAtiva" style="display: none;" class="absolute top-1 right-1 flex h-1.5 w-1.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                     </span>
+                     <x-heroicon-o-bars-4 class="w-4 h-4" />
+                     <span class="text-[9px] font-bold">Ortogonal</span>
+                 </button>
+
+                 <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 me-4"></div>
+
+                 {{-- 6. COTAR (GABARITO / AUTO-MEDIDA) --}}
+                 <button @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'cotar' ? null : 'cotar'); window.setFerramentaCAD(ferramentaCadAtiva);"
+                     :class="ferramentaCadAtiva === 'cotar' ? 'bg-orange-50 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
+                     class="w-14 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
+                     <x-heroicon-o-arrows-right-left class="w-4 h-4" />
+                     <span class="text-[9px] font-bold">Cotar</span>
+                 </button>
+
+             </div>
+
+             {{-- Botão Fechar Barra --}}
+             <button @click="openCad = false; ferramentaCadAtiva = null; window.setFerramentaCAD(null);" class="ml-1 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors">
+                 <x-heroicon-o-x-mark class="w-5 h-5" />
+             </button>
+        </div>
+
     </div>
 
     {{-- ⚡ FICHA DO IMÓVEL (GERENCIADA PELO LIVEWIRE) ⚡ --}}
