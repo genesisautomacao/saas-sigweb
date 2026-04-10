@@ -246,6 +246,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         'edificacoes': { z: 70, minZoom: 16, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#b45309', width: 1 }), fill: new ol.style.Fill({ color: 'rgba(180, 83, 9, 0.5)' }) }) },
 
+        'pontos_panoramicos': {
+            style: new ol.style.Style({
+                image: new ol.style.Icon({
+                    src: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%233b82f6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
+                    scale: 1.0,
+                    anchor: [0.5, 0.5]
+                })
+            }),
+            z: 100, // Câmeras sempre por cima das quadras e lotes!
+            minZoom: 14 // Só aparece quando der um certo zoom
+        },
+
         'cemiterios': {
             z: 25, // Fica entre a Zona e o Bairro
             minZoom: 13,
@@ -571,11 +583,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // 7. CARREGAMENTO DE CAMADAS (API AJAX)
+    window.loadingLayers = window.loadingLayers || {}; // 🛑 TRAVA ANTI-FANTASMA
+
     const fetchAndDrawLayer = (layerName, checkboxElement) => {
-        if (window.window.loadedLayers[layerName]) {
-            window.window.loadedLayers[layerName].setVisible(true);
+        // Se a camada já está desenhada OU está no meio do processo de download da API, cancela a nova requisição!
+        if (window.loadedLayers[layerName] || window.loadingLayers[layerName]) {
+            if (window.loadedLayers[layerName]) window.loadedLayers[layerName].setVisible(true);
             return;
         }
+
+        window.loadingLayers[layerName] = true; // Tranca a porta!
 
         const textSpan = checkboxElement.nextElementSibling.querySelector('.layer-text');
         let originalText = '';
@@ -585,19 +602,17 @@ document.addEventListener('DOMContentLoaded', function () {
             textSpan.classList.add('animate-pulse', 'text-primary-500');
         }
 
-        // Lê o ID do tenant vindo da variável PHP lá de cima
+        // Lê o ID do tenant vindo da variável PHP
         fetch(`/api/gis-data?tenant_id=${config.tenantId}&layer=${layerName}`)
             .then(response => response.json())
             .then(data => {
                 if (data && data.features && data.features.length > 0) {
                     const parsedFeatures = new ol.format.GeoJSON().readFeatures(data, { featureProjection: 'EPSG:3857' });
 
-                    // 🛑 CARIMBO OBRIGATÓRIO: Garante que o feature saiba de qual camada ele é, para o clique funcionar!
+                    // CARIMBO OBRIGATÓRIO
                     parsedFeatures.forEach(f => f.set('layer', layerName));
 
-                    const vectorSource = new ol.source.Vector({
-                        features: parsedFeatures
-                    });
+                    const vectorSource = new ol.source.Vector({ features: parsedFeatures });
                     const vectorLayer = new ol.layer.Vector({
                         source: vectorSource,
                         style: layerConfigs[layerName].style,
@@ -605,11 +620,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         minZoom: layerConfigs[layerName].minZoom
                     });
                     map.addLayer(vectorLayer);
-                    window.window.loadedLayers[layerName] = vectorLayer;
+                    window.loadedLayers[layerName] = vectorLayer;
                 }
             })
             .catch(err => console.error(`Erro ao carregar ${layerName}:`, err))
             .finally(() => {
+                window.loadingLayers[layerName] = false; // Destranca a porta ao finalizar!
                 if (textSpan) {
                     textSpan.innerHTML = originalText;
                     textSpan.classList.remove('animate-pulse', 'text-primary-500');
@@ -626,22 +642,25 @@ document.addEventListener('DOMContentLoaded', function () {
         if (checkbox.checked) fetchAndDrawLayer(checkbox.getAttribute('data-layer'), checkbox);
     });
 
-    document.querySelectorAll('.zona-toggle').forEach(checkbox => {
-        checkbox.addEventListener('change', function () {
-            const sigla = this.getAttribute('data-zona-sigla');
-            if (this.checked) {
+    // 🛑 Delegação de Eventos: Ouve até os checkboxes que forem criados depois!
+    document.addEventListener('change', function (e) {
+        if (e.target && e.target.classList.contains('zona-toggle')) {
+            const checkbox = e.target;
+            const sigla = checkbox.getAttribute('data-zona-sigla');
+
+            if (checkbox.checked) {
                 if (!zonasAtivas.includes(sigla)) zonasAtivas.push(sigla);
             } else {
                 zonasAtivas = zonasAtivas.filter(s => s !== sigla);
             }
 
-            if (!window.window.loadedLayers['zonas']) {
-                fetchAndDrawLayer('zonas', this);
+            if (!window.loadedLayers['zonas']) {
+                fetchAndDrawLayer('zonas', checkbox);
             } else {
-                window.window.loadedLayers['zonas'].changed();
-                window.window.loadedLayers['zonas'].setVisible(zonasAtivas.length > 0);
+                window.loadedLayers['zonas'].changed();
+                window.loadedLayers['zonas'].setVisible(zonasAtivas.length > 0);
             }
-        });
+        }
     });
 
     // 8. INTERFACE E ARRASTO DO PAINEL DE CAMADAS
@@ -732,7 +751,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const feature = map.forEachFeatureAtPixel(e.pixel, feature => feature, { hitTolerance: 5 });
 
         // 2. Define quais camadas ganham a "mãozinha" (pointer) ao passar o mouse
-        const hoverableLayers = ['lotes', 'edificacao_ativa', 'logradouros', 'bairros', 'loteamentos', 'quadras', 'postes', 'arvores', 'cemiterios', 'quadras_cemiterio', 'logradouros_cemiterio', 'setores_fiscais', 'rural-localidades', 'rural-propriedades', 'rural-estradas', 'rural-hidrografias', 'rural-pontes', 'rural-pontos-interesse'];
+        const hoverableLayers = ['lotes', 'edificacao_ativa', 'pontos_panoramicos', 'logradouros', 'zonas', 'bairros', 'loteamentos', 'quadras', 'postes', 'arvores', 'cemiterios', 'quadras_cemiterio', 'logradouros_cemiterio', 'setores_fiscais', 'rural-localidades', 'rural-propriedades', 'rural-estradas', 'rural-hidrografias', 'rural-pontes', 'rural-pontos-interesse'];
         const isHoverable = feature && hoverableLayers.includes(feature.get('layer'));
         map.getTargetElement().style.cursor = isHoverable ? 'pointer' : '';
 
@@ -1480,12 +1499,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const clickPriority = [
                 'edificacao_ativa', // Modo edição ganha de tudo
                 'postes', 'arvores', 'rural-pontos-interesse', 'rural-pontes', // PONTOS (Maior prioridade)
-                'logradouros', 'logradouros_cemiterio', 'rural-estradas', // LINHAS
+                'logradouros', 'logradouros_cemiterio', 'rural-estradas', 'pontos_panoramicos', // LINHAS
                 'jazigos', // Polígono Micro
                 'rural-hidrografias', // Pode ser misto, prioridade alta
                 'lotes', 'rural-propriedades', // Polígonos Pequenos
                 'quadras_cemiterio', 'quadras', // Polígonos Médios
-                'cemiterios', 'setores_fiscais', // Polígonos Grandes
+                'cemiterios', 'setores_fiscais', 'zonas',// Polígonos Grandes
                 'bairros', 'loteamentos', 'rural-localidades' // Polígonos Gigantes (Menor prioridade)
             ];
 
@@ -1522,9 +1541,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     case 'quadras': Livewire.dispatch('abrirOpcoesQuadra', { id: id }); break;
                     case 'cemiterios': Livewire.dispatch('abrirOpcoesCemiterio', { id: id }); break;
                     case 'setores_fiscais': Livewire.dispatch('abrirOpcoesSetorFiscal', { id: id }); break;
+                    case 'zonas': Livewire.dispatch('abrirOpcoesZona', { id: id }); break; // 👈 ADICIONE ESTA LINHA
                     case 'bairros': Livewire.dispatch('abrirOpcoesBairro', { id: id }); break;
                     case 'loteamentos': Livewire.dispatch('abrirOpcoesLoteamento', { id: id }); break;
                     case 'rural-localidades': Livewire.dispatch('abrirOpcoesRuralLocalidade', { id: id }); break;
+
+                    case 'pontos_panoramicos': Livewire.dispatch('abrirOpcoesPontoPanoramico', { id: id }); break;
 
                     case 'lotes':
                         // 🟢 MODIFICADO: Agora ele busca o 'name' padrão ou o 'titulo' gerado pelo filtro avançado
@@ -1709,7 +1731,8 @@ document.addEventListener('DOMContentLoaded', function () {
         let geometryType = 'Polygon';
 
         //point
-        if (['arvore', 'poste', 'rural_hidro_ponto', 'rural_ponte', 'rural_ponto_interesse'].includes(entityType)) geometryType = 'Point';
+        //point
+        if (['arvore', 'poste', 'rural_hidro_ponto', 'rural_ponte', 'rural_ponto_interesse', 'ponto_panoramico'].includes(entityType)) geometryType = 'Point';
 
         //linestring
         if (['logradouro', 'logradouro_cemiterio', 'rural_estrada', 'rural_hidro_linha'].includes(entityType)) geometryType = 'LineString';
@@ -1887,6 +1910,10 @@ document.addEventListener('DOMContentLoaded', function () {
         { evento: 'iniciar-edicao-geometria-logradouro_cemiterio', layer: 'logradouros_cemiterio', cor: '#64748b' },
         { evento: 'iniciar-edicao-geometria-jazigo', layer: 'jazigos', cor: '#57534e' },
         { evento: 'iniciar-edicao-geometria-setor_fiscal', layer: 'setores_fiscais', cor: '#f59e0b' },
+
+        { evento: 'iniciar-edicao-geometria-zona', layer: 'zonas', cor: '#ec4899' },
+        { evento: 'iniciar-edicao-geometria-ponto_panoramico', layer: 'pontos_panoramicos', cor: '#3b82f6' },
+
         { evento: 'iniciar-edicao-geometria-rural_localidade', layer: 'rural-localidades', cor: '#57534e' },
         { evento: 'iniciar-edicao-geometria-rural_propriedade', layer: 'rural-propriedades', cor: '#57534e' },
         { evento: 'iniciar-edicao-geometria-rural_estrada', layer: 'rural-estradas', cor: '#78350f' },
@@ -2312,6 +2339,7 @@ document.addEventListener('DOMContentLoaded', function () {
         { layer: 'logradouros', singular: 'logradouro' },
         { layer: 'postes', singular: 'poste' },
         { layer: 'arvores', singular: 'arvore' },
+
         { layer: 'bairros', singular: 'bairro' },
         { layer: 'loteamentos', singular: 'loteamento' },
         { layer: 'quadras_cemiterio', singular: 'quadra_cemiterio' },
@@ -2325,6 +2353,9 @@ document.addEventListener('DOMContentLoaded', function () {
         { layer: 'rural-pontes', singular: 'rural_ponte' },
         { layer: 'rural-pontos-interesse', singular: 'rural_ponto_interesse' },
         { layer: 'quadras', singular: 'quadra' },
+
+        { layer: 'pontos_panoramicos', singular: 'ponto_panoramico' },
+
     ];
 
     entidadesSurgical.forEach(entidade => {
@@ -2383,6 +2414,76 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // =========================================================================
+    // CIRURGIA EM MEMÓRIA EXCLUSIVA: ZONAS (Precisa de RGB e Sigla)
+    // =========================================================================
+    window.addEventListener('adicionar-zona-mapa', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (drawSource) drawSource.clear();
+
+        // 1. Ativa a sigla na memória para o mapa não esconder
+        if (!zonasAtivas.includes(data.sigla)) {
+            zonasAtivas.push(data.sigla);
+        }
+
+        // 2. Força o Checkbox a ligar (Atraso de 150ms pro Alpine ter tempo de renderizar o HTML da nova zona)
+        setTimeout(() => {
+            const checkbox = document.querySelector(`input[data-zona-sigla="${data.sigla}"]`);
+            if (checkbox && !checkbox.checked) checkbox.checked = true;
+        }, 150);
+
+        // 3. Injeta no mapa com RGB e Sigla!
+        if (window.loadedLayers['zonas']) {
+            const feature = new ol.Feature({
+                geometry: new ol.format.GeoJSON().readGeometry(data.geo, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' }),
+                id: data.id,
+                name: data.name,
+                sigla: data.sigla,
+                rgb: data.rgb,
+                layer: 'zonas'
+            });
+            window.loadedLayers['zonas'].getSource().addFeature(feature);
+            window.loadedLayers['zonas'].changed();
+            window.loadedLayers['zonas'].setVisible(true);
+        } else {
+            // Se a camada inteira não existe ainda, pede pra carregar
+            const tempCheckbox = document.querySelector(`input[data-layer="zonas"]`);
+            if (tempCheckbox) fetchAndDrawLayer('zonas', tempCheckbox);
+        }
+    });
+
+    window.addEventListener('atualizar-label-zona', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (window.loadedLayers['zonas']) {
+            const feature = window.loadedLayers['zonas'].getSource().getFeatures().find(f => f.get('id') == data.id);
+            if (feature) {
+                feature.set('name', data.name);
+                feature.set('sigla', data.sigla);
+                feature.set('rgb', data.rgb);
+                feature.changed(); // Força pintar com a cor nova
+            }
+        }
+    });
+
+    window.addEventListener('remover-zona-mapa', (e) => {
+        const data = e.detail[0] || e.detail;
+        if (window.loadedLayers['zonas']) {
+            const source = window.loadedLayers['zonas'].getSource();
+            const feature = source.getFeatures().find(f => f.get('id') == data.id);
+            if (feature) source.removeFeature(feature);
+        }
+
+        // 🛑 MÁGICA: Ao invés de remover a sigla cegamente da lista visual, 
+        // nós lemos o DOM para ver quais siglas AINDA estão marcadas no menu lateral.
+        zonasAtivas = [];
+        document.querySelectorAll('.zona-toggle:checked').forEach(cb => {
+            const sigla = cb.getAttribute('data-zona-sigla');
+            if (sigla && !zonasAtivas.includes(sigla)) zonasAtivas.push(sigla);
+        });
+
+        if (window.loadedLayers['zonas']) window.loadedLayers['zonas'].changed();
+    });
+
+    // =========================================================================
     // 17. INTERCEPTADOR DE CRIAÇÃO GEOGRÁFICA (PONTOS E DESENHOS VIA URL)
     // =========================================================================
     const urlParams = new URLSearchParams(window.location.search);
@@ -2437,6 +2538,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const drawableEntities = {
             'lotes': { label: 'do novo Lote', func: 'lote' },
             'logradouros': { label: 'da linha do novo Logradouro', func: 'logradouro' },
+            'zonas': { label: 'da nova Zona de Uso', func: 'zona' },
             'bairros': { label: 'do novo Bairro', func: 'bairro' },
             'loteamentos': { label: 'do novo Loteamento', func: 'loteamento' },
             'quadras': { label: 'da nova Quadra', func: 'quadra' },
@@ -2457,6 +2559,8 @@ document.addEventListener('DOMContentLoaded', function () {
             'rural_hidro_linha': { label: 'do novo Rio/Córrego (Linha)', func: 'rural_hidro_linha' },
             'rural_hidro_poligono': { label: 'do novo Lago/Represa (Polígono)', func: 'rural_hidro_poligono' },
             'rural_hidro_ponto': { label: 'da nova Nascente (Ponto)', func: 'rural_hidro_ponto' },
+
+            //'pontos_panoramicos': { label: 'da localização da Câmera 360º', func: 'ponto_panoramico', type: 'Point' },
         };
 
         if (drawableEntities[drawKey]) {
@@ -2469,6 +2573,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Removemos o alert para não encher a tela de popups se já usou o Prompt
                 if (layerParams !== 'rural-hidrografias') {
                     alert(`🗺️ Desenhe a geometria ${labelEnt} no mapa.`);
+                }
+
+                if (layerParams !== 'zonas') { // 🛑 MÁGICA: Ignora as zonas porque elas ligam por SIGLA e não geral!
+                    const checkbox = document.querySelector(`input[data-layer="${layerParams}"]`);
+                    if (checkbox && !checkbox.checked) {
+                        checkbox.checked = true;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
                 }
 
                 // Usa o layerParams original para achar o checkbox e ligar a camada azulzinha!
@@ -2498,19 +2610,39 @@ document.addEventListener('DOMContentLoaded', function () {
     if (focusLat && focusLon) {
         // 1. Liga a camada no menu lateral automaticamente se ela existir
         if (targetLayer) {
-            const checkbox = document.querySelector(`input[data-layer="${targetLayer}"]`);
-            if (checkbox && !checkbox.checked) {
-                checkbox.checked = true;
-                checkbox.dispatchEvent(new Event('change')); // Força o carregamento no banco
 
-                // Abre a sanfona correspondente no menu de camadas para mostrar que ativou
-                // O painel de postes fica na infraestrutura, então se for postes, abre ela.
-                if (targetLayer === 'postes') {
-                    // Aqui disparamos o Alpine para abrir a sanfona de Infraestrutura
-                    const infraButton = document.querySelector('button[x-on\\:click*="infra"]');
-                    if (infraButton) infraButton.click();
+            // 👉 INÍCIO DA SEPARAÇÃO: Zonas vs Outros 👈
+
+            if (targetLayer === 'zonas') {
+                // LÓGICA EXCLUSIVA DAS ZONAS
+                const targetSigla = urlParams.get('sigla');
+                if (targetSigla) {
+                    // Aguarda 500ms para o Alpine renderizar a sanfona
+                    setTimeout(() => {
+                        const checkboxes = document.querySelectorAll(`input[data-zona-sigla="${targetSigla}"]`);
+                        checkboxes.forEach(cb => {
+                            if (!cb.checked) {
+                                cb.checked = true;
+                                cb.dispatchEvent(new Event('change'));
+                            }
+                        });
+                    }, 500);
+                }
+            } else {
+                // LÓGICA GENÉRICA (Postes, Lotes, Bairros, etc)
+                const checkbox = document.querySelector(`input[data-layer="${targetLayer}"]`);
+                if (checkbox && !checkbox.checked) {
+                    checkbox.checked = true;
+                    checkbox.dispatchEvent(new Event('change')); // Força o carregamento no banco
+
+                    // Abre a sanfona correspondente (Mantido o seu código dos postes!)
+                    if (targetLayer === 'postes') {
+                        const infraButton = document.querySelector('button[x-on\\:click*="infra"]');
+                        if (infraButton) infraButton.click();
+                    }
                 }
             }
+            // 👉 FIM DA SEPARAÇÃO 👈
         }
 
         // 2. Faz o voo cinematográfico para o local exato
@@ -2858,6 +2990,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    
+
 
 }); // <-- Fim do DOMContentLoaded

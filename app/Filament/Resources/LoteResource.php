@@ -67,9 +67,9 @@ class LoteResource extends Resource
                     ->description('Caso não desenhado no mapa, insira o GeoJSON gerado pela topografia.')
                     ->schema([
                         Forms\Components\Textarea::make('geo_json_input')
-                            ->label('Código GeoJSON')
-                            ->placeholder('{"type": "Polygon", "coordinates": [[[...]]]}')
-                            ->rows(6)
+                            ->label('Coordenadas do Perímetro (GeoJSON)')
+                            ->helperText('Você pode colar um GeoJSON completo OU apenas uma lista de coordenadas no formato: "-50.404263 -26.972014, -50.401214 -26.974058..."')
+                            ->rows(15)
                             ->columnSpanFull(),
                     ])
             ]);

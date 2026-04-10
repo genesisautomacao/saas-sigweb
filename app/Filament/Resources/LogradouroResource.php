@@ -31,10 +31,10 @@ class LogradouroResource extends Resource
                         
                         // O json de importação / ajuste topográfico
                         Forms\Components\Textarea::make('geo_json_input')
-                            ->label('Coordenadas (GeoJSON LineString)')
+                            ->label('Coordenadas da Rua (Ou GeoJSON LineString)')
                             ->rows(10)
                             ->columnSpanFull()
-                            ->helperText('O sistema desenha automaticamente no mapa, mas você pode colar ou editar o GeoJSON aqui caso possua o levantamento topográfico.'),
+                            ->helperText('O sistema desenha automaticamente no mapa, mas você pode colar um GeoJSON completo OU uma lista simples de coordenadas do traçado (ex: "-50.404263 -26.972014, -50.401214 -26.974058...")'),
                     ])
             ]);
     }

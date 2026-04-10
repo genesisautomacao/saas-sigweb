@@ -24,6 +24,8 @@ use App\Filament\Pages\Traits\HasRuralPontoInteresseActions;
 use App\Filament\Pages\Traits\HasBairroActions;
 use App\Filament\Pages\Traits\HasLoteamentoActions;
 use App\Filament\Pages\Traits\HasQuadraActions;
+use App\Filament\Pages\Traits\HasZonaActions;
+use App\Filament\Pages\Traits\HasPontoPanoramicoActions;
 
 use App\Models\Lote;
 use App\Models\Edificacao;
@@ -67,6 +69,8 @@ class MapaFullscreen extends Page
     use HasBairroActions;
     use HasLoteamentoActions;
     use HasQuadraActions;
+    use HasZonaActions;
+    use HasPontoPanoramicoActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';
@@ -509,6 +513,10 @@ class MapaFullscreen extends Page
             $this->quadraPerimetroPreSelecionadoId = $perimetro ? $perimetro->id : null;
 
             $this->mountAction('criarQuadra');
+        } elseif ($entityType === 'zona') {
+            $this->mountAction('criarZona');
+        } elseif ($entityType === 'ponto_panoramico') {
+            $this->mountAction('criarPontoPanoramico');
         }
     }
 
@@ -1902,5 +1910,60 @@ class MapaFullscreen extends Page
         \Filament\Notifications\Notification::make()->title('Filtros removidos!')->success()->send();
     }
 
-  
+    /**
+     * Atualiza a lista de Zonas no menu lateral dinamicamente
+     */
+    public function atualizarZonasTipos()
+    {
+        $this->zonasTipos = \App\Models\Zona::where('tenant_id', $this->tenantId)
+            ->select('id', 'name', 'sigla', 'rgb')
+            ->get()
+            ->map(fn($zona) => [
+                'id' => $zona->id,
+                'name' => $zona->name,
+                'sigla' => $zona->sigla,
+                'rgb' => $zona->rgb ?? '(150,150,150)', // 👈 GARANTIA DE COR
+            ])
+            ->toArray();
+    }
+
+    #[On('abrirOpcoesZona')]
+    public function abrirOpcoesZona($id)
+    {
+        $this->zonaAtivaId = $id;
+        $this->mountAction('opcoesZona');
+    }
+
+    #[On('salvarNovaGeometriaZona')]
+    public function salvarNovaGeometriaZona($id, $geoJson)
+    {
+        $zona = \App\Models\Zona::find($id);
+        if ($zona) {
+            $zona->update(['geo' => $geoJson]);
+
+            try {
+                \Illuminate\Support\Facades\DB::statement("UPDATE zonas SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$zona->id]);
+            } catch (\Exception $e) {
+            }
+
+            \Filament\Notifications\Notification::make()->title('Limites da Zona Atualizados!')->success()->send();
+        }
+    }
+
+    #[On('abrirOpcoesPontoPanoramico')]
+    public function abrirOpcoesPontoPanoramico($id)
+    {
+        $this->pontoPanoramicoAtivoId = $id;
+        $this->mountAction('opcoesPontoPanoramico');
+    }
+
+    #[On('salvarNovaGeometriaPontoPanoramico')]
+    public function salvarNovaGeometriaPontoPanoramico($id, $geoJson)
+    {
+        $ponto = \App\Models\PontoPanoramico::find($id);
+        if ($ponto) {
+            $ponto->update(['geo' => $geoJson]);
+            \Filament\Notifications\Notification::make()->title('Localização do Ponto 360º Atualizada!')->success()->send();
+        }
+    }
 }

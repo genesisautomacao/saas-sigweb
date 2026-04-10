@@ -41,11 +41,11 @@ class LoteamentoResource extends Resource
 
             Forms\Components\Section::make('Dados Espaciais')->schema([
                 Forms\Components\Textarea::make('geo_json_input')
-                    ->label('Coordenadas GeoJSON (Polígono)')
-                    ->rows(4)
-                    ->columnSpanFull()
-                    ->helperText('Deixe em branco se for desenhar o Loteamento no mapa interativo.'),
-            ]),
+                    ->label('Coordenadas do Perímetro (Ou GeoJSON)')
+                    ->helperText('Você pode colar um GeoJSON completo OU apenas uma lista de coordenadas no formato: "-50.404263 -26.972014, -50.401214 -26.974058..."')
+                    ->rows(15)
+                    ->columnSpanFull(),
+            ])
         ]);
     }
 

@@ -336,4 +336,10 @@ class Tenant extends Model implements HasAvatar
     {
         return $this->hasMany(PatrimonioPublico::class);
     }
+
+    public function pontoPanoramicos(): HasMany
+    {
+        return $this->hasMany(PontoPanoramico::class);
+    }
+
 }

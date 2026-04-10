@@ -147,6 +147,11 @@
                                     </button>
 
                                     <div x-show="activeTabDraw === 'urbano'" x-collapse class="py-1">
+                                        <button @click="open = false; enableDrawing('zona')"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-globe-americas class="w-4 h-4 text-purple-500" />
+                                            Zona de Uso
+                                        </button>
                                         <button type="button" onclick="enableDrawing('bairro')"
                                             @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
@@ -176,6 +181,12 @@
                                             @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-slate-100 hover:text-slate-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-minus class="w-4 h-4 text-slate-500" /> Logradouro (Linha)
+                                        </button>
+
+                                        <button @click="open = false; enableDrawing('ponto_panoramico')"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-camera class="w-4 h-4 text-blue-500" />
+                                            Ponto 360º
                                         </button>
                                     </div>
                                 </div>
@@ -750,23 +761,24 @@
                             x-bind:class="activeTab === 'zonas' ? 'rotate-180' : ''" />
                     </button>
                     <div x-show="activeTab === 'zonas'" x-collapse
-                        class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden">
-                        @foreach ($zonasTipos as $zona)
-                            @php $rgbLimpo = str_replace(['(', ')'], '', $zona['rgb']); @endphp
-                            <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"
-                                title="{{ $zona['name'] }}">
-                                <input type="checkbox" data-layer="zonas" data-zona-sigla="{{ $zona['sigla'] }}"
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden"
+                        x-data="{ zonasList: @entangle('zonasTipos') }"> {{-- MÁGICA: Conecta ao PHP! --}}
+                        
+                        <template x-for="zona in zonasList" :key="zona.id">
+                            <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full" :title="zona.name">
+                                <input type="checkbox" data-layer="zonas" :data-zona-sigla="zona.sigla"
                                     class="zona-toggle rounded border-gray-400 shadow-sm w-4 h-4 flex-shrink-0"
-                                    style="color: rgb({{ $rgbLimpo }});">
+                                    :style="`color: rgb(${ (zona.rgb || '150,150,150').replace(/rgb|\(|\)| /g, '') });`">
                                 <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-2">
                                     <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10"
-                                        style="background-color: rgb({{ $rgbLimpo }});"></div>
+                                        :style="`background-color: rgb(${ (zona.rgb || '150,150,150').replace(/rgb|\(|\)| /g, '') });`"></div>
                                     <span
-                                        class="layer-text truncate font-medium text-gray-700 dark:text-gray-300">{{ $zona['sigla'] }}
-                                        - {{ $zona['name'] }}</span>
+                                        class="layer-text truncate font-medium text-gray-700 dark:text-gray-300" 
+                                        x-text="`${zona.sigla} - ${zona.name}`"></span>
                                 </span>
                             </label>
-                        @endforeach
+                        </template>
+
                     </div>
                 </div>
 
@@ -796,6 +808,18 @@
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div><span
                                     class="layer-text truncate">Iluminação Pública</span>
+                            </span>
+                        </label>
+
+                        {{-- CAMADA: IMAGENS 360º --}}
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" data-layer="pontos_panoramicos"
+                                class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0 flex items-center justify-center">
+                                    <x-heroicon-o-camera class="w-2 h-2 text-white" />
+                                </div>
+                                <span class="layer-text truncate">Imagens 360º</span>
                             </span>
                         </label>
 

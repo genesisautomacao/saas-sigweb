@@ -21,7 +21,7 @@ use App\Models\RuralEstrada;
 use App\Models\RuralHidrografia;
 use App\Models\RuralPonte;
 use App\Models\RuralPontoInteresse;
-
+use App\Models\PontoPanoramico;
 
 class MapDataController extends Controller
 {
@@ -170,6 +170,13 @@ class MapDataController extends Controller
                     ])
                     ->get();
                 $data = $buildFeatureCollection($arvores, 'arvores');
+                break;
+
+            case 'pontos_panoramicos':
+                $pontos = PontoPanoramico::where('tenant_id', $tenantId)
+                    ->select('id', 'titulo as name', 'code', 'geo') // 'titulo as name' faz a ponte automática com o seu FeatureCollection
+                    ->get();
+                $data = $buildFeatureCollection($pontos, 'pontos_panoramicos');
                 break;
 
             case 'cemiterios': // <-- NOVO BLOCO
@@ -451,7 +458,7 @@ class MapDataController extends Controller
             $features = [];
             foreach ($results as $item) {
                 if (!empty($item->geo_json)) {
-                    
+
                     // 🧠 INTELIGÊNCIA: Tenta achar o nome de acordo com a tabela (Lotes = numero_lote, Ruas = nome, etc)
                     $tituloVisual = $item->numero_lote ?? $item->nome ?? $item->name ?? $item->inscricao_imobiliaria ?? ('ID: ' . $item->id);
 
@@ -466,7 +473,6 @@ class MapDataController extends Controller
                         ],
                         'geometry' => json_decode($item->geo_json)
                     ];
-
                 }
             }
 
@@ -474,7 +480,6 @@ class MapDataController extends Controller
                 'type' => 'FeatureCollection',
                 'features' => $features
             ]);
-
         } catch (\Exception $e) {
             return response()->json(['error' => 'Erro na consulta: ' . $e->getMessage()], 500);
         }

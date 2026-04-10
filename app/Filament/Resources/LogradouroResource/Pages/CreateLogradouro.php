@@ -5,6 +5,7 @@ namespace App\Filament\Resources\LogradouroResource\Pages;
 use App\Filament\Resources\LogradouroResource;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Str;
+use Filament\Notifications\Notification;
 
 class CreateLogradouro extends CreateRecord
 {
@@ -12,12 +13,18 @@ class CreateLogradouro extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        // Converte o texto colado do GeoJSON para Array do banco de dados
+        // Converte o texto colado para Array do banco de dados
         if (!empty($data['geo_json_input'])) {
             try {
-                $data['geo'] = json_decode($data['geo_json_input'], true);
+                $input = trim($data['geo_json_input']);
+                
+                if (str_starts_with($input, '{')) {
+                    $data['geo'] = json_decode($input, true);
+                } else {
+                    $data['geo'] = $this->parseRawLineCoordinates($input);
+                }
             } catch (\Exception $e) {
-                // Se o JSON for inválido, salva a rua sem geografia
+                Notification::make()->title('Erro nas Coordenadas')->body($e->getMessage())->danger()->send();
             }
         }
         
@@ -29,5 +36,38 @@ class CreateLogradouro extends CreateRecord
         $data['code'] = (string) Str::uuid();
 
         return $data;
+    }
+
+    /**
+     * MÁGICA PARA LINHAS: Converte uma lista suja de texto em um LineString
+     */
+    private function parseRawLineCoordinates(string $input): array
+    {
+        $linhas = preg_split('/[\n,]+/', $input);
+        $coordsArray = [];
+        
+        foreach ($linhas as $linha) {
+            $linha = trim(preg_replace('/\s+/', ' ', $linha));
+            if (empty($linha)) continue;
+            
+            $parts = explode(' ', $linha);
+            if (count($parts) >= 2) {
+                $lon = (float) preg_replace('/[^0-9\.\-]/', '', $parts[0]);
+                $lat = (float) preg_replace('/[^0-9\.\-]/', '', $parts[1]);
+                $coordsArray[] = [$lon, $lat];
+            }
+        }
+
+        // Uma linha precisa de apenas 2 pontos (Início e Fim)
+        if (count($coordsArray) < 2) {
+            throw new \Exception("São necessários pelo menos 2 pontos para desenhar uma linha (Logradouro).");
+        }
+
+        // ATENÇÃO: Ao contrário de polígonos, NÂO repetimos o primeiro ponto no final.
+
+        return [
+            'type' => 'LineString',
+            'coordinates' => $coordsArray
+        ];
     }
 }
