@@ -170,24 +170,42 @@ trait HasLoteActions
                 $unidades = UnidadeImobiliaria::where('lote_id', $this->loteAtivoId)->get();
 
                 $bladeView = <<<'BLADE'
-                    <div>
-                        <div class="mb-4 flex justify-end gap-2">
-                            {{-- 🛑 NOVO: Botão de Sincronização em Massa (Bulk) --}}
-                            @if($unidades->isNotEmpty())
-                                <x-filament::button 
-                                    wire:click="sincronizarTodasUnidades" 
-                                    color="info" 
-                                    icon="heroicon-m-cloud-arrow-down">
-                                    Sincronizar Todas
-                                </x-filament::button>
-                            @endif
+                    <div x-data="{ 
+                            selecionadas: [], 
+                            todas: {{ $unidades->pluck('id')->toJson() }},
+                            toggleAll() {
+                                this.selecionadas = this.selecionadas.length === this.todas.length ? [] : [...this.todas];
+                            }
+                        }">
+                        
+                        <div class="mb-4 flex justify-between items-center gap-2">
+                            {{-- Barra de Bulk Actions (Aparece só se tiver algo selecionado) --}}
+                            <div x-show="selecionadas.length > 0" x-transition style="display: none;" class="flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-lg">
+                                <span class="text-sm font-bold"><span x-text="selecionadas.length"></span> selecionada(s)</span>
+                                <div class="w-px h-4 bg-amber-300"></div>
+                                <button type="button" @click="capturarMapaEImprimirBicEmMassa(selecionadas, {{ $this->loteAtivoId }})" class="text-sm font-bold hover:text-amber-900 flex items-center gap-1 transition-colors">
+                                    <x-heroicon-o-printer class="w-4 h-4" /> Imprimir BICs em Lote
+                                </button>
+                            </div>
 
-                            <x-filament::button 
-                                wire:click="replaceMountedAction('criarUnidadeAction')" 
-                                color="success" 
-                                icon="heroicon-m-plus">
-                                Nova Unidade
-                            </x-filament::button>
+                            {{-- Botões Padrões (Empurrados para a direita) --}}
+                            <div class="flex gap-2 ml-auto">
+                                @if($unidades->isNotEmpty())
+                                    <x-filament::button 
+                                        wire:click="sincronizarTodasUnidades" 
+                                        color="info" 
+                                        icon="heroicon-m-cloud-arrow-down">
+                                        Sincronizar Todas
+                                    </x-filament::button>
+                                @endif
+
+                                <x-filament::button 
+                                    wire:click="replaceMountedAction('criarUnidadeAction')" 
+                                    color="success" 
+                                    icon="heroicon-m-plus">
+                                    Nova Unidade
+                                </x-filament::button>
+                            </div>
                         </div>
 
                         @if($unidades->isEmpty())
@@ -200,6 +218,9 @@ trait HasLoteActions
                                 <table class="w-full text-sm text-left text-gray-600 dark:text-gray-300">
                                     <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700">
                                         <tr>
+                                            <th class="px-4 py-3 w-10 text-center">
+                                                <input type="checkbox" @click="toggleAll()" :checked="selecionadas.length > 0 && selecionadas.length === todas.length" class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
+                                            </th>
                                             <th class="px-4 py-3">Inscrição</th>
                                             <th class="px-4 py-3">Cód Tributário</th>
                                             <th class="px-4 py-3">Proprietário</th>
@@ -211,6 +232,10 @@ trait HasLoteActions
                                             <tr wire:click="replaceMountedAction('editarUnidadeAction', { unidadeId: {{ $u->id }} })" 
                                                 class="cursor-pointer bg-white dark:bg-gray-900 hover:bg-primary-50 dark:hover:bg-gray-800 transition-colors group">
                                                 
+                                                <td class="px-4 py-3 text-center" @click.stop>
+                                                    <input type="checkbox" value="{{ $u->id }}" x-model="selecionadas" class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
+                                                </td>
+
                                                 <td class="px-4 py-3 font-bold text-gray-900 dark:text-white">{{ $u->inscricao_imobiliaria ?? 'N/A' }}</td>
                                                 <td class="px-4 py-3">{{ $u->codigo_imovel_tributario ?? 'N/A' }}</td>
                                                 
@@ -228,8 +253,7 @@ trait HasLoteActions
                                                 </td>
 
                                                 <td class="px-4 py-3 text-right">
-                                                    {{-- 🛑 NOVO: Imprimir BIC (Usa stopPropagation para não abrir a edição sem querer) --}}
-                                                    <button onclick="event.stopPropagation(); capturarMapaEImprimirBic({{ $u->id }})" class="text-amber-500 hover:text-amber-700 mr-3" title="Imprimir BIC">
+                                                    <button onclick="event.stopPropagation(); capturarMapaEImprimirBic({{ $u->id }}, {{ $this->loteAtivoId }})" class="text-amber-500 hover:text-amber-700 mr-3" title="Imprimir BIC">
                                                         <x-heroicon-o-printer class="w-5 h-5 inline-block transition-colors" />
                                                     </button>                                               
 
@@ -612,6 +636,21 @@ trait HasLoteActions
         // Instancia o seu serviço existente e faz o download!
         $service = app(\App\Services\Gis\BicPdfService::class);
         return $service->generatePdf($unidadeId, $mapImageBase64);
+    }
+
+    /**
+     * Ação Global: Recebe a Imagem do Mapa e array de IDs para imprimir BICs em Massa num único PDF
+     */
+    public function imprimirBicEmMassa($unidadesIds, $mapImageBase64)
+    {
+        if (empty($unidadesIds)) {
+            \Filament\Notifications\Notification::make()->title('Aviso')->body('Nenhuma unidade selecionada.')->warning()->send();
+            return;
+        }
+
+        // Instancia o serviço e chama o novo método de impressão em lote
+        $service = app(\App\Services\Gis\BicPdfService::class);
+        return $service->generatePdfEmMassa($unidadesIds, $mapImageBase64);
     }
 
     /**

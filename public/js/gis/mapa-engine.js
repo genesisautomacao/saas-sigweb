@@ -1020,6 +1020,42 @@ document.addEventListener('DOMContentLoaded', function () {
             // Limpa tudo se clicar fora
             if (featureTooltip) featureTooltip.style.display = 'none';
         }
+
+        // 🔍 TOOLTIP DO FILTRO AVANÇADO (Hover nos itens Laranjas)
+        const tooltip = document.getElementById('feature-tooltip');
+        if (tooltip) {
+            let hitFiltro = false;
+
+            // Só ativa o hover se a ferramenta do mouse estiver livre (pan)
+            if (activeTool === 'pan' || activeTool === 'wait') {
+                map.forEachFeatureAtPixel(e.pixel, function (feature, layer) {
+                    // Verifica se a feature tem a propriedade 'titulo' (que vem lá do nosso novo PHP)
+                    if (feature.get('titulo')) {
+                        hitFiltro = true;
+
+                        // Monta o visual do Tooltip
+                        tooltip.innerHTML = `
+                            <div style="font-size: 14px; font-weight: 900; color: #ffffff;">${feature.get('titulo')}</div>
+                            <div style="font-size: 10px; color: #cbd5e1; margin-top: 2px;">${feature.get('info')}</div>
+                        `;
+                    }
+                }, { hitTolerance: 5 }); // hitTolerance ajuda a pegar linhas finas (ruas) com facilidade
+            }
+
+            // Exibe e persegue o mouse
+            if (hitFiltro) {
+                tooltip.style.left = (e.originalEvent.clientX + 15) + 'px';
+                tooltip.style.top = (e.originalEvent.clientY + 15) + 'px';
+                tooltip.style.display = 'block';
+                map.getTargetElement().style.cursor = 'pointer';
+            } else {
+                // Esconde se tirar o mouse de cima
+                tooltip.style.display = 'none';
+                if (!window.isOrtogonalActive && activeTool === 'pan') {
+                    map.getTargetElement().style.cursor = ''; // Volta a seta do mouse ao normal
+                }
+            }
+        }
     });
 
     map.on('singleclick', function (evt) {
@@ -1491,7 +1527,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     case 'rural-localidades': Livewire.dispatch('abrirOpcoesRuralLocalidade', { id: id }); break;
 
                     case 'lotes':
-                        const loteNome = clickedFeature.get('name') || 'S/N';
+                        // 🟢 MODIFICADO: Agora ele busca o 'name' padrão ou o 'titulo' gerado pelo filtro avançado
+                        const loteNome = clickedFeature.get('name') || clickedFeature.get('titulo') || 'S/N';
                         Livewire.dispatch('abrirFichaImovel', { loteId: id, loteNome: loteNome });
                         break;
                 }
@@ -2731,5 +2768,96 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     window.addEventListener('limpar-preview-pgv', () => previewPgvSource.clear());
+
+    // --- CAMADA DE RESULTADOS DO FILTRO AVANÇADO ---
+    const querySource = new ol.source.Vector();
+    const queryLayer = new ol.layer.Vector({
+        source: querySource,
+        style: new ol.style.Style({
+            stroke: new ol.style.Stroke({ color: '#f59e0b', width: 4 }), // Âmbar forte
+            fill: new ol.style.Fill({ color: 'rgba(245, 158, 11, 0.4)' }),
+            image: new ol.style.Circle({
+                radius: 8,
+                fill: new ol.style.Fill({ color: '#f59e0b' }),
+                stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+            })
+        }),
+        zIndex: 9999 // Fica por cima de tudo
+    });
+    map.addLayer(queryLayer);
+
+    // --- ESCUTADOR DO FILTRO ---
+    window.addEventListener('executar-filtro-avancado', (e) => {
+        const dados = e.detail[0] || e.detail.dados || e.detail;
+        console.log("🎯 Filtro Avançado Disparado! Dados recebidos:", dados);
+
+        // Monta a URL
+        const url = `/api/mapa/advanced-query?tenant_id=${config.tenantId}&layer=${dados.layer}&field=${dados.field}&operator=${encodeURIComponent(dados.operator)}&value=${encodeURIComponent(dados.value)}`;
+        console.log("🌐 Buscando na URL:", url);
+
+        fetch(url)
+            .then(async response => {
+                const contentType = response.headers.get("content-type");
+
+                // Se o servidor retornar erro 500 ou 404
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.error("❌ Erro HTTP do Servidor:", response.status, text);
+                    throw new Error(`Servidor retornou erro ${response.status}`);
+                }
+
+                // Verifica se realmente é um JSON
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    return response.json();
+                } else {
+                    const text = await response.text();
+                    console.error("❌ A resposta não é um JSON. Retorno do servidor:", text);
+                    throw new Error("A API não retornou um JSON válido. A rota pode estar errada (404).");
+                }
+            })
+            .then(data => {
+                console.log("✅ Retorno da API:", data);
+
+                // Se o Controller do Laravel cuspir um erro tratado
+                if (data.error) {
+                    alert("Erro do Banco de Dados: " + data.error);
+                    return;
+                }
+
+                querySource.clear(); // Limpa a busca anterior
+
+                if (data.features && data.features.length > 0) {
+                    const features = new ol.format.GeoJSON().readFeatures(data, {
+                        dataProjection: 'EPSG:4326',
+                        featureProjection: 'EPSG:3857'
+                    });
+
+                    querySource.addFeatures(features);
+
+                    // Dá um zoom automático para focar nos resultados encontrados!
+                    map.getView().fit(querySource.getExtent(), {
+                        padding: [50, 50, 50, 50],
+                        duration: 1000
+                    });
+
+                } else {
+                    alert('Nenhum artefato encontrado com esses critérios.');
+                }
+            })
+            .catch(err => {
+                console.error("❌ Erro fatal na requisição:", err);
+                alert("Falha ao executar o filtro. Aperte F12 e olhe a aba Console para ver o erro exato.");
+            });
+    });
+
+    // --- ESCUTADOR PARA LIMPAR O FILTRO ---
+    window.addEventListener('limpar-filtro-avancado', () => {
+        if (typeof querySource !== 'undefined') {
+            querySource.clear(); // Limpa a tinta alaranjada do mapa
+            console.log("🧹 Filtro avançado desligado e mapa limpo.");
+        }
+    });
+
+    
 
 }); // <-- Fim do DOMContentLoaded

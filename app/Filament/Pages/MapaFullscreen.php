@@ -2,6 +2,9 @@
 
 namespace App\Filament\Pages;
 
+use Filament\Forms;
+use Filament\Actions\Action;
+
 use App\Filament\Pages\Traits\HasLoteActions;
 use App\Filament\Pages\Traits\HasEdificacaoActions;
 use \App\Filament\Pages\Traits\HasLogradouroActions;
@@ -128,6 +131,9 @@ class MapaFullscreen extends Page
     //Rural
     public ?int $ruralLocalidadePreSelecionadaId = null;
 
+    // Filtro
+    public bool $filtroAvancadoAtivo = false;
+
     public function mount()
     {
         $tenant = Filament::getTenant();
@@ -184,16 +190,16 @@ class MapaFullscreen extends Page
             if (!empty($geoJson['coordinates'][0])) {
                 $primeiroPonto = $geoJson['coordinates'][0][0];
                 $ultimoPonto = end($geoJson['coordinates'][0]);
-                
+
                 // Se o primeiro ponto for diferente do último, nós injetamos o fechamento
                 if ($primeiroPonto !== $ultimoPonto) {
-                    $geoJson['coordinates'][0][] = $primeiroPonto; 
+                    $geoJson['coordinates'][0][] = $primeiroPonto;
                 }
             }
         }
 
         $this->geometriaRascunho = $geoJson;
-        
+
         // 🛡️ BÔNUS: Já envelopamos no ST_MakeValid para evitar erros de "quina torcida" na criação
         $polyWKT = "ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326))";
         $centroidWKT = "ST_Centroid($polyWKT)";
@@ -1710,7 +1716,7 @@ class MapaFullscreen extends Page
         $this->mountAction('opcoesQuadra');
     }
 
-   #[On('salvarNovaGeometriaQuadra')]
+    #[On('salvarNovaGeometriaQuadra')]
     public function salvarNovaGeometriaQuadra($id, $geoJson)
     {
         $reg = \App\Models\Quadra::find($id);
@@ -1734,7 +1740,7 @@ class MapaFullscreen extends Page
                     ->body("A nova geometria deixaria {$lotesOrfaos->qtd} lote(s) para fora da quadra. Mova os lotes primeiro ou ajuste o traçado da quadra para englobá-los.")
                     ->danger()
                     ->send();
-                
+
                 $this->dispatch('desfazer-edicao-geometria');
                 return;
             }
@@ -1763,8 +1769,11 @@ class MapaFullscreen extends Page
                 'loteamento_id' => $loteamento ? $loteamento->id : null,
                 'perimetro_id' => $perimetro ? $perimetro->id : null,
             ]);
-            
-            try { DB::statement("UPDATE quadras SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]); } catch (\Exception $e) {}
+
+            try {
+                DB::statement("UPDATE quadras SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]);
+            } catch (\Exception $e) {
+            }
             \Filament\Notifications\Notification::make()->title('Limites e Vínculos Atualizados!')->success()->send();
         }
     }
@@ -1804,7 +1813,7 @@ class MapaFullscreen extends Page
                 ->body('A linha não dividiu o polígono completamente. Desenhe a linha cruzando de um lado ao outro, começando e terminando FORA do polígono.')
                 ->warning()
                 ->send();
-            
+
             $this->dispatch('cancelar-corte-generico');
             return;
         }
@@ -1816,4 +1825,82 @@ class MapaFullscreen extends Page
         // Devolve os pedaços cortados para o JavaScript exibir na vitrine
         $this->dispatch('mostrar-fatias-corte', fatias: $arrayFatias, layerOrigem: $layerOrigem);
     }
+
+    // filtro avançado
+    public function filtroAvancadoAction(): Action
+    {
+        return Action::make('filtroAvancado')
+            ->label('Filtro Avançado')
+            ->icon('heroicon-o-funnel')
+            ->modalHeading('Construtor de Consultas Espaciais')
+            ->modalDescription('Filtre artefatos no mapa baseado em seus atributos técnicos e geográficos.')
+            ->modalSubmitActionLabel('Pesquisar no Mapa')
+            ->modalWidth('md')
+            ->form([
+                Forms\Components\Select::make('layer')
+                    ->label('Camada / Entidade')
+                    ->options([
+                        'lotes' => 'Lotes Urbanos',
+                        'edificacoes' => 'Edificações',
+                        'logradouros' => 'Logradouros',
+                        'quadras' => 'Quadras',
+                        'bairros' => 'Bairros',
+                        'rural_propriedades' => 'Propriedades Rurais (CAR)',
+                        'rural_estradas' => 'Estradas Rurais',
+                        'rural_pontes' => 'Pontes Rurais',
+                    ])
+                    ->live() // Recarrega os campos abaixo quando mudar
+                    ->required(),
+
+                Forms\Components\Select::make('field')
+                    ->label('Atributo (Campo de Busca)')
+                    ->options(fn(Forms\Get $get): array => match ($get('layer')) {
+                        'lotes' => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)', 'numero_lote' => 'Número do Lote'],
+
+                        'edificacoes' => ['area_geo' => 'Área Construída (m²)', 'tipo' => 'Tipo de Uso'],
+
+                        'rural_propriedades' => ['area_geo' => 'Área em m² (area_geo)', 'codigo_car' => 'Código CAR'],
+                        'rural_estradas' => ['extensao_geo' => 'Extensão (m)', 'tipo_pavimento' => 'Tipo de Pavimento', 'condicao_trafego' => 'Condição'],
+                        'rural_pontes' => ['capacidade_carga_toneladas' => 'Capacidade (Toneladas)', 'material_construcao' => 'Material'],
+                        default => ['name' => 'Nome / Número'],
+                    })
+                    ->required(),
+
+                Forms\Components\Select::make('operator')
+                    ->label('Condição (Operador)')
+                    ->options([
+                        '=' => 'Igual a (=)',
+                        '>' => 'Maior que (>)',
+                        '<' => 'Menor que (<)',
+                        '>=' => 'Maior ou igual (>=)',
+                        '<=' => 'Menor ou igual (<=)',
+                        'LIKE' => 'Contém o texto (LIKE)',
+                        '!=' => 'Diferente de (!=)',
+                    ])
+                    ->default('=')
+                    ->required(),
+
+                Forms\Components\TextInput::make('value')
+                    ->label('Valor da Condição')
+                    ->placeholder('Ex: 250, Asfalto, Boa...')
+                    ->required(),
+            ])
+            ->action(function (array $data) {
+
+                $this->filtroAvancadoAtivo = true;
+
+                // Envia os dados da pesquisa direto para o Javascript do Mapa
+                $this->dispatch('executar-filtro-avancado', dados: $data);
+                \Filament\Notifications\Notification::make()->title('Buscando no banco de dados...')->info()->send();
+            });
+    }
+
+    public function limparFiltroAvancado()
+    {
+        $this->filtroAvancadoAtivo = false;
+        $this->dispatch('limpar-filtro-avancado'); // Avisa o Javascript para limpar a tinta
+        \Filament\Notifications\Notification::make()->title('Filtros removidos!')->success()->send();
+    }
+
+  
 }

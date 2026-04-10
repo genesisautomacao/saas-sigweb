@@ -69,12 +69,15 @@
                                 <li @click="voarPara(res)"
                                     class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer transition-colors flex items-start gap-3">
 
-                                    {{-- Ícone muda dependendo se é lote ou rua --}}
+                                    {{-- Ícone muda dependendo se é lote, rua ou bairro --}}
                                     <template x-if="res.tipo === 'lote'">
                                         <x-heroicon-o-map-pin class="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
                                     </template>
                                     <template x-if="res.tipo === 'logradouro'">
                                         <x-heroicon-o-minus class="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
+                                    </template>
+                                    <template x-if="res.tipo === 'bairro'">
+                                        <x-heroicon-o-map class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                                     </template>
 
                                     <div class="flex flex-col">
@@ -90,57 +93,88 @@
                     </div>
                 </div>
 
+                {{-- BOTÃO FILTRO AVANÇADO (Inteligente com Alpine.js) --}}
+                <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }"
+                    x-on:click="ativo ? $wire.limparFiltroAvancado() : $wire.mountAction('filtroAvancadoAction')"
+                    :class="ativo ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' :
+                        'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'"
+                    class="relative  rounded-lg transition-colors flex items-center justify-center"
+                    :title="ativo ? 'Limpar Filtro' : 'Filtro Avançado'">
+
+                    <x-heroicon-o-funnel class="w-5 h-5" />
+
+
+                </button>
+
                 <div class="flex items-center gap-1 px-1">
-                   {{-- DROPDOWN DE CRIAÇÃO (COM SANFONA) --}}
+                    {{-- DROPDOWN DE CRIAÇÃO (COM SANFONA) --}}
                     <div x-data="{ openDraw: false, activeTabDraw: 'urbano' }" class="relative">
-                        <button type="button" @click="openDraw = !openDraw" @click.outside="openDraw = false" title="Desenhar no Mapa"
+                        <button type="button" @click="openDraw = !openDraw" @click.outside="openDraw = false"
+                            title="Desenhar no Mapa"
                             class="p-2 hover:bg-primary-100 dark:hover:bg-primary-900/20 rounded-xl text-gray-600 dark:text-gray-400 transition-colors focus:outline-none flex items-center gap-1">
                             <x-heroicon-o-pencil-square class="w-5 h-5" />
                             <x-heroicon-o-chevron-down class="w-3 h-3" />
                         </button>
-                        
+
                         {{-- A LARGURA FOI FIXADA VIA STYLE INLINE (360px) --}}
                         <div x-show="openDraw" style="display: none; width: 300px;"
                             class="fixed left-0 mt-2 bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 flex flex-col">
-                            
+
                             {{-- Cabeçalho Fixo --}}
-                            <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shadow-sm z-10">
-                                <span class="text-xs font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
-                                    <x-heroicon-o-paint-brush class="w-4 h-4 text-primary-500"/> Criar Artefato
+                            <div
+                                class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shadow-sm z-10">
+                                <span
+                                    class="text-xs font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                                    <x-heroicon-o-paint-brush class="w-4 h-4 text-primary-500" /> Criar Artefato
                                 </span>
                             </div>
 
                             {{-- Área de Rolagem e Sanfonas --}}
-                            <div class="overflow-y-auto max-h-[65vh] custom-scrollbar flex flex-col bg-white dark:bg-gray-800">
+                            <div
+                                class="overflow-y-auto max-h-[65vh] custom-scrollbar flex flex-col bg-white dark:bg-gray-800">
 
                                 {{-- GRUPO 1: URBANO --}}
                                 <div class="border-b border-gray-100 dark:border-gray-700">
                                     {{-- ADICIONADO TYPE="BUTTON" E .PREVENT.STOP --}}
-                                    <button type="button" @click.stop.prevent="activeTabDraw = activeTabDraw === 'urbano' ? '' : 'urbano'"
+                                    <button type="button"
+                                        @click.stop.prevent="activeTabDraw = activeTabDraw === 'urbano' ? '' : 'urbano'"
                                         class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
                                         <span class="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                                             <x-heroicon-o-building-office-2 class="w-4 h-4" /> Cadastro Urbano
                                         </span>
-                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200" x-bind:class="activeTabDraw === 'urbano' ? 'rotate-180' : ''" />
+                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                                            x-bind:class="activeTabDraw === 'urbano' ? 'rotate-180' : ''" />
                                     </button>
-                                    
+
                                     <div x-show="activeTabDraw === 'urbano'" x-collapse class="py-1">
-                                        <button type="button" onclick="enableDrawing('bairro')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
+                                        <button type="button" onclick="enableDrawing('bairro')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Bairro (Polígono)
                                         </button>
-                                        <button type="button" onclick="enableDrawing('loteamento')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
+                                        <button type="button" onclick="enableDrawing('loteamento')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Loteamento (Polígono)
                                         </button>
-                                        <button type="button" onclick="enableDrawing('quadra')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3 transition-colors">
+                                        <button type="button" onclick="enableDrawing('quadra')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-squares-2x2 class="w-4 h-4 text-orange-500" /> Quadra Urbana
                                         </button>
-                                        <button type="button" onclick="enableDrawing('lote')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
+                                        <button type="button" onclick="enableDrawing('lote')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-stop class="w-4 h-4 text-emerald-500" /> Lote (Polígono)
                                         </button>
-                                        <button type="button" onclick="enableDrawing('edificacao')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
+                                        <button type="button" onclick="enableDrawing('edificacao')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-home class="w-4 h-4 text-amber-600" /> Edificação (Polígono)
                                         </button>
-                                        <button type="button" onclick="enableDrawing('logradouro')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-slate-100 hover:text-slate-700 flex items-center gap-3 transition-colors">
+                                        <button type="button" onclick="enableDrawing('logradouro')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-slate-100 hover:text-slate-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-minus class="w-4 h-4 text-slate-500" /> Logradouro (Linha)
                                         </button>
                                     </div>
@@ -148,49 +182,78 @@
 
                                 {{-- GRUPO 2: INFRAESTRUTURA E FISCAL --}}
                                 <div class="border-b border-gray-100 dark:border-gray-700">
-                                    <button type="button" @click.stop.prevent="activeTabDraw = activeTabDraw === 'infra' ? '' : 'infra'"
+                                    <button type="button"
+                                        @click.stop.prevent="activeTabDraw = activeTabDraw === 'infra' ? '' : 'infra'"
                                         class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
                                         <span class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                                             <x-heroicon-o-light-bulb class="w-4 h-4" /> Infra. & Fiscal
                                         </span>
-                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200" x-bind:class="activeTabDraw === 'infra' ? 'rotate-180' : ''" />
+                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                                            x-bind:class="activeTabDraw === 'infra' ? 'rotate-180' : ''" />
                                     </button>
-                                    
-                                    <div x-show="activeTabDraw === 'infra'" x-collapse class="py-1 bg-gray-50/30 dark:bg-gray-900/20">
-                                        <button type="button" onclick="enableDrawing('poste')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-yellow-50 hover:text-yellow-600 flex items-center gap-3 transition-colors">
-                                            <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+
+                                    <div x-show="activeTabDraw === 'infra'" x-collapse
+                                        class="py-1 bg-gray-50/30 dark:bg-gray-900/20">
+                                        <button type="button" onclick="enableDrawing('poste')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-yellow-50 hover:text-yellow-600 flex items-center gap-3 transition-colors">
+                                            <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
+                                                </path>
+                                            </svg>
                                             Poste / Ponto de Luz
                                         </button>
-                                        <button type="button" onclick="enableDrawing('arvore')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
+                                        <button type="button" onclick="enableDrawing('arvore')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-sparkles class="w-4 h-4 text-emerald-500" /> Árvore
                                         </button>
-                                        <button type="button" onclick="enableDrawing('setor_fiscal')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-currency-dollar class="w-4 h-4 text-amber-500" /> Setor Fiscal (PGV)
+                                        <button type="button" onclick="enableDrawing('setor_fiscal')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-currency-dollar class="w-4 h-4 text-amber-500" /> Setor
+                                            Fiscal
+                                            (PGV)
                                         </button>
                                     </div>
                                 </div>
 
                                 {{-- GRUPO 3: CEMITÉRIOS --}}
                                 <div class="border-b border-gray-100 dark:border-gray-700">
-                                    <button type="button" @click.stop.prevent="activeTabDraw = activeTabDraw === 'cemiterio' ? '' : 'cemiterio'"
+                                    <button type="button"
+                                        @click.stop.prevent="activeTabDraw = activeTabDraw === 'cemiterio' ? '' : 'cemiterio'"
                                         class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
                                         <span class="flex items-center gap-2 text-purple-600 dark:text-purple-400">
                                             <x-heroicon-o-view-columns class="w-4 h-4" /> Cemitérios
                                         </span>
-                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200" x-bind:class="activeTabDraw === 'cemiterio' ? 'rotate-180' : ''" />
+                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                                            x-bind:class="activeTabDraw === 'cemiterio' ? 'rotate-180' : ''" />
                                     </button>
-                                    
+
                                     <div x-show="activeTabDraw === 'cemiterio'" x-collapse class="py-1">
-                                        <button type="button" onclick="enableDrawing('cemiterio')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-purple-50 hover:text-purple-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-stop class="w-4 h-4 text-purple-600" /> Cemitério Base (Polígono)
+                                        <button type="button" onclick="enableDrawing('cemiterio')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-purple-50 hover:text-purple-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-stop class="w-4 h-4 text-purple-600" /> Cemitério Base
+                                            (Polígono)
                                         </button>
-                                        <button type="button" onclick="enableDrawing('quadra_cemiterio')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-squares-2x2 class="w-4 h-4 text-indigo-500" /> Quadra de Cemitério
+                                        <button type="button" onclick="enableDrawing('quadra_cemiterio')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-squares-2x2 class="w-4 h-4 text-indigo-500" /> Quadra de
+                                            Cemitério
                                         </button>
-                                        <button type="button" onclick="enableDrawing('logradouro_cemiterio')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-slate-100 hover:text-slate-700 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-arrows-right-left class="w-4 h-4 text-slate-500" /> Rua Interna
+                                        <button type="button" onclick="enableDrawing('logradouro_cemiterio')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-slate-100 hover:text-slate-700 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-arrows-right-left class="w-4 h-4 text-slate-500" /> Rua
+                                            Interna
                                         </button>
-                                        <button type="button" onclick="enableDrawing('jazigo')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-700 flex items-center gap-3 transition-colors">
+                                        <button type="button" onclick="enableDrawing('jazigo')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-archive-box class="w-4 h-4 text-stone-600" /> Jazigo / Túmulo
                                         </button>
                                     </div>
@@ -198,42 +261,63 @@
 
                                 {{-- GRUPO 4: RURAL --}}
                                 <div>
-                                    <button type="button" @click.stop.prevent="activeTabDraw = activeTabDraw === 'rural' ? '' : 'rural'"
+                                    <button type="button"
+                                        @click.stop.prevent="activeTabDraw = activeTabDraw === 'rural' ? '' : 'rural'"
                                         class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
                                         <span class="flex items-center gap-2 text-stone-600 dark:text-stone-400">
                                             <x-heroicon-o-globe-americas class="w-4 h-4" /> Zona Rural
                                         </span>
-                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200" x-bind:class="activeTabDraw === 'rural' ? 'rotate-180' : ''" />
+                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                                            x-bind:class="activeTabDraw === 'rural' ? 'rotate-180' : ''" />
                                     </button>
-                                    
-                                    <div x-show="activeTabDraw === 'rural'" x-collapse class="py-1 bg-stone-50/50 dark:bg-stone-900/20">
-                                        <button type="button" onclick="enableDrawing('rural_localidade')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
+
+                                    <div x-show="activeTabDraw === 'rural'" x-collapse
+                                        class="py-1 bg-stone-50/50 dark:bg-stone-900/20">
+                                        <button type="button" onclick="enableDrawing('rural_localidade')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-map class="w-4 h-4 text-stone-600" /> Localidade / Distrito
                                         </button>
-                                        <button type="button" onclick="enableDrawing('rural_propriedade')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-home-modern class="w-4 h-4 text-stone-600" /> Propriedade (CAR)
+                                        <button type="button" onclick="enableDrawing('rural_propriedade')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-home-modern class="w-4 h-4 text-stone-600" /> Propriedade
+                                            (CAR)
                                         </button>
-                                        <button type="button" onclick="enableDrawing('rural_estrada')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
+                                        <button type="button" onclick="enableDrawing('rural_estrada')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-lifebuoy class="w-4 h-4 text-stone-600" /> Estrada / Vicinal
                                         </button>
-                                        <button type="button" onclick="enableDrawing('rural_hidro_linha')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
+                                        <button type="button" onclick="enableDrawing('rural_hidro_linha')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-minus class="w-4 h-4 text-cyan-500" /> Rio / Córrego (Linha)
                                         </button>
-                                        <button type="button" onclick="enableDrawing('rural_hidro_poligono')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-stop class="w-4 h-4 text-cyan-500" /> Lago / Represa (Polígono)
+                                        <button type="button" onclick="enableDrawing('rural_hidro_poligono')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-stop class="w-4 h-4 text-cyan-500" /> Lago / Represa
+                                            (Polígono)
                                         </button>
-                                        <button type="button" onclick="enableDrawing('rural_hidro_ponto')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
+                                        <button type="button" onclick="enableDrawing('rural_hidro_ponto')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-sparkles class="w-4 h-4 text-cyan-500" /> Nascente (Ponto)
                                         </button>
-                                        <button type="button" onclick="enableDrawing('rural_ponte')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
+                                        <button type="button" onclick="enableDrawing('rural_ponte')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-bars-2 class="w-4 h-4 text-amber-600" /> Ponte
                                         </button>
-                                        <button type="button" onclick="enableDrawing('rural_ponto_interesse')" @click="openDraw = false" class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-teal-50 hover:text-teal-600 flex items-center gap-3 transition-colors">
+                                        <button type="button" onclick="enableDrawing('rural_ponto_interesse')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-teal-50 hover:text-teal-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-star class="w-4 h-4 text-teal-500" /> Ponto de Interesse
                                         </button>
                                     </div>
                                 </div>
-                                
+
                             </div>
                         </div>
                     </div>
@@ -288,7 +372,8 @@
 
                                 <button wire:click="mountAction('configurarPgvAction')" @click="openTools = false"
                                     class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors border-b border-gray-100 pb-3 mb-1">
-                                    <x-heroicon-o-banknotes class="w-4 h-4 text-emerald-500" /> Simulador de Valores (PGV)
+                                    <x-heroicon-o-banknotes class="w-4 h-4 text-emerald-500" /> Simulador de Valores
+                                    (PGV)
                                 </button>
 
                                 <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
@@ -315,15 +400,14 @@
                     </button>
 
                     <button id="btn-toggle-layers" title="Camadas do Mapa"
-                        class="px-4 py-2 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 rounded-xl text-primary-600 dark:text-primary-400 font-bold text-sm flex items-center gap-2">
+                        class="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-primary-600 dark:text-primary-400 font-bold text-sm flex items-center gap-2">
                         <x-heroicon-o-square-3-stack-3d class="w-5 h-5" />
                         <span class="hidden md:inline">Camadas</span>
                     </button>
 
                     {{-- BOTÃO TOGGLE CAD AVANÇADO --}}
-                    <button type="button" 
-                        @click="$dispatch('toggle-cad-avancado')" 
-                        class="px-4 py-2 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 rounded-xl text-primary-600 dark:text-primary-400 font-bold text-sm flex items-center gap-2"
+                    <button type="button" @click="$dispatch('toggle-cad-avancado')"
+                        class="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-primary-600 dark:text-primary-400 font-bold text-sm flex items-center gap-2"
                         title="Módulo CAD Avançado">
                         <x-heroicon-o-cpu-chip class="w-5 h-5" />
                         <span class="hidden md:inline text-sm">CAD</span>
@@ -335,9 +419,7 @@
         </div>
 
         {{-- BARRA FLUTUANTE DE EDIÇÃO ESPACIAL (Alpine.js) --}}
-        <div x-data="{ editandoId: null, modoLocal: 'mover' }" 
-            x-show="editandoId !== null"
-            {{-- MÁGICA: Ao iniciar a edição, zera o input de rotação --}}
+        <div x-data="{ editandoId: null, modoLocal: 'mover' }" x-show="editandoId !== null" {{-- MÁGICA: Ao iniciar a edição, zera o input de rotação --}}
             @iniciar-edicao.window="
                 editandoId = $event.detail.id; 
                 modoLocal = 'mover'; 
@@ -345,17 +427,20 @@
                     document.getElementById('slider-rotacao').value = 0; 
                     document.getElementById('input-rotacao').value = 0; 
                 }
-            " 
+            "
             @encerrar-edicao.window="editandoId = null"
             style="display: none; position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 9999;"
             class="bg-white dark:bg-gray-800 shadow-2xl rounded-full border-2 border-emerald-500 px-4 py-2 flex items-center gap-3 animate-bounce-short">
-            
+
             {{-- BARRA PRINCIPAL (BOTÕES) --}}
-            <div class="bg-white dark:bg-gray-800 shadow-2xl rounded-full border-2 border-emerald-500 px-4 py-2 flex items-center gap-3 pointer-events-auto animate-bounce-short">
-                
-                <span class="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2 pr-2 hidden sm:flex">
+            <div
+                class="bg-white dark:bg-gray-800 shadow-2xl rounded-full border-2 border-emerald-500 px-4 py-2 flex items-center gap-3 pointer-events-auto animate-bounce-short">
+
+                <span
+                    class="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2 pr-2 hidden sm:flex">
                     <span class="relative flex h-3 w-3">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span
+                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                     </span>
                     Editando...
@@ -364,22 +449,26 @@
                 <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 hidden sm:block"></div>
 
                 {{-- TOGGLE MOVER / REDIMENSIONAR / GIRAR --}}
-                <div class="flex items-center bg-gray-100 dark:bg-gray-900 rounded-full p-1 border border-gray-200 dark:border-gray-700">
-                    <button 
-                        @click="modoLocal = 'mover'; window.alternarFerramentaEdicao('mover');"
-                        :class="modoLocal === 'mover' ? 'bg-white dark:bg-gray-700 shadow text-emerald-600 dark:text-emerald-400' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+                <div
+                    class="flex items-center bg-gray-100 dark:bg-gray-900 rounded-full p-1 border border-gray-200 dark:border-gray-700">
+                    <button @click="modoLocal = 'mover'; window.alternarFerramentaEdicao('mover');"
+                        :class="modoLocal === 'mover' ?
+                            'bg-white dark:bg-gray-700 shadow text-emerald-600 dark:text-emerald-400' :
+                            'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
                         class="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 transition-all">
                         <x-heroicon-o-arrows-pointing-out class="w-4 h-4" /> Arrastar
                     </button>
-                    <button 
-                        @click="modoLocal = 'redimensionar'; window.alternarFerramentaEdicao('redimensionar');"
-                        :class="modoLocal === 'redimensionar' ? 'bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-blue-400' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+                    <button @click="modoLocal = 'redimensionar'; window.alternarFerramentaEdicao('redimensionar');"
+                        :class="modoLocal === 'redimensionar' ?
+                            'bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-blue-400' :
+                            'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
                         class="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 transition-all">
                         <x-heroicon-o-squares-plus class="w-4 h-4" /> Pontos
                     </button>
-                    <button 
-                        @click="modoLocal = 'girar'; window.alternarFerramentaEdicao('girar');"
-                        :class="modoLocal === 'girar' ? 'bg-white dark:bg-gray-700 shadow text-purple-600 dark:text-purple-400' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+                    <button @click="modoLocal = 'girar'; window.alternarFerramentaEdicao('girar');"
+                        :class="modoLocal === 'girar' ?
+                            'bg-white dark:bg-gray-700 shadow text-purple-600 dark:text-purple-400' :
+                            'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
                         class="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 transition-all">
                         <x-heroicon-o-arrow-path class="w-4 h-4" /> Girar
                     </button>
@@ -387,53 +476,55 @@
 
                 <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
 
-                <button onclick="salvarEdicaoGeometria()" class="text-sm font-black text-emerald-600 hover:text-emerald-700 uppercase flex items-center gap-1 transition-transform hover:scale-110">
+                <button onclick="salvarEdicaoGeometria()"
+                    class="text-sm font-black text-emerald-600 hover:text-emerald-700 uppercase flex items-center gap-1 transition-transform hover:scale-110">
                     <x-heroicon-o-check class="w-5 h-5" />
                 </button>
 
-                <button onclick="cancelarEdicaoGeometria()" class="text-sm font-black text-red-600 hover:text-red-700 uppercase flex items-center gap-1 transition-transform hover:scale-110">
+                <button onclick="cancelarEdicaoGeometria()"
+                    class="text-sm font-black text-red-600 hover:text-red-700 uppercase flex items-center gap-1 transition-transform hover:scale-110">
                     <x-heroicon-o-x-mark class="w-5 h-5" />
                 </button>
             </div>
 
             {{-- 🎛️ MESA DE DESENHO (GIRAR) QUE ABRE EMBAIXO DA BARRA --}}
-            <div x-show="modoLocal === 'girar'" 
-                 x-transition:enter="transition ease-out duration-200"
-                 x-transition:enter-start="opacity-0 -translate-y-4"
-                 x-transition:enter-end="opacity-100 translate-y-0"
-                 x-transition:leave="transition ease-in duration-150"
-                 x-transition:leave-start="opacity-100 translate-y-0"
-                 x-transition:leave-end="opacity-0 -translate-y-4"
-                 style="display: none;"
-                 class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl border-2 border-purple-500 px-6 py-4 flex flex-col gap-2 w-[400px] pointer-events-auto">
-                 
-                 <div class="flex justify-between items-center mb-1">
-                     <label class="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                         <x-heroicon-o-arrow-path class="w-4 h-4 text-purple-500"/> Rotação Exata
-                     </label>
-                     <span class="text-[10px] text-gray-400 font-bold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-md">Turf.js</span>
-                 </div>
+            <div x-show="modoLocal === 'girar'" x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 -translate-y-4" x-transition:enter-end="opacity-100 translate-y-0"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-4"
+                style="display: none;"
+                class="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl border-2 border-purple-500 px-6 py-4 flex flex-col gap-2 w-[400px] pointer-events-auto">
 
-                 <div class="flex items-center gap-4">
-                     {{-- O SLIDER --}}
-                     <input type="range" id="slider-rotacao" min="-180" max="180" value="0" step="1"
-                            oninput="window.aplicarRotacao(this.value); document.getElementById('input-rotacao').value = this.value;"
-                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600">
-                     
-                     {{-- O INPUT MANUAL --}}
-                     <div class="relative">
-                         <input type="number" id="input-rotacao" value="0"
-                                oninput="window.aplicarRotacao(this.value); document.getElementById('slider-rotacao').value = this.value;"
-                                class="w-20 pl-2 pr-6 py-1.5 text-center border-2 border-gray-300 dark:border-gray-600 rounded-xl text-sm font-bold text-purple-700 dark:text-purple-400 focus:ring-purple-500 focus:border-purple-500 bg-gray-50 dark:bg-gray-900 transition-all">
-                         <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xs pointer-events-none">º</span>
-                     </div>
-                 </div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                        <x-heroicon-o-arrow-path class="w-4 h-4 text-purple-500" /> Rotação Exata
+                    </label>
+                    <span
+                        class="text-[10px] text-gray-400 font-bold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-md">Turf.js</span>
+                </div>
 
-                 <div class="flex justify-between text-[10px] text-gray-400 font-bold px-1 mt-1">
-                     <span>-180º</span>
-                     <span>0º</span>
-                     <span>+180º</span>
-                 </div>
+                <div class="flex items-center gap-4">
+                    {{-- O SLIDER --}}
+                    <input type="range" id="slider-rotacao" min="-180" max="180" value="0"
+                        step="1"
+                        oninput="window.aplicarRotacao(this.value); document.getElementById('input-rotacao').value = this.value;"
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600">
+
+                    {{-- O INPUT MANUAL --}}
+                    <div class="relative">
+                        <input type="number" id="input-rotacao" value="0"
+                            oninput="window.aplicarRotacao(this.value); document.getElementById('slider-rotacao').value = this.value;"
+                            class="w-20 pl-2 pr-6 py-1.5 text-center border-2 border-gray-300 dark:border-gray-600 rounded-xl text-sm font-bold text-purple-700 dark:text-purple-400 focus:ring-purple-500 focus:border-purple-500 bg-gray-50 dark:bg-gray-900 transition-all">
+                        <span
+                            class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xs pointer-events-none">º</span>
+                    </div>
+                </div>
+
+                <div class="flex justify-between text-[10px] text-gray-400 font-bold px-1 mt-1">
+                    <span>-180º</span>
+                    <span>0º</span>
+                    <span>+180º</span>
+                </div>
             </div>
         </div>
 
@@ -474,19 +565,24 @@
         </div>
 
         {{-- BARRA FLUTUANTE DE REVISÃO DA PGV --}}
-        <div x-data="{ previewPgv: @entangle('previewPgvAtivo') }" x-show="previewPgv" style="display: none; position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 9999;"
+        <div x-data="{ previewPgv: @entangle('previewPgvAtivo') }" x-show="previewPgv"
+            style="display: none; position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 9999;"
             class="bg-white dark:bg-gray-800 shadow-2xl rounded-full border-2 border-emerald-500 px-6 py-3 flex items-center gap-4 animate-bounce-short">
 
             <span class="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                <span class="relative flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>
+                <span class="relative flex h-3 w-3"><span
+                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span
+                        class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>
                 Revisão da PGV (Simulador Ativo)
             </span>
             <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
-            <button wire:click="homologarPgvAction" class="text-sm font-black text-emerald-600 hover:text-emerald-700 uppercase">
+            <button wire:click="homologarPgvAction"
+                class="text-sm font-black text-emerald-600 hover:text-emerald-700 uppercase">
                 Salvar & Homologar
             </button>
             <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
-            <button wire:click="cancelarPgvAction" class="text-sm font-black text-red-600 hover:text-red-700 uppercase">
+            <button wire:click="cancelarPgvAction"
+                class="text-sm font-black text-red-600 hover:text-red-700 uppercase">
                 Cancelar
             </button>
         </div>
@@ -502,8 +598,7 @@
                 </h3>
 
                 {{-- 🛑 BOTÃO DE FECHAR --}}
-                <button type="button" 
-                    onmousedown="event.stopPropagation()" 
+                <button type="button" onmousedown="event.stopPropagation()"
                     onclick="document.getElementById('layers-panel').classList.add('hidden')"
                     class="p-1 -mr-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all cursor-pointer focus:outline-none"
                     title="Fechar Janela">
@@ -601,16 +696,20 @@
                     </button>
                     <div x-show="activeTab === 'social'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden">
-                        
-                        <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-2 font-bold mt-2">Mapa de Vulnerabilidade (Lotes)</div>
+
+                        <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-2 font-bold mt-2">Mapa de
+                            Vulnerabilidade (Lotes)</div>
 
                         {{-- FILTRO: ÁREA DE RISCO --}}
                         <label class="flex items-center space-x-3 cursor-pointer w-full group">
                             <input type="checkbox" id="filtro-social-risco"
                                 class="rounded border-gray-300 text-rose-600 focus:ring-rose-500 w-4 h-4 flex-shrink-0 transition-all">
                             <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-1">
-                                <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10 group-hover:animate-pulse" style="background-color: #e11d48;"></div>
-                                <span class="layer-text truncate font-bold text-gray-700 dark:text-gray-300">Famílias em Área de Risco</span>
+                                <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10 group-hover:animate-pulse"
+                                    style="background-color: #e11d48;"></div>
+                                <span class="layer-text truncate font-bold text-gray-700 dark:text-gray-300">Famílias
+                                    em
+                                    Área de Risco</span>
                             </span>
                         </label>
 
@@ -619,8 +718,10 @@
                             <input type="checkbox" id="filtro-social-beneficio"
                                 class="rounded border-gray-300 text-amber-500 focus:ring-amber-500 w-4 h-4 flex-shrink-0 transition-all">
                             <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-1">
-                                <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10" style="background-color: #f59e0b;"></div>
-                                <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300">Recebem Benefícios</span>
+                                <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10"
+                                    style="background-color: #f59e0b;"></div>
+                                <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300">Recebem
+                                    Benefícios</span>
                             </span>
                         </label>
 
@@ -629,8 +730,11 @@
                             <input type="checkbox" id="filtro-social-pcd"
                                 class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-4 h-4 flex-shrink-0 transition-all">
                             <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-1">
-                                <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10" style="background-color: #9333ea;"></div>
-                                <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300">Membros com Deficiência (PCD)</span>
+                                <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10"
+                                    style="background-color: #9333ea;"></div>
+                                <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300">Membros
+                                    com
+                                    Deficiência (PCD)</span>
                             </span>
                         </label>
 
@@ -647,7 +751,7 @@
                     </button>
                     <div x-show="activeTab === 'zonas'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden">
-                        @foreach($zonasTipos as $zona)
+                        @foreach ($zonasTipos as $zona)
                             @php $rgbLimpo = str_replace(['(', ')'], '', $zona['rgb']); @endphp
                             <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"
                                 title="{{ $zona['name'] }}">
@@ -706,13 +810,16 @@
                         <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
                             x-bind:class="activeTab === 'pgv' ? 'rotate-180' : ''" />
                     </button>
-                    <div x-show="activeTab === 'pgv'" x-collapse class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full">
+                    <div x-show="activeTab === 'pgv'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full">
                         <label class="flex items-center space-x-3 cursor-pointer w-full mt-2">
                             <input type="checkbox" data-layer="setores_fiscais"
                                 class="layer-toggle rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-4 h-4 flex-shrink-0">
                             <span class="layer-label flex items-center gap-2 flex-1">
                                 <div class="w-3 h-3 bg-amber-500 rounded-sm opacity-80 flex-shrink-0"></div>
-                                <span class="layer-text font-bold text-gray-700 dark:text-gray-300">Zonas de Valor (Setores Fiscais)</span>
+                                <span class="layer-text font-bold text-gray-700 dark:text-gray-300">Zonas de Valor
+                                    (Setores
+                                    Fiscais)</span>
                             </span>
                         </label>
                     </div>
@@ -798,7 +905,7 @@
                             </span>
                         </label>
 
-                         <label class="flex items-center space-x-3 cursor-pointer w-full">
+                        <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="rural-estradas"
                                 class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
@@ -825,7 +932,7 @@
                             </span>
                         </label>
 
-                         <label class="flex items-center space-x-3 cursor-pointer w-full">
+                        <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="rural-pontos-interesse"
                                 class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
@@ -841,92 +948,111 @@
         </div>
 
         {{-- 🛠️ BARRA INFERIOR: VETORIZAÇÃO AVANÇADA (CAD) --}}
-        <div x-data="{ openCad: false, ferramentaCadAtiva: null, ortogonalAtiva: false }" 
-             @toggle-cad-avancado.window="openCad = !openCad; if(!openCad) ferramentaCadAtiva = null;"
-             @fechar-submenus-cad.window="ferramentaCadAtiva = null"
-             x-show="openCad" 
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 translate-y-10"
-             x-transition:enter-end="opacity-100 translate-y-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 translate-y-0"
-             x-transition:leave-end="opacity-0 translate-y-10"
-             style="display: none; position: fixed !important; bottom: 15px !important; left: 50% !important; transform: translateX(-50%) !important; z-index: 9998 !important;"
-             class="bg-white dark:bg-gray-900/80 backdrop-blur-md shadow-lg rounded-2xl border border-gray-200 dark:border-gray-700 px-3 py-1.5 flex items-center gap-2 pointer-events-auto transition-all">
-             
+        <div x-data="{ openCad: false, ferramentaCadAtiva: null, ortogonalAtiva: false }"
+            @toggle-cad-avancado.window="openCad = !openCad; if(!openCad) ferramentaCadAtiva = null;"
+            @fechar-submenus-cad.window="ferramentaCadAtiva = null" x-show="openCad"
+            x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-10"
+            x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-10"
+            style="display: none; position: fixed !important; bottom: 15px !important; left: 50% !important; transform: translateX(-50%) !important; z-index: 9998 !important;"
+            class="bg-white dark:bg-gray-900/80 backdrop-blur-md shadow-lg rounded-2xl border border-gray-200 dark:border-gray-700 px-3 py-1.5 flex items-center gap-2 pointer-events-auto transition-all">
 
-             {{-- Ferramentas --}}
-             <div class="flex items-center gap-1">
-                 {{-- 1. CLONAR --}}
-                 <button @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'clonar' ? null : 'clonar'); window.setFerramentaCAD(ferramentaCadAtiva);"
-                     :class="ferramentaCadAtiva === 'clonar' ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
-                     class="w-14 h-11 me-4 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
-                     <x-heroicon-o-document-duplicate class="w-4 h-4" />
-                     <span class="text-[9px] font-bold">Clonar</span>
-                 </button>
 
-                 {{-- 2. BUFFER (Botão + Input Dinâmico) --}}
-                 <div class="flex items-center gap-1 transition-all me-4" :class="ferramentaCadAtiva === 'buffer' ? 'bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-700 rounded-xl pr-2' : ''">
-                     <button @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'buffer' ? null : 'buffer'); window.setFerramentaCAD(ferramentaCadAtiva);"
-                         :class="ferramentaCadAtiva === 'buffer' ? 'text-indigo-600 dark:text-indigo-400' : 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400 me-2'"
-                         class="w-14 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
-                         <x-heroicon-o-arrows-pointing-out class="w-4 h-4" />
-                         <span class="text-[9px] font-bold">Buffer</span>
-                     </button>
-                     
-                     {{-- O Campinho de Metros (Aparece apenas quando o Buffer é clicado) --}}
-                     <div x-show="ferramentaCadAtiva === 'buffer'" style="display: none;" class="flex items-center gap-1 animate-fade-in-right">
-                         <input type="text" id="input-cad-buffer" value="5.5"
-                                class="w-10 h-7 px-1 text-center text-xs font-bold text-indigo-700 bg-white border border-indigo-300 rounded-lg focus:ring-0 focus:border-indigo-500"
-                                title="Distância em metros (Use ponto ou vírgula)">
-                         <span class="text-[10px] font-bold text-indigo-400">m</span>
-                     </div>
-                 </div>
+            {{-- Ferramentas --}}
+            <div class="flex items-center gap-1">
+                {{-- 1. CLONAR --}}
+                <button
+                    @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'clonar' ? null : 'clonar'); window.setFerramentaCAD(ferramentaCadAtiva);"
+                    :class="ferramentaCadAtiva === 'clonar' ?
+                        'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700' :
+                        'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
+                    class="w-14 h-11 me-4 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
+                    <x-heroicon-o-document-duplicate class="w-4 h-4" />
+                    <span class="text-[9px] font-bold">Clonar</span>
+                </button>
 
-                 {{-- 3. UNIR --}}
-                 <button @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'unir' ? null : 'unir'); window.setFerramentaCAD(ferramentaCadAtiva);"
-                     :class="ferramentaCadAtiva === 'unir' ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
-                     class="w-14 h-11 me-4 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
-                     <x-heroicon-o-link class="w-4 h-4" />
-                     <span class="text-[9px] font-bold">Unir</span>
-                 </button>
+                {{-- 2. BUFFER (Botão + Input Dinâmico) --}}
+                <div class="flex items-center gap-1 transition-all me-4"
+                    :class="ferramentaCadAtiva === 'buffer' ?
+                        'bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-700 rounded-xl pr-2' :
+                        ''">
+                    <button
+                        @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'buffer' ? null : 'buffer'); window.setFerramentaCAD(ferramentaCadAtiva);"
+                        :class="ferramentaCadAtiva === 'buffer' ? 'text-indigo-600 dark:text-indigo-400' :
+                            'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400 me-2'"
+                        class="w-14 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
+                        <x-heroicon-o-arrows-pointing-out class="w-4 h-4" />
+                        <span class="text-[9px] font-bold">Buffer</span>
+                    </button>
 
-                 {{-- 4. DESMEMBRAR --}}
-                 <button @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'desmembrar' ? null : 'desmembrar'); window.setFerramentaCAD(ferramentaCadAtiva);"
-                     :class="ferramentaCadAtiva === 'desmembrar' ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
-                     class="w-14 h-11 me-4 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
-                     <x-heroicon-o-scissors class="w-4 h-4" />
-                     <span class="text-[9px] font-bold">Cortar</span>
-                 </button>
+                    {{-- O Campinho de Metros (Aparece apenas quando o Buffer é clicado) --}}
+                    <div x-show="ferramentaCadAtiva === 'buffer'" style="display: none;"
+                        class="flex items-center gap-1 animate-fade-in-right">
+                        <input type="text" id="input-cad-buffer" value="5.5"
+                            class="w-10 h-7 px-1 text-center text-xs font-bold text-indigo-700 bg-white border border-indigo-300 rounded-lg focus:ring-0 focus:border-indigo-500"
+                            title="Distância em metros (Use ponto ou vírgula)">
+                        <span class="text-[10px] font-bold text-indigo-400">m</span>
+                    </div>
+                </div>
 
-                 {{-- 5. LINHA ORTOGONAL --}}
-                 <button @click="ortogonalAtiva = !ortogonalAtiva; window.toggleOrtogonal(ortogonalAtiva);"
-                     :class="ortogonalAtiva ? 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
-                     class="w-16 h-11 me-4 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all relative">
-                     <span x-show="ortogonalAtiva" style="display: none;" class="absolute top-1 right-1 flex h-1.5 w-1.5">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                {{-- 3. UNIR --}}
+                <button
+                    @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'unir' ? null : 'unir'); window.setFerramentaCAD(ferramentaCadAtiva);"
+                    :class="ferramentaCadAtiva === 'unir' ?
+                        'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700' :
+                        'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
+                    class="w-14 h-11 me-4 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
+                    <x-heroicon-o-link class="w-4 h-4" />
+                    <span class="text-[9px] font-bold">Unir</span>
+                </button>
+
+                {{-- 4. DESMEMBRAR --}}
+                <button
+                    @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'desmembrar' ? null : 'desmembrar'); window.setFerramentaCAD(ferramentaCadAtiva);"
+                    :class="ferramentaCadAtiva === 'desmembrar' ?
+                        'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700' :
+                        'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
+                    class="w-14 h-11 me-4 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
+                    <x-heroicon-o-scissors class="w-4 h-4" />
+                    <span class="text-[9px] font-bold">Cortar</span>
+                </button>
+
+                {{-- 5. LINHA ORTOGONAL --}}
+                <button @click="ortogonalAtiva = !ortogonalAtiva; window.toggleOrtogonal(ortogonalAtiva);"
+                    :class="ortogonalAtiva ?
+                        'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700' :
+                        'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
+                    class="w-16 h-11 me-4 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all relative">
+                    <span x-show="ortogonalAtiva" style="display: none;"
+                        class="absolute top-1 right-1 flex h-1.5 w-1.5">
+                        <span
+                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                     </span>
-                     <x-heroicon-o-bars-4 class="w-4 h-4" />
-                     <span class="text-[9px] font-bold">Ortogonal</span>
-                 </button>
+                    </span>
+                    <x-heroicon-o-bars-4 class="w-4 h-4" />
+                    <span class="text-[9px] font-bold">Ortogonal</span>
+                </button>
 
-                 <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 me-4"></div>
+                <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 me-4"></div>
 
-                 {{-- 6. COTAR (GABARITO / AUTO-MEDIDA) --}}
-                 <button @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'cotar' ? null : 'cotar'); window.setFerramentaCAD(ferramentaCadAtiva);"
-                     :class="ferramentaCadAtiva === 'cotar' ? 'bg-orange-50 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
-                     class="w-14 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
-                     <x-heroicon-o-arrows-right-left class="w-4 h-4" />
-                     <span class="text-[9px] font-bold">Cotar</span>
-                 </button>
+                {{-- 6. COTAR (GABARITO / AUTO-MEDIDA) --}}
+                <button
+                    @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'cotar' ? null : 'cotar'); window.setFerramentaCAD(ferramentaCadAtiva);"
+                    :class="ferramentaCadAtiva === 'cotar' ?
+                        'bg-orange-50 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-700' :
+                        'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
+                    class="w-14 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
+                    <x-heroicon-o-arrows-right-left class="w-4 h-4" />
+                    <span class="text-[9px] font-bold">Cotar</span>
+                </button>
 
-             </div>
+            </div>
 
-             {{-- Botão Fechar Barra --}}
-             <button @click="openCad = false; ferramentaCadAtiva = null; window.setFerramentaCAD(null);" class="ml-1 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors">
-                 <x-heroicon-o-x-mark class="w-5 h-5" />
-             </button>
+            {{-- Botão Fechar Barra --}}
+            <button @click="openCad = false; ferramentaCadAtiva = null; window.setFerramentaCAD(null);"
+                class="ml-1 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors">
+                <x-heroicon-o-x-mark class="w-5 h-5" />
+            </button>
         </div>
 
     </div>
@@ -948,8 +1074,9 @@
         </div>
 
         <div class="p-6 flex-1 overflow-y-auto">
-            @if($loteAtivoId)
-                <div class="mb-6 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
+            @if ($loteAtivoId)
+                <div
+                    class="mb-6 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
                     <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Lote / Inscrição</p>
                     <p class="text-xl font-black text-gray-800 dark:text-white">{{ $loteAtivoNome }}</p>
                     <p class="text-xs text-gray-500 mt-1">ID Sistema: #{{ $loteSequentialId }}</p>
@@ -988,7 +1115,8 @@
                 <div class="space-y-3">
                     <button wire:click="mountAction('verUnidades')"
                         class="w-full text-left px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary-500 hover:shadow-md transition-all group flex items-center justify-between">
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-primary-600">Ver
+                        <span
+                            class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-primary-600">Ver
                             Unidades Imobiliárias</span>
                         <x-heroicon-o-chevron-right class="w-4 h-4 text-gray-400 group-hover:text-primary-500" />
                     </button>
@@ -1020,7 +1148,8 @@
                     {{-- BOTÃO DE VIABILIDADE --}}
                     <button wire:click="mountAction('consultarViabilidadeAction')"
                         class="w-full text-left px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary-500 hover:shadow-md transition-all group flex items-center justify-between">
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-primary-600">
+                        <span
+                            class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-primary-600">
                             Consulta de Viabilidade
                         </span>
                         <x-heroicon-o-document-text class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
@@ -1029,7 +1158,8 @@
                     {{-- BOTÃO DE MEMORIAL DESCRITIVO --}}
                     <button wire:click="mountAction('gerarMemorialAction')"
                         class="w-full text-left px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-emerald-500 hover:shadow-md transition-all group flex items-center justify-between">
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-emerald-600">
+                        <span
+                            class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-emerald-600">
                             Memorial Descritivo
                         </span>
                         <x-heroicon-o-document-text class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
@@ -1048,15 +1178,16 @@
             @endif
         </div>
 
-        @if($loteAtivoId)
-            <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-row gap-2">
-               
+        @if ($loteAtivoId)
+            <div
+                class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-row gap-2">
+
                 {{-- DESMEMBRAR LOTE --}}
                 <button onclick="ativarFerramentaCorteLote({{ $loteAtivoId }})" title="Desmembrar / Cortar Lote"
                     class="flex-1 flex justify-center py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold border border-blue-100 transition-colors">
                     <x-heroicon-o-scissors class="w-5 h-5" />
                 </button>
-               
+
                 {{-- STREET VIEW LOTE --}}
                 <button wire:click="mountAction('abrirStreetViewAction')" title="Explorar Street View"
                     class="flex-1 flex justify-center py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold border border-blue-100 transition-colors">
@@ -1102,45 +1233,218 @@
                         const input = this.$refs.inputField;
                         if (!input) return;
                         const rect = input.getBoundingClientRect();
-                        this.dropdownMaxHeight = Math.max(200, window.innerHeight - rect.bottom - 16);
-                        this.dropdownStyle = `top: ${rect.bottom + 8}px; left: ${rect.left}px; width: 480px;`;
+                        this.dropdownMaxHeight = Math.max(200, window.innerHeight - rect
+                            .bottom - 16);
+                        this.dropdownStyle =
+                            `top: ${rect.bottom + 8}px; left: ${rect.left}px; width: 480px;`;
                     });
                 },
                 buscar() {
-                    if (this.termo.length < 2) { this.resultados = []; return; }
+                    if (this.termo.length < 2) {
+                        this.resultados = [];
+                        return;
+                    }
                     this.loading = true;
                     this.posicionarDropdown();
                     // Lendo a variável config limpa que passamos lá em cima
                     fetch(`/api/search-lote?tenant_id=${window.mapConfig.tenantId}&termo=${this.termo}`)
                         .then(res => res.json())
-                        .then(data => { this.resultados = data; })
-                        .catch(() => { this.resultados = []; })
-                        .finally(() => { this.loading = false; });
+                        .then(data => {
+                            this.resultados = data;
+                        })
+                        .catch(() => {
+                            this.resultados = [];
+                        })
+                        .finally(() => {
+                            this.loading = false;
+                        });
                 },
                 voarPara(res) {
                     this.resultados = [];
                     this.termo = '';
-                    window.dispatchEvent(new CustomEvent('voar-para-lote', { detail: res }));
+                    window.dispatchEvent(new CustomEvent('voar-para-lote', {
+                        detail: res
+                    }));
                 }
             }));
         });
     </script>
 
     <script>
+        /* IMPRESSÃO ÚNICA COM DESTAQUE */
+        window.capturarMapaEImprimirBic = function(unidadeId, loteId) {
+            // 🛑 MÁGICA 1: Encontrar a feature do lote via loadedLayers (como na Viabilidade)
+            let featureToHighlight = null;
+            if (window.loadedLayers && window.loadedLayers['lotes']) {
+                const source = window.loadedLayers['lotes'].getSource();
+                featureToHighlight = source.getFeatures().find(f => f.get('id') == loteId);
 
-       /* IMPRIMIR CONSULTA DE VIABILIDADE DO LOTE (COM DESTAQUE) */
-        window.capturarMapaEImprimir = function (loteId, cnaes) { // 🛑 Nome restaurado e parâmetro cnaes de volta!
+                if (featureToHighlight) {
+                    featureToHighlight.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({
+                            color: '#ff0000',
+                            width: 4
+                        }), // Borda vermelha
+                        fill: new ol.style.Fill({
+                            color: 'rgba(250, 204, 21, 0.5)'
+                        }) // Fundo amarelo
+                    }));
+                }
+            }
+
+            setTimeout(() => {
+                try {
+                    const mapCanvas = document.createElement('canvas');
+                    const canvases = document.querySelectorAll('.ol-layer canvas');
+
+                    if (canvases.length > 0) {
+                        const mapaElement = document.getElementById('sigweb-map');
+                        mapCanvas.width = mapaElement.clientWidth;
+                        mapCanvas.height = mapaElement.clientHeight;
+                        const mapContext = mapCanvas.getContext('2d');
+
+                        mapContext.fillStyle = '#ffffff';
+                        mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
+
+                        Array.prototype.forEach.call(canvases, function(canvas) {
+                            if (canvas.width > 0) {
+                                const opacity = canvas.parentNode.style.opacity;
+                                mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+
+                                mapContext.setTransform(1, 0, 0, 1, 0, 0);
+                                const transform = canvas.style.transform;
+                                if (transform) {
+                                    const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
+                                    if (matrix) {
+                                        const m = matrix[1].split(',').map(Number);
+                                        mapContext.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+                                    }
+                                }
+                                mapContext.drawImage(canvas, 0, 0);
+                            }
+                        });
+
+                        mapContext.globalAlpha = 1;
+                        mapContext.setTransform(1, 0, 0, 1, 0, 0);
+
+                        const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id'))
+                            .imprimirBic(unidadeId, dataURL);
+                    }
+                } catch (error) {
+                    console.error("Erro na captura do mapa para BIC:", error);
+                    alert("Não foi possível capturar a imagem do mapa.");
+                } finally {
+                    // 🛑 MÁGICA 2: Remove a tinta amarela do lote após capturar
+                    if (featureToHighlight) {
+                        featureToHighlight.setStyle(undefined);
+                    }
+                }
+            }, 800); // 800ms de delay como na Viabilidade
+        };
+
+        /* IMPRESSÃO EM MASSA COM DESTAQUE */
+        window.capturarMapaEImprimirBicEmMassa = function(arrayDeIds, loteId) {
+            const idsPuros = Array.from(arrayDeIds);
+
+            // 🛑 MÁGICA 1: Destaque
+            let featureToHighlight = null;
+            if (window.loadedLayers && window.loadedLayers['lotes']) {
+                const source = window.loadedLayers['lotes'].getSource();
+                featureToHighlight = source.getFeatures().find(f => f.get('id') == loteId);
+
+                if (featureToHighlight) {
+                    featureToHighlight.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({
+                            color: '#ff0000',
+                            width: 4
+                        }),
+                        fill: new ol.style.Fill({
+                            color: 'rgba(250, 204, 21, 0.5)'
+                        })
+                    }));
+                }
+            }
+
+            if (idsPuros.length === 0) {
+                if (featureToHighlight) featureToHighlight.setStyle(undefined);
+                return;
+            }
+
+            setTimeout(() => {
+                try {
+                    const mapCanvas = document.createElement('canvas');
+                    const canvases = document.querySelectorAll('.ol-layer canvas');
+
+                    if (canvases.length > 0) {
+                        const mapaElement = document.getElementById('sigweb-map');
+                        mapCanvas.width = mapaElement.clientWidth;
+                        mapCanvas.height = mapaElement.clientHeight;
+                        const mapContext = mapCanvas.getContext('2d');
+
+                        mapContext.fillStyle = '#ffffff';
+                        mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
+
+                        Array.prototype.forEach.call(canvases, function(canvas) {
+                            if (canvas.width > 0) {
+                                const opacity = canvas.parentNode.style.opacity;
+                                mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+
+                                mapContext.setTransform(1, 0, 0, 1, 0, 0);
+                                const transform = canvas.style.transform;
+                                if (transform) {
+                                    const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
+                                    if (matrix) {
+                                        const m = matrix[1].split(',').map(Number);
+                                        mapContext.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+                                    }
+                                }
+                                mapContext.drawImage(canvas, 0, 0);
+                            }
+                        });
+
+                        mapContext.globalAlpha = 1;
+                        mapContext.setTransform(1, 0, 0, 1, 0, 0);
+
+                        const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id'))
+                            .imprimirBicEmMassa(idsPuros, dataURL);
+                    } else {
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id'))
+                            .imprimirBicEmMassa(idsPuros, null);
+                    }
+                } catch (error) {
+                    console.error("Erro na captura do mapa em massa:", error);
+                    alert("Não foi possível capturar a imagem do mapa. Gerando BICs sem imagem.");
+                    Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id'))
+                        .imprimirBicEmMassa(idsPuros, null);
+                } finally {
+                    // 🛑 MÁGICA 2: Limpa a cor
+                    if (featureToHighlight) {
+                        featureToHighlight.setStyle(undefined);
+                    }
+                }
+            }, 800);
+        };
+
+        /* IMPRIMIR CONSULTA DE VIABILIDADE DO LOTE (COM DESTAQUE) */
+        window.capturarMapaEImprimir = function(loteId, cnaes) { // 🛑 Nome restaurado e parâmetro cnaes de volta!
 
             // 🛑 MÁGICA 1: Encontrar a feature do lote e aplicar o "marca-texto" antes da foto!
             let featureToHighlight = null;
             if (window.loadedLayers && window.loadedLayers['lotes']) {
                 const source = window.loadedLayers['lotes'].getSource();
                 featureToHighlight = source.getFeatures().find(f => f.get('id') == loteId);
-                
+
                 if (featureToHighlight) {
                     featureToHighlight.setStyle(new ol.style.Style({
-                        stroke: new ol.style.Stroke({ color: '#ff0000', width: 4 }), // Borda vermelha chamativa
-                        fill: new ol.style.Fill({ color: 'rgba(250, 204, 21, 0.5)' }) // Fundo amarelo translúcido
+                        stroke: new ol.style.Stroke({
+                            color: '#ff0000',
+                            width: 4
+                        }), // Borda vermelha chamativa
+                        fill: new ol.style.Fill({
+                            color: 'rgba(250, 204, 21, 0.5)'
+                        }) // Fundo amarelo translúcido
                     }));
                 }
             }
@@ -1162,11 +1466,11 @@
                         mapContext.fillStyle = '#ffffff';
                         mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
 
-                        Array.prototype.forEach.call(canvases, function (canvas) {
+                        Array.prototype.forEach.call(canvases, function(canvas) {
                             if (canvas.width > 0) {
                                 const opacity = canvas.parentNode.style.opacity;
                                 mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
-                                
+
                                 // Limpa a matriz antiga antes de aplicar a nova
                                 mapContext.setTransform(1, 0, 0, 1, 0, 0);
 
@@ -1189,7 +1493,8 @@
                         const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
 
                         // 🛑 Manda para o Livewire chamando imprimirViabilidade na ordem certa!
-                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirViabilidade(dataURL, cnaes, loteId);
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id'))
+                            .imprimirViabilidade(dataURL, cnaes, loteId);
                     }
                 } catch (error) {
                     console.error("Erro na captura do mapa para a Consulta:", error);
@@ -1197,14 +1502,14 @@
                 } finally {
                     // 🛑 MÁGICA 2: "Limpar a tinta". Devolve a cor original ao lote!
                     if (featureToHighlight) {
-                        featureToHighlight.setStyle(undefined); 
+                        featureToHighlight.setStyle(undefined);
                     }
                 }
             }, 800);
         };
 
         /* IMPRIMIR NUMERAÇÃO PREDIAL COM MAPA */
-        window.capturarMapaNumeracao = function () {
+        window.capturarMapaNumeracao = function() {
             const btn = document.getElementById('btn-print-num');
             const originalText = btn.innerHTML;
             btn.innerHTML = '<span class="animate-pulse">Gerando PDF...</span>';
@@ -1225,11 +1530,11 @@
                         mapContext.fillStyle = '#ffffff';
                         mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
 
-                        Array.prototype.forEach.call(canvases, function (canvas) {
+                        Array.prototype.forEach.call(canvases, function(canvas) {
                             if (canvas.width > 0) {
                                 const opacity = canvas.parentNode.style.opacity;
                                 mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
-                                
+
                                 // Limpa a matriz antiga antes de aplicar a nova
                                 mapContext.setTransform(1, 0, 0, 1, 0, 0);
 
@@ -1252,7 +1557,8 @@
                         const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
 
                         // Dispara a função do PHP mandando a foto em Base64
-                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirRelatorioNumeracao(dataURL);
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id'))
+                            .imprimirRelatorioNumeracao(dataURL);
                     }
                 } catch (error) {
                     console.error("Erro na captura do mapa:", error);
@@ -1263,78 +1569,24 @@
             }, 500);
         };
 
-        /* IMPRIMIR BIC */
-        window.capturarMapaEImprimirBic = function (unidadeId) {
-            // Pequeno delay para garantir que o mapa está estabilizado
-            setTimeout(() => {
-                try {
-                    const mapCanvas = document.createElement('canvas');
-                    const canvases = document.querySelectorAll('.ol-layer canvas');
-
-                    if (canvases.length > 0) {
-                        // 🛑 CORREÇÃO 1: Mede a div HTML diretamente, sem depender da variável 'map' interna
-                        const mapaElement = document.getElementById('sigweb-map');
-                        mapCanvas.width = mapaElement.clientWidth;
-                        mapCanvas.height = mapaElement.clientHeight;
-                        const mapContext = mapCanvas.getContext('2d');
-
-                        // 🛑 CORREÇÃO 2: Pinta o fundo de branco OBRIGATORIAMENTE para JPEGs
-                        mapContext.fillStyle = '#ffffff';
-                        mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
-
-                        Array.prototype.forEach.call(canvases, function (canvas) {
-                            if (canvas.width > 0) {
-                                const opacity = canvas.parentNode.style.opacity;
-                                mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
-                                
-                                // Limpa a matriz antiga antes de aplicar a nova
-                                mapContext.setTransform(1, 0, 0, 1, 0, 0);
-
-                                const transform = canvas.style.transform;
-                                if (transform) {
-                                    const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
-                                    if (matrix) {
-                                        const m = matrix[1].split(',').map(Number);
-                                        mapContext.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
-                                    }
-                                }
-                                mapContext.drawImage(canvas, 0, 0);
-                            }
-                        });
-
-                        // 🛑 CORREÇÃO 3: Devolve tudo ao normal no final para não bugar outras leituras
-                        mapContext.globalAlpha = 1;
-                        mapContext.setTransform(1, 0, 0, 1, 0, 0);
-
-                        const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
-
-                        // Dispara a função do Livewire mandando o ID e a foto!
-                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirBic(unidadeId, dataURL);
-                    } else {
-                        // Se não conseguir capturar o mapa por algum motivo, imprime sem foto
-                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirBic(unidadeId, null);
-                    }
-                } catch (error) {
-                    console.error("Erro na captura do mapa para a BIC:", error);
-                    alert("Não foi possível capturar a imagem do mapa. Gerando BIC sem imagem.");
-                    Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirBic(unidadeId, null);
-                }
-            }, 500);
-        };
-
         /* IMPRIMIR CROQUI DE LOCALIZAÇÃO DO LOTE (COM DESTAQUE) */
-        window.capturarMapaEImprimirCroqui = function (loteId) {
+        window.capturarMapaEImprimirCroqui = function(loteId) {
 
             // 🛑 MÁGICA 1: Encontrar a feature do lote e aplicar um "marca-texto" antes da foto!
             let featureToHighlight = null;
             if (window.loadedLayers && window.loadedLayers['lotes']) {
                 const source = window.loadedLayers['lotes'].getSource();
                 featureToHighlight = source.getFeatures().find(f => f.get('id') == loteId);
-                
+
                 if (featureToHighlight) {
                     featureToHighlight.setStyle(new ol.style.Style({
-                        stroke: new ol.style.Stroke({ color: '#ff0000', width: 4 }), // Borda vermelha chamativa
-                        fill: new ol.style.Fill({ color: 'rgba(250, 204, 21, 0.5)' }) // Fundo amarelo translúcido
+                        stroke: new ol.style.Stroke({
+                            color: '#ff0000',
+                            width: 4
+                        }), // Borda vermelha chamativa
+                        fill: new ol.style.Fill({
+                            color: 'rgba(250, 204, 21, 0.5)'
+                        }) // Fundo amarelo translúcido
                     }));
                 }
             }
@@ -1356,11 +1608,11 @@
                         mapContext.fillStyle = '#ffffff';
                         mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
 
-                        Array.prototype.forEach.call(canvases, function (canvas) {
+                        Array.prototype.forEach.call(canvases, function(canvas) {
                             if (canvas.width > 0) {
                                 const opacity = canvas.parentNode.style.opacity;
                                 mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
-                                
+
                                 // Limpa a matriz antiga antes de aplicar a nova
                                 mapContext.setTransform(1, 0, 0, 1, 0, 0);
 
@@ -1383,7 +1635,8 @@
                         const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
 
                         // Manda para o Livewire
-                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).imprimirCroqui(loteId, dataURL);
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id'))
+                            .imprimirCroqui(loteId, dataURL);
                     }
                 } catch (error) {
                     console.error("Erro na captura do mapa para o Croqui:", error);
@@ -1391,12 +1644,11 @@
                 } finally {
                     // 🛑 MÁGICA 2: "Limpar a tinta". Devolve a cor original ao lote!
                     if (featureToHighlight) {
-                        featureToHighlight.setStyle(undefined); 
+                        featureToHighlight.setStyle(undefined);
                     }
                 }
             }, 800);
         };
-
     </script>
 
 
