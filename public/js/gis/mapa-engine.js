@@ -14,6 +14,11 @@ document.addEventListener('DOMContentLoaded', function () {
     let filtroBeneficioAtivo = false;
     let filtroPcdAtivo = false;
 
+    //variáveis do modo de consulta de unificação
+    window.modoUnificacao = false;
+    window.lotesParaUnificar = [];
+    window.featuresUnificacao = [];
+
     // 2. CONFIGURA A CÂMERA DO MAPA
     const view = new ol.View({
         center: ol.proj.fromLonLat([config.mapLon, config.mapLat]),
@@ -1078,6 +1083,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     map.on('singleclick', function (evt) {
+
+        //trava para modo de consulta de unificação
+        if (window.modoUnificacao) return;
 
         // 🛑 TRAVA MESTRA DE EDIÇÃO: Se estiver editando geometria, ignora cliques em outros artefatos!
         if (featureEmEdicao) {
@@ -2990,6 +2998,103 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    /* =========================================================
+        O MODO "LASER" DE SELEÇÃO DE UNIFICAÇÃO NO MAPA
+    ========================================================= */
+    window.addEventListener('iniciar-selecao-unificacao', (e) => {
+        const data = e.detail[0] || e.detail;
+        window.modoUnificacao = true;
+        window.lotesParaUnificar = [data.lote_id];
+        window.featuresUnificacao = [];
 
+        // Destaque inicial do lote âncora
+        if (window.loadedLayers && window.loadedLayers['lotes']) {
+            const source = window.loadedLayers['lotes'].getSource();
+            const feat = source.getFeatures().find(f => f.get('id') == data.lote_id);
+            if (feat) {
+                feat.setStyle(new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#10b981', width: 4 }),
+                    fill: new ol.style.Fill({ color: 'rgba(16, 185, 129, 0.4)' })
+                }));
+                window.featuresUnificacao.push(feat);
+            }
+        }
+
+        // Cria a barra (se não existir)
+        if (!document.getElementById('painel-unificacao')) {
+            const painel = document.createElement('div');
+            painel.id = 'painel-unificacao';
+            painel.style = "position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: white; padding: 12px 25px; border-radius: 50px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 9999; display: flex; align-items: center; gap: 20px; border: 2px solid #3b82f6;";
+            painel.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-weight: bold; color: #1f2937;">🔗 Unificação</span>
+                <span id="cont-unif" style="background: #eff6ff; color: #1d4ed8; padding: 2px 10px; border-radius: 10px; font-size: 12px;">1 Lote</span>
+            </div>
+            <button onclick="window.cancelarUnificacao()" style="background: #f3f4f6; border: none; padding: 5px 12px; border-radius: 15px; cursor: pointer;">Sair</button>
+            <button onclick="window.concluirUnificacao()" style="background: #3b82f6; color: white; border: none; padding: 6px 15px; border-radius: 15px; cursor: pointer; font-weight: bold;">Gerar PDF</button>
+        `;
+            document.body.appendChild(painel);
+        }
+    });
+
+    // Listener de clique específico para unificação
+    map.on('click', function (evt) {
+        if (!window.modoUnificacao) return;
+
+        map.forEachFeatureAtPixel(evt.pixel, function (feature, layer) {
+            if (layer === window.loadedLayers['lotes']) {
+                const id = feature.get('id');
+                if (id && !window.lotesParaUnificar.includes(id)) {
+                    window.lotesParaUnificar.push(id);
+                    feature.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#3b82f6', width: 3 }),
+                        fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.4)' })
+                    }));
+                    window.featuresUnificacao.push(feature);
+                    document.getElementById('cont-unif').innerText = window.lotesParaUnificar.length + " Lotes";
+                }
+            }
+        });
+    });
+
+    window.cancelarUnificacao = function () {
+        window.modoUnificacao = false;
+        document.getElementById('painel-unificacao')?.remove();
+        window.featuresUnificacao.forEach(f => f.setStyle(undefined));
+    };
+
+    window.concluirUnificacao = function () {
+        const btn = document.querySelector('#painel-unificacao button:last-child');
+        btn.innerText = "📸 Processando...";
+        btn.disabled = true;
+
+        setTimeout(() => {
+            // Captura do Canvas (Sua lógica padrão)
+            const mapCanvas = document.createElement('canvas');
+            const mapaElement = document.getElementById('sigweb-map');
+            mapCanvas.width = mapaElement.clientWidth;
+            mapCanvas.height = mapaElement.clientHeight;
+            const mapContext = mapCanvas.getContext('2d');
+            mapContext.fillStyle = '#ffffff';
+            mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
+
+            document.querySelectorAll('.ol-layer canvas').forEach(canvas => {
+                if (canvas.width > 0) {
+                    const opacity = canvas.parentNode.style.opacity || 1;
+                    mapContext.globalAlpha = Number(opacity);
+                    const matrix = new DOMMatrix(canvas.style.transform);
+                    mapContext.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f);
+                    mapContext.drawImage(canvas, 0, 0);
+                }
+            });
+
+            const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
+
+            Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id'))
+                .imprimirUnificacao(dataURL, window.lotesParaUnificar);
+
+            window.cancelarUnificacao();
+        }, 1500);
+    };
 
 }); // <-- Fim do DOMContentLoaded

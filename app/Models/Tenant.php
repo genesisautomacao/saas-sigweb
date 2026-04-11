@@ -337,9 +337,27 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(PatrimonioPublico::class);
     }
 
+    // Imagens 360
     public function pontoPanoramicos(): HasMany
     {
         return $this->hasMany(PontoPanoramico::class);
     }
+
+    // Consulta de Viabilidade
+    public function parametroUrbanos(): HasMany
+    {
+        return $this->hasMany(ParametroUrbano::class);
+    }
+
+    public function cnaes(): HasMany
+    {
+        return $this->hasMany(Cnae::class);
+    }
+
+     public function zoneamentoRegras(): HasMany
+    {
+        return $this->hasMany(ZoneamentoRegra::class);
+    }
+
 
 }

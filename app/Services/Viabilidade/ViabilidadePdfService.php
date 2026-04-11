@@ -45,4 +45,53 @@ class ViabilidadePdfService
             echo $pdf->output();
         }, $fileName);
     }
+
+    /**
+     * Gera o PDF exclusivo para Parcelamento do Solo.
+     */
+    public function generateParcelamentoPdf(array $dadosAnalise, ?string $mapImageBase64 = null)
+    {
+        $tenant = Filament::getTenant();
+        $dataHora = now()->format('d/m/Y H:i:s');
+        $protocolo = 'PARC-' . date('Ymd') . '-' . Str::upper(Str::random(4));
+
+        $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote']);
+        $fileName = 'parcelamento-' . $numeroLoteSeguro . '.pdf';
+
+        $mapImage = $mapImageBase64;
+
+        // Aponta para o novo template Blade do Passo 3
+        $pdf = Pdf::loadView(
+            'pdf.viabilidade-parcelamento',
+            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImage')
+        );
+
+        $pdf->setPaper('A4', 'portrait');
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, $fileName);
+    }
+
+   public function generateUnificacaoPdf(array $dadosAnalise, ?string $mapImageBase64 = null)
+    {
+        $tenant = Filament::getTenant();
+        $dataHora = now()->format('d/m/Y H:i:s');
+        $protocolo = 'UNIF-' . date('Ymd') . '-' . Str::upper(Str::random(4));
+
+        $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote'] ?? 'S-N');
+        $fileName = 'unificacao-' . $numeroLoteSeguro . '.pdf';
+
+        // 🛑 AQUI ESTÁ O PULO DO GATO: Direcionando para a nova View
+        $pdf = Pdf::loadView(
+            'pdf.viabilidade-unificacao', // Nome exato do arquivo que criaremos abaixo
+            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImageBase64')
+        );
+
+        $pdf->setPaper('A4', 'portrait');
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, $fileName);
+    }
 }

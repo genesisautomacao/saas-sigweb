@@ -763,17 +763,18 @@
                     <div x-show="activeTab === 'zonas'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden"
                         x-data="{ zonasList: @entangle('zonasTipos') }"> {{-- MÁGICA: Conecta ao PHP! --}}
-                        
+
                         <template x-for="zona in zonasList" :key="zona.id">
-                            <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full" :title="zona.name">
+                            <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"
+                                :title="zona.name">
                                 <input type="checkbox" data-layer="zonas" :data-zona-sigla="zona.sigla"
                                     class="zona-toggle rounded border-gray-400 shadow-sm w-4 h-4 flex-shrink-0"
                                     :style="`color: rgb(${ (zona.rgb || '150,150,150').replace(/rgb|\(|\)| /g, '') });`">
                                 <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-2">
                                     <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10"
-                                        :style="`background-color: rgb(${ (zona.rgb || '150,150,150').replace(/rgb|\(|\)| /g, '') });`"></div>
-                                    <span
-                                        class="layer-text truncate font-medium text-gray-700 dark:text-gray-300" 
+                                        :style="`background-color: rgb(${ (zona.rgb || '150,150,150').replace(/rgb|\(|\)| /g, '') });`">
+                                    </div>
+                                    <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300"
                                         x-text="`${zona.sigla} - ${zona.name}`"></span>
                                 </span>
                             </label>
@@ -816,7 +817,8 @@
                             <input type="checkbox" data-layer="pontos_panoramicos"
                                 class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0 flex items-center justify-center">
+                                <div
+                                    class="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0 flex items-center justify-center">
                                     <x-heroicon-o-camera class="w-2 h-2 text-white" />
                                 </div>
                                 <span class="layer-text truncate">Imagens 360º</span>
@@ -1295,6 +1297,13 @@
     </script>
 
     <script>
+        // Ouvinte que escuta o Livewire pedindo o PDF do Parcelamento
+        window.addEventListener('capturar-mapa-parcelamento', (e) => {
+            const data = e.detail[0] || e.detail;
+            // Chama a função JS passando os parâmetros certinhos
+            window.capturarMapaParcelamento(data.lote_id, data.qtd_lotes);
+        });
+
         /* IMPRESSÃO ÚNICA COM DESTAQUE */
         window.capturarMapaEImprimirBic = function(unidadeId, loteId) {
             // 🛑 MÁGICA 1: Encontrar a feature do lote via loadedLayers (como na Viabilidade)
@@ -1532,6 +1541,88 @@
             }, 800);
         };
 
+        /* IMPRIMIR ESTUDO DE PARCELAMENTO DO LOTE (COM DESTAQUE) */
+        window.capturarMapaParcelamento = function(loteId, qtdLotes) { // 🛑 Parâmetro qtdLotes em vez de cnaes!
+
+            // 🛑 MÁGICA 1: Encontrar a feature do lote e aplicar o "marca-texto" antes da foto!
+            let featureToHighlight = null;
+            if (window.loadedLayers && window.loadedLayers['lotes']) {
+                const source = window.loadedLayers['lotes'].getSource();
+                featureToHighlight = source.getFeatures().find(f => f.get('id') == loteId);
+
+                if (featureToHighlight) {
+                    featureToHighlight.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({
+                            color: '#ff0000',
+                            width: 4
+                        }), // Borda vermelha chamativa
+                        fill: new ol.style.Fill({
+                            color: 'rgba(250, 204, 21, 0.5)'
+                        }) // Fundo amarelo translúcido
+                    }));
+                }
+            }
+
+            // Aumentamos o delay para 800ms para garantir a renderização do destaque antes do print
+            setTimeout(() => {
+                try {
+                    const mapCanvas = document.createElement('canvas');
+                    const canvases = document.querySelectorAll('.ol-layer canvas');
+
+                    if (canvases.length > 0) {
+                        // 🛑 CORREÇÃO 1: Mede a div HTML diretamente, sem depender da variável 'map' interna
+                        const mapaElement = document.getElementById('sigweb-map');
+                        mapCanvas.width = mapaElement.clientWidth;
+                        mapCanvas.height = mapaElement.clientHeight;
+                        const mapContext = mapCanvas.getContext('2d');
+
+                        // 🛑 CORREÇÃO 2: Pinta o fundo de branco OBRIGATORIAMENTE para JPEGs
+                        mapContext.fillStyle = '#ffffff';
+                        mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
+
+                        Array.prototype.forEach.call(canvases, function(canvas) {
+                            if (canvas.width > 0) {
+                                const opacity = canvas.parentNode.style.opacity;
+                                mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+
+                                // Limpa a matriz antiga antes de aplicar a nova
+                                mapContext.setTransform(1, 0, 0, 1, 0, 0);
+
+                                const transform = canvas.style.transform;
+                                if (transform) {
+                                    const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
+                                    if (matrix) {
+                                        const m = matrix[1].split(',').map(Number);
+                                        mapContext.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+                                    }
+                                }
+                                mapContext.drawImage(canvas, 0, 0);
+                            }
+                        });
+
+                        // 🛑 CORREÇÃO 3: Devolve tudo ao normal no final para não bugar outras leituras
+                        mapContext.globalAlpha = 1;
+                        mapContext.setTransform(1, 0, 0, 1, 0, 0);
+
+                        const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
+
+                        // 🛑 CHAMA A FUNÇÃO NOVA NO PHP: imprimirParcelamento (na ordem exata que criamos na Trait)
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id'))
+                            .imprimirParcelamento(dataURL, qtdLotes, loteId);
+                    }
+                } catch (error) {
+                    console.error("Erro na captura do mapa para o Parcelamento:", error);
+                    alert("Não foi possível capturar a imagem do mapa.");
+                } finally {
+                    // 🛑 MÁGICA 2: "Limpar a tinta". Devolve a cor original ao lote!
+                    if (featureToHighlight) {
+                        featureToHighlight.setStyle(undefined);
+                    }
+                }
+            }, 800);
+        };
+
+
         /* IMPRIMIR NUMERAÇÃO PREDIAL COM MAPA */
         window.capturarMapaNumeracao = function() {
             const btn = document.getElementById('btn-print-num');
@@ -1674,7 +1765,6 @@
             }, 800);
         };
     </script>
-
 
     {{-- Carrega o Google Maps com a biblioteca de Geometria (para calcular o ângulo do olhar) --}}
     <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=geometry" async

@@ -653,49 +653,105 @@ trait HasLoteActions
         return $service->generatePdfEmMassa($unidadesIds, $mapImageBase64);
     }
 
-    /**
-     * Ação: Passo 1 - Selecionar CNAEs
-     */
+
+    // abertura da hub de opções para consultas
     public function consultarViabilidadeAction(): Action
     {
         return Action::make('consultarViabilidadeAction')
-            ->modalHeading('Consulta de Viabilidade')
-            ->modalDescription('Selecione as atividades desejadas para analisar a viabilidade neste lote.')
-            ->modalSubmitActionLabel('Consultar Viabilidade')
-            ->modalWidth('lg')
+            ->modalHeading(fn() => 'Central de Viabilidade - Lote: ' . \App\Models\Lote::find($this->loteAtivoId)?->numero_lote)
+            ->modalWidth('2xl')
+            ->modalSubmitActionLabel('Iniciar Análise Oficial')
+            ->modalIcon('heroicon-o-document-magnifying-glass')
             ->closeModalByClickingAway(false)
             ->form([
-                Select::make('cnaes')
-                    ->label('Atividades Econômicas (CNAE)')
-                    ->multiple()
-                    ->searchable()
-                    ->placeholder('Digite o código ou nome da atividade...')
-                    // MÁGICA: Busca assíncrona no banco conforme o usuário digita
-                    ->getSearchResultsUsing(function (string $search) {
-                        $searchClean = preg_replace('/[^0-9a-zA-Z\s]/', '', $search);
-                        return \App\Models\Cnae::where('tenant_id', $this->tenantId)
-                            ->where(function ($q) use ($search, $searchClean) {
-                                $q->where('codigo', 'like', "%{$search}%")
-                                    ->orWhereRaw("REGEXP_REPLACE(codigo, '[^0-9]', '') like ?", ["%{$searchClean}%"])
-                                    ->orWhere('descricao', 'ilike', "%{$search}%");
+                \Filament\Forms\Components\Radio::make('tipo_consulta')
+                    ->label('Selecione o tipo de Estudo Urbanístico:')
+                    ->options([
+                        'uso_solo' => '🏢 Uso do Solo (Atividades/CNAEs)',
+                        'parcelamento' => '✂️ Parcelamento (Desmembramento)',
+                        'unificacao' => '🔗 Unificação (Remembramento)',
+                    ])
+                    ->descriptions([
+                        'uso_solo' => 'Verifica as atividades permitidas, permissíveis e proibidas na zona do lote.',
+                        'parcelamento' => 'Analisa se a geometria do lote suporta divisão em novos lotes.',
+                        'unificacao' => 'Analisa se a junção com lotes vizinhos respeita a área máxima permitida.',
+                    ])
+                    ->default('uso_solo')
+                    ->live() // Mágica para revelar os campos abaixo dinamicamente
+                    ->required(),
+
+                // --- SEÇÃO 1: USO DO SOLO (O seu código refinado mantido aqui!) ---
+                \Filament\Forms\Components\Section::make('Parâmetros para Uso do Solo')
+                    ->schema([
+                        Select::make('cnaes')
+                            ->label('Atividades Econômicas (CNAE)')
+                            ->multiple()
+                            ->searchable()
+                            ->placeholder('Digite o código ou nome da atividade...')
+                            ->getSearchResultsUsing(function (string $search) {
+                                $searchClean = preg_replace('/[^0-9a-zA-Z\s]/', '', $search);
+                                return \App\Models\Cnae::where('tenant_id', $this->tenantId)
+                                    ->where(function ($q) use ($search, $searchClean) {
+                                        $q->where('codigo', 'like', "%{$search}%")
+                                            ->orWhereRaw("REGEXP_REPLACE(codigo, '[^0-9]', '') like ?", ["%{$searchClean}%"])
+                                            ->orWhere('descricao', 'ilike', "%{$search}%");
+                                    })
+                                    ->limit(30)
+                                    ->get()
+                                    ->mapWithKeys(fn($cnae) => [$cnae->codigo => $cnae->codigo . ' - ' . $cnae->descricao])
+                                    ->toArray();
                             })
-                            ->limit(30)
-                            ->get()
-                            ->mapWithKeys(fn($cnae) => [$cnae->codigo => $cnae->codigo . ' - ' . $cnae->descricao])
-                            ->toArray();
-                    })
-                    // Necessário para o Filament saber renderizar as opções já salvas/selecionadas
-                    ->getOptionLabelsUsing(function (array $values) {
-                        return \App\Models\Cnae::whereIn('codigo', $values)
-                            ->get()
-                            ->mapWithKeys(fn($cnae) => [$cnae->codigo => $cnae->codigo . ' - ' . $cnae->descricao])
-                            ->toArray();
-                    })
-                    ->required()
+                            ->getOptionLabelsUsing(function (array $values) {
+                                return \App\Models\Cnae::whereIn('codigo', $values)
+                                    ->get()
+                                    ->mapWithKeys(fn($cnae) => [$cnae->codigo => $cnae->codigo . ' - ' . $cnae->descricao])
+                                    ->toArray();
+                            })
+                            ->required(),
+                    ])
+                    ->visible(fn(\Filament\Forms\Get $get) => $get('tipo_consulta') === 'uso_solo'),
+
+                // --- SEÇÃO 2: PARCELAMENTO ---
+                \Filament\Forms\Components\Section::make('Parâmetros para Parcelamento')
+                    ->description('Informe como deseja dividir este lote.')
+                    ->schema([
+                        \Filament\Forms\Components\TextInput::make('qtd_lotes')
+                            ->label('Quantidade de novos lotes desejados')
+                            ->numeric()
+                            ->default(2)
+                            ->minValue(2)
+                            ->required(),
+                    ])
+                    ->visible(fn(\Filament\Forms\Get $get) => $get('tipo_consulta') === 'parcelamento'),
+
+                // --- SEÇÃO 3: UNIFICAÇÃO (Modo Mapa) ---
+                \Filament\Forms\Components\Section::make('Unificação (Seleção Visual)')
+                    ->description('A unificação será feita diretamente pelo mapa para garantir precisão.')
+                    ->schema([
+                        \Filament\Forms\Components\Placeholder::make('instrucao')
+                            ->hiddenLabel()
+                            ->content(new \Illuminate\Support\HtmlString('
+                                <div class="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg text-blue-700 dark:text-blue-300 flex items-center gap-3">
+                                    <x-heroicon-o-cursor-arrow-rays  />
+                                    <span>Ao clicar em <strong>"Iniciar Análise"</strong>, esta janela se fechará e uma barra flutuante aparecerá no mapa. Você poderá clicar nos lotes vizinhos para selecioná-los visualmente!</span>
+                                </div>
+                            ')),
+                    ])
+                    ->visible(fn (\Filament\Forms\Get $get) => $get('tipo_consulta') === 'unificacao'),
             ])
             ->action(function (array $data) {
-                // Avança para a modal de resultado passando a lista de CNAEs selecionada
-                $this->replaceMountedAction('resultadoViabilidadeAction', ['cnaes' => $data['cnaes']]);
+                // Roteamento inteligente e isolado para cada tela de resultado
+                if ($data['tipo_consulta'] === 'uso_solo') {
+                    // O seu fluxo original e intocável
+                    $this->replaceMountedAction('resultadoViabilidadeAction', ['cnaes' => $data['cnaes']]);
+                } elseif ($data['tipo_consulta'] === 'parcelamento') {
+                    // Chama a nova tela exclusiva de parcelamento
+                    $this->replaceMountedAction('resultadoParcelamentoAction', ['qtd_lotes' => $data['qtd_lotes']]);
+                } elseif ($data['tipo_consulta'] === 'unificacao') {
+                    // 🛑 O NOVO FLUXO DE UNIFICAÇÃO: Fecha a modal e liga o "Laser" no mapa
+                    $this->dispatch('fechar-modal-filament');
+                    $this->dispatch('iniciar-selecao-unificacao', ['lote_id' => $this->loteAtivoId]);
+                }
             });
     }
 
@@ -812,7 +868,63 @@ trait HasLoteActions
             });
     }
 
-   /**
+    // Resultado da consuta de parcelamento
+    public function resultadoParcelamentoAction(): \Filament\Actions\Action
+    {
+        return \Filament\Actions\Action::make('resultadoParcelamentoAction')
+            ->modalHeading(fn() => 'Resultado da Análise - Parcelamento')
+            ->modalWidth('3xl')
+            ->modalSubmitAction(false) // Remove o botão "Salvar" padrão (é apenas leitura)
+            ->modalCancelActionLabel('Fechar')
+            ->form(function (array $arguments) {
+                // 1. Puxa o motor matemático isolado
+                $service = new \App\Services\Viabilidade\ViabilidadeService();
+                $resultado = $service->analisarParcelamento($this->loteAtivoId, $arguments['qtd_lotes'] ?? 2);
+
+                // 2. Prepara as cores e textos para a tela
+                $cor = match ($resultado['status_final'] ?? 'proibido') {
+                    'permitido' => 'success',
+                    'permissivel' => 'warning',
+                    default => 'danger',
+                };
+                $textoStatus = strtoupper($resultado['status_final'] ?? 'PROIBIDO');
+                $htmlParecer = implode('<br><br>', $resultado['parecer_tecnico'] ?? ['Nenhum parecer gerado.']);
+
+                return [
+                    \Filament\Forms\Components\Section::make('Parecer Técnico')
+                        ->schema([
+                            \Filament\Forms\Components\Placeholder::make('status')
+                                ->label('Veredito Final')
+                                ->content(new \Illuminate\Support\HtmlString("<span class='text-{$cor}-600 font-bold text-lg' style='color: var(--{$cor}-600);'>{$textoStatus}</span>")),
+
+                            \Filament\Forms\Components\Placeholder::make('parecer')
+                                ->label('Análise Geométrica e Matemática')
+                                ->content(new \Illuminate\Support\HtmlString("<div class='text-gray-700 dark:text-gray-300' style='font-size: 1rem; line-height: 1.5;'>{$htmlParecer}</div>")),
+                        ])
+                ];
+            })
+            ->extraModalFooterActions(function (array $arguments) {
+                return [
+                    \Filament\Actions\Action::make('imprimir_parcelamento')
+                        ->label('Gerar PDF Oficial')
+                        ->color('success')
+                        ->icon('heroicon-o-printer')
+                        ->action(function () use ($arguments) {
+                            $this->dispatch('fechar-modal-filament');
+                            
+                            // 🛑 DISPARA UM EVENTO EXCLUSIVO DE PARCELAMENTO
+                            $this->dispatch('capturar-mapa-parcelamento', [
+                                'lote_id' => $this->loteAtivoId,
+                                'qtd_lotes' => $arguments['qtd_lotes'] ?? 2
+                            ]);
+
+                            \Filament\Notifications\Notification::make()->title('Capturando croqui do mapa...')->info()->send();
+                        })
+                ];
+            });
+    }
+
+    /**
      * Ação Global: Recebe a Imagem do Mapa via JS e devolve o PDF
      */
     public function imprimirViabilidade($mapImageBase64, $cnaes, $loteId)
@@ -821,9 +933,9 @@ trait HasLoteActions
         if (is_string($cnaes)) {
             // Tenta decodificar de JSON, se falhar, divide pela vírgula
             $decodificado = json_decode($cnaes, true);
-            $cnaes = (json_last_error() === JSON_ERROR_NONE && is_array($decodificado)) 
-                        ? $decodificado 
-                        : explode(',', $cnaes);
+            $cnaes = (json_last_error() === JSON_ERROR_NONE && is_array($decodificado))
+                ? $decodificado
+                : explode(',', $cnaes);
         }
 
         // Prevenção extra caso venha nulo
@@ -845,6 +957,39 @@ trait HasLoteActions
         // Chama o Serviço de PDF e devolve o Stream direto pro navegador baixar
         $pdfService = app(\App\Services\Viabilidade\ViabilidadePdfService::class);
         return $pdfService->generatePdf($dadosAnalise, $mapImageBase64);
+    }
+
+    // impressão de consulta de parcelamento do solo
+    public function imprimirParcelamento($mapImageBase64, $qtdLotes, $loteId)
+    {
+        $service = app(\App\Services\Viabilidade\ViabilidadeService::class);
+        $dadosAnalise = $service->analisarParcelamento($loteId, (int) $qtdLotes);
+
+        if (isset($dadosAnalise['error'])) {
+            \Filament\Notifications\Notification::make()->danger()->title('Erro')->body($dadosAnalise['error'])->send();
+            return;
+        }
+
+        // Injetamos o número do lote
+        $dadosAnalise['numero_lote'] = $this->loteAtivoNome ?? \App\Models\Lote::find($loteId)?->numero_lote ?? 'S/N';
+
+        // Chama a nova função do Serviço de PDF (que criaremos no Passo 2)
+        $pdfService = app(\App\Services\Viabilidade\ViabilidadePdfService::class);
+        return $pdfService->generateParcelamentoPdf($dadosAnalise, $mapImageBase64);
+    }
+
+    public function imprimirUnificacao($mapImageBase64, array $lotesIds)
+    {
+        $service = app(\App\Services\Viabilidade\ViabilidadeService::class);
+        $dadosAnalise = $service->analisarUnificacao($lotesIds);
+
+        if (isset($dadosAnalise['error'])) {
+            \Filament\Notifications\Notification::make()->danger()->title('Erro')->body($dadosAnalise['error'])->send();
+            return;
+        }
+
+        $pdfService = app(\App\Services\Viabilidade\ViabilidadePdfService::class);
+        return $pdfService->generateUnificacaoPdf($dadosAnalise, $mapImageBase64);
     }
 
     /**
@@ -900,7 +1045,7 @@ trait HasLoteActions
         return Action::make('exportarCroqui')
             ->modalHeading('Exportar Lote / Croqui')
             ->modalDescription(fn() => 'Selecione o formato de exportação desejado para o Lote ' . $this->loteAtivoNome)
-            ->modalSubmitAction(false) 
+            ->modalSubmitAction(false)
             ->modalCancelActionLabel('Cancelar')
             ->modalWidth('3xl')
             ->extraModalFooterActions([
@@ -912,19 +1057,19 @@ trait HasLoteActions
                         'onclick' => "capturarMapaEImprimirCroqui({$this->loteAtivoId})",
                         'x-on:click' => 'close()',
                     ])
-                    ->action(function() {}), 
-                    
+                    ->action(function () {}),
+
                 // 🛑 ROTINA 1: EXPORTAÇÃO PARA AUTOCAD (DXF) VIA GDAL
                 Action::make('export_dwg')
                     ->label('Gerar CAD (DXF)')
                     ->color('info')
                     ->icon('heroicon-o-swatch')
-                    ->action(function() {
+                    ->action(function () {
                         $lote = \App\Models\Lote::find($this->loteAtivoId);
-                        
+
                         // 1. Gera o GeoJSON base
                         $geoJsonQuery = \Illuminate\Support\Facades\DB::selectOne("SELECT ST_AsGeoJSON(geo) as geojson FROM lotes WHERE id = ?", [$lote->id]);
-                        
+
                         // 2. Prepara o formato. O Driver DXF do GDAL lê a propriedade 'Layer' para nomear a camada no AutoCAD
                         $featureCollection = [
                             'type' => 'FeatureCollection',
@@ -932,34 +1077,34 @@ trait HasLoteActions
                                 [
                                     'type' => 'Feature',
                                     'properties' => [
-                                        'Layer' => 'Lote_' . ($lote->numero_lote ?? $lote->id), 
+                                        'Layer' => 'Lote_' . ($lote->numero_lote ?? $lote->id),
                                     ],
                                     'geometry' => json_decode($geoJsonQuery->geojson)
                                 ]
                             ]
                         ];
-                        
+
                         $jsonContent = json_encode($featureCollection);
-                        
+
                         try {
                             $tempDir = storage_path('app/temp_dxf_' . uniqid());
                             if (!is_dir($tempDir)) mkdir($tempDir);
-                            
+
                             $geoJsonPath = $tempDir . '/lote.geojson';
                             file_put_contents($geoJsonPath, $jsonContent);
-                            
+
                             $dxfPath = $tempDir . '/Lote_' . ($lote->numero_lote ?? $lote->id) . '.dxf';
-                            
+
                             // 3. Invoca o conversor do servidor (ogr2ogr) mandando cuspir um DXF
                             $process = \Illuminate\Support\Facades\Process::run("ogr2ogr -f \"DXF\" {$dxfPath} {$geoJsonPath}");
-                            
+
                             if ($process->successful() && file_exists($dxfPath)) {
                                 return response()->download($dxfPath)->deleteFileAfterSend(true);
                             }
                         } catch (\Exception $e) {
                             // Silencioso para cair na notificação abaixo
                         }
-                        
+
                         // 4. FALLBACK: Se o Laragon (Windows) não tiver o GDAL instalado, ele avisa elegantemente
                         \Filament\Notifications\Notification::make()
                             ->title('Aviso de Ambiente')
@@ -967,18 +1112,18 @@ trait HasLoteActions
                             ->danger()
                             ->send();
                     }),
-                    
+
                 // 🛑 ROTINA 2: EXPORTAÇÃO SHAPEFILE / GEOJSON
                 Action::make('export_shp')
                     ->label('Gerar Shapefile / GeoJSON')
                     ->color('success')
                     ->icon('heroicon-o-map')
-                    ->action(function() {
+                    ->action(function () {
                         $lote = \App\Models\Lote::find($this->loteAtivoId);
-                        
+
                         // Gera o GeoJSON puro pelo banco
                         $geoJsonQuery = \Illuminate\Support\Facades\DB::selectOne("SELECT ST_AsGeoJSON(geo) as geojson FROM lotes WHERE id = ?", [$lote->id]);
-                        
+
                         // Adiciona as propriedades (Tabela de Atributos)
                         $featureCollection = [
                             'type' => 'FeatureCollection',
@@ -995,22 +1140,22 @@ trait HasLoteActions
                                 ]
                             ]
                         ];
-                        
+
                         $jsonContent = json_encode($featureCollection);
-                        
+
                         // Tentativa de usar o conversor GDAL (ogr2ogr) do servidor para empacotar o ZIP do Shapefile
                         try {
                             $tempDir = storage_path('app/temp_shp_' . uniqid());
                             if (!is_dir($tempDir)) mkdir($tempDir);
-                            
+
                             $geoJsonPath = $tempDir . '/lote.geojson';
                             file_put_contents($geoJsonPath, $jsonContent);
-                            
+
                             $shpPath = $tempDir . '/Lote_' . $lote->numero_lote . '.shp';
-                            
+
                             // Invoca o conversor do servidor
                             $process = \Illuminate\Support\Facades\Process::run("ogr2ogr -f \"ESRI Shapefile\" {$shpPath} {$geoJsonPath}");
-                            
+
                             if ($process->successful() && file_exists($shpPath)) {
                                 $zipPath = $tempDir . '/Lote_' . $lote->numero_lote . '.zip';
                                 $zip = new \ZipArchive();
@@ -1020,20 +1165,20 @@ trait HasLoteActions
                                 $zip->addFile($tempDir . '/Lote_' . $lote->numero_lote . '.dbf', 'Lote_' . $lote->numero_lote . '.dbf');
                                 $zip->addFile($tempDir . '/Lote_' . $lote->numero_lote . '.prj', 'Lote_' . $lote->numero_lote . '.prj');
                                 $zip->close();
-                                
+
                                 return response()->download($zipPath)->deleteFileAfterSend(true);
                             }
                         } catch (\Exception $e) {
                             // Se não tiver GDAL instalado, ignora silenciosamente e cai pro Fallback
                         }
-                        
+
                         // FALLBACK GARANTIDO: Retorna o GeoJSON (o padrão moderno)
                         Notification::make()
                             ->title('Exportado como GeoJSON')
                             ->body('O conversor GDAL (ogr2ogr) não foi detectado no seu ambiente. O arquivo foi exportado no formato universal GeoJSON, compatível nativamente com QGIS e ArcGIS.')
                             ->warning()
                             ->send();
-                            
+
                         return response()->streamDownload(function () use ($jsonContent) {
                             echo $jsonContent;
                         }, 'Lote_' . ($lote->numero_lote ?? $lote->id) . '.geojson');
