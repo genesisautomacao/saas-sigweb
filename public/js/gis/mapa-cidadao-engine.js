@@ -124,6 +124,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 return style;
             }
         },
+
+        'pontos_panoramicos': {
+            style: new ol.style.Style({
+                image: new ol.style.Icon({
+                    src: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%233b82f6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
+                    scale: 1.0,
+                    anchor: [0.5, 0.5]
+                })
+            }),
+            z: 100, // Câmeras sempre por cima!
+            minZoom: 14 // Só aparece com zoom próximo
+        },
+
         'cemiterios': {
             z: 25, minZoom: 13,
             style: function (feature, resolution) {
@@ -258,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function () {
             osmLayer.setVisible(!showSat);
             esriLayer.setVisible(showSat);
             ortofotoLayer.setVisible(showSat); // ATIVA A ORTOFOTO DA CIDADE!
-            
+
             if (showSat) {
                 btnSatelite.classList.add('bg-primary-50', 'text-primary-600', 'dark:bg-primary-900/20', 'dark:text-primary-400');
                 btnSatelite.classList.remove('text-gray-600', 'dark:text-gray-300');
@@ -328,7 +341,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.zona-toggle').forEach(checkbox => {
         checkbox.addEventListener('change', function () {
             const sigla = this.getAttribute('data-zona-sigla');
-            if (this.checked) { if (!zonasAtivas.includes(sigla)) zonasAtivas.push(sigla); } 
+            if (this.checked) { if (!zonasAtivas.includes(sigla)) zonasAtivas.push(sigla); }
             else { zonasAtivas = zonasAtivas.filter(s => s !== sigla); }
 
             if (!window.loadedLayers['zonas']) fetchAndDrawLayer('zonas', this);
@@ -353,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (data && data.coords) {
             const targetCoords = ol.proj.fromLonLat([data.coords[0], data.coords[1]]);
             view.animate({ center: targetCoords, zoom: 20, duration: 2000 });
-            
+
             // Destaca o ponto da busca
             querySource.clear();
             const pointFeature = new ol.Feature(new ol.geom.Point(targetCoords));
@@ -414,9 +427,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (currentMeasureInteraction) return; // Não interfere se estiver com a reguinha ligada
 
         // Limpa o destaque anterior
-        if (hoveredFeature) { 
-            hoveredFeature.setStyle(undefined); 
-            hoveredFeature = null; 
+        if (hoveredFeature) {
+            hoveredFeature.setStyle(undefined);
+            hoveredFeature = null;
         }
 
         let hitFiltro = false;
@@ -424,7 +437,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Detecta o que está debaixo do mouse
         map.forEachFeatureAtPixel(e.pixel, function (f) {
-            if (f.get('titulo') && f.get('info')) { 
+            if (f.get('titulo') && f.get('info')) {
                 hitFiltro = true; // É um resultado da pesquisa/filtro avançado
                 if (featureTooltip) {
                     featureTooltip.innerHTML = `<div style="font-size:14px; font-weight:900;">${f.get('titulo')}</div><div style="font-size:10px; color:#cbd5e1;">${f.get('info')}</div>`;
@@ -440,22 +453,22 @@ document.addEventListener('DOMContentLoaded', function () {
             featureTooltip.style.top = (e.originalEvent.clientY + 15) + 'px';
             featureTooltip.style.display = 'block';
             map.getTargetElement().style.cursor = 'pointer';
-        } 
+        }
         else if (featureNormal) {
             const layer = featureNormal.get('layer');
             const name = featureNormal.get('name') || featureNormal.get('titulo');
-            
+
             // Define quais camadas mudam o cursor para "mãozinha"
-            const hoverableLayers = ['lotes', 'logradouros', 'bairros', 'quadras', 'cemiterios', 'rural-estradas'];
+            const hoverableLayers = ['lotes', 'logradouros', 'bairros', 'quadras', 'cemiterios', 'rural-estradas', 'pontos_panoramicos'];
             map.getTargetElement().style.cursor = hoverableLayers.includes(layer) ? 'pointer' : '';
 
             // Se for Logradouro (Rua), acende de azul e mostra a caixinha com o nome
             if (layer === 'logradouros' || layer === 'rural-estradas') {
                 hoveredFeature = featureNormal;
-                
+
                 // Estilo de destaque (Rua mais grossa e azul claro)
                 featureNormal.setStyle(new ol.style.Style({
-                    stroke: new ol.style.Stroke({ color: '#38bdf8', width: 6 }) 
+                    stroke: new ol.style.Stroke({ color: '#38bdf8', width: 6 })
                 }));
 
                 if (featureTooltip && name) {
@@ -467,7 +480,7 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 if (featureTooltip) featureTooltip.style.display = 'none';
             }
-        } 
+        }
         else {
             map.getTargetElement().style.cursor = '';
             if (featureTooltip) featureTooltip.style.display = 'none';
@@ -494,10 +507,10 @@ document.addEventListener('DOMContentLoaded', function () {
         drawSource.clear();
         measureTooltipElement.style.display = 'none';
         map.getTargetElement().style.cursor = '';
-        
+
         ['btn-measure-line', 'btn-measure-area'].forEach(id => {
             const btn = document.getElementById(id);
-            if(btn) btn.classList.remove('bg-primary-100', 'text-primary-600');
+            if (btn) btn.classList.remove('bg-primary-100', 'text-primary-600');
         });
     };
 
@@ -527,23 +540,31 @@ document.addEventListener('DOMContentLoaded', function () {
         map.addInteraction(currentMeasureInteraction);
     };
 
-    document.getElementById('btn-measure-line')?.addEventListener('click', function() { enableMeasure('line', this); });
-    document.getElementById('btn-measure-area')?.addEventListener('click', function() { enableMeasure('area', this); });
+    document.getElementById('btn-measure-line')?.addEventListener('click', function () { enableMeasure('line', this); });
+    document.getElementById('btn-measure-area')?.addEventListener('click', function () { enableMeasure('area', this); });
 
     // ------------------------------------------------------------------------
-    // CLIQUE NO LOTE (ABRIR FICHA DO CIDADÃO)
+    // CLIQUE NO LOTE OU PONTO PANORÂMICO (ABRIR FICHA/MODAL DO CIDADÃO)
     // ------------------------------------------------------------------------
     map.on('singleclick', function (e) {
         if (currentMeasureInteraction) return; // Não clica se estiver usando a reguinha
 
         const feature = map.forEachFeatureAtPixel(e.pixel, f => f, { hitTolerance: 5 });
         
-        if (feature && feature.get('layer') === 'lotes') {
-            const loteId = feature.get('id');
-            const loteNome = feature.get('titulo') || feature.get('name') || 'S/N';
-            
-            // Avisa o Livewire para disparar a função da nossa Trait
-            Livewire.dispatch('abrirFichaImovel', { loteId: loteId, loteNome: loteNome });
+        if (feature) {
+            // Mudamos o nome da variável para evitar o erro "layer is not defined"
+            const featureLayer = feature.get('layer'); 
+            const featureId = feature.get('id');
+
+            if (featureLayer === 'lotes') {
+                const loteNome = feature.get('titulo') || feature.get('name') || 'S/N';
+                // Avisa o Livewire para abrir a ficha do lote
+                Livewire.dispatch('abrirFichaImovel', { loteId: featureId, loteNome: loteNome });
+            } 
+            else if (featureLayer === 'pontos_panoramicos') {
+                // Avisa o Livewire para abrir a modal de visualização 360º
+                Livewire.dispatch('abrirVisualizadorPublico360', { id: featureId });
+            }
         }
     });
 

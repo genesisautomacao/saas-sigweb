@@ -174,7 +174,7 @@ class MapDataController extends Controller
 
             case 'pontos_panoramicos':
                 $pontos = PontoPanoramico::where('tenant_id', $tenantId)
-                    ->select('id', 'titulo as name', 'code', 'geo') // 'titulo as name' faz a ponte automática com o seu FeatureCollection
+                    ->select('id', 'titulo as name', 'code', 'geo', 'image_path') // 'titulo as name' faz a ponte automática com o seu FeatureCollection
                     ->get();
                 $data = $buildFeatureCollection($pontos, 'pontos_panoramicos');
                 break;

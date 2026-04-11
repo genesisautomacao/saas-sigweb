@@ -19,6 +19,8 @@ class Pessoa extends Model
         'sequential_id',
         'name',
         'cpf',
+        'cns',
+        'esus_id',
         'birth_date',
         'death_date',
         'type',
@@ -48,5 +50,11 @@ class Pessoa extends Model
     public function documentos()
     {
         return $this->morphMany(Documento::class, 'documentable');
+    }
+
+    // Relacionamento 1 para 1 com a tabela de Condições de Saúde do e-SUS
+    public function condicoesSaude()
+    {
+        return $this->hasOne(PessoaSaudeCondicao::class);
     }
 }

@@ -3,7 +3,7 @@
     <div wire:ignore>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
         <link rel="stylesheet" href="{{ asset('css/gis/mapa-sigweb.css') }}">
-
+       
         <script>
             window.mapConfig = {
                 tenantId: {{ $tenantId }},
@@ -236,14 +236,29 @@
                                 class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-3 bg-emerald-500 rounded-full flex-shrink-0"></div><span
                                     class="layer-text truncate">Arborização Urbana</span>
-                            </span></label>
+                            </span>
+                        </label>
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
                                 data-layer="postes"
                                 class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0"><span
                                 class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div><span
                                     class="layer-text truncate">Iluminação Pública</span>
-                            </span></label>
+                            </span>
+                        </label>
+
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" data-layer="pontos_panoramicos"
+                                class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div
+                                    class="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0 flex items-center justify-center">
+                                    <x-heroicon-o-camera class="w-2 h-2 text-white" />
+                                </div>
+                                <span class="layer-text truncate">Imagens 360º</span>
+                            </span>
+                        </label>
+
                     </div>
                 </div>
 
@@ -481,10 +496,11 @@
     <script src="{{ asset('js/gis/mapa-cidadao-engine.js') }}"></script>
 
     {{-- Carrega o Google Maps (Obrigatório para o Street View) --}}
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=geometry" async defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=geometry" async
+        defer></script>
 
     <script>
-       /* IMPRIMIR CONSULTA DE VIABILIDADE DO LOTE (COM DESTAQUE) */
+        /* IMPRIMIR CONSULTA DE VIABILIDADE DO LOTE (COM DESTAQUE) */
         window.capturarMapaEImprimir = function(loteId, cnaes) { // 🛑 Nome restaurado e parâmetro cnaes de volta!
 
             // 🛑 MÁGICA 1: Encontrar a feature do lote e aplicar o "marca-texto" antes da foto!
@@ -565,7 +581,7 @@
             }, 800);
         };
 
-       /* IMPRIMIR CROQUI DE LOCALIZAÇÃO DO LOTE (COM DESTAQUE) */
+        /* IMPRIMIR CROQUI DE LOCALIZAÇÃO DO LOTE (COM DESTAQUE) */
         window.capturarMapaEImprimirCroqui = function(loteId) {
 
             // 🛑 MÁGICA 1: Encontrar a feature do lote e aplicar um "marca-texto" antes da foto!
@@ -647,7 +663,7 @@
         };
     </script>
 
-    
+
     <script>
         document.addEventListener('alpine:init', () => {
             Alpine.data('loteSearch', () => ({

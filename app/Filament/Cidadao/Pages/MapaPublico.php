@@ -34,6 +34,8 @@ class MapaPublico extends Page
     public array $zonasTipos = [];
     public bool $filtroAvancadoAtivo = false;
 
+    public ?int $pontoPanoramicoAtivoId = null;
+
     // ---- PROPRIEDADES DA FICHA DO IMÓVEL ----
     public bool $isFichaLoteOpen = false;
     public ?int $activeLoteId = null;
@@ -94,5 +96,41 @@ class MapaPublico extends Page
         $this->filtroAvancadoAtivo = false;
         $this->dispatch('limpar-filtro-avancado'); 
         \Filament\Notifications\Notification::make()->title('Filtros removidos!')->success()->send();
+    }
+
+    // ------------------------------------------------------------------------
+    // MÉTODOS DO VISUALIZADOR 360º PÚBLICO
+    // ------------------------------------------------------------------------
+    
+    #[On('abrirVisualizadorPublico360')]
+    public function abrirVisualizadorPublico360($id)
+    {
+        $this->pontoPanoramicoAtivoId = $id;
+        $this->mountAction('visualizador360Action');
+    }
+
+    public function visualizador360Action(): Action
+    {
+        return Action::make('visualizador360Action')
+            ->modalHeading('Explorar Imagem 360º')
+            ->modalSubmitAction(false) // Esconde o botão "Salvar" pois é apenas leitura
+            ->modalCancelActionLabel('Fechar')
+            ->modalWidth('5xl') // Largura máxima para dar imersão ao Cidadão
+            ->modalContent(function () {
+                $ponto = \App\Models\PontoPanoramico::find($this->pontoPanoramicoAtivoId);
+                
+                // Lógica idêntica à sua Trait: Pega a foto ou usa a de simulação
+                $imagemUrl = ($ponto && $ponto->image_path)
+                    ? asset('storage/' . $ponto->image_path)
+                    : 'https://pannellum.org/images/alma.jpg';
+                    
+                $uniqueId = 'pano_' . uniqid();
+
+                return view('filament.cidadao.components.visualizador-360-publico', [
+                    'ponto' => $ponto,
+                    'imagemUrl' => $imagemUrl,
+                    'uniqueId' => $uniqueId,
+                ]);
+            });
     }
 }

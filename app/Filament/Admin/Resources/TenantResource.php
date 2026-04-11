@@ -70,7 +70,35 @@ class TenantResource extends Resource
                             ->inline(false),
                     ])->columns(2),
 
-                // --- SEÇÃO 2: ENDEREÇO E IBGE (MÁGICA DO VIACEP) ---
+                // --- SEÇÃO 2: INTEGRAÇÃO E-SUS AB ---
+                Forms\Components\Section::make('Integração e-SUS AB (Saúde)')
+                    ->icon('heroicon-o-heart')
+                    ->description('Configurações de sincronização diária do Cadastro Único e Saúde.')
+                    ->schema([
+                        // 🟢 O BOTÃO MÁGICO PARA A SUA APRESENTAÇÃO
+                        Forms\Components\Toggle::make('data.esus_simulacao')
+                            ->label('Ativar Modo Simulação (Apresentação)')
+                            ->helperText('Se ativo, o ETL usará um pacote de dados local (JSON fake) para demonstrar a sincronização, ignorando a URL e o Token.')
+                            ->live() // Necessário para esconder os campos abaixo dinamicamente
+                            ->default(false)
+                            ->columnSpanFull(),
+
+                        Forms\Components\TextInput::make('data.esus_url')
+                            ->label('URL da API do Servidor PEC')
+                            ->placeholder('Ex: https://esus.santacecilia.sc.gov.br/api')
+                            ->url()
+                            ->hidden(fn(Forms\Get $get) => $get('data.esus_simulacao')) // 🪄 Esconde se for simulação
+                            ->required(fn(Forms\Get $get) => ! $get('data.esus_simulacao')), // 🪄 Obriga só se não for simulação
+
+                        Forms\Components\TextInput::make('data.esus_token')
+                            ->label('Token de Acesso (API Key)')
+                            ->password()
+                            ->revealable()
+                            ->hidden(fn(Forms\Get $get) => $get('data.esus_simulacao'))
+                            ->required(fn(Forms\Get $get) => ! $get('data.esus_simulacao')),
+                    ])->columns(2),
+
+                // --- SEÇÃO 3: ENDEREÇO E IBGE (MÁGICA DO VIACEP) ---
                 Forms\Components\Section::make('Localização e Integração')
                     ->icon('heroicon-o-map-pin')
                     ->schema([
@@ -148,7 +176,7 @@ class TenantResource extends Resource
                         ]),
                     ]),
 
-                // --- SEÇÃO 3: CONFIGURAÇÕES DO MAPA (GIS) ---
+                // --- SEÇÃO 4: CONFIGURAÇÕES DO MAPA (GIS) ---
                 Forms\Components\Section::make('Configurações Geográficas (SIGWEB)')
                     ->icon('heroicon-o-globe-americas')
                     ->schema([
@@ -170,7 +198,7 @@ class TenantResource extends Resource
                             ->maxValue(22),
                     ])->columns(3),
 
-                // --- SEÇÃO 4: MÓDULOS ---
+                // --- SEÇÃO 5: MÓDULOS ---
                 Forms\Components\Section::make('Módulos Contratados')
                     ->icon('heroicon-o-squares-2x2')
                     ->schema([
@@ -227,6 +255,35 @@ class TenantResource extends Resource
                     Tables\Actions\EditAction::make(),
 
                     Tables\Actions\DeleteAction::make(),
+
+                    // 🟢 BOTÃO DE SINCRONIZAÇÃO E-SUS
+                    Tables\Actions\Action::make('syncEsus')
+                        ->label('Sincronizar e-SUS')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Sincronizar dados do e-SUS')
+                        ->modalDescription('Deseja acionar o motor de ETL para buscar as atualizações de saúde do Cadastro Único no servidor do e-SUS agora?')
+                        ->modalSubmitActionLabel('Sim, Iniciar Sincronização')
+                        ->action(function (Tenant $record) {
+                            // Chama o nosso serviço
+                            $service = app(\App\Services\ApiTools\EsusSyncService::class);
+                            $sucesso = $service->syncTenant($record);
+
+                            if ($sucesso) {
+                                Notification::make()
+                                    ->success()
+                                    ->title('Sincronização Concluída!')
+                                    ->body('Os cadastros e condições de saúde foram atualizados com sucesso.')
+                                    ->send();
+                            } else {
+                                Notification::make()
+                                    ->danger()
+                                    ->title('Sincronização Falhou')
+                                    ->body('Verifique as credenciais da API ou os logs do sistema.')
+                                    ->send();
+                            }
+                        })->tooltip('Baixar dados do SUS'),
 
                     // Nossa ação customizada para criar o Manager
                     Tables\Actions\Action::make('delegar_manager')
@@ -302,13 +359,13 @@ class TenantResource extends Resource
                                 ->required()
                         ])
                         ->action(function (Tenant $record, array $data) {
-                            
+
                             // Apenas aumenta os limites do servidor para arquivos pesados (14MB+)
                             ini_set('memory_limit', '2048M');
                             set_time_limit(600);
 
                             $filePath = storage_path('app/private/' . $data['arquivo']);
-                            
+
                             if (!file_exists($filePath)) {
                                 \Filament\Notifications\Notification::make()->danger()->title('Arquivo não encontrado no disco!')->send();
                                 return;
@@ -335,7 +392,7 @@ class TenantResource extends Resource
                             // 1. INTELIGÊNCIA GEOGRÁFICA DE AGRUPAMENTO
                             foreach ($features as $feature) {
                                 $props = $feature->properties;
-                                $id = $props->id ?? $props->fid ?? uniqid(); 
+                                $id = $props->id ?? $props->fid ?? uniqid();
 
                                 if (!isset($agrupados[$id])) {
                                     $agrupados[$id] = ['props' => $props, 'coords' => [], 'type' => null];
@@ -344,18 +401,16 @@ class TenantResource extends Resource
                                 // Proteção real contra propriedades sem mapa (geometry = null)
                                 if (isset($feature->geometry) && !empty($feature->geometry) && isset($feature->geometry->type)) {
                                     $geomType = $feature->geometry->type;
-                                    
+
                                     if (in_array($geomType, ['Polygon', 'MultiPolygon'])) {
                                         $agrupados[$id]['type'] = 'MultiPolygon';
                                         if ($geomType === 'Polygon') $agrupados[$id]['coords'][] = $feature->geometry->coordinates;
                                         else foreach ($feature->geometry->coordinates as $poly) $agrupados[$id]['coords'][] = $poly;
-                                    }
-                                    elseif (in_array($geomType, ['LineString', 'MultiLineString'])) {
+                                    } elseif (in_array($geomType, ['LineString', 'MultiLineString'])) {
                                         $agrupados[$id]['type'] = 'MultiLineString';
                                         if ($geomType === 'LineString') $agrupados[$id]['coords'][] = $feature->geometry->coordinates;
                                         else foreach ($feature->geometry->coordinates as $line) $agrupados[$id]['coords'][] = $line;
-                                    }
-                                    elseif ($geomType === 'Point') {
+                                    } elseif ($geomType === 'Point') {
                                         $agrupados[$id]['type'] = 'Point';
                                         $agrupados[$id]['coords'] = $feature->geometry->coordinates;
                                     }
@@ -364,7 +419,7 @@ class TenantResource extends Resource
 
                             \Illuminate\Support\Facades\DB::beginTransaction();
                             try {
-                                
+
                                 // Helper para buscar o ID global real no banco com base no ID do JSON (salvo como sequential_id)
                                 $resolveRelacionamento = function ($modelStr, $jsonId) use ($record) {
                                     if (!$jsonId) return null;
@@ -389,7 +444,7 @@ class TenantResource extends Resource
                                             'coordinates' => $item['coords']
                                         ];
                                     } else {
-                                        $fillData['geo'] = null; 
+                                        $fillData['geo'] = null;
                                     }
 
                                     // A REGRA DO NOME (Necessária para Perímetros, Zonas, Logradouros, etc)
@@ -436,7 +491,7 @@ class TenantResource extends Resource
                                 }
 
                                 \Illuminate\Support\Facades\DB::commit();
-                                
+
                                 // Limpeza do arquivo
                                 if (file_exists($filePath)) {
                                     \Illuminate\Support\Facades\Storage::disk('local')->delete($data['arquivo']);
@@ -447,7 +502,6 @@ class TenantResource extends Resource
                                     ->title('Importação Concluída!')
                                     ->body(count($agrupados) . " registros foram importados para a camada " . $data['camada'])
                                     ->send();
-
                             } catch (\Exception $e) {
                                 \Illuminate\Support\Facades\DB::rollBack();
                                 \Filament\Notifications\Notification::make()
