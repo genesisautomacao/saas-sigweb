@@ -79,6 +79,9 @@
                                     <template x-if="res.tipo === 'bairro'">
                                         <x-heroicon-o-map class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                                     </template>
+                                    <template x-if="res.tipo === 'edificio'">
+                                        <x-heroicon-o-building-office class="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
+                                    </template>
 
                                     <div class="flex flex-col">
                                         <span class="text-sm font-bold text-gray-800 dark:text-gray-100"

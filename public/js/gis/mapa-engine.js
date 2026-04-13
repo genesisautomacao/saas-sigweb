@@ -2931,8 +2931,30 @@ document.addEventListener('DOMContentLoaded', function () {
         const dados = e.detail[0] || e.detail.dados || e.detail;
         console.log("🎯 Filtro Avançado Disparado! Dados recebidos:", dados);
 
-        // Monta a URL
-        const url = `/api/mapa/advanced-query?tenant_id=${config.tenantId}&layer=${dados.layer}&field=${dados.field}&operator=${encodeURIComponent(dados.operator)}&value=${encodeURIComponent(dados.value)}`;
+        // 1. Construtor Dinâmico de Parâmetros
+        let queryParams = new URLSearchParams({
+            tenant_id: config.tenantId,
+            tipo_filtro: dados.tipo_filtro || 'atributo'
+        });
+
+        // 2. Preenche os parâmetros baseado no que o usuário escolheu
+        if (dados.tipo_filtro === 'espacial') {
+            queryParams.append('spatial_target_layer', dados.spatial_target_layer);
+            queryParams.append('spatial_operator', dados.spatial_operator);
+            queryParams.append('spatial_reference_layer', dados.spatial_reference_layer);
+            queryParams.append('spatial_reference_id', dados.spatial_reference_id);
+        } else {
+            queryParams.append('layer', dados.layer);
+            queryParams.append('field', dados.field);
+            queryParams.append('operator', dados.operator);
+            queryParams.append('value', dados.value);
+        }
+
+        // 3. Monta a URL 
+        // ⚠️ ATENÇÃO: Usei a rota correspondente ao nome do seu método no Controller.
+        // Se no seu arquivo routes/api.php a rota estiver apenas como "advanced-query", 
+        // basta apagar o "-spatial" da string abaixo.
+        const url = `/api/mapa/advanced-query?${queryParams.toString()}`;
         console.log("🌐 Buscando na URL:", url);
 
         fetch(url)
@@ -2964,6 +2986,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
 
+                // 👇 AQUI ESTAVA O ERRO! Voltei para o seu querySource original!
                 querySource.clear(); // Limpa a busca anterior
 
                 if (data.features && data.features.length > 0) {
@@ -2974,10 +2997,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     querySource.addFeatures(features);
 
-                    // Dá um zoom automático para focar nos resultados encontrados!
+                    // Dá um zoom automático para focar nos resultados encontrados
                     map.getView().fit(querySource.getExtent(), {
                         padding: [50, 50, 50, 50],
-                        duration: 1000
+                        duration: 1000,
+                        maxZoom: 19
                     });
 
                 } else {
@@ -2996,6 +3020,130 @@ document.addEventListener('DOMContentLoaded', function () {
             querySource.clear(); // Limpa a tinta alaranjada do mapa
             console.log("🧹 Filtro avançado desligado e mapa limpo.");
         }
+    });
+
+    // ========================================================================
+    // FERRAMENTA DE DESENHO PARA FILTRO ESPACIAL (EXIGÊNCIA DO EDITAL)
+    // ========================================================================
+    
+    // 1. Cria uma camada invisível apenas para segurar a "caneta" enquanto o usuário desenha
+    const drawFiltroSource = new ol.source.Vector();
+    const drawFiltroLayer = new ol.layer.Vector({
+        source: drawFiltroSource,
+        style: new ol.style.Style({
+            fill: new ol.style.Fill({ color: 'rgba(255, 255, 255, 0.2)' }),
+            stroke: new ol.style.Stroke({ color: '#ffcc33', width: 2 }),
+            image: new ol.style.Circle({ radius: 7, fill: new ol.style.Fill({ color: '#ffcc33' }) })
+        }),
+        zIndex: 9999 // Fica por cima de tudo
+    });
+    map.addLayer(drawFiltroLayer);
+
+    let drawFiltroInteraction; // Variável global para ligar/desligar a caneta
+
+    window.addEventListener('iniciar-desenho-filtro', (e) => {
+        const dados = e.detail[0] || e.detail.dados || e.detail;
+        console.log("✏️ Modo de Desenho Ativo! Alvo:", dados.draw_target_layer);
+
+        // Limpa desenhos e consultas anteriores
+        drawFiltroSource.clear();
+        querySource.clear();
+
+        // Se já tinha uma caneta ligada, desliga para não bugar
+        if (drawFiltroInteraction) {
+            map.removeInteraction(drawFiltroInteraction);
+        }
+
+        // 2. Configura o formato da caneta (Polígono Livre ou Caixa)
+        let drawType = 'Polygon';
+        let geometryFunction = undefined;
+
+        if (dados.draw_shape === 'Box') {
+            drawType = 'Circle'; // No OpenLayers, um retângulo é desenhado como um círculo com função de caixa
+            geometryFunction = ol.interaction.Draw.createBox();
+        }
+
+        drawFiltroInteraction = new ol.interaction.Draw({
+            source: drawFiltroSource,
+            type: drawType,
+            geometryFunction: geometryFunction
+        });
+
+        map.addInteraction(drawFiltroInteraction);
+
+        // 3. O que acontece quando o usuário termina de desenhar (Solta o clique ou dá dois cliques)
+        drawFiltroInteraction.on('drawend', function(evt) {
+            
+            // Tira a caneta da mão do usuário imediatamente
+            map.removeInteraction(drawFiltroInteraction);
+            console.log("✅ Desenho concluído, processando área...");
+
+            // Extrai a geometria desenhada e converte para GeoJSON (EPSG:4326 para o PostGIS entender)
+            const formatoGeoJSON = new ol.format.GeoJSON();
+            const drawnGeometry = formatoGeoJSON.writeGeometry(evt.feature.getGeometry(), {
+                dataProjection: 'EPSG:4326',
+                featureProjection: 'EPSG:3857'
+            });
+
+            // 4. Monta a URL e dispara o Fetch para a nossa nova Rota 3 na API
+            let queryParams = new URLSearchParams({
+                tenant_id: config.tenantId,
+                tipo_filtro: 'desenho',
+                draw_target_layer: dados.draw_target_layer,
+                drawn_geometry: drawnGeometry // A String do GeoJSON
+            });
+
+            const url = `/api/mapa/advanced-query?${queryParams.toString()}`;
+            console.log("🌐 Buscando cruzamento do desenho na URL:", url);
+
+            // Fetch idêntico ao que estabilizamos no passo anterior
+            fetch(url)
+                .then(async response => {
+                    const contentType = response.headers.get("content-type");
+                    if (!response.ok) {
+                        const text = await response.text();
+                        console.error("❌ Erro HTTP do Servidor:", response.status, text);
+                        throw new Error(`Servidor retornou erro ${response.status}`);
+                    }
+                    if (contentType && contentType.indexOf("application/json") !== -1) {
+                        return response.json();
+                    } else {
+                        throw new Error("A API não retornou um JSON válido.");
+                    }
+                })
+                .then(data => {
+                    if (data.error) {
+                        alert("Erro do Banco de Dados: " + data.error);
+                        return;
+                    }
+
+                    // Limpa a linha amarela que o usuário usou para desenhar (já cumpriu o papel dela)
+                    drawFiltroSource.clear(); 
+
+                    if (data.features && data.features.length > 0) {
+                        const features = new ol.format.GeoJSON().readFeatures(data, {
+                            dataProjection: 'EPSG:4326',
+                            featureProjection: 'EPSG:3857'
+                        });
+
+                        // Pinta os Lotes/Postes encontrados de Laranja!
+                        querySource.addFeatures(features);
+
+                        // Dá o Zoom elegante nos resultados
+                        map.getView().fit(querySource.getExtent(), {
+                            padding: [50, 50, 50, 50],
+                            duration: 1000,
+                            maxZoom: 19
+                        });
+                    } else {
+                        alert('Nenhum artefato foi encontrado dentro da área que você desenhou.');
+                    }
+                })
+                .catch(err => {
+                    console.error("❌ Erro fatal na requisição do desenho:", err);
+                    alert("Falha ao analisar a área desenhada. Veja o console.");
+                });
+        });
     });
 
     /* =========================================================

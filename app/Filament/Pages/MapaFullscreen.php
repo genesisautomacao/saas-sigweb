@@ -1835,71 +1835,181 @@ class MapaFullscreen extends Page
     }
 
     // filtro avançado
+    // filtro avançado
+    // filtro avançado
     public function filtroAvancadoAction(): Action
     {
         return Action::make('filtroAvancado')
             ->label('Filtro Avançado')
             ->icon('heroicon-o-funnel')
-            ->modalHeading('Construtor de Consultas Espaciais')
-            ->modalDescription('Filtre artefatos no mapa baseado em seus atributos técnicos e geográficos.')
-            ->modalSubmitActionLabel('Pesquisar no Mapa')
+            ->modalHeading('Construtor de Consultas GIS')
+            ->modalDescription('Filtre artefatos baseado em atributos técnicos, cruzamentos geográficos ou desenho livre.')
+            // 🛑 CORREÇÃO: Removido o fechamento dinâmico que causou o erro do $container
+            ->modalSubmitActionLabel('Iniciar Consulta')
             ->modalWidth('md')
             ->form([
-                Forms\Components\Select::make('layer')
-                    ->label('Camada / Entidade')
+                // SELETOR DO TIPO DE CONSULTA
+                Forms\Components\Radio::make('tipo_filtro')
+                    ->label('Tipo de Consulta')
                     ->options([
-                        'lotes' => 'Lotes Urbanos',
-                        'edificacoes' => 'Edificações',
-                        'logradouros' => 'Logradouros',
-                        'quadras' => 'Quadras',
-                        'bairros' => 'Bairros',
-                        'rural_propriedades' => 'Propriedades Rurais (CAR)',
-                        'rural_estradas' => 'Estradas Rurais',
-                        'rural_pontes' => 'Pontes Rurais',
+                        'atributo' => 'Por Atributo (Texto / Número)',
+                        'espacial' => 'Cruzamento Espacial (Ex: Lotes dentro de Bairro)',
+                        'desenho' => 'Desenhar Área no Mapa (Polígono / Retângulo)' // 🟢 NOVA OPÇÃO!
                     ])
-                    ->live() // Recarrega os campos abaixo quando mudar
+                    ->default('atributo')
+                    ->live()
                     ->required(),
 
-                Forms\Components\Select::make('field')
-                    ->label('Atributo (Campo de Busca)')
-                    ->options(fn(Forms\Get $get): array => match ($get('layer')) {
-                        'lotes' => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)', 'numero_lote' => 'Número do Lote'],
+                // -------------------------------------------------------------
+                // BLOCO 1: FILTRO POR ATRIBUTO 
+                // -------------------------------------------------------------
+                Forms\Components\Group::make([
+                    Forms\Components\Select::make('layer')
+                        ->label('Camada / Entidade')
+                        ->options([
+                            'lotes' => 'Lotes Urbanos',
+                            'edificacoes' => 'Edificações',
+                            'logradouros' => 'Logradouros',
+                            'quadras' => 'Quadras',
+                            'bairros' => 'Bairros',
+                            'rural_propriedades' => 'Propriedades Rurais (CAR)',
+                            'rural_estradas' => 'Estradas Rurais',
+                            'rural_pontes' => 'Pontes Rurais',
+                        ])
+                        ->live()
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
-                        'edificacoes' => ['area_geo' => 'Área Construída (m²)', 'tipo' => 'Tipo de Uso'],
+                    Forms\Components\Select::make('field')
+                        ->label('Atributo (Campo de Busca)')
+                        ->options(fn(Forms\Get $get): array => match ($get('layer')) {
+                            'lotes' => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)', 'numero_lote' => 'Número do Lote'],
+                            'edificacoes' => ['area_geo' => 'Área Construída (m²)', 'tipo' => 'Tipo de Uso'],
+                            'rural_propriedades' => ['area_geo' => 'Área em m² (area_geo)', 'codigo_car' => 'Código CAR'],
+                            'rural_estradas' => ['extensao_geo' => 'Extensão (m)', 'tipo_pavimento' => 'Tipo de Pavimento', 'condicao_trafego' => 'Condição'],
+                            'rural_pontes' => ['capacidade_carga_toneladas' => 'Capacidade (Toneladas)', 'material_construcao' => 'Material'],
+                            default => ['name' => 'Nome / Número'],
+                        })
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
-                        'rural_propriedades' => ['area_geo' => 'Área em m² (area_geo)', 'codigo_car' => 'Código CAR'],
-                        'rural_estradas' => ['extensao_geo' => 'Extensão (m)', 'tipo_pavimento' => 'Tipo de Pavimento', 'condicao_trafego' => 'Condição'],
-                        'rural_pontes' => ['capacidade_carga_toneladas' => 'Capacidade (Toneladas)', 'material_construcao' => 'Material'],
-                        default => ['name' => 'Nome / Número'],
-                    })
-                    ->required(),
+                    Forms\Components\Select::make('operator')
+                        ->label('Condição (Operador)')
+                        ->options([
+                            '=' => 'Igual a (=)',
+                            '>' => 'Maior que (>)',
+                            '<' => 'Menor que (<)',
+                            '>=' => 'Maior ou igual (>=)',
+                            '<=' => 'Menor ou igual (<=)',
+                            'LIKE' => 'Contém o texto (LIKE)',
+                            '!=' => 'Diferente de (!=)',
+                        ])
+                        ->default('=')
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
-                Forms\Components\Select::make('operator')
-                    ->label('Condição (Operador)')
-                    ->options([
-                        '=' => 'Igual a (=)',
-                        '>' => 'Maior que (>)',
-                        '<' => 'Menor que (<)',
-                        '>=' => 'Maior ou igual (>=)',
-                        '<=' => 'Menor ou igual (<=)',
-                        'LIKE' => 'Contém o texto (LIKE)',
-                        '!=' => 'Diferente de (!=)',
-                    ])
-                    ->default('=')
-                    ->required(),
+                    Forms\Components\TextInput::make('value')
+                        ->label('Valor da Condição')
+                        ->placeholder('Ex: 250, Asfalto, Boa...')
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
+                ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
-                Forms\Components\TextInput::make('value')
-                    ->label('Valor da Condição')
-                    ->placeholder('Ex: 250, Asfalto, Boa...')
-                    ->required(),
+                // -------------------------------------------------------------
+                // BLOCO 2: CRUZAMENTO ESPACIAL
+                // -------------------------------------------------------------
+                Forms\Components\Group::make([
+                    Forms\Components\Select::make('spatial_target_layer')
+                        ->label('O que você quer encontrar? (Alvo)')
+                        ->options([
+                            'lotes' => 'Lotes Urbanos',
+                            'edificacoes' => 'Edificações',
+                            'postes' => 'Postes / Iluminação',
+                            'arvores' => 'Arborização',
+                            'rural_propriedades' => 'Propriedades Rurais (CAR)',
+                        ])
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+
+                    Forms\Components\Select::make('spatial_operator')
+                        ->label('Qual a relação topológica?')
+                        ->options([
+                            'ST_Within' => 'Que estejam DENTRO de',
+                            'ST_Intersects' => 'Que tocam / Cruzam com',
+                        ])
+                        ->default('ST_Intersects')
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+
+                    Forms\Components\Select::make('spatial_reference_layer')
+                        ->label('Qual a área de referência?')
+                        ->options([
+                            'bairros' => 'Bairros',
+                            'loteamentos' => 'Loteamentos',
+                            'zonas' => 'Zonas Urbanas',
+                            'rural_localidades' => 'Localidades Rurais / Distritos',
+                            'cemiterios' => 'Cemitérios'
+                        ])
+                        ->live()
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+
+                    Forms\Components\Select::make('spatial_reference_id')
+                        ->label('Escolha o local específico')
+                        ->options(function (Forms\Get $get) {
+                            $refLayer = $get('spatial_reference_layer');
+                            if (!$refLayer) return [];
+                            return match ($refLayer) {
+                                'bairros' => \App\Models\Bairro::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'loteamentos' => \App\Models\Loteamento::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'zonas' => \App\Models\Zona::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'rural_localidades' => \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'cemiterios' => \App\Models\Cemiterio::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                default => [],
+                            };
+                        })
+                        ->searchable()
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+                ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+
+                // -------------------------------------------------------------
+                // BLOCO 3: DESENHO LIVRE (A EXIGÊNCIA NOVA!)
+                // -------------------------------------------------------------
+                Forms\Components\Group::make([
+                    Forms\Components\Select::make('draw_target_layer')
+                        ->label('O que você quer encontrar dentro da área?')
+                        ->options([
+                            'lotes' => 'Lotes Urbanos',
+                            'edificacoes' => 'Edificações',
+                            'postes' => 'Postes / Iluminação',
+                            'arvores' => 'Arborização',
+                            'rural_propriedades' => 'Propriedades Rurais (CAR)',
+                        ])
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
+
+                    Forms\Components\Select::make('draw_shape')
+                        ->label('Formato do Desenho')
+                        ->options([
+                            'Polygon' => 'Traçado Livre (Polígono)',
+                            'Box' => 'Caixa (Retângulo)',
+                        ])
+                        ->default('Polygon')
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
+
+                ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
+
             ])
             ->action(function (array $data) {
-
                 $this->filtroAvancadoAtivo = true;
 
-                // Envia os dados da pesquisa direto para o Javascript do Mapa
-                $this->dispatch('executar-filtro-avancado', dados: $data);
-                \Filament\Notifications\Notification::make()->title('Buscando no banco de dados...')->info()->send();
+                // 🟢 Lógica Bifurcada
+                if ($data['tipo_filtro'] === 'desenho') {
+                    // Manda uma ordem especial para o JS ligar a ferramenta de desenho
+                    $this->dispatch('iniciar-desenho-filtro', dados: $data);
+                    
+                    \Filament\Notifications\Notification::make()
+                        ->title('Modo de Desenho Ativo')
+                        ->body('Clique no mapa para desenhar a área de pesquisa. Dê dois cliques para finalizar o polígono.')
+                        ->info()
+                        ->send();
+                } else {
+                    // O fluxo normal já existente que faz a pesquisa direta
+                    $this->dispatch('executar-filtro-avancado', dados: $data);
+                    \Filament\Notifications\Notification::make()->title('Analisando base de dados...')->info()->send();
+                }
             });
     }
 

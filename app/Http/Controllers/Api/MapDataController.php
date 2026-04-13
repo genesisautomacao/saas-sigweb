@@ -309,9 +309,11 @@ class MapDataController extends Controller
                         ->orWhere('unidade_imobiliarias.logradouro_nome', 'ilike', "%{$termo}%")
                         ->orWhereRaw("CONCAT(unidade_imobiliarias.logradouro_nome, ', ', unidade_imobiliarias.numero_imovel) ILIKE ?", ["%{$termo}%"])
                         ->orWhereRaw("CONCAT(unidade_imobiliarias.logradouro_nome, ' ', unidade_imobiliarias.numero_imovel) ILIKE ?", ["%{$termo}%"])
-                        // 🟢 NOVO: Busca por proprietário e CPF extraindo direto do JSON nativamente no PostgreSQL
+                        // Busca por proprietário no JSON
                         ->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'proprietario_name' ILIKE ?", ["%{$termo}%"])
-                        ->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'proprietario_cpf' ILIKE ?", ["%{$termo}%"]);
+                        ->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'proprietario_cpf' ILIKE ?", ["%{$termo}%"])
+                        // 🟢 EXIGÊNCIA EDITAL: Busca por Nome do Edifício / Condomínio dentro do JSON
+                        ->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'nome_edificio' ILIKE ?", ["%{$termo}%"]);
                 })
                 ->selectRaw("
                     lotes.id, 
@@ -319,6 +321,7 @@ class MapDataController extends Controller
                     quadras.name as quadra_nome, 
                     unidade_imobiliarias.codigo_imovel_tributario,
                     unidade_imobiliarias.dados_tributarios->>'proprietario_name' as proprietario_nome,
+                    unidade_imobiliarias.dados_tributarios->>'nome_edificio' as nome_edificio,
                     ST_AsGeoJSON(ST_Centroid(lotes.geo)) as centroide
                 ")
                 ->limit(20)
@@ -338,16 +341,27 @@ class MapDataController extends Controller
                 $coords = $centroide->coordinates ?? null;
                 if (!$coords) continue;
 
-                // 🟢 NOVO: Se tiver proprietário, mostra no subtítulo!
+                // Montagem Inteligente do Subtítulo
                 $subtitulo = "Cód Tributário: $cod";
                 if ($l->proprietario_nome) {
                     $subtitulo .= " | Prop: " . $l->proprietario_nome;
                 }
+                
+                // 🟢 Se achou por causa do edifício, mostra com destaque para o usuário saber por que aquele lote apareceu!
+                $tituloPrincipal = "Lote: $num | Quadra: $quadra";
+                $tipoResult = 'lote'; // 🟢 Variável para controlar o ícone no JS
+
+                // 🟢 Se achou por causa do edifício, muda o tipo!
+                if (!empty($l->nome_edificio) && stripos($l->nome_edificio, $termo) !== false) {
+                    $tituloPrincipal = $l->nome_edificio;
+                    $subtitulo = "Condomínio / Edifício | " . $subtitulo;
+                    $tipoResult = 'edificio'; // 🏢 Avisa o JS que isso é um prédio
+                }
 
                 $results[] = [
                     'id' => $l->id,
-                    'tipo' => 'lote',
-                    'titulo' => "Lote: $num | Quadra: $quadra",
+                    'tipo' => $tipoResult, // 🟢 Pode ser 'lote' ou 'edificio'
+                    'titulo' => $tituloPrincipal,
                     'subtitulo' => $subtitulo,
                     'coords' => $coords
                 ];
@@ -381,7 +395,7 @@ class MapDataController extends Controller
                 ];
             }
 
-            // --- 3. 🟢 NOVO: BUSCA DE BAIRROS ---
+            // --- 3. BUSCA DE BAIRROS ---
             $bairros = \Illuminate\Support\Facades\DB::table('bairros')
                 ->where('tenant_id', $tenantId)
                 ->whereNull('deleted_at')
@@ -418,48 +432,145 @@ class MapDataController extends Controller
     public function advancedSpatialQuery(Request $request)
     {
         $tenantId = $request->query('tenant_id');
-        $layer = $request->query('layer');
-        $field = $request->query('field');
-        $operator = $request->query('operator');
-        $value = $request->query('value');
+        $tipoFiltro = $request->query('tipo_filtro', 'atributo'); // Identifica qual aba do form foi usada
 
-        if (!$tenantId || !$layer || !$field || !$operator || $value === null) {
-            return response()->json(['error' => 'Parâmetros incompletos para a query espacial'], 400);
+        if (!$tenantId) {
+            return response()->json(['error' => 'Parâmetros incompletos (Tenant ID não fornecido)'], 400);
         }
 
-        // Segurança: Lista branca de tabelas permitidas para evitar SQL Injection
-        $allowedTables = ['lotes', 'edificacoes', 'logradouros', 'quadras', 'bairros', 'loteamentos', 'rural_propriedades', 'rural_estradas', 'rural_pontes'];
-        if (!in_array($layer, $allowedTables)) {
-            return response()->json(['error' => 'Camada não permitida'], 403);
-        }
+        // Segurança: Lista branca de tabelas estendida para incluir as novas camadas do cruzamento espacial
+        $allowedTables = [
+            'lotes', 'edificacoes', 'logradouros', 'quadras', 'bairros', 'loteamentos', 
+            'rural_propriedades', 'rural_estradas', 'rural_pontes',
+            'postes', 'arvores', 'cemiterios', 'zonas', 'rural_localidades'
+        ];
 
         try {
-            $query = \Illuminate\Support\Facades\DB::table($layer)
-                ->where('tenant_id', $tenantId)
-                ->whereNull('deleted_at')
-                ->whereNotNull('geo'); // Só traz o que tem desenho no mapa
+            $features = [];
+            $layer = "";
+            $infoLabel = "";
 
-            // Montagem dinâmica da condição
-            if ($operator === 'LIKE') {
-                $query->where($field, 'ilike', '%' . $value . '%');
-            } else {
-                $query->where($field, $operator, $value);
+            // ========================================================================
+            // ROTA 1: CRUZAMENTO ESPACIAL (Entre Camadas)
+            // ========================================================================
+            if ($tipoFiltro === 'espacial') {
+                $targetLayer = $request->query('spatial_target_layer'); 
+                $operator    = $request->query('spatial_operator'); 
+                $refLayer    = $request->query('spatial_reference_layer'); 
+                $refId       = $request->query('spatial_reference_id'); 
+
+                if (!$targetLayer || !$operator || !$refLayer || !$refId) {
+                    return response()->json(['error' => 'Parâmetros incompletos para a query espacial GIS'], 400);
+                }
+
+                if (!in_array($targetLayer, $allowedTables) || !in_array($refLayer, $allowedTables)) {
+                    return response()->json(['error' => 'Camada não permitida por segurança'], 403);
+                }
+
+                $validOperators = ['ST_Intersects', 'ST_Within'];
+                $operator = in_array($operator, $validOperators) ? $operator : 'ST_Intersects';
+
+                $query = "
+                    SELECT 
+                        target.*, 
+                        ST_AsGeoJSON(target.geo) as geo_json,
+                        ref.name as searched_value
+                    FROM {$targetLayer} target
+                    INNER JOIN {$refLayer} ref 
+                        ON {$operator}(target.geo::geometry, ref.geo::geometry)
+                    WHERE target.tenant_id = ? 
+                    AND target.deleted_at IS NULL
+                    AND target.geo IS NOT NULL
+                    AND ref.id = ?
+                    LIMIT 2500
+                ";
+
+                $results = \Illuminate\Support\Facades\DB::select($query, [$tenantId, $refId]);
+                $layer = $targetLayer;
+                $infoLabel = "Cruzamento Espacial ({$operator} em {$refLayer})";
+
+            } 
+            // ========================================================================
+            // 🟢 ROTA 3: CRUZAMENTO POR DESENHO (Polígono / Retângulo)
+            // ========================================================================
+            elseif ($tipoFiltro === 'desenho') {
+                $targetLayer = $request->query('draw_target_layer'); // O que buscar (ex: lotes)
+                $drawnGeometry = $request->query('drawn_geometry');  // O GeoJSON do desenho do usuário
+
+                if (!$targetLayer || !$drawnGeometry) {
+                    return response()->json(['error' => 'Parâmetros incompletos. Geometria de desenho ausente.'], 400);
+                }
+
+                if (!in_array($targetLayer, $allowedTables)) {
+                    return response()->json(['error' => 'Camada não permitida por segurança'], 403);
+                }
+
+                // MÁGICA POSTGIS: Cruza a tabela alvo com a string GeoJSON injetada via parâmetro seguro (?)
+                $query = "
+                    SELECT 
+                        target.*, 
+                        ST_AsGeoJSON(target.geo) as geo_json,
+                        'Área Desenhada (Mouse)' as searched_value
+                    FROM {$targetLayer} target
+                    WHERE target.tenant_id = ? 
+                    AND target.deleted_at IS NULL
+                    AND target.geo IS NOT NULL
+                    AND ST_Intersects(
+                        target.geo::geometry, 
+                        ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326))
+                    )
+                    LIMIT 2000
+                ";
+
+                $results = \Illuminate\Support\Facades\DB::select($query, [$tenantId, $drawnGeometry]);
+                $layer = $targetLayer;
+                $infoLabel = "Consulta Geográfica (Desenho Livre)";
+
+            }
+            // ========================================================================
+            // ROTA 2: FILTRO POR ATRIBUTO (O Tradicional)
+            // ========================================================================
+            else {
+                $layer = $request->query('layer');
+                $field = $request->query('field');
+                $operator = $request->query('operator');
+                $value = $request->query('value');
+
+                if (!$layer || !$field || !$operator || $value === null) {
+                    return response()->json(['error' => 'Parâmetros incompletos para a query de atributos'], 400);
+                }
+
+                if (!in_array($layer, $allowedTables)) {
+                    return response()->json(['error' => 'Camada não permitida'], 403);
+                }
+
+                $queryBuilder = \Illuminate\Support\Facades\DB::table($layer)
+                    ->where('tenant_id', $tenantId)
+                    ->whereNull('deleted_at')
+                    ->whereNotNull('geo');
+
+                if ($operator === 'LIKE') {
+                    $queryBuilder->where($field, 'ilike', '%' . $value . '%');
+                } else {
+                    $queryBuilder->where($field, $operator, $value);
+                }
+
+                $results = $queryBuilder->selectRaw('
+                    *, 
+                    ST_AsGeoJSON(geo) as geo_json,
+                    ' . $field . ' as searched_value
+                ')->limit(2000)->get();
+
+                $infoLabel = "Atributo ({$field})";
             }
 
-            // Executa e traz a geometria
-            // 🛑 CORREÇÃO: Colocamos o "*" para trazer TODAS as colunas do artefato, e não apenas o ID!
-            $results = $query->selectRaw('
-                *, 
-                ST_AsGeoJSON(geo) as geo_json,
-                ' . $field . ' as searched_value
-            ')->limit(300)->get(); // Limite para não travar o navegador
-
-            // Formata para o Padrão GeoJSON FeatureCollection
-            $features = [];
+            // ========================================================================
+            // FORMATAÇÃO DO RETORNO (Comum para as 3 rotas)
+            // ========================================================================
             foreach ($results as $item) {
                 if (!empty($item->geo_json)) {
 
-                    // 🧠 INTELIGÊNCIA: Tenta achar o nome de acordo com a tabela (Lotes = numero_lote, Ruas = nome, etc)
+                    // 🧠 Tenta achar o nome de acordo com a tabela
                     $tituloVisual = $item->numero_lote ?? $item->nome ?? $item->name ?? $item->inscricao_imobiliaria ?? ('ID: ' . $item->id);
 
                     $features[] = [
@@ -467,9 +578,9 @@ class MapDataController extends Controller
                         'properties' => [
                             'id' => $item->id,
                             'layer' => $layer,
-                            'name' => $tituloVisual,   // 🟢 ADICIONADO: Injetamos o 'name' para padronizar com os cliques do JS!
-                            'titulo' => $tituloVisual, // Mantido intacto para o tooltip do hover funcionar
-                            'info' => "Atributo ({$field}): " . $item->searched_value
+                            'name' => $tituloVisual,
+                            'titulo' => $tituloVisual,
+                            'info' => "{$infoLabel}: " . ($item->searched_value ?? 'N/A')
                         ],
                         'geometry' => json_decode($item->geo_json)
                     ];
@@ -480,6 +591,7 @@ class MapDataController extends Controller
                 'type' => 'FeatureCollection',
                 'features' => $features
             ]);
+
         } catch (\Exception $e) {
             return response()->json(['error' => 'Erro na consulta: ' . $e->getMessage()], 500);
         }
