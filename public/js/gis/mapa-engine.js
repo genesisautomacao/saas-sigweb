@@ -3414,4 +3414,162 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // =========================================================================
+    // 21. EXPORTAÇÃO PARA SHAPEFILE (SHP) VIA CLOUD OGR2OGR
+    // =========================================================================
+    window.addEventListener('exportar-camada-shp', (e) => {
+        const data = e.detail[0] || e.detail;
+        const layerName = data.layer;
+
+        if (!window.loadedLayers[layerName]) {
+            alert(`⚠️ A camada ${layerName.toUpperCase()} não está carregada no mapa. Ligue-a no menu lateral antes de exportar.`);
+            return;
+        }
+
+        const features = window.loadedLayers[layerName].getSource().getFeatures();
+        if (features.length === 0) {
+            alert(`⚠️ A camada ${layerName} está vazia ou sem dados no momento.`);
+            return;
+        }
+
+        // 1. Extrai tudo para GeoJSON e reverte a projeção do Mapa (3857) para o padrão Mundial (4326)
+        const format = new ol.format.GeoJSON();
+        const geojsonStr = format.writeFeatures(features, {
+            featureProjection: 'EPSG:3857',
+            dataProjection: 'EPSG:4326'
+        });
+
+        // 2. Cria um formulário fantasma para acionar a API Pública do OGRE (OGR2OGR)
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'https://ogre.adc4gis.com/convertJson';
+        
+        // Target _blank faz o download iniciar em segundo plano sem tirar o usuário do SIGWEB
+        form.target = '_blank'; 
+
+        const inputJson = document.createElement('input');
+        inputJson.type = 'hidden';
+        inputJson.name = 'json';
+        inputJson.value = geojsonStr;
+
+        const inputName = document.createElement('input');
+        inputName.type = 'hidden';
+        inputName.name = 'outputName';
+        inputName.value = 'SIGWEB_Exportacao_' + layerName.toUpperCase();
+
+        form.appendChild(inputJson);
+        form.appendChild(inputName);
+        document.body.appendChild(form);
+        
+        // 3. Dispara o POST. O Servidor converte e devolve o .ZIP automaticamente!
+        form.submit();
+        
+        // 4. Limpa a sujeira do HTML após 1 segundo
+        setTimeout(() => document.body.removeChild(form), 1000);
+    });
+
+    // =========================================================================
+    // 22. MOTOR DE IMPRESSÃO DE ALTA RESOLUÇÃO (A4 ao A0)
+    // =========================================================================
+    const dimensoesPapel = {
+        a0: [1189, 841],
+        a1: [841, 594],
+        a2: [594, 420],
+        a3: [420, 297],
+        a4: [297, 210]
+    };
+
+    window.addEventListener('gerar-pdf-mapa', (e) => {
+        const data = e.detail[0] || e.detail;
+        const format = data.size.toLowerCase();
+        const orientation = data.orientation;
+
+        const overlay = document.getElementById('print-loading-overlay');
+        if (overlay) overlay.style.display = 'flex'; // Mostra a tela de carregamento
+
+        // 1. Define Largura e Altura com base na Orientação
+        const dim = dimensoesPapel[format];
+        const widthMm = orientation === 'landscape' ? dim[0] : dim[1];
+        const heightMm = orientation === 'landscape' ? dim[1] : dim[0];
+
+        // 2. Define o DPI de Impressão (A0 e A1 usam 120 para não estourar a RAM do navegador)
+        const dpi = (format === 'a0' || format === 'a1') ? 120 : 150;
+        const widthPx = Math.round((widthMm * dpi) / 25.4);
+        const heightPx = Math.round((heightMm * dpi) / 25.4);
+
+        // 3. Salva a geometria atual da tela para devolver depois
+        const originalSize = map.getSize();
+        const originalResolution = view.getResolution();
+
+        // 4. ESTICA o mapa matematicamente (Invisível para o usuário)
+        map.setSize([widthPx, heightPx]);
+        const scaling = Math.min(widthPx / originalSize[0], heightPx / originalSize[1]);
+        view.setResolution(originalResolution / scaling);
+
+        // 5. Escuta APENAS UMA VEZ o evento de quando o OpenLayers terminar de desenhar o mapa gigante
+        map.once('rendercomplete', function () {
+
+            // Cria um Canvas gigante na memória
+            const mapCanvas = document.createElement('canvas');
+            mapCanvas.width = widthPx;
+            mapCanvas.height = heightPx;
+            const mapContext = mapCanvas.getContext('2d');
+
+            // Fundo Branco (Previne PDFs pretos quando se usa mapas transparentes)
+            mapContext.fillStyle = 'white';
+            mapContext.fillRect(0, 0, widthPx, heightPx);
+
+            // Copia a tinta do mapa do OL para o nosso Canvas gigante
+            document.querySelectorAll('.ol-layer canvas').forEach(canvas => {
+                if (canvas.width > 0) {
+                    const opacity = canvas.parentNode.style.opacity || 1;
+                    mapContext.globalAlpha = Number(opacity);
+
+                    const transform = canvas.style.transform;
+                    if (transform) {
+                        const matrix = transform.match(/^matrix\(([^]*)\)$/)[1].split(',').map(Number);
+                        CanvasRenderingContext2D.prototype.setTransform.apply(mapContext, matrix);
+                    }
+                    mapContext.drawImage(canvas, 0, 0);
+                }
+            });
+
+            mapContext.globalAlpha = 1;
+            mapContext.setTransform(1, 0, 0, 1, 0, 0);
+
+            try {
+                // 6. Monta o PDF oficial
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    orientation: orientation,
+                    unit: 'mm',
+                    format: format
+                });
+
+                // Injeta a foto capturada
+                pdf.addImage(mapCanvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, widthMm, heightMm);
+
+                // Injeta a "Assinatura" do SIGWEB no canto do mapa
+                pdf.setFontSize(10);
+                pdf.setTextColor(50, 50, 50);
+                pdf.text(`SIGWEB - Gerado em ${new Date().toLocaleDateString('pt-BR')}`, 10, heightMm - 10);
+
+                // Faz o Download!
+                pdf.save(`SIGWEB_Mapa_${format.toUpperCase()}.pdf`);
+
+            } catch (err) {
+                console.error("Erro na compilação do PDF:", err);
+                alert("❌ O formato escolhido gerou uma imagem muito grande para a memória RAM deste navegador. Tente um formato menor.");
+            } finally {
+                // 7. MÁGICA FINAL: Devolve o mapa ao tamanho normal da tela
+                map.setSize(originalSize);
+                view.setResolution(originalResolution);
+                if (overlay) overlay.style.display = 'none'; // Apaga o loading
+            }
+        });
+
+        // Dispara o comando para o mapa se redesenhar no tamanho gigante
+        map.renderSync();
+    });
+
 }); // <-- Fim do DOMContentLoaded

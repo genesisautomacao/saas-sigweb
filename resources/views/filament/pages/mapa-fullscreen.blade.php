@@ -6,6 +6,14 @@
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
         <link rel="stylesheet" href="{{ asset('css/gis/mapa-sigweb.css') }}">
 
+        {{-- OVERLAY DE CARREGAMENTO PARA IMPRESSÃO --}}
+        <div id="print-loading-overlay"
+            style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; color: white;">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white mb-4"></div>
+            <h2 id="print-status-text" class="text-xl font-bold">Processando Mapa...</h2>
+            <p class="text-sm opacity-80">Isso pode levar alguns segundos para formatos grandes (A1/A0).</p>
+        </div>
+
         {{-- 1. CONFIGURAÇÃO GLOBAL (Ponte PHP -> JS) --}}
         <script>
             window.mapConfig = {
@@ -43,7 +51,7 @@
 
             {{-- Painel principal de pesquisa e botões --}}
             <div
-                class="flex items-center gap-2 pointer-events-auto bg-white dark:bg-gray-800 shadow-2xl border border-gray-200 dark:border-gray-700 p-1.5 rounded-2xl max-w-2xl w-full mx-4">
+                class="flex items-center gap-2 pointer-events-auto bg-white dark:bg-gray-800 shadow-2xl border border-gray-200 dark:border-gray-700 p-1.5 rounded-2xl max-w-4xl w-full mx-4">
 
                 {{-- Busca Integrada com AUTOCOMPLETE (Alpine.js) --}}
                 <div x-data="loteSearch()"
@@ -112,6 +120,14 @@
                 </button>
 
                 <div class="flex items-center gap-1 px-1">
+
+                    <button id="btn-pan" title="Mover Mapa (Cancelar Ferramentas)"
+                        class="p-2 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-xl transition-colors focus:outline-none">
+                        <x-heroicon-o-hand-raised class="w-5 h-5" />
+                    </button>
+
+                    <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
                     {{-- DROPDOWN DE CRIAÇÃO (COM SANFONA) --}}
                     <div x-data="{ openDraw: false, activeTabDraw: 'urbano' }" class="relative">
                         <button type="button" @click="openDraw = !openDraw" @click.outside="openDraw = false"
@@ -336,15 +352,6 @@
                         </div>
                     </div>
 
-                    <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
-
-                    <button id="btn-pan" title="Mover Mapa (Cancelar Ferramentas)"
-                        class="p-2 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-xl transition-colors focus:outline-none">
-                        <x-heroicon-o-hand-raised class="w-5 h-5" />
-                    </button>
-
-                    <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
-
                     {{-- 🛠️ DROPDOWN DE FERRAMENTAS 🛠️ --}}
                     <div x-data="{ openTools: false }" class="relative">
                         <button @click="openTools = !openTools" @click.outside="openTools = false"
@@ -405,7 +412,60 @@
                         </div>
                     </div>
 
-                    <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+                    {{-- DROPDOWN IMPRESSÃO E EXPORTAÇÃO --}}
+                    <div class="relative" x-data="{ open: false }" @click.away="open = false">
+                        <button @click="open = !open" title="Impressão e Exportação"
+                            class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors flex items-center gap-2 font-bold text-sm">
+                            <x-heroicon-o-printer class="w-5 h-5" />
+                            <span class="hidden md:inline">Imprimir / Exportar</span>
+                            <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform"
+                                x-bind:class="open ? 'rotate-180' : ''" />
+                        </button>
+
+                        <div x-show="open" style="display: none; background-color: white; border: 1px solid #e5e7eb;"
+                            x-transition:enter="transition ease-out duration-100"
+                            x-transition:enter-start="opacity-0 scale-95"
+                            x-transition:enter-end="opacity-100 scale-100"
+                            class="absolute right-0 mt-2 w-72 dark:bg-gray-800 rounded-xl shadow-2xl z-[1001] overflow-hidden">
+
+                            <div class="p-2">
+                                <div class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                    Formatos de Impressão (PDF)</div>
+
+                                @foreach (['A4', 'A3', 'A2', 'A1', 'A0'] as $formato)
+                                    <div class="flex items-center gap-1 px-2 mb-1">
+                                        <button
+                                            @click="$dispatch('gerar-pdf-mapa', { size: '{{ $formato }}', orientation: 'portrait' }); open = false"
+                                            style="text-align: left; background: none; border: none; padding: 6px 12px; font-size: 12px; color: #374151; flex: 1; cursor: pointer;"
+                                            class="hover:bg-blue-50 rounded-lg">
+                                            {{ $formato }} - Retrato
+                                        </button>
+                                        <button
+                                            @click="$dispatch('gerar-pdf-mapa', { size: '{{ $formato }}', orientation: 'landscape' }); open = false"
+                                            style="background-color: #eff6ff; color: #1d4ed8; font-size: 10px; font-weight: bold; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer;">
+                                            PAISAGEM
+                                        </button>
+                                    </div>
+                                @endforeach
+
+                                <div style="margin: 8px 0; border-top: 1px solid #f3f4f6;"></div>
+
+                                <div class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                    Exportar Camadas (SHP)</div>
+
+                                @foreach (['lotes' => 'Lotes', 'logradouros' => 'Logradouros', 'bairros' => 'Bairros', 'quadras' => 'Quadras'] as $key => $label)
+                                    <button
+                                        @click="$dispatch('exportar-camada-shp', { layer: '{{ $key }}' }); open = false"
+                                        style="width: 100%; text-align: left; background: none; border: none; padding: 8px 12px; font-size: 12px; color: #374151; display: flex; align-items: center; gap: 8px; cursor: pointer;"
+                                        class="hover:bg-emerald-50 rounded-lg">
+                                        <x-heroicon-o-arrow-down-tray class="w-4 h-4 text-emerald-500" />
+                                        Exportar {{ $label }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+
 
                     {{-- BOTÃO DA ALTERNANCIA DE MAPAS --}}
                     {{-- <button id="btn-satelite" title="Alternar Mapa Base"
@@ -497,6 +557,9 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
 
                     <button id="btn-toggle-layers" title="Camadas do Mapa"
                         class="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-primary-600 dark:text-primary-400 font-bold text-sm flex items-center gap-2">
@@ -1903,6 +1966,9 @@
     <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=geometry" async
         defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    {{-- Bibliotecas para Impressão e Exportação --}}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <x-filament-actions::modals />
 </div>
