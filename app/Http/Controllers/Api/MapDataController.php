@@ -321,6 +321,7 @@ class MapDataController extends Controller
                     quadras.name as quadra_nome, 
                     unidade_imobiliarias.codigo_imovel_tributario,
                     unidade_imobiliarias.dados_tributarios->>'proprietario_name' as proprietario_nome,
+                    unidade_imobiliarias.dados_tributarios->>'proprietario_cpf' as proprietario_cpf,
                     unidade_imobiliarias.dados_tributarios->>'nome_edificio' as nome_edificio,
                     ST_AsGeoJSON(ST_Centroid(lotes.geo)) as centroide
                 ")
@@ -344,7 +345,7 @@ class MapDataController extends Controller
                 // Montagem Inteligente do Subtítulo
                 $subtitulo = "Cód Tributário: $cod";
                 if ($l->proprietario_nome) {
-                    $subtitulo .= " | Prop: " . $l->proprietario_nome;
+                    $subtitulo .= " | Prop: " . $l->proprietario_nome . " (doc: " . $l->proprietario_cpf . ")";
                 }
                 
                 // 🟢 Se achou por causa do edifício, mostra com destaque para o usuário saber por que aquele lote apareceu!
@@ -457,9 +458,14 @@ class MapDataController extends Controller
                 $targetLayer = $request->query('spatial_target_layer'); 
                 $operator    = $request->query('spatial_operator'); 
                 $refLayer    = $request->query('spatial_reference_layer'); 
-                $refId       = $request->query('spatial_reference_id'); 
+                $refIds      = $request->query('spatial_reference_ids'); // 👈 AGORA BUSCAMOS O ARRAY
 
-                if (!$targetLayer || !$operator || !$refLayer || !$refId) {
+                // 🛡️ Fallback de segurança caso o JS ainda mande o id solto (para manter a compatibilidade)
+                if (empty($refIds) && $request->query('spatial_reference_id')) {
+                    $refIds = [$request->query('spatial_reference_id')];
+                }
+
+                if (!$targetLayer || !$operator || !$refLayer || empty($refIds)) {
                     return response()->json(['error' => 'Parâmetros incompletos para a query espacial GIS'], 400);
                 }
 
@@ -469,6 +475,10 @@ class MapDataController extends Controller
 
                 $validOperators = ['ST_Intersects', 'ST_Within'];
                 $operator = in_array($operator, $validOperators) ? $operator : 'ST_Intersects';
+
+                // 🪄 Convertemos o array do PHP em formato IN do SQL de forma segura para os parâmetros
+                $placeholders = implode(',', array_fill(0, count($refIds), '?'));
+                $params = array_merge([$tenantId], $refIds);
 
                 $query = "
                     SELECT 
@@ -481,11 +491,11 @@ class MapDataController extends Controller
                     WHERE target.tenant_id = ? 
                     AND target.deleted_at IS NULL
                     AND target.geo IS NOT NULL
-                    AND ref.id = ?
+                    AND ref.id IN ($placeholders)
                     LIMIT 2500
                 ";
 
-                $results = \Illuminate\Support\Facades\DB::select($query, [$tenantId, $refId]);
+                $results = \Illuminate\Support\Facades\DB::select($query, $params);
                 $layer = $targetLayer;
                 $infoLabel = "Cruzamento Espacial ({$operator} em {$refLayer})";
 
@@ -496,6 +506,9 @@ class MapDataController extends Controller
             elseif ($tipoFiltro === 'desenho') {
                 $targetLayer = $request->query('draw_target_layer'); // O que buscar (ex: lotes)
                 $drawnGeometry = $request->query('drawn_geometry');  // O GeoJSON do desenho do usuário
+                
+                // 👈 Puxa o operador que o JS vai nos mandar agora
+                $drawOperator = $request->query('draw_spatial_operator', 'ST_Intersects'); 
 
                 if (!$targetLayer || !$drawnGeometry) {
                     return response()->json(['error' => 'Parâmetros incompletos. Geometria de desenho ausente.'], 400);
@@ -505,7 +518,11 @@ class MapDataController extends Controller
                     return response()->json(['error' => 'Camada não permitida por segurança'], 403);
                 }
 
-                // MÁGICA POSTGIS: Cruza a tabela alvo com a string GeoJSON injetada via parâmetro seguro (?)
+                // 🛡️ Segurança dupla: Garante que só rodam operadores conhecidos
+                $validDrawOperators = ['ST_Intersects', 'ST_Within'];
+                $drawOperator = in_array($drawOperator, $validDrawOperators) ? $drawOperator : 'ST_Intersects';
+
+                // MÁGICA POSTGIS: Cruza a tabela alvo com a string GeoJSON e o operador dinâmico
                 $query = "
                     SELECT 
                         target.*, 
@@ -515,7 +532,7 @@ class MapDataController extends Controller
                     WHERE target.tenant_id = ? 
                     AND target.deleted_at IS NULL
                     AND target.geo IS NOT NULL
-                    AND ST_Intersects(
+                    AND {$drawOperator}(
                         target.geo::geometry, 
                         ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326))
                     )

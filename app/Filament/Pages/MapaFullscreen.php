@@ -1877,7 +1877,7 @@ class MapaFullscreen extends Page
                             'rural_pontes' => 'Pontes Rurais',
                         ])
                         ->live()
-                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
+                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
                     Forms\Components\Select::make('field')
                         ->label('Atributo (Campo de Busca)')
@@ -1889,7 +1889,7 @@ class MapaFullscreen extends Page
                             'rural_pontes' => ['capacidade_carga_toneladas' => 'Capacidade (Toneladas)', 'material_construcao' => 'Material'],
                             default => ['name' => 'Nome / Número'],
                         })
-                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
+                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
                     Forms\Components\Select::make('operator')
                         ->label('Condição (Operador)')
@@ -1903,12 +1903,12 @@ class MapaFullscreen extends Page
                             '!=' => 'Diferente de (!=)',
                         ])
                         ->default('=')
-                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
+                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
                     Forms\Components\TextInput::make('value')
                         ->label('Valor da Condição')
                         ->placeholder('Ex: 250, Asfalto, Boa...')
-                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
+                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
                 ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
                 // -------------------------------------------------------------
@@ -1918,13 +1918,14 @@ class MapaFullscreen extends Page
                     Forms\Components\Select::make('spatial_target_layer')
                         ->label('O que você quer encontrar? (Alvo)')
                         ->options([
+                            'logradouros' => 'Logradouros',
                             'lotes' => 'Lotes Urbanos',
                             'edificacoes' => 'Edificações',
                             'postes' => 'Postes / Iluminação',
                             'arvores' => 'Arborização',
                             'rural_propriedades' => 'Propriedades Rurais (CAR)',
                         ])
-                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
 
                     Forms\Components\Select::make('spatial_operator')
                         ->label('Qual a relação topológica?')
@@ -1933,11 +1934,12 @@ class MapaFullscreen extends Page
                             'ST_Intersects' => 'Que tocam / Cruzam com',
                         ])
                         ->default('ST_Intersects')
-                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
 
                     Forms\Components\Select::make('spatial_reference_layer')
                         ->label('Qual a área de referência?')
                         ->options([
+                            'quadras' => 'Quadras',
                             'bairros' => 'Bairros',
                             'loteamentos' => 'Loteamentos',
                             'zonas' => 'Zonas Urbanas',
@@ -1945,7 +1947,7 @@ class MapaFullscreen extends Page
                             'cemiterios' => 'Cemitérios'
                         ])
                         ->live()
-                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
 
                     Forms\Components\Select::make('spatial_reference_id')
                         ->label('Escolha o local específico')
@@ -1953,6 +1955,7 @@ class MapaFullscreen extends Page
                             $refLayer = $get('spatial_reference_layer');
                             if (!$refLayer) return [];
                             return match ($refLayer) {
+                                'quadras' => \App\Models\Quadra::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'bairros' => \App\Models\Bairro::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'loteamentos' => \App\Models\Loteamento::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'zonas' => \App\Models\Zona::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
@@ -1962,7 +1965,8 @@ class MapaFullscreen extends Page
                             };
                         })
                         ->searchable()
-                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+                        ->multiple()
+                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
                 ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
 
                 // -------------------------------------------------------------
@@ -1972,13 +1976,21 @@ class MapaFullscreen extends Page
                     Forms\Components\Select::make('draw_target_layer')
                         ->label('O que você quer encontrar dentro da área?')
                         ->options([
+                            'logradouros' => 'Logradouros',
+                            'bairros' => 'Bairros',
                             'lotes' => 'Lotes Urbanos',
                             'edificacoes' => 'Edificações',
                             'postes' => 'Postes / Iluminação',
                             'arvores' => 'Arborização',
                             'rural_propriedades' => 'Propriedades Rurais (CAR)',
                         ])
-                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
+                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
+
+                    // 👈 Novo campo adicionado abaixo
+                    Forms\Components\Toggle::make('draw_within')
+                        ->label('Mostrar apenas o que está TOTALMENTE dentro do desenho')
+                        ->helperText('Se desativado, mostrará o que cruza ou toca a linha.')
+                        ->default(false),
 
                     Forms\Components\Select::make('draw_shape')
                         ->label('Formato do Desenho')
@@ -1987,7 +1999,7 @@ class MapaFullscreen extends Page
                             'Box' => 'Caixa (Retângulo)',
                         ])
                         ->default('Polygon')
-                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
+                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
 
                 ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
 
@@ -1999,7 +2011,7 @@ class MapaFullscreen extends Page
                 if ($data['tipo_filtro'] === 'desenho') {
                     // Manda uma ordem especial para o JS ligar a ferramenta de desenho
                     $this->dispatch('iniciar-desenho-filtro', dados: $data);
-                    
+
                     \Filament\Notifications\Notification::make()
                         ->title('Modo de Desenho Ativo')
                         ->body('Clique no mapa para desenhar a área de pesquisa. Dê dois cliques para finalizar o polígono.')

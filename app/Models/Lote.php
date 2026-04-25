@@ -12,7 +12,7 @@ class Lote extends Model
 {
     use SoftDeletes, BelongsToTenant, HasTenantSequentialId;
 
-    protected $fillable = ['tenant_id', 'sequential_id', 'quadra_id', 'zona_id', 'code', 'numero_lote', 'area_geo', 'main_facade_length', 'geo'];
+    protected $fillable = ['tenant_id', 'sequential_id', 'quadra_id', 'zona_id', 'code', 'numero_lote', 'foto_frontal','area_geo', 'main_facade_length', 'geo'];
     protected $hidden = ['geo'];
     protected $appends = ['geo_json'];
 

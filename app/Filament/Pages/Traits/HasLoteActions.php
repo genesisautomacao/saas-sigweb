@@ -1204,6 +1204,55 @@ trait HasLoteActions
     }
 
     /**
+     * Ação: Gerenciar Imagem Frontal do Imóvel
+     */
+    public function gerenciarFotoFrontalAction(): Action
+    {
+        return Action::make('gerenciarFotoFrontal')
+            ->label('Imagem Frontal')
+            ->icon('heroicon-o-camera')
+            ->color('gray')
+            ->modalHeading("Imagem Frontal - Lote " . (\App\Models\Lote::find($this->loteAtivoId)?->numero_lote))
+            ->modalWidth('2xl')
+            ->fillForm(fn($arguments): array => [
+                'lote_id' => $this->loteAtivoId,
+                'foto_frontal' => \App\Models\Lote::find($this->loteAtivoId)?->foto_frontal,
+            ])
+            ->form([
+                \Filament\Forms\Components\Hidden::make('lote_id'),
+                
+                // Se já tiver foto, mostra a prévia
+                \Filament\Forms\Components\Placeholder::make('previa')
+                    ->label('Visualização Atual')
+                    ->visible(fn($get) => !empty($get('foto_frontal')))
+                    ->content(fn($get) => new \Illuminate\Support\HtmlString(
+                        '<img src="' . asset('storage/' . $get('foto_frontal')) . '" class="w-full h-auto rounded-lg shadow-md border">'
+                    )),
+
+                // Campo de Upload
+                \Filament\Forms\Components\FileUpload::make('nova_foto')
+                    ->label(fn($get) => empty($get('foto_frontal')) ? 'Adicionar Foto Frontal' : 'Alterar Foto')
+                    ->image()
+                    ->directory('lotes/fotos-frontais')
+                    ->imageEditor()
+                    ->required(fn($get) => empty($get('foto_frontal')))
+                    ->helperText('Formatos aceitos: JPG, PNG. O sistema redimensionará automaticamente.'),
+            ])
+            ->action(function (array $data) {
+                $lote = \App\Models\Lote::find($data['lote_id']);
+                
+                if ($lote && isset($data['nova_foto'])) {
+                    $lote->update(['foto_frontal' => $data['nova_foto']]);
+                    
+                    Notification::make()
+                        ->title('Imagem atualizada com sucesso!')
+                        ->success()
+                        ->send();
+                }
+            });
+    }
+
+    /**
      * Ação: Abrir Modal do Google Street View
      */
     public function abrirStreetViewAction(): \Filament\Actions\Action

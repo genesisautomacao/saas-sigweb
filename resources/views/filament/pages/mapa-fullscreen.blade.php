@@ -13,7 +13,8 @@
                 tenantSlug: '{{ $tenantSlug }}',
                 mapLat: {{ $mapLat }},
                 mapLon: {{ $mapLon }},
-                mapZoom: {{ $mapZoom }}
+                mapZoom: {{ $mapZoom }},
+                azureMapsKey: '{{ env('AZURE_MAPS_KEY', '') }}'
             };
         </script>
 
@@ -80,7 +81,8 @@
                                         <x-heroicon-o-map class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                                     </template>
                                     <template x-if="res.tipo === 'edificio'">
-                                        <x-heroicon-o-building-office class="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
+                                        <x-heroicon-o-building-office
+                                            class="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
                                     </template>
 
                                     <div class="flex flex-col">
@@ -126,10 +128,8 @@
                             {{-- Cabeçalho Fixo --}}
                             <div
                                 class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shadow-sm z-10">
-                                <span
-                                    class="text-xs font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
-                                    <x-heroicon-o-paint-brush class="w-4 h-4 text-primary-500" /> Criar Artefato
-                                </span>
+                                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Criar
+                                    Artefatos</span>
                             </div>
 
                             {{-- Área de Rolagem e Sanfonas --}}
@@ -407,11 +407,96 @@
 
                     <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
 
-                    <button id="btn-satelite" title="Alternar Mapa Base"
+                    {{-- BOTÃO DA ALTERNANCIA DE MAPAS --}}
+                    {{-- <button id="btn-satelite" title="Alternar Mapa Base"
                         class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors flex items-center gap-2 font-bold text-sm">
                         <x-heroicon-o-globe-americas class="w-5 h-5" />
                         <span id="satelite-text" class="hidden md:inline">Satélite</span>
-                    </button>
+                    </button> --}}
+
+                    {{-- DROPDOWN DE MAPAS BASE (BASEMAPS) --}}
+                    <div class="relative" x-data="{ open: false, activeBasemap: 'osm' }" @click.away="open = false"
+                        @sync-basemap-ui.window="activeBasemap = $event.detail">
+                        <button @click="open = !open" title="Alternar Mapa Base"
+                            class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors flex items-center gap-2 font-bold text-sm">
+                            <x-heroicon-o-globe-americas class="w-5 h-5" />
+                            <span class="hidden md:inline">Mapas Base</span>
+                            <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform"
+                                x-bind:class="open ? 'rotate-180' : ''" />
+                        </button>
+
+                        <div x-show="open" style="display: none; width: 250px;"
+                            x-transition:enter="transition ease-out duration-100"
+                            x-transition:enter-start="opacity-0 scale-95"
+                            x-transition:enter-end="opacity-100 scale-100"
+                            class="absolute left-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-[1001] overflow-hidden">
+
+                            <div class="p-2 space-y-1">
+                                {{-- Grupo: Vetoriais/Ruas --}}
+                                <div class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                    Mapas de Ruas</div>
+
+                                <button
+                                    @click="activeBasemap = 'osm'; $dispatch('switch-basemap', 'osm'); open = false"
+                                    class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 text-sm transition-colors"
+                                    x-bind:class="activeBasemap === 'osm' ? 'text-primary-600 font-bold' :
+                                        'text-gray-700 dark:text-gray-300'">
+                                    <span class="flex items-center gap-2"><x-heroicon-o-map class="w-4 h-4" />
+                                        OpenStreetMap</span>
+                                    <x-heroicon-o-check x-show="activeBasemap === 'osm'" class="w-4 h-4" />
+                                </button>
+
+                                <button
+                                    @click="activeBasemap = 'azure_road'; $dispatch('switch-basemap', 'azure_road'); open = false"
+                                    class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 text-sm transition-colors"
+                                    x-bind:class="activeBasemap === 'azure_road' ? 'text-primary-600 font-bold' :
+                                        'text-gray-700 dark:text-gray-300'">
+                                    <span class="flex items-center gap-2"><x-heroicon-o-map-pin class="w-4 h-4" />
+                                        Azure Maps (Ruas)</span>
+                                    <x-heroicon-o-check x-show="activeBasemap === 'azure_road'" class="w-4 h-4" />
+                                </button>
+
+                                {{-- Grupo: Satélite e Ortofoto --}}
+                                <div
+                                    class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-2 border-t border-gray-100 dark:border-gray-700">
+                                    Imagens Aéreas</div>
+
+                                <button
+                                    @click="activeBasemap = 'azure_sat'; $dispatch('switch-basemap', 'azure_sat'); open = false"
+                                    class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 text-sm transition-colors"
+                                    x-bind:class="activeBasemap === 'azure_sat' ? 'text-primary-600 font-bold' :
+                                        'text-gray-700 dark:text-gray-300'">
+                                    <span class="flex items-center gap-2"><x-heroicon-o-camera class="w-4 h-4" />
+                                        Azure Satélite</span>
+                                    <x-heroicon-o-check x-show="activeBasemap === 'azure_sat'" class="w-4 h-4" />
+                                </button>
+
+                                <button
+                                    @click="activeBasemap = 'esri_sat'; $dispatch('switch-basemap', 'esri_sat'); open = false"
+                                    class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 text-sm transition-colors"
+                                    x-bind:class="activeBasemap === 'esri_sat' ? 'text-primary-600 font-bold' :
+                                        'text-gray-700 dark:text-gray-300'">
+                                    <span class="flex items-center gap-2"><x-heroicon-o-globe-asia-australia
+                                            class="w-4 h-4" /> Esri World Imagery</span>
+                                    <x-heroicon-o-check x-show="activeBasemap === 'esri_sat'" class="w-4 h-4" />
+                                </button>
+
+                                {{-- Futuras Ortofotos --}}
+                                <button
+                                    @click="activeBasemap = 'ortofoto_2025'; $dispatch('switch-basemap', 'ortofoto_2025'); open = false"
+                                    class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 text-sm transition-colors"
+                                    x-bind:class="activeBasemap === 'ortofoto_2025' ? 'text-primary-600 font-bold' :
+                                        'text-gray-700 dark:text-gray-300'">
+                                    <div class="flex flex-col items-start leading-tight">
+                                        <span class="flex items-center gap-2"><x-heroicon-o-sparkles
+                                                class="w-4 h-4" /> Ortofoto Municipal</span>
+                                        <span class="text-[9px] text-gray-400 ml-6">Ano de Referência: 2025</span>
+                                    </div>
+                                    <x-heroicon-o-check x-show="activeBasemap === 'ortofoto_2025'" class="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
                     <button id="btn-toggle-layers" title="Camadas do Mapa"
                         class="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-primary-600 dark:text-primary-400 font-bold text-sm flex items-center gap-2">
@@ -973,6 +1058,44 @@
                     </div>
                 </div>
 
+                {{-- GRUPO OGC: CONEXÕES EXTERNAS (WMS) --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'ogc' ? '' : 'ogc'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 flex justify-between items-center transition-colors">
+                        <span class="flex items-center gap-2">WMS Externo (OGC)</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'ogc' ? 'rotate-180' : ''" />
+                    </button>
+
+                    <div x-show="activeTab === 'ogc'" x-collapse
+                        class="px-4 pb-4 bg-transparent w-full overflow-hidden">
+                        <div
+                            class="p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/50 rounded-lg shadow-sm space-y-3">
+                            <p class="text-[10px] text-emerald-800 dark:text-emerald-300 font-medium leading-tight">
+                                Conecte serviços oficiais (IBGE, INPE) colando a URL WMS abaixo.
+                            </p>
+
+                            <div class="space-y-2">
+                                <input type="text" id="wms-url" placeholder="URL do Serviço WMS..."
+                                    class="w-full text-xs rounded border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400">
+
+                                <input type="text" id="wms-layer" placeholder="Nome da Camada (Layer)"
+                                    class="w-full text-xs rounded border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400">
+
+                                <button id="btn-add-wms"
+                                    style="width: 100%; background-color: #073bc0; color: white; font-weight: bold; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                    + Conectar Camada OGC
+                                </button>
+
+                            </div>
+                        </div>
+
+                        {{-- Lista de camadas conectadas --}}
+                        <div id="wms-layers-list" class="space-y-2 mt-3 empty:hidden">
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -1201,6 +1324,13 @@
                             Croqui de Localização
                         </span>
                         <x-heroicon-o-document-text class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
+                    </button>
+
+                    {{-- 👈 NOVO BOTÃO: IMAGEM FRONTAL --}}
+                    <button type="button" wire:click="mountAction('gerenciarFotoFrontal')"
+                        style="width: 100%; margin-top: 10px; background-color: #4b5563; color: white; font-weight: bold; padding: 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; cursor: pointer;">
+                        <x-heroicon-o-camera class="w-5 h-5" />
+                        Imagem Frontal do Imóvel
                     </button>
 
                 </div>

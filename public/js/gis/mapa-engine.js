@@ -26,29 +26,54 @@ document.addEventListener('DOMContentLoaded', function () {
         maxZoom: 22
     });
 
-    // 3. MAPAS BASE (Raster)
-    const osmLayer = new ol.layer.Tile({ source: new ol.source.OSM(), zIndex: 0 });
+    // 3. DEFINIÇÃO DOS MAPAS BASE (BASEMAPS)
+    const azureKey = config.azureMapsKey || '';
 
-    const esriLayer = new ol.layer.Tile({
-        source: new ol.source.XYZ({
-            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-            maxZoom: 18,
-            crossOrigin: 'anonymous'
+    const basemaps = {
+        'osm': new ol.layer.Tile({
+            source: new ol.source.OSM(),
+            visible: true,
+            zIndex: 0
         }),
-        visible: false,
-        zIndex: 1
-    });
+        'esri_sat': new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                maxZoom: 18,
+                crossOrigin: 'anonymous'
+            }),
+            visible: false,
+            zIndex: 1
+        }),
+        'azure_road': new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: `https://atlas.microsoft.com/map/tile?api-version=2.0&tilesetId=microsoft.base.road&zoom={z}&x={x}&y={y}&subscription-key=${azureKey}`,
+                crossOrigin: 'anonymous'
+            }),
+            visible: false,
+            zIndex: 1
+        }),
+        'azure_sat': new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: `https://atlas.microsoft.com/map/tile?api-version=2.0&tilesetId=microsoft.imagery&zoom={z}&x={x}&y={y}&subscription-key=${azureKey}`,
+                crossOrigin: 'anonymous'
+            }),
+            visible: false,
+            zIndex: 1
+        }),
+        'ortofoto_2025': new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: `/mapas/${config.tenantSlug}/{z}/{x}/{y}.png`,
+                minZoom: 12,
+                maxZoom: 22,
+                crossOrigin: 'anonymous'
+            }),
+            visible: false,
+            zIndex: 2 // 🛑 CORREÇÃO: Elevado para 2 para ficar por cima do Esri Satélite (1)
+        })
+    };
 
-    const ortofotoLayer = new ol.layer.Tile({
-        source: new ol.source.XYZ({
-            url: `/mapas/${config.tenantSlug}/{z}/{x}/{y}.png`, // Lê a variável do PHP
-            minZoom: 12,
-            maxZoom: 22,
-            crossOrigin: 'anonymous'
-        }),
-        visible: false,
-        zIndex: 2
-    });
+    // Adiciona todas ao mapa (apenas a OSM inicia visível)
+    const basemapLayers = Object.values(basemaps);
 
     // 4. ESTILOS DAS CAMADAS VETORIAIS
     const layerConfigs = {
@@ -557,7 +582,47 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // 5. INICIA O MAPA
-    const map = new ol.Map({ target: 'sigweb-map', layers: [osmLayer, esriLayer, ortofotoLayer], view: view });
+    const map = new ol.Map({
+        target: 'sigweb-map',
+        layers: [
+            ...Object.values(basemaps) // Adiciona todas as bases (apenas OSM começa visible: true)
+        ],
+        view: view,
+        controls: []
+    });
+
+    // 4. LÓGICA DE TROCA DE MAPA BASE
+    window.addEventListener('switch-basemap', event => {
+        let selectedType = event.detail;
+
+        // 🛑 VALIDAÇÃO 1: Faltando chave do Azure Maps
+        if (selectedType.startsWith('azure') && !azureKey) {
+            alert("⚠️ A chave da API do Azure Maps não foi configurada no servidor (.env).\nO mapa será revertido para o padrão aberto (OpenStreetMap).");
+            selectedType = 'osm';
+            // Dispara o evento de volta para corrigir a interface (Alpine.js)
+            window.dispatchEvent(new CustomEvent('sync-basemap-ui', { detail: 'osm' }));
+        }
+
+        console.log(`SIGWEB: Alterando mapa base para -> ${selectedType}`);
+
+        // Desliga a visibilidade de todos os basemaps
+        Object.keys(basemaps).forEach(key => {
+            basemaps[key].setVisible(false);
+        });
+
+        // 🛑 VALIDAÇÃO 2: Se for Ortofoto, liga também o Satélite por baixo para cobrir as bordas!
+        if (selectedType.startsWith('ortofoto')) {
+            if (basemaps['esri_sat']) basemaps['esri_sat'].setVisible(true); // O Chão
+            if (basemaps[selectedType]) basemaps[selectedType].setVisible(true); // A Ortofoto por cima
+        }
+        // Comportamento normal para os demais mapas
+        else if (basemaps[selectedType]) {
+            basemaps[selectedType].setVisible(true);
+        } else {
+            console.warn(`SIGWEB: Basemap "${selectedType}" não definido na engine.`);
+            basemaps['osm'].setVisible(true); // Fallback para segurança
+        }
+    });
 
     // Desativa o zoom de duplo clique para facilitar edições
     const dblClickZoom = map.getInteractions().getArray().find(i => i instanceof ol.interaction.DoubleClickZoom);
@@ -2942,7 +3007,14 @@ document.addEventListener('DOMContentLoaded', function () {
             queryParams.append('spatial_target_layer', dados.spatial_target_layer);
             queryParams.append('spatial_operator', dados.spatial_operator);
             queryParams.append('spatial_reference_layer', dados.spatial_reference_layer);
-            queryParams.append('spatial_reference_id', dados.spatial_reference_id);
+
+            // 👈 Ajuste para tratar se o Select enviar um array (multiple)
+            if (Array.isArray(dados.spatial_reference_id)) {
+                dados.spatial_reference_id.forEach(id => queryParams.append('spatial_reference_ids[]', id));
+            } else {
+                queryParams.append('spatial_reference_id', dados.spatial_reference_id);
+            }
+
         } else {
             queryParams.append('layer', dados.layer);
             queryParams.append('field', dados.field);
@@ -3025,7 +3097,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ========================================================================
     // FERRAMENTA DE DESENHO PARA FILTRO ESPACIAL (EXIGÊNCIA DO EDITAL)
     // ========================================================================
-    
+
     // 1. Cria uma camada invisível apenas para segurar a "caneta" enquanto o usuário desenha
     const drawFiltroSource = new ol.source.Vector();
     const drawFiltroLayer = new ol.layer.Vector({
@@ -3072,8 +3144,8 @@ document.addEventListener('DOMContentLoaded', function () {
         map.addInteraction(drawFiltroInteraction);
 
         // 3. O que acontece quando o usuário termina de desenhar (Solta o clique ou dá dois cliques)
-        drawFiltroInteraction.on('drawend', function(evt) {
-            
+        drawFiltroInteraction.on('drawend', function (evt) {
+
             // Tira a caneta da mão do usuário imediatamente
             map.removeInteraction(drawFiltroInteraction);
             console.log("✅ Desenho concluído, processando área...");
@@ -3090,7 +3162,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 tenant_id: config.tenantId,
                 tipo_filtro: 'desenho',
                 draw_target_layer: dados.draw_target_layer,
-                drawn_geometry: drawnGeometry // A String do GeoJSON
+                drawn_geometry: drawnGeometry, // A String do GeoJSON
+                draw_spatial_operator: dados.draw_within ? 'ST_Within' : 'ST_Intersects'
             });
 
             const url = `/api/mapa/advanced-query?${queryParams.toString()}`;
@@ -3118,7 +3191,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
                     // Limpa a linha amarela que o usuário usou para desenhar (já cumpriu o papel dela)
-                    drawFiltroSource.clear(); 
+                    drawFiltroSource.clear();
 
                     if (data.features && data.features.length > 0) {
                         const features = new ol.format.GeoJSON().readFeatures(data, {
@@ -3244,5 +3317,101 @@ document.addEventListener('DOMContentLoaded', function () {
             window.cancelarUnificacao();
         }, 1500);
     };
+
+    // =========================================================================
+    // 20. INTEROPERABILIDADE OGC: CONSUMO DE WMS EXTERNO
+    // =========================================================================
+    const btnAddWms = document.getElementById('btn-add-wms');
+    const wmsUrlInput = document.getElementById('wms-url');
+    const wmsLayerInput = document.getElementById('wms-layer');
+    const wmsLayersList = document.getElementById('wms-layers-list');
+    let externalWmsCount = 0;
+
+    if (btnAddWms) {
+        btnAddWms.addEventListener('click', () => {
+            const url = wmsUrlInput.value.trim();
+            const layerName = wmsLayerInput.value.trim();
+
+            if (!url || !layerName) {
+                alert("⚠️ Por favor, preencha a URL do serviço e o Nome da Camada (Layer) para estabelecer a conexão.");
+                return;
+            }
+
+            // Altera botão para estado de carregamento
+            const originalText = btnAddWms.innerHTML;
+            btnAddWms.innerHTML = 'Conectando...';
+            btnAddWms.disabled = true;
+
+            externalWmsCount++;
+            const wmsId = `wms_ext_${externalWmsCount}`;
+
+            try {
+                // Cria a nova camada Raster usando o padrão OGC WMS do OpenLayers
+                const newWmsLayer = new ol.layer.Tile({
+                    source: new ol.source.TileWMS({
+                        url: url,
+                        params: {
+                            'LAYERS': layerName,
+                            'TILED': true,
+                            'FORMAT': 'image/png',
+                            'TRANSPARENT': true,
+                            'VERSION': '1.1.1' // 🛑 A MÁGICA: Força a versão 1.1.1 para evitar erros de inversão de eixo em servidores do Governo BR
+                        },
+                        serverType: 'geoserver',
+                        crossOrigin: 'anonymous'
+                    }),
+                    zIndex: 21,
+                    visible: true
+                });
+
+                // Carimba a camada para gestão
+                newWmsLayer.set('id', wmsId);
+                newWmsLayer.set('is_external_wms', true);
+
+                // Adiciona ao mapa
+                map.addLayer(newWmsLayer);
+
+                // Constrói o item na interface para o usuário controlar a camada
+                const uiItem = document.createElement('div');
+                uiItem.className = "flex items-center justify-between bg-white dark:bg-gray-800 p-2 rounded shadow-sm border border-gray-200 dark:border-gray-700";
+                uiItem.innerHTML = `
+                    <label class="flex items-center space-x-2 cursor-pointer w-full overflow-hidden">
+                        <input type="checkbox" checked class="wms-toggle rounded border-gray-400 text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5 flex-shrink-0" data-wms-id="${wmsId}">
+                        <span class="text-xs font-bold text-gray-700 dark:text-gray-300 truncate" style="margin-left:10px;" title="${layerName}">${layerName}</span>
+                    </label>
+                    <button class="btn-remove-wms text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 p-1 rounded transition-colors" data-wms-id="${wmsId}" title="Desconectar WMS">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                `;
+
+                wmsLayersList.appendChild(uiItem);
+
+                // Lógica do Checkbox (Ligar/Desligar Visibilidade)
+                const toggleBtn = uiItem.querySelector('.wms-toggle');
+                toggleBtn.addEventListener('change', function () {
+                    newWmsLayer.setVisible(this.checked);
+                });
+
+                // Lógica da Lixeira (Destruir Camada)
+                const removeBtn = uiItem.querySelector('.btn-remove-wms');
+                removeBtn.addEventListener('click', function () {
+                    map.removeLayer(newWmsLayer);
+                    uiItem.remove();
+                });
+
+                // Limpa o formulário após o sucesso
+                wmsUrlInput.value = '';
+                wmsLayerInput.value = '';
+
+            } catch (error) {
+                console.error("Erro ao conectar WMS: ", error);
+                alert("❌ Erro ao processar a camada WMS. Verifique se a URL suporta o protocolo OGC WMS.");
+            } finally {
+                // Restaura o botão
+                btnAddWms.innerHTML = originalText;
+                btnAddWms.disabled = false;
+            }
+        });
+    }
 
 }); // <-- Fim do DOMContentLoaded

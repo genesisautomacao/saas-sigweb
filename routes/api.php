@@ -6,6 +6,10 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ArvoreSyncController;
 use App\Http\Controllers\Api\SolicitacaoManutencaoController;
 use App\Http\Controllers\Api\SolicitacaoManutencaoSyncController;
+use App\Http\Controllers\Api\OgcController;
+
+// Rota OGC Interoperability (WFS/WMS) com isolamento SaaS via Slug
+Route::get('/ogc/{tenant_slug}', [OgcController::class, 'handle']);
 
 // 🔓 Rota Pública: O celular bate aqui para tentar entrar
 Route::post('/login', [AuthController::class, 'login']);
