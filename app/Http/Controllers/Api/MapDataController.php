@@ -682,4 +682,202 @@ class MapDataController extends Controller
             return response()->json(['error' => 'Erro na consulta: ' . $e->getMessage()], 500);
         }
     }
+
+    // =========================================================================
+    // ESTATÍSTICAS POR ÁREA DE INTERESSE
+    // =========================================================================
+    public function getEstatisticas(Request $request)
+    {
+        try {
+            $tenantId   = $request->query('tenant_id');
+            $areaType   = $request->query('area_type');   // bairros | setores_fiscais | perimetros_urbanos
+            $areaId     = $request->query('area_id');     // id da área (ou 'all')
+            $targetLayer= $request->query('target_layer'); // lotes | edificacoes | logradouros
+            $groupField = $request->query('group_field'); // campo para agrupar
+ 
+            // ----------------------------------------------------------------
+            // 1. Mapa de configuração por camada
+            // ----------------------------------------------------------------
+            $layerConfig = [
+                'lotes' => [
+                    'table'       => 'lotes',
+                    'label_col'   => 'numero_lote',
+                    'group_fields'=> [
+                        'zona_id'   => ['label' => 'Zona Urbana',      'join' => ['zonas', 'zona_id', 'id', 'sigla']],
+                        'area_faixa'=> ['label' => 'Faixa de Área',    'computed' => true],
+                    ],
+                ],
+                'edificacoes' => [
+                    'table'       => 'edificacoes',
+                    'label_col'   => 'code',
+                    'group_fields'=> [
+                        'tipo'                    => ['label' => 'Tipo de Uso'],
+                        'tp_construcao'           => ['label' => 'Tipo de Construção'],
+                        'estado_conservacao'      => ['label' => 'Estado de Conservação'],
+                        'caracteristica_construcao'=> ['label' => 'Característica'],
+                    ],
+                ],
+                'logradouros' => [
+                    'table'       => 'logradouros',
+                    'label_col'   => 'name',
+                    'group_fields'=> [
+                        'name' => ['label' => 'Nome do Logradouro'],
+                    ],
+                ],
+            ];
+ 
+            if (!isset($layerConfig[$targetLayer])) {
+                return response()->json(['error' => 'Camada inválida.'], 400);
+            }
+ 
+            $cfg   = $layerConfig[$targetLayer];
+            $table = $cfg['table'];
+ 
+            // ----------------------------------------------------------------
+            // 2. Resolve a geometria da(s) área(s) de interesse + centroide
+            // ----------------------------------------------------------------
+            $areaTableMap = [
+                'bairros'             => ['table' => 'bairros',            'label' => 'name'],
+                'setores_fiscais'     => ['table' => 'setores_fiscais',    'label' => 'nome'],
+                'perimetros_urbanos'  => ['table' => 'perimetros_urbanos', 'label' => 'name'],
+            ];
+ 
+            if (!isset($areaTableMap[$areaType])) {
+                return response()->json(['error' => 'Tipo de área inválido.'], 400);
+            }
+ 
+            $areaTable      = $areaTableMap[$areaType]['table'];
+            $areaLabelCol   = $areaTableMap[$areaType]['label'];
+ 
+            $areaQuery = \Illuminate\Support\Facades\DB::table($areaTable)
+                ->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')
+                ->whereNotNull('geo')
+                ->select([
+                    'id',
+                    \Illuminate\Support\Facades\DB::raw("{$areaLabelCol} as area_label"),
+                    \Illuminate\Support\Facades\DB::raw('ST_AsGeoJSON(ST_Centroid(geo::geometry)) as centroide'),
+                    \Illuminate\Support\Facades\DB::raw('ST_AsGeoJSON(geo) as geo_json'),
+                ]);
+ 
+            if ($areaId !== 'all') {
+                $areaQuery->where('id', $areaId);
+            }
+ 
+            $areas = $areaQuery->get();
+ 
+            if ($areas->isEmpty()) {
+                return response()->json(['error' => 'Área não encontrada.'], 404);
+            }
+ 
+            // ----------------------------------------------------------------
+            // 3. Para cada área, faz o cruzamento e agrega
+            // ----------------------------------------------------------------
+            $resultAreas = [];
+ 
+            foreach ($areas as $area) {
+                // Monta a query base com cruzamento espacial
+                $q = \Illuminate\Support\Facades\DB::table($table)
+                    ->where("{$table}.tenant_id", $tenantId)
+                    ->whereNull("{$table}.deleted_at")
+                    ->whereNotNull("{$table}.geo")
+                    ->whereRaw("ST_Intersects({$table}.geo, (
+                        SELECT geo FROM {$areaTable} WHERE id = ? LIMIT 1
+                    ))", [$area->id]);
+ 
+                // Total geral
+                $total = (clone $q)->count();
+ 
+                if ($total === 0) {
+                    continue;
+                }
+ 
+                // Agrupamento
+                $grupos = [];
+ 
+                if ($groupField === 'area_faixa' && $targetLayer === 'lotes') {
+                    // Agrupamento especial por faixa de área
+                    $faixas = [
+                        'Até 125 m²'        => [0, 125],
+                        '125 a 250 m²'      => [125, 250],
+                        '250 a 500 m²'      => [250, 500],
+                        '500 a 1000 m²'     => [500, 1000],
+                        'Acima de 1000 m²'  => [1000, 999999999],
+                    ];
+                    foreach ($faixas as $label => [$min, $max]) {
+                        $count = (clone $q)
+                            ->where('area_geo', '>=', $min)
+                            ->where('area_geo', '<', $max)
+                            ->count();
+                        if ($count > 0) {
+                            $grupos[] = [
+                                'valor'      => $label,
+                                'quantidade' => $count,
+                                'percentual' => round($count / $total * 100, 1),
+                            ];
+                        }
+                    }
+                } elseif (isset($cfg['group_fields'][$groupField]['join'])) {
+                    // Join com tabela de referência (ex: zona_id → zonas.sigla)
+                    [$joinTable, $fk, $pk, $labelJoin] = $cfg['group_fields'][$groupField]['join'];
+                    $rows = (clone $q)
+                        ->leftJoin($joinTable, "{$table}.{$fk}", '=', "{$joinTable}.{$pk}")
+                        ->selectRaw("{$joinTable}.{$labelJoin} as grupo_valor, COUNT(*) as quantidade")
+                        ->groupBy("{$joinTable}.{$labelJoin}")
+                        ->orderByDesc('quantidade')
+                        ->get();
+ 
+                    foreach ($rows as $row) {
+                        $grupos[] = [
+                            'valor'      => $row->grupo_valor ?? 'Não informado',
+                            'quantidade' => $row->quantidade,
+                            'percentual' => round($row->quantidade / $total * 100, 1),
+                        ];
+                    }
+                } else {
+                    // Agrupamento direto por campo da tabela
+                    $rows = (clone $q)
+                        ->selectRaw("{$groupField} as grupo_valor, COUNT(*) as quantidade")
+                        ->groupBy($groupField)
+                        ->orderByDesc('quantidade')
+                        ->get();
+ 
+                    foreach ($rows as $row) {
+                        $grupos[] = [
+                            'valor'      => $row->grupo_valor ?? 'Não informado',
+                            'quantidade' => $row->quantidade,
+                            'percentual' => round($row->quantidade / $total * 100, 1),
+                        ];
+                    }
+                }
+ 
+                $centroide = json_decode($area->centroide);
+ 
+                $resultAreas[] = [
+                    'area_id'       => $area->id,
+                    'area_label'    => $area->area_label,
+                    'centroide'     => $centroide->coordinates ?? null,
+                    'total'         => $total,
+                    'grupos'        => $grupos,
+                    'group_label'   => $cfg['group_fields'][$groupField]['label'] ?? $groupField,
+                    'layer_label'   => match($targetLayer) {
+                        'lotes'       => 'Lotes',
+                        'edificacoes' => 'Edificações',
+                        'logradouros' => 'Logradouros',
+                        default       => $targetLayer,
+                    },
+                ];
+            }
+ 
+            return response()->json([
+                'areas'        => $resultAreas,
+                'area_type'    => $areaType,
+                'target_layer' => $targetLayer,
+                'group_field'  => $groupField,
+            ]);
+ 
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Erro nas estatísticas: ' . $e->getMessage()], 500);
+        }
+    }
 }

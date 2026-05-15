@@ -3764,6 +3764,158 @@ document.addEventListener('DOMContentLoaded', function () {
         map.renderSync();
     });
 
+    // =========================================================================
+    // ESTATÍSTICAS POR ÁREA DE INTERESSE
+    // =========================================================================
+    window.estatOverlays = [];
+ 
+    window.limparOverlaysEstat = function() {
+        window.estatOverlays.forEach(o => map.removeOverlay(o));
+        window.estatOverlays = [];
+    };
+ 
+    window.addEventListener('executar-estatisticas', async (e) => {
+        const dados = e.detail.dados || e.detail;
+        const { area_type, area_id, target_layer, group_field, chart_type, show_on_map } = dados;
+ 
+        const url = `/api/mapa/estatisticas?tenant_id=${config.tenantId}&area_type=${area_type}&area_id=${area_id}&target_layer=${target_layer}&group_field=${group_field}`;
+ 
+        try {
+            const resp = await fetch(url);
+            const json = await resp.json();
+ 
+            if (json.error) { alert('Erro: ' + json.error); return; }
+            if (!json.areas || !json.areas.length) { alert('Nenhum dado encontrado para essa seleção.'); return; }
+ 
+            // ---- Painel lateral ----
+            const painel   = document.getElementById('painel-estatisticas');
+            const titulo   = document.getElementById('stat-titulo');
+            const resumo   = document.getElementById('stat-resumo');
+            const tabela   = document.getElementById('stat-tabela');
+            const canvas   = document.getElementById('stat-chart');
+ 
+            // Agrega todos os grupos de todas as áreas para o gráfico do painel
+            const agregado = {};
+            let totalGeral = 0;
+            json.areas.forEach(a => {
+                totalGeral += a.total;
+                a.grupos.forEach(g => {
+                    agregado[g.valor] = (agregado[g.valor] || 0) + g.quantidade;
+                });
+            });
+ 
+            const labels   = Object.keys(agregado);
+            const valores  = Object.values(agregado);
+            const cores    = labels.map((_, i) => `hsl(${(i * 47) % 360}, 65%, 55%)`);
+ 
+            titulo.textContent = `${json.areas[0]?.layer_label || target_layer} — ${json.areas[0]?.group_label || group_field}`;
+            resumo.textContent = `Total geral: ${totalGeral} | ${json.areas.length} área(s)`;
+ 
+            // Destrói chart anterior se existir
+            if (window._estatChartInstance) window._estatChartInstance.destroy();
+            window._estatChartInstance = new Chart(canvas.getContext('2d'), {
+                type: chart_type || 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Quantidade',
+                        data: valores,
+                        backgroundColor: cores,
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: chart_type === 'pie' } },
+                    scales: chart_type === 'pie' ? {} : {
+                        y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        x: { ticks: { color: '#9ca3af' } }
+                    }
+                }
+            });
+ 
+            // Tabela resumo
+            tabela.innerHTML = `
+                <table style="width:100%;border-collapse:collapse;font-size:11px;color:#e5e7eb;">
+                    <thead>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+                            <th style="text-align:left;padding:4px 6px;color:#9ca3af;">Valor</th>
+                            <th style="text-align:right;padding:4px 6px;color:#9ca3af;">Qtd</th>
+                            <th style="text-align:right;padding:4px 6px;color:#9ca3af;">%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${labels.map((l, i) => `
+                            <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                                <td style="padding:4px 6px;display:flex;align-items:center;gap:6px;">
+                                    <span style="width:8px;height:8px;border-radius:2px;background:${cores[i]};display:inline-block;"></span>${l}
+                                </td>
+                                <td style="text-align:right;padding:4px 6px;">${valores[i]}</td>
+                                <td style="text-align:right;padding:4px 6px;">${totalGeral > 0 ? (valores[i]/totalGeral*100).toFixed(1) : 0}%</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+ 
+            painel.style.display = 'block';
+ 
+            // ---- Overlays no mapa ----
+            window.limparOverlaysEstat();
+ 
+            if (show_on_map) {
+                json.areas.forEach(area => {
+                    if (!area.centroide || !area.grupos.length) return;
+ 
+                    const [lng, lat] = area.centroide;
+                    const coord = ol.proj.fromLonLat([lng, lat]);
+ 
+                    // Cria canvas do mini-gráfico
+                    const miniCanvas = document.createElement('canvas');
+                    miniCanvas.width  = 100;
+                    miniCanvas.height = 100;
+                    miniCanvas.style.cssText = 'border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.5);cursor:pointer;';
+ 
+                    const miniLabels = area.grupos.map(g => g.valor);
+                    const miniValores= area.grupos.map(g => g.quantidade);
+                    const miniCores  = miniLabels.map((_, i) => `hsl(${(i * 47) % 360}, 65%, 55%)`);
+ 
+                    new Chart(miniCanvas.getContext('2d'), {
+                        type: 'pie',
+                        data: { labels: miniLabels, datasets: [{ data: miniValores, backgroundColor: miniCores }] },
+                        options: {
+                            responsive: false,
+                            animation: false,
+                            plugins: { legend: { display: false }, tooltip: { enabled: false } }
+                        }
+                    });
+ 
+                    // Label com nome da área + total
+                    const wrapper = document.createElement('div');
+                    wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:3px;';
+                    const label = document.createElement('div');
+                    label.style.cssText = 'font-size:10px;font-weight:600;color:#fff;background:rgba(0,0,0,0.6);padding:2px 6px;border-radius:4px;white-space:nowrap;';
+                    label.textContent = `${area.area_label} (${area.total})`;
+                    wrapper.appendChild(miniCanvas);
+                    wrapper.appendChild(label);
+ 
+                    const overlay = new ol.Overlay({
+                        position: coord,
+                        positioning: 'center-center',
+                        element: wrapper,
+                        stopEvent: false,
+                    });
+ 
+                    map.addOverlay(overlay);
+                    window.estatOverlays.push(overlay);
+                });
+            }
+ 
+        } catch (err) {
+            console.error('Erro nas estatísticas:', err);
+            alert('Falha ao carregar estatísticas.');
+        }
+    });
+
     // 🎨 FUNÇÃO AUXILIAR: Converte HEX do Filament para RGBA do OpenLayers
     function hexToRgba(hex, alpha) {
         if (!hex) return `rgba(245, 158, 11, ${alpha})`; // Fallback para laranja

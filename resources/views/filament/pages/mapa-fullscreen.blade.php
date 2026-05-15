@@ -106,12 +106,20 @@
                     </div>
                 </div>
 
-                {{-- BOTÃO FILTRO AVANÇADO (Inteligente com Alpine.js) --}}
+                {{-- BOTÃO FILTRO AVANÇADO --}}
                 <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }"
                     x-on:click="$wire.mountAction('filtroAvancadoAction')"
                     class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                     title="Filtro Avançado / Tematização">
                     <x-heroicon-o-funnel class="w-5 h-5" />
+                </button>
+
+                {{-- BOTÃO ESTATÍSTICAS --}}
+                <button type="button"
+                    x-on:click="$wire.mountAction('estatisticasAction')"
+                    class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                    title="Estatísticas por Área">
+                    <x-heroicon-o-chart-bar class="w-5 h-5" />
                 </button>
 
                 <div class="flex items-center gap-1 px-1">
@@ -1966,6 +1974,24 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <x-filament-actions::modals />
+
+    {{-- PAINEL DE ESTATÍSTICAS --}}
+    <div id="painel-estatisticas" style="
+        display:none; position:absolute; top:70px; right:16px; z-index:1000;
+        background:rgba(17,24,39,0.95); backdrop-filter:blur(8px);
+        border:1px solid rgba(255,255,255,0.1); border-radius:12px;
+        padding:16px; width:340px; max-height:80vh; overflow-y:auto;
+        box-shadow:0 4px 24px rgba(0,0,0,0.5);
+    ">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span id="stat-titulo" style="font-size:13px;font-weight:600;color:#f9fafb;">Estatísticas</span>
+            <button onclick="document.getElementById('painel-estatisticas').style.display='none'; window.limparOverlaysEstat();"
+                style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:18px;line-height:1;">✕</button>
+        </div>
+        <div id="stat-resumo" style="font-size:11px;color:#9ca3af;margin-bottom:12px;"></div>
+        <canvas id="stat-chart" style="width:100%;max-height:220px;"></canvas>
+        <div id="stat-tabela" style="margin-top:12px;"></div>
+    </div>
 
     {{-- PAINEL DE FILTROS ATIVOS --}}
     <div id="painel-filtros-ativos" style="

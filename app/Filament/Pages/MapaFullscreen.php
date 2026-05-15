@@ -2034,7 +2034,7 @@ class MapaFullscreen extends Page
                         ->label('Camada para Análise')
                         ->options(['lotes' => 'Lotes Urbanos', 'edificacoes' => 'Edificações'])
                         ->default('lotes'),
- 
+
                     Forms\Components\Select::make('interval_attribute')
                         ->label('Atributo Numérico (Escala)')
                         ->options([
@@ -2042,12 +2042,12 @@ class MapaFullscreen extends Page
                             'main_facade_length' => 'Testada (m)',
                         ])
                         ->default('area_geo'),
- 
+
                     Forms\Components\Select::make('num_classes')
                         ->label('Quantidade de Intervalos')
                         ->options(['3' => '3 Faixas', '5' => '5 Faixas', '7' => '7 Faixas'])
                         ->default('5'),
- 
+
                     Forms\Components\Grid::make(2)->schema([
                         Forms\Components\ColorPicker::make('cor_inicio')
                             ->label('Cor Inicial (menor valor)')
@@ -2067,7 +2067,6 @@ class MapaFullscreen extends Page
                     // Manda para o novo motor de Intervalo de Classes
                     $this->dispatch('executar-tematizacao-intervalo', dados: $data);
                     \Filament\Notifications\Notification::make()->title('Calculando Densidades...')->info()->send();
-                    
                 } elseif ($data['tipo_filtro'] === 'desenho') {
                     // Manda uma ordem especial para o JS ligar a ferramenta de desenho
                     $this->dispatch('iniciar-desenho-filtro', dados: $data);
@@ -2096,6 +2095,92 @@ class MapaFullscreen extends Page
     public function onFiltrosZerados(): void
     {
         $this->filtroAvancadoAtivo = false;
+    }
+
+    // =========================================================================
+    // ACTION DE ESTATÍSTICAS
+    // =========================================================================
+    public function estatisticasAction(): \Filament\Actions\Action
+    {
+        return \Filament\Actions\Action::make('estatisticasAction')
+            ->label('Estatísticas')
+            ->icon('heroicon-o-chart-bar')
+            ->modalHeading('Estatísticas por Área de Interesse')
+            ->modalWidth('xl')
+            ->form([
+                Forms\Components\Grid::make(2)->schema([
+                    Forms\Components\Select::make('area_type')
+                        ->label('Tipo de Área')
+                        ->options([
+                            'bairros'            => 'Bairro',
+                            'setores_fiscais'    => 'Setor Fiscal',
+                            'perimetros_urbanos' => 'Perímetro Urbano / Distrito',
+                        ])
+                        ->default('bairros')
+                        ->live()
+                        ->required(),
+
+                    Forms\Components\Select::make('area_id')
+                        ->label('Área de Interesse')
+                        ->options(function (Forms\Get $get): array {
+                            $tipo = $get('area_type');
+                            if (!$tipo) return ['all' => 'Todas'];
+                            $opts = ['all' => '— Todas —'];
+                            $rows = match ($tipo) {
+                                'bairros'            => \App\Models\Bairro::where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
+                                'setores_fiscais'    => \App\Models\SetorFiscal::where('tenant_id', $this->tenantId)->orderBy('nome')->pluck('nome', 'id'),
+                                'perimetros_urbanos' => \App\Models\PerimetroUrbano::where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
+                                default              => collect([]),
+                            };
+                            return $opts + $rows->toArray();
+                        })
+                        ->default('all')
+                        ->searchable()
+                        ->required(),
+                ]),
+
+                Forms\Components\Grid::make(2)->schema([
+                    Forms\Components\Select::make('target_layer')
+                        ->label('Camada de Análise')
+                        ->options([
+                            'lotes'       => 'Lotes Urbanos',
+                            'edificacoes' => 'Edificações',
+                            'logradouros' => 'Logradouros',
+                        ])
+                        ->default('lotes')
+                        ->live()
+                        ->required(),
+
+                    Forms\Components\Select::make('group_field')
+                        ->label('Agrupar por')
+                        ->options(function (Forms\Get $get): array {
+                            return match ($get('target_layer')) {
+                                'lotes'       => ['zona_id' => 'Zona Urbana', 'area_faixa' => 'Faixa de Área'],
+                                'edificacoes' => ['tipo' => 'Tipo de Uso', 'tp_construcao' => 'Tipo de Construção', 'estado_conservacao' => 'Estado de Conservação'],
+                                'logradouros' => ['name' => 'Nome do Logradouro'],
+                                default       => [],
+                            };
+                        })
+                        ->required(),
+                ]),
+
+                Forms\Components\Grid::make(2)->schema([
+                    Forms\Components\Select::make('chart_type')
+                        ->label('Tipo de Gráfico')
+                        ->options(['bar' => 'Colunas', 'pie' => 'Pizza'])
+                        ->default('bar')
+                        ->required(),
+
+                    Forms\Components\Toggle::make('show_on_map')
+                        ->label('Exibir gráficos no mapa')
+                        ->helperText('Renderiza mini-gráficos no centroide de cada área')
+                        ->default(false),
+                ]),
+            ])
+            ->action(function (array $data) {
+                $this->dispatch('executar-estatisticas', dados: $data);
+                \Filament\Notifications\Notification::make()->title('Calculando estatísticas...')->info()->send();
+            });
     }
 
     /**
