@@ -38,12 +38,17 @@ class MapDataController extends Controller
             $features = [];
             foreach ($items as $item) {
                 if (!empty($item->geo_json) && !empty($item->geo_json->coordinates)) {
+
                     $features[] = [
                         'type' => 'Feature',
                         'properties' => [
                             'id' => $item->id,
                             'name' => $item->name ?? $item->numero_lote ?? $item->codigo_imovel_tributario ?? 'S/N',
                             'codigo' => $item->code,
+
+                            'area_geo' => isset($item->area_geo) ? (float) $item->area_geo : 0,
+                            'main_facade_length' => isset($item->main_facade_length) ? (float) $item->main_facade_length : 0,
+
                             'layer' => $layerName, // <-- Agora o JS vai saber o que é Lote e o que é Bairro!
                             'sigla' => $item->sigla ?? null,
                             'rgb' => $item->rgb ?? '150,150,150',
@@ -92,12 +97,12 @@ class MapDataController extends Controller
                 break;
 
             case 'logradouros':
-                $data = $buildFeatureCollection(Logradouro::where('tenant_id', $tenantId)->get(), 'logradouros');
+                $data = $buildFeatureCollection(Logradouro::query()->where('tenant_id', $tenantId)->get(), 'logradouros');
                 break;
 
             case 'lotes':
                 // 🛑 A MÁGICA: Buscamos os lotes e já trazemos a contagem de vulnerabilidades sociais!
-                $lotes = Lote::where('lotes.tenant_id', $tenantId)
+                $lotes = Lote::query()->where('lotes.tenant_id', $tenantId)
                     ->select('lotes.id', 'lotes.numero_lote', 'lotes.geo', 'lotes.code')
                     ->withExists([
                         // Verifica se existe alguma Unidade no Lote que tenha um Cadastro Social em Área de Risco
@@ -347,7 +352,7 @@ class MapDataController extends Controller
                 if ($l->proprietario_nome) {
                     $subtitulo .= " | Prop: " . $l->proprietario_nome . " (doc: " . $l->proprietario_cpf . ")";
                 }
-                
+
                 // 🟢 Se achou por causa do edifício, mostra com destaque para o usuário saber por que aquele lote apareceu!
                 $tituloPrincipal = "Lote: $num | Quadra: $quadra";
                 $tipoResult = 'lote'; // 🟢 Variável para controlar o ícone no JS
@@ -441,23 +446,35 @@ class MapDataController extends Controller
 
         // Segurança: Lista branca de tabelas estendida para incluir as novas camadas do cruzamento espacial
         $allowedTables = [
-            'lotes', 'edificacoes', 'logradouros', 'quadras', 'bairros', 'loteamentos', 
-            'rural_propriedades', 'rural_estradas', 'rural_pontes',
-            'postes', 'arvores', 'cemiterios', 'zonas', 'rural_localidades'
+            'lotes',
+            'edificacoes',
+            'logradouros',
+            'quadras',
+            'bairros',
+            'loteamentos',
+            'rural_propriedades',
+            'rural_estradas',
+            'rural_pontes',
+            'postes',
+            'arvores',
+            'cemiterios',
+            'zonas',
+            'rural_localidades'
         ];
 
         try {
             $features = [];
             $layer = "";
             $infoLabel = "";
+            $attr = null;
 
             // ========================================================================
             // ROTA 1: CRUZAMENTO ESPACIAL (Entre Camadas)
             // ========================================================================
             if ($tipoFiltro === 'espacial') {
-                $targetLayer = $request->query('spatial_target_layer'); 
-                $operator    = $request->query('spatial_operator'); 
-                $refLayer    = $request->query('spatial_reference_layer'); 
+                $targetLayer = $request->query('spatial_target_layer');
+                $operator    = $request->query('spatial_operator');
+                $refLayer    = $request->query('spatial_reference_layer');
                 $refIds      = $request->query('spatial_reference_ids'); // 👈 AGORA BUSCAMOS O ARRAY
 
                 // 🛡️ Fallback de segurança caso o JS ainda mande o id solto (para manter a compatibilidade)
@@ -498,17 +515,16 @@ class MapDataController extends Controller
                 $results = \Illuminate\Support\Facades\DB::select($query, $params);
                 $layer = $targetLayer;
                 $infoLabel = "Cruzamento Espacial ({$operator} em {$refLayer})";
-
-            } 
+            }
             // ========================================================================
             // 🟢 ROTA 3: CRUZAMENTO POR DESENHO (Polígono / Retângulo)
             // ========================================================================
             elseif ($tipoFiltro === 'desenho') {
                 $targetLayer = $request->query('draw_target_layer'); // O que buscar (ex: lotes)
                 $drawnGeometry = $request->query('drawn_geometry');  // O GeoJSON do desenho do usuário
-                
+
                 // 👈 Puxa o operador que o JS vai nos mandar agora
-                $drawOperator = $request->query('draw_spatial_operator', 'ST_Intersects'); 
+                $drawOperator = $request->query('draw_spatial_operator', 'ST_Intersects');
 
                 if (!$targetLayer || !$drawnGeometry) {
                     return response()->json(['error' => 'Parâmetros incompletos. Geometria de desenho ausente.'], 400);
@@ -542,12 +558,11 @@ class MapDataController extends Controller
                 $results = \Illuminate\Support\Facades\DB::select($query, [$tenantId, $drawnGeometry]);
                 $layer = $targetLayer;
                 $infoLabel = "Consulta Geográfica (Desenho Livre)";
-
             }
             // ========================================================================
             // ROTA 2: FILTRO POR ATRIBUTO (O Tradicional)
             // ========================================================================
-            else {
+            elseif ($tipoFiltro === 'atributo') {
                 $layer = $request->query('layer');
                 $field = $request->query('field');
                 $operator = $request->query('operator');
@@ -579,6 +594,57 @@ class MapDataController extends Controller
                 ')->limit(2000)->get();
 
                 $infoLabel = "Atributo ({$field})";
+
+                // ========================================================================
+                // 📊 ROTA 4: TEMATIZAÇÃO POR INTERVALO DE CLASSES
+                // ========================================================================
+            } elseif ($tipoFiltro === 'intervalo') {
+                $layer = $request->query('layer'); // 'lotes'
+                $attr = $request->query('interval_attribute'); // 'area_geo'
+
+                if (!$layer || !$attr) {
+                    return response()->json(['error' => 'Parâmetros incompletos para o Intervalo'], 400);
+                }
+
+                if (!in_array($layer, $allowedTables)) {
+                    return response()->json(['error' => 'Camada não permitida'], 403);
+                }
+
+                // Busca todos os itens da camada para calcular o gradiente de cores
+                // Sem limite drástico para que o mapa temático fique completo
+                // Colunas de identificação variam por camada
+                $labelColMap = [
+                    'lotes'              => 'numero_lote',
+                    'edificacoes'        => 'code',
+                    'quadras'            => 'code',
+                    'bairros'            => 'name',
+                    'loteamentos'        => 'name',
+                    'zonas'              => 'sigla',
+                    'rural_propriedades' => 'nome_propriedade',
+                    'rural_estradas'     => 'nome',
+                    'postes'             => 'sequential_id',
+                    'arvores'            => 'sequential_id',
+                    'setor_fiscais'      => 'code',
+                    'perimetro_urbanos'  => 'code',
+                ];
+                $labelCol = $labelColMap[$layer] ?? 'id';
+
+                $results = \Illuminate\Support\Facades\DB::table($layer)
+                    ->where('tenant_id', $tenantId)
+                    ->whereNull('deleted_at')
+                    ->whereNotNull('geo')
+                    ->selectRaw('
+                        id,
+                        ' . $labelCol . ' as label_visual,
+                        ' . $attr . ' as searched_value,
+                        ST_AsGeoJSON(geo) as geo_json
+                    ')
+                    ->limit(5000)
+                    ->get();
+
+                $infoLabel = "Valor do Atributo";
+            } else {
+                return response()->json(['error' => 'Tipo de filtro desconhecido.'], 400);
             }
 
             // ========================================================================
@@ -587,8 +653,7 @@ class MapDataController extends Controller
             foreach ($results as $item) {
                 if (!empty($item->geo_json)) {
 
-                    // 🧠 Tenta achar o nome de acordo com a tabela
-                    $tituloVisual = $item->numero_lote ?? $item->nome ?? $item->name ?? $item->inscricao_imobiliaria ?? ('ID: ' . $item->id);
+                    $tituloVisual = $item->label_visual ?? ('ID: ' . $item->id);
 
                     $features[] = [
                         'type' => 'Feature',
@@ -597,10 +662,15 @@ class MapDataController extends Controller
                             'layer' => $layer,
                             'name' => $tituloVisual,
                             'titulo' => $tituloVisual,
-                            'info' => "{$infoLabel}: " . ($item->searched_value ?? 'N/A')
+                            'info' => "{$infoLabel}: " . ($item->searched_value ?? 'N/A'),
+                            'searched_value' => isset($item->searched_value) ? (float) $item->searched_value : 0,
                         ],
                         'geometry' => json_decode($item->geo_json)
                     ];
+                    // Expõe o atributo numérico pelo nome original (ex: area_geo) quando for tematização por intervalo
+                    if ($attr) {
+                        $features[count($features) - 1]['properties'][$attr] = $features[count($features) - 1]['properties']['searched_value'];
+                    }
                 }
             }
 
@@ -608,7 +678,6 @@ class MapDataController extends Controller
                 'type' => 'FeatureCollection',
                 'features' => $features
             ]);
-
         } catch (\Exception $e) {
             return response()->json(['error' => 'Erro na consulta: ' . $e->getMessage()], 500);
         }

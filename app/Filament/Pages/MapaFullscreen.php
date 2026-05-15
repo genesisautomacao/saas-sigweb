@@ -1835,8 +1835,6 @@ class MapaFullscreen extends Page
     }
 
     // filtro avançado
-    // filtro avançado
-    // filtro avançado
     public function filtroAvancadoAction(): Action
     {
         return Action::make('filtroAvancado')
@@ -1854,7 +1852,8 @@ class MapaFullscreen extends Page
                     ->options([
                         'atributo' => 'Por Atributo (Texto / Número)',
                         'espacial' => 'Cruzamento Espacial (Ex: Lotes dentro de Bairro)',
-                        'desenho' => 'Desenhar Área no Mapa (Polígono / Retângulo)' // 🟢 NOVA OPÇÃO!
+                        'desenho' => 'Desenhar Área no Mapa (Polígono / Retângulo)',
+                        'intervalo' => 'Tematização por Intervalo (Classes)'
                     ])
                     ->default('atributo')
                     ->live()
@@ -1909,6 +1908,14 @@ class MapaFullscreen extends Page
                         ->label('Valor da Condição')
                         ->placeholder('Ex: 250, Asfalto, Boa...')
                         ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
+
+                    // 🎨 NOVO CAMPO: Definição de cor para Tematização (Fica fora dos grupos para aparecer em todos)
+                    Forms\Components\ColorPicker::make('cor_tematizacao')
+                        ->label('Cor da Tematização')
+                        ->default('#f59e0b') // Laranja padrão
+                        ->helperText('Escolha a cor para destacar os resultados no mapa.')
+                        ->required(),
+
                 ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
                 // -------------------------------------------------------------
@@ -1955,18 +1962,26 @@ class MapaFullscreen extends Page
                             $refLayer = $get('spatial_reference_layer');
                             if (!$refLayer) return [];
                             return match ($refLayer) {
-                                'quadras' => \App\Models\Quadra::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
-                                'bairros' => \App\Models\Bairro::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
-                                'loteamentos' => \App\Models\Loteamento::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
-                                'zonas' => \App\Models\Zona::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
-                                'rural_localidades' => \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
-                                'cemiterios' => \App\Models\Cemiterio::where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'quadras' => \App\Models\Quadra::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'bairros' => \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'loteamentos' => \App\Models\Loteamento::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'zonas' => \App\Models\Zona::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'rural_localidades' => \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'cemiterios' => \App\Models\Cemiterio::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 default => [],
                             };
                         })
                         ->searchable()
                         ->multiple()
                         ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+
+                    // 🎨 NOVO CAMPO: Definição de cor para Tematização (Fica fora dos grupos para aparecer em todos)
+                    Forms\Components\ColorPicker::make('cor_tematizacao')
+                        ->label('Cor da Tematização')
+                        ->default('#f59e0b') // Laranja padrão
+                        ->helperText('Escolha a cor para destacar os resultados no mapa.')
+                        ->required(),
+
                 ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
 
                 // -------------------------------------------------------------
@@ -2001,14 +2016,59 @@ class MapaFullscreen extends Page
                         ->default('Polygon')
                         ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
 
+                    // 🎨 NOVO CAMPO: Definição de cor para Tematização (Fica fora dos grupos para aparecer em todos)
+                    Forms\Components\ColorPicker::make('cor_tematizacao')
+                        ->label('Cor da Tematização')
+                        ->default('#f59e0b') // Laranja padrão
+                        ->helperText('Escolha a cor para destacar os resultados no mapa.')
+                        ->required(),
+
                 ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
+
+
+                // -------------------------------------------------------------
+                // BLOCO 4: INTERVALO DE CLASSES (NOVIDADE!)
+                // -------------------------------------------------------------
+                Forms\Components\Group::make([
+                    Forms\Components\Select::make('interval_layer')
+                        ->label('Camada para Análise')
+                        ->options(['lotes' => 'Lotes Urbanos', 'edificacoes' => 'Edificações'])
+                        ->default('lotes'),
+ 
+                    Forms\Components\Select::make('interval_attribute')
+                        ->label('Atributo Numérico (Escala)')
+                        ->options([
+                            'area_geo' => 'Área em m²',
+                            'main_facade_length' => 'Testada (m)',
+                        ])
+                        ->default('area_geo'),
+ 
+                    Forms\Components\Select::make('num_classes')
+                        ->label('Quantidade de Intervalos')
+                        ->options(['3' => '3 Faixas', '5' => '5 Faixas', '7' => '7 Faixas'])
+                        ->default('5'),
+ 
+                    Forms\Components\Grid::make(2)->schema([
+                        Forms\Components\ColorPicker::make('cor_inicio')
+                            ->label('Cor Inicial (menor valor)')
+                            ->default('#ffffb2'),
+                        Forms\Components\ColorPicker::make('cor_fim')
+                            ->label('Cor Final (maior valor)')
+                            ->default('#800026'),
+                    ]),
+                ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'intervalo'),
 
             ])
             ->action(function (array $data) {
                 $this->filtroAvancadoAtivo = true;
 
-                // 🟢 Lógica Bifurcada
-                if ($data['tipo_filtro'] === 'desenho') {
+                // 🟢 Lógica Trifurcada (A Rota Correta!)
+                if ($data['tipo_filtro'] === 'intervalo') {
+                    // Manda para o novo motor de Intervalo de Classes
+                    $this->dispatch('executar-tematizacao-intervalo', dados: $data);
+                    \Filament\Notifications\Notification::make()->title('Calculando Densidades...')->info()->send();
+                    
+                } elseif ($data['tipo_filtro'] === 'desenho') {
                     // Manda uma ordem especial para o JS ligar a ferramenta de desenho
                     $this->dispatch('iniciar-desenho-filtro', dados: $data);
 
@@ -2028,8 +2088,14 @@ class MapaFullscreen extends Page
     public function limparFiltroAvancado()
     {
         $this->filtroAvancadoAtivo = false;
-        $this->dispatch('limpar-filtro-avancado'); // Avisa o Javascript para limpar a tinta
-        \Filament\Notifications\Notification::make()->title('Filtros removidos!')->success()->send();
+        $this->dispatch('limpar-filtro-avancado');
+        \Filament\Notifications\Notification::make()->title('Todos os filtros removidos!')->success()->send();
+    }
+
+    #[\Livewire\Attributes\On('filtros-zerados')]
+    public function onFiltrosZerados(): void
+    {
+        $this->filtroAvancadoAtivo = false;
     }
 
     /**

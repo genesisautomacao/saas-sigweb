@@ -805,7 +805,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // 🛑 A TRAVA MESTRA: Se estiver editando geometria, desliga o hover na hora!
         if (featureEmEdicao) {
             if (hoveredFeature) {
-                hoveredFeature.setStyle(undefined); // Limpa o hover atual
+                hoveredFeature.setStyle(hoveredFeature.get('estilo_customizado') || undefined); // Limpa o hover atual
                 hoveredFeature = null;
             }
             if (featureTooltip) featureTooltip.style.display = 'none'; // Esconde o texto
@@ -814,7 +814,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // 1. Limpa o efeito do último elemento que passamos o mouse
         if (hoveredFeature) {
-            hoveredFeature.setStyle(undefined); // Devolve a cor original
+            hoveredFeature.setStyle(hoveredFeature.get('estilo_customizado') || undefined);
             hoveredFeature = null;
         }
 
@@ -3058,18 +3058,45 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
 
-                // 👇 AQUI ESTAVA O ERRO! Voltei para o seu querySource original!
-                querySource.clear(); // Limpa a busca anterior
-
                 if (data.features && data.features.length > 0) {
                     const features = new ol.format.GeoJSON().readFeatures(data, {
                         dataProjection: 'EPSG:4326',
                         featureProjection: 'EPSG:3857'
                     });
 
+                    // 🪄 LÊ A COR E APLICA O ESTILO CUSTOMIZADO
+                    const corHex = dados.cor_tematizacao || '#f59e0b';
+                    const estiloCustomizado = new ol.style.Style({
+                        fill: new ol.style.Fill({ color: hexToRgba(corHex, 0.4) }),
+                        stroke: new ol.style.Stroke({ color: corHex, width: 4 }),
+                        image: new ol.style.Circle({ radius: 8, fill: new ol.style.Fill({ color: corHex }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) })
+                    });
+
+                    // Gera um ID único para este filtro e marca cada feature
+                    const filtroId = 'filtro_' + Date.now();
+                    features.forEach(f => {
+                        f.setStyle(estiloCustomizado);
+                        f.set('estilo_customizado', estiloCustomizado);
+                        f.set('filtro_id', filtroId); // 👈 Marca a qual filtro esta feature pertence
+                    });
                     querySource.addFeatures(features);
 
-                    // Dá um zoom automático para focar nos resultados encontrados
+                    // Monta descrição legível do filtro
+                    let descricao = '';
+                    if (dados.tipo_filtro === 'atributo') {
+                        descricao = `${dados.layer}: ${dados.field} ${dados.operator} "${dados.value}"`;
+                    } else if (dados.tipo_filtro === 'espacial') {
+                        descricao = `${dados.spatial_target_layer} dentro de ${dados.spatial_reference_layer}`;
+                    } else if (dados.tipo_filtro === 'desenho') {
+                        descricao = `${dados.draw_target_layer} por área desenhada`;
+                    }
+
+                    // Registra o filtro no painel
+                    window.filtrosAtivos = window.filtrosAtivos || [];
+                    window.filtrosAtivos.push({ id: filtroId, descricao, cor: corHex, total: features.length });
+                    window.atualizarPainelFiltros();
+
+                    // Zoom automático
                     map.getView().fit(querySource.getExtent(), {
                         padding: [50, 50, 50, 50],
                         duration: 1000,
@@ -3086,11 +3113,154 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     });
 
+    // =========================================================================
+    // NOVO: TEMATIZAÇÃO POR INTERVALO DE CLASSES (CHOROPLETH)
+    // =========================================================================
+    window.addEventListener('executar-tematizacao-intervalo', async (e) => {
+        const dados = e.detail.dados || e.detail;
+        const layer = dados.interval_layer;
+        const attr = dados.interval_attribute;
+        const nClasses = parseInt(dados.num_classes);
+
+        // 🛑 AQUI ESTÁ A CORREÇÃO: Usando a rota oficial /api/gis-data
+        const response = await fetch(
+            `/api/mapa/advanced-query?tenant_id=${config.tenantId}&tipo_filtro=intervalo&layer=${layer}&interval_attribute=${attr}`
+        );
+        const data = await response.json();
+
+        if (!data.features || data.features.length === 0) {
+            alert("Não há dados suficientes para criar o mapa temático.");
+            return;
+        }
+
+        // 2. Cálculo dos Intervalos (Acha o Min e Max da Área/Testada)
+        const valores = data.features.map(f => {
+            const v = parseFloat(f.properties[attr]);
+            if (v && v > 0) return v;
+            // Fallback: calcula área aproximada da geometria em m² (projeção plana simples)
+            if (attr === 'area_geo' && f.geometry?.type === 'Polygon') {
+                const coords = f.geometry.coordinates[0];
+                let area = 0;
+                for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
+                    area += (coords[j][0] + coords[i][0]) * (coords[j][1] - coords[i][1]);
+                }
+                return Math.abs(area / 2) * 1e10; // graus → valor relativo comparável
+            }
+            return 0;
+        }).filter(v => v > 0);
+
+        if (valores.length === 0) {
+            alert(`Nenhum valor numérico encontrado no atributo "${attr}" para calcular as cores.`);
+            return;
+        }
+
+        const min = Math.min(...valores);
+        const max = Math.max(...valores);
+        const range = (max - min) / nClasses;
+
+        // 3. Paleta de Cores — degradê personalizado entre cor_inicio e cor_fim
+        function hexToRgb(hex) {
+            const h = hex.replace('#', '');
+            return [
+                parseInt(h.substring(0, 2), 16),
+                parseInt(h.substring(2, 4), 16),
+                parseInt(h.substring(4, 6), 16)
+            ];
+        }
+        function rgbToHex(r, g, b) {
+            return '#' + [r, g, b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+        }
+        function gerarGradiente(hexInicio, hexFim, steps) {
+            const [r1, g1, b1] = hexToRgb(hexInicio);
+            const [r2, g2, b2] = hexToRgb(hexFim);
+            return Array.from({ length: steps }, (_, i) => {
+                const t = steps === 1 ? 0 : i / (steps - 1);
+                return rgbToHex(r1 + (r2 - r1) * t, g1 + (g2 - g1) * t, b1 + (b2 - b1) * t);
+            });
+        }
+        const corInicio = dados.cor_inicio || '#ffffb2';
+        const corFim = dados.cor_fim || '#800026';
+        const colors = gerarGradiente(corInicio, corFim, nClasses);
+
+        const features = new ol.format.GeoJSON().readFeatures(data, {
+            dataProjection: 'EPSG:4326',
+            featureProjection: 'EPSG:3857'
+        });
+
+        // 4. Pintura por "Degrau"
+        const filtroIdIntervalo = 'filtro_' + Date.now();
+        features.forEach(f => {
+            let val = parseFloat(f.get(attr)) || 0;
+            if (val === 0 && attr === 'area_geo') {
+                const geom = f.getGeometry();
+                if (geom) val = ol.sphere.getArea(geom); // área real em m² usando OL
+            }
+
+            let classIdx = Math.floor((val - min) / range);
+            if (classIdx >= nClasses) classIdx = nClasses - 1;
+            if (classIdx < 0) classIdx = 0;
+
+            const cor = colors[classIdx];
+            const estilo = new ol.style.Style({
+                fill: new ol.style.Fill({ color: hexToRgba(cor, 0.7) }),
+                stroke: new ol.style.Stroke({ color: '#ffffff', width: 1 })
+            });
+
+            f.setStyle(estilo);
+            f.set('estilo_customizado', estilo);
+            f.set('filtro_id', filtroIdIntervalo);
+        });
+
+        querySource.addFeatures(features);
+        map.getView().fit(querySource.getExtent(), { padding: [50, 50, 50, 50], duration: 1000 });
+
+        // Registra no painel
+        window.filtrosAtivos = window.filtrosAtivos || [];
+        window.filtrosAtivos.push({
+            id: filtroIdIntervalo,
+            descricao: `Intervalo: ${layer} por ${attr} (${nClasses} faixas)`,
+            cor: corInicio + '→' + corFim,
+            total: features.length,
+            gradiente: true,
+            cores: colors
+        });
+        window.atualizarPainelFiltros();
+    });
+
+    // =========================================================================
+    // GERENCIADOR DE FILTROS ATIVOS — deve ficar ANTES de todos os listeners
+    // =========================================================================
+    window.filtrosAtivos = [];
+
+    window.atualizarPainelFiltros = function() {
+        const painel = document.getElementById('painel-filtros-ativos');
+        if (!painel) return;
+        if (!window.filtrosAtivos.length) { painel.style.display = 'none'; return; }
+        painel.style.display = 'block';
+        const lista = document.getElementById('lista-filtros-ativos');
+        lista.innerHTML = window.filtrosAtivos.map(f => `
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.08);font-size:11px;color:#e5e7eb;">
+                <span style="display:inline-block;width:24px;height:12px;border-radius:3px;flex-shrink:0;${f.gradiente ? `background:linear-gradient(to right,${f.cores.join(',')})` : `background:${f.cor}`};"></span>
+                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${f.descricao}">${f.descricao} <span style="opacity:0.6">(${f.total})</span></span>
+                <button onclick="window.removerFiltro('${f.id}')" style="background:none;border:none;cursor:pointer;padding:0;color:#f87171;font-size:14px;line-height:1;">✕</button>
+            </div>
+        `).join('');
+    };
+
+    window.removerFiltro = function(filtroId) {
+        querySource.getFeatures().filter(f => f.get('filtro_id') === filtroId).forEach(f => querySource.removeFeature(f));
+        window.filtrosAtivos = window.filtrosAtivos.filter(f => f.id !== filtroId);
+        window.atualizarPainelFiltros();
+        if (!window.filtrosAtivos.length && window.Livewire) Livewire.dispatch('filtros-zerados');
+    };
+
     // --- ESCUTADOR PARA LIMPAR O FILTRO ---
     window.addEventListener('limpar-filtro-avancado', () => {
         if (typeof querySource !== 'undefined') {
-            querySource.clear(); // Limpa a tinta alaranjada do mapa
-            console.log("🧹 Filtro avançado desligado e mapa limpo.");
+            querySource.clear();
+            window.filtrosAtivos = [];
+            window.atualizarPainelFiltros();
+            console.log("🧹 Todos os filtros removidos.");
         }
     });
 
@@ -3119,7 +3289,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Limpa desenhos e consultas anteriores
         drawFiltroSource.clear();
-        querySource.clear();
 
         // Se já tinha uma caneta ligada, desliga para não bugar
         if (drawFiltroInteraction) {
@@ -3200,7 +3369,30 @@ document.addEventListener('DOMContentLoaded', function () {
                         });
 
                         // Pinta os Lotes/Postes encontrados de Laranja!
+                        // 🪄 LÊ A COR DO DESENHO E APLICA
+                        const corHex = dados.cor_tematizacao || '#f59e0b';
+                        const estiloCustomizado = new ol.style.Style({
+                            fill: new ol.style.Fill({ color: hexToRgba(corHex, 0.4) }),
+                            stroke: new ol.style.Stroke({ color: corHex, width: 4 }),
+                            image: new ol.style.Circle({ radius: 8, fill: new ol.style.Fill({ color: corHex }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) })
+                        });
+
+                        const filtroIdDesenho = 'filtro_' + Date.now();
+                        features.forEach(f => {
+                            f.setStyle(estiloCustomizado);
+                            f.set('estilo_customizado', estiloCustomizado);
+                            f.set('filtro_id', filtroIdDesenho);
+                        });
                         querySource.addFeatures(features);
+
+                        window.filtrosAtivos = window.filtrosAtivos || [];
+                        window.filtrosAtivos.push({
+                            id: filtroIdDesenho,
+                            descricao: `${dados.draw_target_layer} por área desenhada`,
+                            cor: corHex,
+                            total: features.length
+                        });
+                        window.atualizarPainelFiltros();
 
                         // Dá o Zoom elegante nos resultados
                         map.getView().fit(querySource.getExtent(), {
@@ -3281,7 +3473,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.cancelarUnificacao = function () {
         window.modoUnificacao = false;
         document.getElementById('painel-unificacao')?.remove();
-        window.featuresUnificacao.forEach(f => f.setStyle(undefined));
+        window.featuresUnificacao.forEach(f => f.setStyle(f.get('estilo_customizado') || undefined));
     };
 
     window.concluirUnificacao = function () {
@@ -3443,9 +3635,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = 'https://ogre.adc4gis.com/convertJson';
-        
+
         // Target _blank faz o download iniciar em segundo plano sem tirar o usuário do SIGWEB
-        form.target = '_blank'; 
+        form.target = '_blank';
 
         const inputJson = document.createElement('input');
         inputJson.type = 'hidden';
@@ -3460,10 +3652,10 @@ document.addEventListener('DOMContentLoaded', function () {
         form.appendChild(inputJson);
         form.appendChild(inputName);
         document.body.appendChild(form);
-        
+
         // 3. Dispara o POST. O Servidor converte e devolve o .ZIP automaticamente!
         form.submit();
-        
+
         // 4. Limpa a sujeira do HTML após 1 segundo
         setTimeout(() => document.body.removeChild(form), 1000);
     });
@@ -3571,5 +3763,14 @@ document.addEventListener('DOMContentLoaded', function () {
         // Dispara o comando para o mapa se redesenhar no tamanho gigante
         map.renderSync();
     });
+
+    // 🎨 FUNÇÃO AUXILIAR: Converte HEX do Filament para RGBA do OpenLayers
+    function hexToRgba(hex, alpha) {
+        if (!hex) return `rgba(245, 158, 11, ${alpha})`; // Fallback para laranja
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
 
 }); // <-- Fim do DOMContentLoaded

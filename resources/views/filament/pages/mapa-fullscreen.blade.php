@@ -108,15 +108,10 @@
 
                 {{-- BOTÃO FILTRO AVANÇADO (Inteligente com Alpine.js) --}}
                 <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }"
-                    x-on:click="ativo ? $wire.limparFiltroAvancado() : $wire.mountAction('filtroAvancadoAction')"
-                    :class="ativo ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' :
-                        'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'"
-                    class="relative  rounded-lg transition-colors flex items-center justify-center"
-                    :title="ativo ? 'Limpar Filtro' : 'Filtro Avançado'">
-
+                    x-on:click="$wire.mountAction('filtroAvancadoAction')"
+                    class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                    title="Filtro Avançado / Tematização">
                     <x-heroicon-o-funnel class="w-5 h-5" />
-
-
                 </button>
 
                 <div class="flex items-center gap-1 px-1">
@@ -1971,4 +1966,33 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <x-filament-actions::modals />
+
+    {{-- PAINEL DE FILTROS ATIVOS --}}
+    <div id="painel-filtros-ativos" style="
+        display: none;
+        position: absolute;
+        bottom: 40px;
+        left: 16px;
+        z-index: 1000;
+        background: rgba(17, 24, 39, 0.92);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
+        padding: 10px;
+        min-width: 260px;
+        max-width: 320px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    ">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.05em;">
+                🎨 Tematizações Ativas
+            </span>
+            <button onclick="$wire.limparFiltroAvancado()" style="
+                font-size:10px; padding:3px 8px; border-radius:6px;
+                background:rgba(239,68,68,0.2); color:#f87171;
+                border:1px solid rgba(239,68,68,0.3); cursor:pointer;
+            ">Limpar Todos</button>
+        </div>
+        <div id="lista-filtros-ativos" style="display:flex; flex-direction:column; gap:4px;"></div>
+    </div>
 </div>

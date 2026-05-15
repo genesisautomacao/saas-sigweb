@@ -35,7 +35,7 @@ class AppPanelProvider extends PanelProvider
             ->passwordReset()
             ->profile()
             ->colors([
-                'primary' => Color::Indigo,
+                'primary' => Color::hex('#00628b'),
             ])
 
             //configs adicionais do grupo
