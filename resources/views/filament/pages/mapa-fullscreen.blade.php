@@ -613,11 +613,11 @@
         {{-- BARRA FLUTUANTE DE EDIÇÃO ESPACIAL (Alpine.js) --}}
         <div x-data="{ editandoId: null, modoLocal: 'mover' }" x-show="editandoId !== null" {{-- MÁGICA: Ao iniciar a edição, zera o input de rotação --}}
             @iniciar-edicao.window="
-                editandoId = $event.detail.id; 
-                modoLocal = 'mover'; 
-                if(document.getElementById('slider-rotacao')) { 
-                    document.getElementById('slider-rotacao').value = 0; 
-                    document.getElementById('input-rotacao').value = 0; 
+                editandoId = $event.detail.id;
+                modoLocal = 'mover';
+                if(document.getElementById('slider-rotacao')) {
+                    document.getElementById('slider-rotacao').value = 0;
+                    document.getElementById('input-rotacao').value = 0;
                 }
             "
             @encerrar-edicao.window="editandoId = null"
@@ -820,6 +820,15 @@
                             </span>
                         </label>
 
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" data-layer="setores_fiscais"
+                                class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                <span class="layer-text truncate">Setores Fiscais</span>
+                            </span>
+                        </label>
+
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="bairros"
                                 class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
@@ -855,15 +864,6 @@
                                 </div><span class="layer-text truncate">Lotes</span>
                             </span>
                         </label>
-
-                        {{-- <label class="flex items-center space-x-3 cursor-pointer w-full">
-                            <input type="checkbox" data-layer="edificacoes"
-                                class="layer-toggle rounded border-gray-300 text-amber-700 focus:ring-amber-700 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-amber-700 rounded-sm opacity-80 shadow-sm flex-shrink-0"></div>
-                                <span class="layer-text truncate">Edificações</span>
-                            </span>
-                        </label> --}}
 
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
                             <input type="checkbox" data-layer="logradouros"
@@ -1006,29 +1006,6 @@
                             </span>
                         </label>
 
-                    </div>
-                </div>
-
-                {{-- GRUPO 5: GESTÃO TRIBUTÁRIA --}}
-                <div class="border-b border-gray-100/50 dark:border-gray-700/50 bg-amber-50/30 dark:bg-amber-900/10">
-                    <button @click="activeTab = activeTab === 'pgv' ? '' : 'pgv'"
-                        class="w-full px-4 py-3 text-left font-bold text-sm text-amber-700 dark:text-amber-500 hover:bg-amber-100/50 flex justify-between items-center transition-colors">
-                        <span class="flex items-center gap-2">Gestão Tributária (PGV)</span>
-                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
-                            x-bind:class="activeTab === 'pgv' ? 'rotate-180' : ''" />
-                    </button>
-                    <div x-show="activeTab === 'pgv'" x-collapse
-                        class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full">
-                        <label class="flex items-center space-x-3 cursor-pointer w-full mt-2">
-                            <input type="checkbox" data-layer="setores_fiscais"
-                                class="layer-toggle rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1">
-                                <div class="w-3 h-3 bg-amber-500 rounded-sm opacity-80 flex-shrink-0"></div>
-                                <span class="layer-text font-bold text-gray-700 dark:text-gray-300">Zonas de Valor
-                                    (Setores
-                                    Fiscais)</span>
-                            </span>
-                        </label>
                     </div>
                 </div>
 

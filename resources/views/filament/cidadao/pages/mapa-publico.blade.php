@@ -89,12 +89,11 @@
                 </div>
 
                 {{-- BOTÃO FILTRO AVANÇADO --}}
-                <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }"
-                    x-on:click="ativo ? $wire.limparFiltroAvancado() : $wire.mountAction('filtroAvancadoAction')"
+                <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }" x-on:click="$wire.mountAction('filtroAvancadoAction')"
                     :class="ativo ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' :
                         'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'"
                     class="relative p-2 rounded-lg transition-colors flex items-center justify-center"
-                    :title="ativo ? 'Limpar Filtro' : 'Filtro Avançado'">
+                    title="Filtro Avançado / Tematização">
                     <x-heroicon-o-funnel class="w-5 h-5" />
                 </button>
 
@@ -174,6 +173,8 @@
                     </button>
                     <div x-show="activeTab === 'base'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
+
+                        {{-- Perimetro --}}
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
                                 data-layer="perimetros"
                                 class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0"><span
@@ -181,6 +182,16 @@
                                 <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
                                 <span class="layer-text truncate">Perímetros/Limites</span>
                             </span></label>
+
+                        {{-- Setores --}}
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
+                                data-layer="setores_fiscais"
+                                class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0"><span
+                                class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                <span class="layer-text truncate">Setores</span>
+                            </span></label>
+
                         <label class="flex items-center space-x-3 cursor-pointer w-full"><input type="checkbox"
                                 data-layer="bairros"
                                 class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0"><span
@@ -771,6 +782,38 @@
         }
         dragElement(document.getElementById("layers-panel"));
     </script>
+
+    {{-- PAINEL DE FILTROS ATIVOS (TEMATIZAÇÕES) --}}
+    <div id="painel-filtros-ativos"
+        style="
+        display: none;
+        position: absolute;
+        bottom: 40px;
+        left: 16px;
+        z-index: 1000;
+        background: rgba(17, 24, 39, 0.92);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
+        padding: 10px;
+        min-width: 260px;
+        max-width: 320px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    ">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <span
+                style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.05em;">
+                🎨 Tematizações Ativas
+            </span>
+            <button onclick="$wire.limparFiltroAvancado()"
+                style="font-size:10px; padding:3px 8px; border-radius:6px;
+                background:rgba(239,68,68,0.2); color:#f87171;
+                border:1px solid rgba(239,68,68,0.3); cursor:pointer;">
+                Limpar Todos
+            </button>
+        </div>
+        <div id="lista-filtros-ativos" style="display:flex; flex-direction:column; gap:4px;"></div>
+    </div>
 
     <x-filament-actions::modals />
 </div>
