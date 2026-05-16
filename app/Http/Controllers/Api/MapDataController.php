@@ -429,7 +429,100 @@ class MapDataController extends Controller
                 ];
             }
 
+            // --- 4. BUSCA DE LOTEAMENTOS ---
+            $loteamentos = \Illuminate\Support\Facades\DB::table('loteamentos')
+                ->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')
+                ->whereNotNull('geo')
+                ->where('name', 'ilike', "%{$termo}%")
+                ->selectRaw("id, name, ST_AsGeoJSON(ST_PointOnSurface(geo::geometry)) as centroide")
+                ->limit(5)
+                ->get();
+
+            foreach ($loteamentos as $lot) {
+                $centroide = json_decode($lot->centroide);
+                $coords = $centroide->coordinates ?? null;
+                if (!$coords) continue;
+                $results[] = [
+                    'id'        => $lot->id,
+                    'tipo'      => 'loteamento',
+                    'titulo'    => $lot->name,
+                    'subtitulo' => 'Loteamento',
+                    'coords'    => $coords
+                ];
+            }
+
+            // --- 5. BUSCA DE QUADRAS ---
+            $quadras = \Illuminate\Support\Facades\DB::table('quadras')
+                ->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')
+                ->whereNotNull('geo')
+                ->where('name', 'ilike', "%{$termo}%")
+                ->selectRaw("id, name, ST_AsGeoJSON(ST_PointOnSurface(geo::geometry)) as centroide")
+                ->limit(5)
+                ->get();
+
+            foreach ($quadras as $quadra) {
+                $centroide = json_decode($quadra->centroide);
+                $coords = $centroide->coordinates ?? null;
+                if (!$coords) continue;
+                $results[] = [
+                    'id'        => $quadra->id,
+                    'tipo'      => 'quadra',
+                    'titulo'    => 'Quadra ' . $quadra->name,
+                    'subtitulo' => 'Quadra Urbana',
+                    'coords'    => $coords
+                ];
+            }
+
+            // --- 6. BUSCA DE SETORES FISCAIS ---
+            $setores = \Illuminate\Support\Facades\DB::table('setores_fiscais')
+                ->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')
+                ->whereNotNull('geo')
+                ->where('nome', 'ilike', "%{$termo}%")
+                ->selectRaw("id, nome, ST_AsGeoJSON(ST_PointOnSurface(geo::geometry)) as centroide")
+                ->limit(5)
+                ->get();
+
+            foreach ($setores as $setor) {
+                $centroide = json_decode($setor->centroide);
+                $coords = $centroide->coordinates ?? null;
+                if (!$coords) continue;
+                $results[] = [
+                    'id'       => $setor->id,
+                    'tipo'     => 'setor',
+                    'titulo'   => $setor->nome,
+                    'subtitulo'=> 'Setor Fiscal',
+                    'coords'   => $coords
+                ];
+            }
+
+            // --- 7. BUSCA DE DISTRITOS (Perímetros Urbanos) ---
+            $distritos = \Illuminate\Support\Facades\DB::table('perimetros_urbanos')
+                ->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')
+                ->whereNotNull('geo')
+                ->where('name', 'ilike', "%{$termo}%")
+                ->selectRaw("id, name, ST_AsGeoJSON(ST_PointOnSurface(geo::geometry)) as centroide")
+                ->limit(5)
+                ->get();
+
+            foreach ($distritos as $distrito) {
+                $centroide = json_decode($distrito->centroide);
+                $coords = $centroide->coordinates ?? null;
+                if (!$coords) continue;
+                $results[] = [
+                    'id'       => $distrito->id,
+                    'tipo'     => 'distrito',
+                    'titulo'   => $distrito->name,
+                    'subtitulo'=> 'Distrito / Perímetro Urbano',
+                    'coords'   => $coords
+                ];
+            }
+
             return response()->json($results);
+            
         } catch (\Exception $e) {
             return response()->json(['message' => 'Erro DB: ' . $e->getMessage()], 500);
         }

@@ -591,6 +591,40 @@ document.addEventListener('DOMContentLoaded', function () {
         controls: []
     });
 
+    // ── ZOOM EXTENSÃO + VISÃO ANTERIOR ──────────────────────────────
+    // Guarda a view inicial diretamente do config do tenant
+    const initialCenter = ol.proj.fromLonLat([config.mapLon, config.mapLat]);
+    const initialZoom = config.mapZoom;
+
+    // Histórico de navegação
+    const viewHistory = [];
+    let viewHistoryIndex = -1;
+    let navegandoHistorico = false;
+
+    map.getView().on('change:resolution', () => {
+        if (navegandoHistorico) return;
+        const v = map.getView();
+        viewHistory.splice(viewHistoryIndex + 1);
+        viewHistory.push({ center: v.getCenter().slice(), zoom: v.getZoom() });
+        if (viewHistory.length > 50) viewHistory.shift();
+        viewHistoryIndex = viewHistory.length - 1;
+    });
+
+    window.zoomExtensao = function () {
+        map.getView().animate({ center: initialCenter, zoom: initialZoom, duration: 600 });
+    };
+
+    window.visaoAnterior = function () {
+        if (viewHistoryIndex <= 0) return;
+        viewHistoryIndex--;
+        navegandoHistorico = true;
+        const v = viewHistory[viewHistoryIndex];
+        map.getView().animate({ center: v.center, zoom: v.zoom, duration: 400 }, () => {
+            navegandoHistorico = false;
+        });
+    };
+    // ────────────────────────────────────────────────────────────────
+
     // 4. LÓGICA DE TROCA DE MAPA BASE
     window.addEventListener('switch-basemap', event => {
         let selectedType = event.detail;
@@ -3232,7 +3266,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     window.filtrosAtivos = [];
 
-    window.atualizarPainelFiltros = function() {
+    window.atualizarPainelFiltros = function () {
         const painel = document.getElementById('painel-filtros-ativos');
         if (!painel) return;
         if (!window.filtrosAtivos.length) { painel.style.display = 'none'; return; }
@@ -3247,7 +3281,7 @@ document.addEventListener('DOMContentLoaded', function () {
         `).join('');
     };
 
-    window.removerFiltro = function(filtroId) {
+    window.removerFiltro = function (filtroId) {
         querySource.getFeatures().filter(f => f.get('filtro_id') === filtroId).forEach(f => querySource.removeFeature(f));
         window.filtrosAtivos = window.filtrosAtivos.filter(f => f.id !== filtroId);
         window.atualizarPainelFiltros();
@@ -3768,32 +3802,32 @@ document.addEventListener('DOMContentLoaded', function () {
     // ESTATÍSTICAS POR ÁREA DE INTERESSE
     // =========================================================================
     window.estatOverlays = [];
- 
-    window.limparOverlaysEstat = function() {
+
+    window.limparOverlaysEstat = function () {
         window.estatOverlays.forEach(o => map.removeOverlay(o));
         window.estatOverlays = [];
     };
- 
+
     window.addEventListener('executar-estatisticas', async (e) => {
         const dados = e.detail.dados || e.detail;
         const { area_type, area_id, target_layer, group_field, chart_type, show_on_map } = dados;
- 
+
         const url = `/api/mapa/estatisticas?tenant_id=${config.tenantId}&area_type=${area_type}&area_id=${area_id}&target_layer=${target_layer}&group_field=${group_field}`;
- 
+
         try {
             const resp = await fetch(url);
             const json = await resp.json();
- 
+
             if (json.error) { alert('Erro: ' + json.error); return; }
             if (!json.areas || !json.areas.length) { alert('Nenhum dado encontrado para essa seleção.'); return; }
- 
+
             // ---- Painel lateral ----
-            const painel   = document.getElementById('painel-estatisticas');
-            const titulo   = document.getElementById('stat-titulo');
-            const resumo   = document.getElementById('stat-resumo');
-            const tabela   = document.getElementById('stat-tabela');
-            const canvas   = document.getElementById('stat-chart');
- 
+            const painel = document.getElementById('painel-estatisticas');
+            const titulo = document.getElementById('stat-titulo');
+            const resumo = document.getElementById('stat-resumo');
+            const tabela = document.getElementById('stat-tabela');
+            const canvas = document.getElementById('stat-chart');
+
             // Agrega todos os grupos de todas as áreas para o gráfico do painel
             const agregado = {};
             let totalGeral = 0;
@@ -3803,14 +3837,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     agregado[g.valor] = (agregado[g.valor] || 0) + g.quantidade;
                 });
             });
- 
-            const labels   = Object.keys(agregado);
-            const valores  = Object.values(agregado);
-            const cores    = labels.map((_, i) => `hsl(${(i * 47) % 360}, 65%, 55%)`);
- 
+
+            const labels = Object.keys(agregado);
+            const valores = Object.values(agregado);
+            const cores = labels.map((_, i) => `hsl(${(i * 47) % 360}, 65%, 55%)`);
+
             titulo.textContent = `${json.areas[0]?.layer_label || target_layer} — ${json.areas[0]?.group_label || group_field}`;
             resumo.textContent = `Total geral: ${totalGeral} | ${json.areas.length} área(s)`;
- 
+
             // Destrói chart anterior se existir
             if (window._estatChartInstance) window._estatChartInstance.destroy();
             window._estatChartInstance = new Chart(canvas.getContext('2d'), {
@@ -3833,7 +3867,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
             });
- 
+
             // Tabela resumo
             tabela.innerHTML = `
                 <table style="width:100%;border-collapse:collapse;font-size:11px;color:#e5e7eb;">
@@ -3851,34 +3885,34 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <span style="width:8px;height:8px;border-radius:2px;background:${cores[i]};display:inline-block;"></span>${l}
                                 </td>
                                 <td style="text-align:right;padding:4px 6px;">${valores[i]}</td>
-                                <td style="text-align:right;padding:4px 6px;">${totalGeral > 0 ? (valores[i]/totalGeral*100).toFixed(1) : 0}%</td>
+                                <td style="text-align:right;padding:4px 6px;">${totalGeral > 0 ? (valores[i] / totalGeral * 100).toFixed(1) : 0}%</td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>`;
- 
+
             painel.style.display = 'block';
- 
+
             // ---- Overlays no mapa ----
             window.limparOverlaysEstat();
- 
+
             if (show_on_map) {
                 json.areas.forEach(area => {
                     if (!area.centroide || !area.grupos.length) return;
- 
+
                     const [lng, lat] = area.centroide;
                     const coord = ol.proj.fromLonLat([lng, lat]);
- 
+
                     // Cria canvas do mini-gráfico
                     const miniCanvas = document.createElement('canvas');
-                    miniCanvas.width  = 100;
+                    miniCanvas.width = 100;
                     miniCanvas.height = 100;
                     miniCanvas.style.cssText = 'border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.5);cursor:pointer;';
- 
+
                     const miniLabels = area.grupos.map(g => g.valor);
-                    const miniValores= area.grupos.map(g => g.quantidade);
-                    const miniCores  = miniLabels.map((_, i) => `hsl(${(i * 47) % 360}, 65%, 55%)`);
- 
+                    const miniValores = area.grupos.map(g => g.quantidade);
+                    const miniCores = miniLabels.map((_, i) => `hsl(${(i * 47) % 360}, 65%, 55%)`);
+
                     new Chart(miniCanvas.getContext('2d'), {
                         type: 'pie',
                         data: { labels: miniLabels, datasets: [{ data: miniValores, backgroundColor: miniCores }] },
@@ -3888,7 +3922,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             plugins: { legend: { display: false }, tooltip: { enabled: false } }
                         }
                     });
- 
+
                     // Label com nome da área + total
                     const wrapper = document.createElement('div');
                     wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:3px;';
@@ -3897,19 +3931,19 @@ document.addEventListener('DOMContentLoaded', function () {
                     label.textContent = `${area.area_label} (${area.total})`;
                     wrapper.appendChild(miniCanvas);
                     wrapper.appendChild(label);
- 
+
                     const overlay = new ol.Overlay({
                         position: coord,
                         positioning: 'center-center',
                         element: wrapper,
                         stopEvent: false,
                     });
- 
+
                     map.addOverlay(overlay);
                     window.estatOverlays.push(overlay);
                 });
             }
- 
+
         } catch (err) {
             console.error('Erro nas estatísticas:', err);
             alert('Falha ao carregar estatísticas.');

@@ -29,11 +29,11 @@ class UnidadesImobiliariasRelationManager extends RelationManager
                     ->label('Proprietário Principal')
                     ->options(fn() => Pessoa::pluck('name', 'id'))
                     ->searchable(),
-                
+
                 // 🛑 NOVO: Campo de leitura do JSON
                 Forms\Components\Textarea::make('dados_tributarios')
                     ->label('Dados Sincronizados (API Prefeitura)')
-                    ->formatStateUsing(fn ($state) => $state ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'Ainda não sincronizado.')
+                    ->formatStateUsing(fn($state) => $state ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'Ainda não sincronizado.')
                     ->disabled() // Impede a edição manual do JSON
                     ->rows(15)
                     ->columnSpanFull(),
@@ -48,7 +48,7 @@ class UnidadesImobiliariasRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID'),
                 Tables\Columns\TextColumn::make('codigo_imovel_tributario')->label('Cód Tributário')->weight('bold'),
                 Tables\Columns\TextColumn::make('inscricao_imobiliaria')->label('Inscrição Imobiliária'),
-                
+
                 // Exibe o nome do JSON de forma inteligente, mesmo se não tiver proprietário_id linkado no banco
                 Tables\Columns\TextColumn::make('dados_tributarios.proprietario_name')
                     ->label('Contribuinte (API Prefeitura)')
@@ -67,10 +67,10 @@ class UnidadesImobiliariasRelationManager extends RelationManager
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('Sincronizar com a Prefeitura')
-                    ->modalDescription(fn ($record) => "Deseja buscar os dados fiscais do imóvel de código: {$record->codigo_imovel_tributario}?")
+                    ->modalDescription(fn($record) => "Deseja buscar os dados fiscais do imóvel de código: {$record->codigo_imovel_tributario}?")
                     ->modalSubmitActionLabel('Sim, buscar dados')
                     ->action(function ($record, \App\Services\ApiTools\IntegraPrefeituraService $apiService) {
-                        
+
                         if (!$record->codigo_imovel_tributario) {
                             Notification::make()->title('Código Ausente')->body('Preencha o Código Imóvel Tributário antes de sincronizar.')->warning()->send();
                             return;
@@ -83,17 +83,65 @@ class UnidadesImobiliariasRelationManager extends RelationManager
                             if ($dadosPrefeitura) {
                                 $record->update([
                                     'inscricao_imobiliaria' => $dadosPrefeitura['inscricao_imobiliaria'],
-                                    'dados_tributarios' => $dadosPrefeitura 
+                                    'dados_tributarios' => $dadosPrefeitura
                                 ]);
                                 Notification::make()->title('Sincronizado com Sucesso!')->success()->send();
                             } else {
-                                Notification::make()->title('Não Encontrado')->body('O código '.$record->codigo_imovel_tributario.' não foi localizado na prefeitura.')->danger()->send();
+                                Notification::make()->title('Não Encontrado')->body('O código ' . $record->codigo_imovel_tributario . ' não foi localizado na prefeitura.')->danger()->send();
                             }
-                            
                         } catch (\Exception $e) {
                             Notification::make()->title('Erro na Integração')->body($e->getMessage())->danger()->send();
                         }
                     }),
+
+                // --- INÍCIO DA NOVA AÇÃO DE DOCUMENTOS ---
+                Tables\Actions\EditAction::make('gerenciar_documentos')
+                    ->label('Documentos')
+                    ->icon('heroicon-o-paper-clip')
+                    ->color('warning')
+                    ->modalHeading(fn($record) => "Documentos: Unidade " . ($record->codigo_imovel_tributario ?? 'Sem Código'))
+                    ->modalDescription('Gerencie escrituras, RG, CPF e outros arquivos vinculados a esta unidade.')
+                    ->modalSubmitActionLabel('Salvar Documentos')
+                    ->slideOver() // Abre uma aba lateral elegante em vez de um modal central
+                    ->form([
+                        Forms\Components\Repeater::make('documentos')
+                            ->relationship('documentos') // Magia do Filament: vincula com a função documentos() da Model
+                            ->schema([
+                                Forms\Components\TextInput::make('name')
+                                    ->label('Nome / Título')
+                                    ->placeholder('Ex: Escritura Pública')
+                                    ->required()
+                                    ->columnSpan(1),
+
+                                Forms\Components\Select::make('type')
+                                    ->label('Tipo')
+                                    ->options([
+                                        'Escritura' => 'Escritura',
+                                        'Matricula' => 'Matrícula do Imóvel',
+                                        'Contrato' => 'Contrato de Compra/Venda',
+                                        'RG_CPF' => 'Documento de Identificação',
+                                        'Outros' => 'Outros',
+                                    ])
+                                    ->required()
+                                    ->columnSpan(1),
+
+                                Forms\Components\FileUpload::make('path')
+                                    ->label('Arquivo')
+                                    ->directory('unidades_imobiliarias/documentos') // Pasta onde será salvo no storage
+                                    ->preserveFilenames()
+                                    ->openable() // Permite visualizar o PDF/Imagem direto no navegador
+                                    ->downloadable() // Permite baixar o arquivo
+                                    ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+                                    ->maxSize(5120) // 5MB
+                                    ->required()
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(2)
+                            ->defaultItems(0) // Começa vazio se não tiver docs
+                            ->addActionLabel('Adicionar Novo Documento')
+                            ->itemLabel(fn(array $state): ?string => $state['name'] ?? null), // Mostra o nome do doc no título do bloco
+                    ]),
+                // --- FIM DA NOVA AÇÃO DE DOCUMENTOS ---
 
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
@@ -101,7 +149,7 @@ class UnidadesImobiliariasRelationManager extends RelationManager
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
-                    
+
                     // 🛑 NOVA AÇÃO EM MASSA (BULK ACTION)
                     Tables\Actions\BulkAction::make('sincronizar_selecionados')
                         ->label('Sincronizar Selecionados')
@@ -123,7 +171,7 @@ class UnidadesImobiliariasRelationManager extends RelationManager
                                     if ($dados) {
                                         $record->update([
                                             'inscricao_imobiliaria' => $dados['inscricao_imobiliaria'],
-                                            'dados_tributarios' => $dados 
+                                            'dados_tributarios' => $dados
                                         ]);
                                         $sucesso++;
                                     } else {

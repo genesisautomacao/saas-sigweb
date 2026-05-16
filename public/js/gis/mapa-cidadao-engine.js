@@ -256,6 +256,40 @@ document.addEventListener('DOMContentLoaded', function () {
     // 5. INICIA O MAPA COM AS 3 CAMADAS BASE (Incluindo Ortofoto)
     const map = new ol.Map({ target: 'sigweb-map', layers: [osmLayer, esriLayer, ortofotoLayer], view: view });
 
+    // ── ZOOM EXTENSÃO + VISÃO ANTERIOR ──────────────────────────────
+    // Guarda a view inicial diretamente do config do tenant
+    const initialCenter = ol.proj.fromLonLat([config.mapLon, config.mapLat]);
+    const initialZoom = config.mapZoom;
+
+    // Histórico de navegação
+    const viewHistory = [];
+    let viewHistoryIndex = -1;
+    let navegandoHistorico = false;
+
+    map.getView().on('change:resolution', () => {
+        if (navegandoHistorico) return;
+        const v = map.getView();
+        viewHistory.splice(viewHistoryIndex + 1);
+        viewHistory.push({ center: v.getCenter().slice(), zoom: v.getZoom() });
+        if (viewHistory.length > 50) viewHistory.shift();
+        viewHistoryIndex = viewHistory.length - 1;
+    });
+
+    window.zoomExtensao = function () {
+        map.getView().animate({ center: initialCenter, zoom: initialZoom, duration: 600 });
+    };
+
+    window.visaoAnterior = function () {
+        if (viewHistoryIndex <= 0) return;
+        viewHistoryIndex--;
+        navegandoHistorico = true;
+        const v = viewHistory[viewHistoryIndex];
+        map.getView().animate({ center: v.center, zoom: v.zoom, duration: 400 }, () => {
+            navegandoHistorico = false;
+        });
+    };
+    // ────────────────────────────────────────────────────────────────
+
     const dblClickZoom = map.getInteractions().getArray().find(i => i instanceof ol.interaction.DoubleClickZoom);
     if (dblClickZoom) map.removeInteraction(dblClickZoom);
 
@@ -550,17 +584,17 @@ document.addEventListener('DOMContentLoaded', function () {
         if (currentMeasureInteraction) return; // Não clica se estiver usando a reguinha
 
         const feature = map.forEachFeatureAtPixel(e.pixel, f => f, { hitTolerance: 5 });
-        
+
         if (feature) {
             // Mudamos o nome da variável para evitar o erro "layer is not defined"
-            const featureLayer = feature.get('layer'); 
+            const featureLayer = feature.get('layer');
             const featureId = feature.get('id');
 
             if (featureLayer === 'lotes') {
                 const loteNome = feature.get('titulo') || feature.get('name') || 'S/N';
                 // Avisa o Livewire para abrir a ficha do lote
                 Livewire.dispatch('abrirFichaImovel', { loteId: featureId, loteNome: loteNome });
-            } 
+            }
             else if (featureLayer === 'pontos_panoramicos') {
                 // Avisa o Livewire para abrir a modal de visualização 360º
                 Livewire.dispatch('abrirVisualizadorPublico360', { id: featureId });

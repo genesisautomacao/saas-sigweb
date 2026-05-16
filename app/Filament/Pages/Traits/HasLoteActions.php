@@ -53,7 +53,7 @@ trait HasLoteActions
 
                 Select::make('quadra_id')
                     ->label('Quadra (Auto-detectada)')
-                    ->options(fn() => Quadra::where('tenant_id', $this->tenantId)->pluck('name', 'id'))
+                    ->options(fn() => Quadra::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id'))
                     ->disabled()
                     ->dehydrated()
                     ->required(),
@@ -116,7 +116,7 @@ trait HasLoteActions
             ->modalSubmitActionLabel('Salvar Alterações')
             ->modalWidth('md')
             ->fillForm(function (): array {
-                $lote = Lote::find($this->loteAtivoId);
+                $lote = Lote::query()->find($this->loteAtivoId);
                 return [
                     'numero_lote' => $lote ? $lote->numero_lote : '',
                     'main_facade_length' => $lote ? $lote->main_facade_length : null,
@@ -130,9 +130,9 @@ trait HasLoteActions
                     ->unique(
                         table: 'lotes',
                         column: 'numero_lote',
-                        ignorable: fn() => Lote::find($this->loteAtivoId),
+                        ignorable: fn() => Lote::query()->find($this->loteAtivoId),
                         modifyRuleUsing: function (Unique $rule) {
-                            $lote = Lote::find($this->loteAtivoId);
+                            $lote = Lote::query()->find($this->loteAtivoId);
                             return $rule->where('tenant_id', $this->tenantId)->where('quadra_id', $lote->quadra_id);
                         }
                     )
@@ -144,7 +144,7 @@ trait HasLoteActions
                     ->nullable(),
             ])
             ->action(function (array $data) {
-                $lote = Lote::find($this->loteAtivoId);
+                $lote = Lote::query()->find($this->loteAtivoId);
                 if ($lote) {
                     $lote->update($data);
                     Notification::make()->title('Lote atualizado!')->success()->send();
@@ -167,17 +167,17 @@ trait HasLoteActions
             ->modalCancelActionLabel('Fechar')
             ->modalWidth('4xl')
             ->modalContent(function () {
-                $unidades = UnidadeImobiliaria::where('lote_id', $this->loteAtivoId)->get();
+                $unidades = UnidadeImobiliaria::query()->where('lote_id', $this->loteAtivoId)->get();
 
                 $bladeView = <<<'BLADE'
-                    <div x-data="{ 
-                            selecionadas: [], 
+                    <div x-data="{
+                            selecionadas: [],
                             todas: {{ $unidades->pluck('id')->toJson() }},
                             toggleAll() {
                                 this.selecionadas = this.selecionadas.length === this.todas.length ? [] : [...this.todas];
                             }
                         }">
-                        
+
                         <div class="mb-4 flex justify-between items-center gap-2">
                             {{-- Barra de Bulk Actions (Aparece só se tiver algo selecionado) --}}
                             <div x-show="selecionadas.length > 0" x-transition style="display: none;" class="flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-lg">
@@ -191,17 +191,17 @@ trait HasLoteActions
                             {{-- Botões Padrões (Empurrados para a direita) --}}
                             <div class="flex gap-2 ml-auto">
                                 @if($unidades->isNotEmpty())
-                                    <x-filament::button 
-                                        wire:click="sincronizarTodasUnidades" 
-                                        color="info" 
+                                    <x-filament::button
+                                        wire:click="sincronizarTodasUnidades"
+                                        color="info"
                                         icon="heroicon-m-cloud-arrow-down">
                                         Sincronizar Todas
                                     </x-filament::button>
                                 @endif
 
-                                <x-filament::button 
-                                    wire:click="replaceMountedAction('criarUnidadeAction')" 
-                                    color="success" 
+                                <x-filament::button
+                                    wire:click="replaceMountedAction('criarUnidadeAction')"
+                                    color="success"
                                     icon="heroicon-m-plus">
                                     Nova Unidade
                                 </x-filament::button>
@@ -229,23 +229,23 @@ trait HasLoteActions
                                     </thead>
                                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                                         @foreach($unidades as $u)
-                                            <tr wire:click="replaceMountedAction('editarUnidadeAction', { unidadeId: {{ $u->id }} })" 
+                                            <tr wire:click="replaceMountedAction('editarUnidadeAction', { unidadeId: {{ $u->id }} })"
                                                 class="cursor-pointer bg-white dark:bg-gray-900 hover:bg-primary-50 dark:hover:bg-gray-800 transition-colors group">
-                                                
+
                                                 <td class="px-4 py-3 text-center" @click.stop>
                                                     <input type="checkbox" value="{{ $u->id }}" x-model="selecionadas" class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
                                                 </td>
 
                                                 <td class="px-4 py-3 font-bold text-gray-900 dark:text-white">{{ $u->inscricao_imobiliaria ?? 'N/A' }}</td>
                                                 <td class="px-4 py-3">{{ $u->codigo_imovel_tributario ?? 'N/A' }}</td>
-                                                
+
                                                 <td class="px-4 py-3">
                                                     @php
                                                         $nomeProprietario = 'Não informado';
                                                         if (!empty($u->dados_tributarios) && isset($u->dados_tributarios['proprietario_name'])) {
                                                             $nomeProprietario = $u->dados_tributarios['proprietario_name'];
                                                         } elseif ($u->proprietario_id) {
-                                                            $pessoa = \App\Models\Pessoa::find($u->proprietario_id);
+                                                            $pessoa = \App\Models\Pessoa::query()->find($u->proprietario_id);
                                                             $nomeProprietario = $pessoa ? $pessoa->name : 'ID: ' . $u->proprietario_id;
                                                         }
                                                     @endphp
@@ -253,9 +253,14 @@ trait HasLoteActions
                                                 </td>
 
                                                 <td class="px-4 py-3 text-right">
+
+                                                    <button wire:click.stop="replaceMountedAction('replicarUnidadeAction', { unidadeId: {{ $u->id }} })" class="text-teal-500 hover:text-teal-700 mr-3" title="Replicar Unidade">
+                                                        <x-heroicon-o-document-duplicate class="w-5 h-5 inline-block transition-colors" />
+                                                    </button>
+
                                                     <button onclick="event.stopPropagation(); capturarMapaEImprimirBic({{ $u->id }}, {{ $this->loteAtivoId }})" class="text-amber-500 hover:text-amber-700 mr-3" title="Imprimir BIC">
                                                         <x-heroicon-o-printer class="w-5 h-5 inline-block transition-colors" />
-                                                    </button>                                               
+                                                    </button>
 
                                                     <x-heroicon-o-pencil-square class="w-5 h-5 text-gray-400 group-hover:text-primary-600 inline-block transition-colors" />
                                                 </td>
@@ -345,7 +350,7 @@ trait HasLoteActions
                     if (json_last_error() === JSON_ERROR_NONE) $data['dados_tributarios'] = $decoded;
                 }
 
-                $lote = Lote::find($this->loteAtivoId);
+                $lote = Lote::query()->find($this->loteAtivoId);
                 $data['tenant_id'] = $this->tenantId;
                 $data['lote_id'] = $this->loteAtivoId;
                 $data['code'] = (string) Str::uuid();
@@ -368,6 +373,64 @@ trait HasLoteActions
             ]);
     }
 
+    public function replicarUnidadeAction(): Action
+    {
+        return Action::make('replicarUnidadeAction')
+            ->modalHeading('Replicar Unidade Imobiliária')
+            ->modalDescription('Informe quantas cópias deseja criar. Cada cópia terá inscrição e código tributário em branco para preenchimento.')
+            ->modalSubmitActionLabel('Replicar')
+            ->modalWidth('sm')
+            ->fillForm(function (array $arguments): array {
+                return ['quantidade' => 1];
+            })
+            ->form([
+                \Filament\Forms\Components\TextInput::make('quantidade')
+                    ->label('Quantidade de cópias')
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue(50)
+                    ->default(1)
+                    ->required(),
+            ])
+            ->action(function (array $data, array $arguments) {
+                $unidade = UnidadeImobiliaria::query()->find($arguments['unidadeId']);
+                if (!$unidade) return;
+
+                $lote = Lote::query()->find($this->loteAtivoId);
+
+                for ($i = 0; $i < (int) $data['quantidade']; $i++) {
+                    $nova = $unidade->replicate();
+                    $nova->code = (string) \Illuminate\Support\Str::uuid();
+                    $nova->inscricao_imobiliaria = null;
+                    $nova->codigo_imovel_tributario = null;
+                    $nova->sequential_id = null;
+                    $nova->save();
+
+                    if ($lote) {
+                        DB::statement(
+                            "UPDATE unidade_imobiliarias SET geo = (SELECT ST_PointOnSurface(geo) FROM lotes WHERE id = ?) WHERE id = ?",
+                            [$lote->id, $nova->id]
+                        );
+                    }
+                }
+
+                $qtd = (int) $data['quantidade'];
+                Notification::make()
+                    ->title("{$qtd} unidade(s) replicada(s) com sucesso!")
+                    ->success()
+                    ->send();
+
+                $this->replaceMountedAction('verUnidades');
+            })
+            ->modalCancelAction(false)
+            ->extraModalFooterActions([
+                Action::make('voltar')
+                    ->label('Voltar')
+                    ->color('gray')
+                    ->action(fn() => $this->replaceMountedAction('verUnidades')),
+            ]);
+    }
+
     /* Ação de Editar unidade (inserir o Helper) */
     public function editarUnidadeAction(): Action
     {
@@ -377,7 +440,7 @@ trait HasLoteActions
             ->modalWidth('xl')
             ->fillForm(function (array $arguments): array {
                 if (!isset($arguments['unidadeId'])) return [];
-                $unidade = UnidadeImobiliaria::find($arguments['unidadeId']);
+                $unidade = UnidadeImobiliaria::query()->find($arguments['unidadeId']);
                 return $unidade ? $unidade->toArray() : [];
             })
             ->form(function (array $arguments) {
@@ -468,7 +531,7 @@ trait HasLoteActions
                 ];
             })
             ->action(function (array $data, array $arguments) {
-                $unidade = UnidadeImobiliaria::find($arguments['unidadeId']);
+                $unidade = UnidadeImobiliaria::query()->find($arguments['unidadeId']);
                 if ($unidade) {
                     // 🛑 BUG 3 RESOLVIDO (Parte 3): Decodifica a string do Textarea de volta para Array antes de salvar
                     if (isset($data['dados_tributarios']) && is_string($data['dados_tributarios'])) {
@@ -494,7 +557,7 @@ trait HasLoteActions
                         ->requiresConfirmation()
                         ->action(function () use ($unidadeId) {
                             if ($unidadeId) {
-                                $unidade = UnidadeImobiliaria::find($unidadeId);
+                                $unidade = UnidadeImobiliaria::query()->find($unidadeId);
                                 if ($unidade) {
                                     $unidade->delete();
                                     Notification::make()->title('Unidade removida!')->success()->send();
@@ -516,7 +579,7 @@ trait HasLoteActions
      */
     public function sincronizarUnidade($id)
     {
-        $unidade = UnidadeImobiliaria::find($id);
+        $unidade = UnidadeImobiliaria::query()->find($id);
 
         if (!$unidade || !$unidade->codigo_imovel_tributario) {
             Notification::make()->title('Aviso')->body('A unidade precisa ter o Código Tributário preenchido para sincronizar.')->warning()->send();
@@ -545,12 +608,12 @@ trait HasLoteActions
         $this->mountAction('verUnidades');
     }
 
-    /** 
+    /**
      * método de sincronização de todas as unidades na modal de unidades
      */
     public function sincronizarTodasUnidades()
     {
-        $unidades = UnidadeImobiliaria::where('lote_id', $this->loteAtivoId)
+        $unidades = UnidadeImobiliaria::query()->where('lote_id', $this->loteAtivoId)
             ->whereNotNull('codigo_imovel_tributario')
             ->get();
 
@@ -621,7 +684,7 @@ trait HasLoteActions
      */
     public function imprimirBic($unidadeId, $mapImageBase64)
     {
-        $unidade = \App\Models\UnidadeImobiliaria::find($unidadeId);
+        $unidade = \App\Models\UnidadeImobiliaria::query()->find($unidadeId);
 
         if (!$unidade) {
             \Filament\Notifications\Notification::make()->title('Erro')->body('Unidade não encontrada.')->danger()->send();
@@ -658,7 +721,7 @@ trait HasLoteActions
     public function consultarViabilidadeAction(): Action
     {
         return Action::make('consultarViabilidadeAction')
-            ->modalHeading(fn() => 'Central de Viabilidade - Lote: ' . \App\Models\Lote::find($this->loteAtivoId)?->numero_lote)
+            ->modalHeading(fn() => 'Central de Viabilidade - Lote: ' . \App\Models\Lote::query()->find($this->loteAtivoId)?->numero_lote)
             ->modalWidth('2xl')
             ->modalSubmitActionLabel('Iniciar Análise Oficial')
             ->modalIcon('heroicon-o-document-magnifying-glass')
@@ -690,7 +753,7 @@ trait HasLoteActions
                             ->placeholder('Digite o código ou nome da atividade...')
                             ->getSearchResultsUsing(function (string $search) {
                                 $searchClean = preg_replace('/[^0-9a-zA-Z\s]/', '', $search);
-                                return \App\Models\Cnae::where('tenant_id', $this->tenantId)
+                                return \App\Models\Cnae::query()->where('tenant_id', $this->tenantId)
                                     ->where(function ($q) use ($search, $searchClean) {
                                         $q->where('codigo', 'like', "%{$search}%")
                                             ->orWhereRaw("REGEXP_REPLACE(codigo, '[^0-9]', '') like ?", ["%{$searchClean}%"])
@@ -702,7 +765,7 @@ trait HasLoteActions
                                     ->toArray();
                             })
                             ->getOptionLabelsUsing(function (array $values) {
-                                return \App\Models\Cnae::whereIn('codigo', $values)
+                                return \App\Models\Cnae::query()->whereIn('codigo', $values)
                                     ->get()
                                     ->mapWithKeys(fn($cnae) => [$cnae->codigo => $cnae->codigo . ' - ' . $cnae->descricao])
                                     ->toArray();
@@ -737,7 +800,7 @@ trait HasLoteActions
                                 </div>
                             ')),
                     ])
-                    ->visible(fn (\Filament\Forms\Get $get) => $get('tipo_consulta') === 'unificacao'),
+                    ->visible(fn(\Filament\Forms\Get $get) => $get('tipo_consulta') === 'unificacao'),
             ])
             ->action(function (array $data) {
                 // Roteamento inteligente e isolado para cada tela de resultado
@@ -784,7 +847,7 @@ trait HasLoteActions
                                 Zona: {{ $analise['zona']['sigla'] }} - {{ $analise['zona']['nome'] }}
                             </x-filament::badge>
                         </div>
-                        
+
                         <div class="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
                             <table class="w-full text-sm text-left text-gray-600 dark:text-gray-300">
                                 <thead class="bg-gray-100 dark:bg-gray-800/80 text-xs uppercase text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700">
@@ -911,7 +974,7 @@ trait HasLoteActions
                         ->icon('heroicon-o-printer')
                         ->action(function () use ($arguments) {
                             $this->dispatch('fechar-modal-filament');
-                            
+
                             // 🛑 DISPARA UM EVENTO EXCLUSIVO DE PARCELAMENTO
                             $this->dispatch('capturar-mapa-parcelamento', [
                                 'lote_id' => $this->loteAtivoId,
@@ -971,7 +1034,7 @@ trait HasLoteActions
         }
 
         // Injetamos o número do lote
-        $dadosAnalise['numero_lote'] = $this->loteAtivoNome ?? \App\Models\Lote::find($loteId)?->numero_lote ?? 'S/N';
+        $dadosAnalise['numero_lote'] = $this->loteAtivoNome ?? \App\Models\Lote::query()->find($loteId)?->numero_lote ?? 'S/N';
 
         // Chama a nova função do Serviço de PDF (que criaremos no Passo 2)
         $pdfService = app(\App\Services\Viabilidade\ViabilidadePdfService::class);
@@ -1005,7 +1068,7 @@ trait HasLoteActions
             ->icon('heroicon-o-document-text')
             ->color('success')
             ->action(function () {
-                $lote = \App\Models\Lote::find($this->loteAtivoId);
+                $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
                 if (!$lote) {
                     \Filament\Notifications\Notification::make()->danger()->title('Erro')->body('Lote não encontrado.')->send();
                     return;
@@ -1065,7 +1128,7 @@ trait HasLoteActions
                     ->color('info')
                     ->icon('heroicon-o-swatch')
                     ->action(function () {
-                        $lote = \App\Models\Lote::find($this->loteAtivoId);
+                        $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
 
                         // 1. Gera o GeoJSON base
                         $geoJsonQuery = \Illuminate\Support\Facades\DB::selectOne("SELECT ST_AsGeoJSON(geo) as geojson FROM lotes WHERE id = ?", [$lote->id]);
@@ -1119,7 +1182,7 @@ trait HasLoteActions
                     ->color('success')
                     ->icon('heroicon-o-map')
                     ->action(function () {
-                        $lote = \App\Models\Lote::find($this->loteAtivoId);
+                        $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
 
                         // Gera o GeoJSON puro pelo banco
                         $geoJsonQuery = \Illuminate\Support\Facades\DB::selectOne("SELECT ST_AsGeoJSON(geo) as geojson FROM lotes WHERE id = ?", [$lote->id]);
@@ -1212,15 +1275,15 @@ trait HasLoteActions
             ->label('Imagem Frontal')
             ->icon('heroicon-o-camera')
             ->color('gray')
-            ->modalHeading("Imagem Frontal - Lote " . (\App\Models\Lote::find($this->loteAtivoId)?->numero_lote))
+            ->modalHeading("Imagem Frontal - Lote " . (\App\Models\Lote::query()->find($this->loteAtivoId)?->numero_lote))
             ->modalWidth('2xl')
             ->fillForm(fn($arguments): array => [
                 'lote_id' => $this->loteAtivoId,
-                'foto_frontal' => \App\Models\Lote::find($this->loteAtivoId)?->foto_frontal,
+                'foto_frontal' => \App\Models\Lote::query()->find($this->loteAtivoId)?->foto_frontal,
             ])
             ->form([
                 \Filament\Forms\Components\Hidden::make('lote_id'),
-                
+
                 // Se já tiver foto, mostra a prévia
                 \Filament\Forms\Components\Placeholder::make('previa')
                     ->label('Visualização Atual')
@@ -1239,11 +1302,11 @@ trait HasLoteActions
                     ->helperText('Formatos aceitos: JPG, PNG. O sistema redimensionará automaticamente.'),
             ])
             ->action(function (array $data) {
-                $lote = \App\Models\Lote::find($data['lote_id']);
-                
+                $lote = \App\Models\Lote::query()->find($data['lote_id']);
+
                 if ($lote && isset($data['nova_foto'])) {
                     $lote->update(['foto_frontal' => $data['nova_foto']]);
-                    
+
                     Notification::make()
                         ->title('Imagem atualizada com sucesso!')
                         ->success()
@@ -1264,9 +1327,9 @@ trait HasLoteActions
             ->modalCancelActionLabel('Fechar')
             ->modalContent(function () {
                 // Busca o centroide exato do Lote usando PostGIS
-                $lote = \App\Models\Lote::find($this->loteAtivoId);
+                $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
                 $centro = \Illuminate\Support\Facades\DB::selectOne("
-                    SELECT ST_Y(ST_Centroid(geo::geometry)) as lat, ST_X(ST_Centroid(geo::geometry)) as lng 
+                    SELECT ST_Y(ST_Centroid(geo::geometry)) as lat, ST_X(ST_Centroid(geo::geometry)) as lng
                     FROM lotes WHERE id = ?
                 ", [$lote->id]);
 
@@ -1289,8 +1352,8 @@ trait HasLoteActions
 
                                 svService.getPanorama({ location: centroDoLote, radius: 50 }, (data, status) => {
                                     if (status === 'OK') {
-                                        panoDiv.style.opacity = '1'; 
-                                        
+                                        panoDiv.style.opacity = '1';
+
                                         const panorama = new google.maps.StreetViewPanorama(panoDiv, {
                                             position: data.location.latLng,
                                             zoom: 0,
@@ -1299,18 +1362,18 @@ trait HasLoteActions
                                             linksControl: true,
                                             clickToGo: true
                                         });
-                                        
+
                                         // Vira a câmera exatamente para a porta do terreno!
                                         const anguloParaOLote = google.maps.geometry.spherical.computeHeading(data.location.latLng, centroDoLote);
-                                        panorama.setPov({ heading: anguloParaOLote, pitch: 0 }); 
+                                        panorama.setPov({ heading: anguloParaOLote, pitch: 0 });
                                     }
                                 });
                             }
-                        }" 
+                        }"
                         wire:ignore style="height: 500px; width: 100%; position: relative; border-radius: 0.75rem; overflow: hidden; border: 1px solid #e5e7eb; background-color: #f3f4f6;" class="dark:border-gray-600 dark:bg-gray-800">
-                        
+
                         <div id="street-view-modal-pano" style="position: absolute; inset: 0; width: 100%; height: 100%; z-index: 10; opacity: 0; transition: opacity 0.5s;"></div>
-                        
+
                         <div id="street-view-error" style="position: absolute; inset: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 0;">
                             <x-heroicon-o-video-camera-slash style="width: 3rem; height: 3rem; opacity: 0.3; margin-bottom: 0.5rem; color: #6b7280;" />
                             <span style="font-size: 14px; font-weight: bold; text-transform: uppercase; color: #6b7280; opacity: 0.6;">Sem Cobertura do Street View</span>

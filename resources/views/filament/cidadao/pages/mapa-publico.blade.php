@@ -3,7 +3,7 @@
     <div wire:ignore>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
         <link rel="stylesheet" href="{{ asset('css/gis/mapa-sigweb.css') }}">
-       
+
         <script>
             window.mapConfig = {
                 tenantId: {{ $tenantId }},
@@ -62,6 +62,20 @@
                                             class="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" /></template>
                                     <template x-if="res.tipo === 'bairro'"><x-heroicon-o-map
                                             class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" /></template>
+
+                                    <template x-if="res.tipo === 'setor'"><x-heroicon-o-rectangle-group
+                                            class="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" /></template>
+                                    <template x-if="res.tipo === 'distrito'"><x-heroicon-o-globe-americas
+                                            class="w-5 h-5 text-teal-500 flex-shrink-0 mt-0.5" /></template>
+
+                                    <template x-if="res.tipo === 'loteamento'">
+                                        <x-heroicon-o-squares-2x2
+                                            class="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                                    </template>
+                                    <template x-if="res.tipo === 'quadra'">
+                                        <x-heroicon-o-stop class="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
+                                    </template>
+
                                     <div class="flex flex-col">
                                         <span class="text-sm font-bold text-gray-800 dark:text-gray-100"
                                             x-text="res.titulo"></span>
@@ -85,6 +99,18 @@
                 </button>
 
                 <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
+                {{-- ZOOM EXTENSÃO + VISÃO ANTERIOR --}}
+                <button onclick="window.zoomExtensao()" title="Visão Geral (Zoom Extensão)"
+                    class="p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                    <x-heroicon-o-home class="w-5 h-5" />
+                </button>
+                <button onclick="window.visaoAnterior()" title="Visão Anterior"
+                    class="p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                    <x-heroicon-o-arrow-uturn-left class="w-5 h-5" />
+                </button>
+                <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
 
                 <button id="btn-pan" title="Mover Mapa (Cancelar Ferramentas)"
                     class="p-2 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-xl transition-colors focus:outline-none">

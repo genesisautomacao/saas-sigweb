@@ -63,9 +63,6 @@ class MapaFullscreen extends Page
     use HasRuralHidrografiaActions;
     use HasRuralPonteActions;
     use HasRuralPontoInteresseActions;
-    use HasRuralEstradaActions;
-    use HasRuralPonteActions;
-    use HasRuralPontoInteresseActions;
     use HasBairroActions;
     use HasLoteamentoActions;
     use HasQuadraActions;
@@ -89,6 +86,7 @@ class MapaFullscreen extends Page
 
     // Propriedades do Lote Ativo
     public ?int $loteAtivoId = null;
+    public ?int $unidadeAtivaId = null;
     public ?string $loteAtivoNome = null;
     public ?string $loteSequentialId = null;
     public bool $showFicha = false;
@@ -113,9 +111,8 @@ class MapaFullscreen extends Page
     public bool $mostrarEdificacoesLoteAtivo = false;
     public ?int $edificacaoAtivaId = null;
     public array $zonasTipos = [];
-    public ?int $logradouroAtivoId = null;
     public ?int $cemiterioAtivoId = null;
-    public ?int $jazigoAtivoId = null;
+
 
     // Propriedades da Numeração Automática
     public ?int $numLogradouroId = null;
@@ -149,7 +146,7 @@ class MapaFullscreen extends Page
             $this->mapLon = (float) data_get($tenant->data, 'map_lon', -50.4182571);
             $this->mapZoom = (int) data_get($tenant->data, 'map_zoom', 14);
 
-            $this->zonasTipos = Zona::where('tenant_id', $this->tenantId)
+            $this->zonasTipos = Zona::query()->where('tenant_id', $this->tenantId)
                 ->select('id', 'name', 'sigla', 'rgb')
                 ->get()
                 ->map(fn($zona) => [
@@ -173,10 +170,10 @@ class MapaFullscreen extends Page
         $this->loteAtivoId = $loteId;
         $this->loteAtivoNome = $loteNome;
 
-        $lote = Lote::find($loteId);
+        $lote = Lote::query()->find($loteId);
         $this->loteAreaGeo = $lote ? (float) $lote->area_geo : 0.0;
         $this->loteFacePrincipal = $lote ? (float) $lote->main_facade_length : 0.0;
-        $this->loteAreaConstruida = (float) Edificacao::where('lote_id', $loteId)->sum('area_geo');
+        $this->loteAreaConstruida = (float) Edificacao::query()->where('lote_id', $loteId)->sum('area_geo');
         $this->loteSequentialId = $lote ? $lote->sequential_id : 'S/N';
 
         $this->showFicha = true;
@@ -209,7 +206,7 @@ class MapaFullscreen extends Page
         $centroidWKT = "ST_Centroid($polyWKT)";
 
         if ($entityType === 'lote') {
-            $sobreposicao = Lote::where('tenant_id', $this->tenantId)
+            $sobreposicao = Lote::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->whereRaw("ST_Area(ST_Intersection(geo, $polyWKT)::geography) > 0.1")
                 ->exists();
@@ -220,7 +217,7 @@ class MapaFullscreen extends Page
                 return;
             }
 
-            $quadra = Quadra::where('tenant_id', $this->tenantId)->whereRaw("ST_Intersects(geo, $centroidWKT)")->first();
+            $quadra = Quadra::query()->where('tenant_id', $this->tenantId)->whereRaw("ST_Intersects(geo, $centroidWKT)")->first();
             if (!$quadra) {
                 Notification::make()->title('Fora de Quadra')->danger()->send();
                 $this->dispatch('limpar-rascunho-mapa');
@@ -228,12 +225,12 @@ class MapaFullscreen extends Page
             }
 
             $this->quadraRascunhoId = $quadra->id;
-            $this->zonaRascunhoId = Zona::where('tenant_id', $this->tenantId)->whereRaw("ST_Intersects(geo, $centroidWKT)")->value('id');
+            $this->zonaRascunhoId = Zona::query()->where('tenant_id', $this->tenantId)->whereRaw("ST_Intersects(geo, $centroidWKT)")->value('id');
 
             // 🛑 MÁGICA: Monta a ação do Lote aqui e encerra
             $this->mountAction('criarLote');
         } elseif ($entityType === 'edificacao') {
-            $contido = Lote::where('id', $this->loteAtivoId)
+            $contido = Lote::query()->where('id', $this->loteAtivoId)
                 ->whereRaw("ST_Area(ST_Difference($polyWKT, geo)::geography) <= 0.1")
                 ->exists();
 
@@ -260,7 +257,7 @@ class MapaFullscreen extends Page
         } elseif ($entityType === 'quadra_cemiterio') {
 
             // 🛑 MÁGICA TOPOLÓGICA: Verifica se o centro do desenho caiu dentro de um Cemitério
-            $cemiterio = \App\Models\Cemiterio::where('tenant_id', $this->tenantId)
+            $cemiterio = \App\Models\Cemiterio::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, $centroidWKT)")
                 ->first();
 
@@ -282,7 +279,7 @@ class MapaFullscreen extends Page
         } elseif ($entityType === 'logradouro_cemiterio') {
 
             // Verifica se a linha desenhada passa por dentro de algum cemitério
-            $cemiterio = \App\Models\Cemiterio::where('tenant_id', $this->tenantId)
+            $cemiterio = \App\Models\Cemiterio::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)") // Usa $polyWKT (que no caso da rua é a LineString)
                 ->first();
 
@@ -302,7 +299,7 @@ class MapaFullscreen extends Page
         } elseif ($entityType === 'jazigo') {
 
             // 🛑 MÁGICA TOPOLÓGICA: O Jazigo precisa estar dentro de uma Quadra de Cemitério!
-            $quadra = \App\Models\QuadraCemiterio::where('tenant_id', $this->tenantId)
+            $quadra = \App\Models\QuadraCemiterio::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->first();
 
@@ -323,7 +320,7 @@ class MapaFullscreen extends Page
         } elseif ($entityType === 'setor_fiscal') {
 
             // Impede sobreposição (Tolerância de 5m² para o Ímã funcionar sem falsos positivos de borda)
-            $sobreposicao = \App\Models\SetorFiscal::where('tenant_id', $this->tenantId)
+            $sobreposicao = \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->whereRaw("ST_Area(ST_Intersection(geo::geometry, $polyWKT)::geography) > 5.0")
                 ->exists();
@@ -348,7 +345,7 @@ class MapaFullscreen extends Page
             $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
 
             // 🛑 REGRA 1: Tenta achar uma localidade que cubra 100% da propriedade desenhada (com 1m² de tolerância de borda)
-            $localidade = \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)
+            $localidade = \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Area(ST_Difference($polyWKT, geo::geometry)::geography) <= 1.0")
                 ->first();
 
@@ -372,13 +369,13 @@ class MapaFullscreen extends Page
             $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
 
             // 🛑 REGRA INTELIGENTE: Pega a localidade onde o primeiro ponto da estrada tocou
-            $localidade = \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)
+            $localidade = \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, ST_StartPoint($polyWKT))")
                 ->first();
 
             // Se o usuário começou a desenhar de fora pra dentro, procura qualquer localidade que a linha corte
             if (!$localidade) {
-                $localidade = \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)
+                $localidade = \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)
                     ->whereRaw("ST_Intersects(geo, $polyWKT)")
                     ->first();
             }
@@ -401,7 +398,7 @@ class MapaFullscreen extends Page
             $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
 
             // Intersecta com qualquer localidade (rios e lagos cruzam fronteiras)
-            $localidade = \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)
+            $localidade = \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->first();
 
@@ -424,7 +421,7 @@ class MapaFullscreen extends Page
             $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
 
             // REGRA 1: Verifica em qual Localidade o ponto caiu
-            $localidade = \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)
+            $localidade = \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->first();
 
@@ -440,7 +437,7 @@ class MapaFullscreen extends Page
             }
 
             // MÁGICA 2: Procura se o clique do mouse ocorreu num raio de 20 metros de alguma Estrada!
-            $estrada = \App\Models\RuralEstrada::where('tenant_id', $this->tenantId)
+            $estrada = \App\Models\RuralEstrada::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_DWithin(geo::geography, $polyWKT::geography, 20)")
                 ->first();
 
@@ -452,7 +449,7 @@ class MapaFullscreen extends Page
 
             $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
 
-            $localidade = \App\Models\RuralLocalidade::where('tenant_id', $this->tenantId)
+            $localidade = \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->first();
 
@@ -481,12 +478,12 @@ class MapaFullscreen extends Page
             $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
 
             // 1. Procura o Bairro que contém a quadra (com 1m² de tolerância de borda)
-            $bairro = \App\Models\Bairro::where('tenant_id', $this->tenantId)
+            $bairro = \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Area(ST_Difference($polyWKT, geo::geometry)::geography) <= 1.0")
                 ->first();
 
             // 2. Procura o Loteamento que contém a quadra (com 1m² de tolerância)
-            $loteamento = \App\Models\Loteamento::where('tenant_id', $this->tenantId)
+            $loteamento = \App\Models\Loteamento::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Area(ST_Difference($polyWKT, geo::geometry)::geography) <= 1.0")
                 ->first();
 
@@ -503,7 +500,7 @@ class MapaFullscreen extends Page
             }
 
             // 3. Identifica automaticamente o Perímetro Urbano (basta cruzar ou estar dentro)
-            $perimetro = \App\Models\PerimetroUrbano::where('tenant_id', $this->tenantId)
+            $perimetro = \App\Models\PerimetroUrbano::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->first();
 
@@ -529,10 +526,10 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometria')]
     public function salvarNovaGeometria($id, $geoJson)
     {
-        $lote = Lote::where('id', $id)->where('tenant_id', $this->tenantId)->first();
+        $lote = Lote::query()->where('id', $id)->where('tenant_id', $this->tenantId)->first();
         if ($lote) {
             $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
-            $sobreposicao = Lote::where('tenant_id', $this->tenantId)->where('id', '!=', $id)
+            $sobreposicao = Lote::query()->where('tenant_id', $this->tenantId)->where('id', '!=', $id)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->whereRaw("ST_Area(ST_Intersection(geo, $polyWKT)::geography) > 0.1")
                 ->exists();
@@ -554,18 +551,18 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaEdificacao')]
     public function salvarNovaGeometriaEdificacao($id, $geoJson)
     {
-        $edif = Edificacao::find($id);
+        $edif = Edificacao::query()->find($id);
         if ($edif) {
             $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
             // Substituímos o ST_Within pelo ST_Difference com tolerância
-            if (!Lote::where('id', $edif->lote_id)->whereRaw("ST_Area(ST_Difference($polyWKT, geo)::geography) <= 0.1")->exists()) {
+            if (!Lote::query()->where('id', $edif->lote_id)->whereRaw("ST_Area(ST_Difference($polyWKT, geo)::geography) <= 0.1")->exists()) {
                 Notification::make()->title('Erro Topológico')->danger()->send();
                 $this->dispatch('desfazer-edicao-geometria');
                 return;
             }
             $edif->update(['geo' => $geoJson]);
             DB::statement("UPDATE edificacoes SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$edif->id]);
-            $this->loteAreaConstruida = (float) Edificacao::where('lote_id', $this->loteAtivoId)->sum('area_geo');
+            $this->loteAreaConstruida = (float) Edificacao::query()->where('lote_id', $this->loteAtivoId)->sum('area_geo');
             Notification::make()->title('Geometria Atualizada!')->success()->send();
             $this->mostrarEdificacoesLoteAtivo = false;
             $this->toggleEdificacoesLote();
@@ -578,11 +575,11 @@ class MapaFullscreen extends Page
             ->requiresConfirmation()
             ->action(function () {
                 if ($this->loteAtivoId) {
-                    $lote = Lote::where('id', $this->loteAtivoId)->where('tenant_id', $this->tenantId)->first();
+                    $lote = Lote::query()->where('id', $this->loteAtivoId)->where('tenant_id', $this->tenantId)->first();
                     if ($lote) {
-                        \App\Models\UnidadeImobiliaria::where('lote_id', $lote->id)->delete();
-                        Edificacao::where('lote_id', $lote->id)->delete();
-                        $lote->delete();
+                        \App\Models\UnidadeImobiliaria::query()->where('lote_id', $lote->id)->delete();
+                        Edificacao::query()->where('lote_id', $lote->id)->delete();
+                        $lote->query()->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-lote-mapa', ['id' => $this->loteAtivoId]);
                         $this->fecharFicha();
@@ -608,7 +605,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaLogradouro')]
     public function salvarNovaGeometriaLogradouro($id, $geoJson)
     {
-        $logradouro = \App\Models\Logradouro::find($id);
+        $logradouro = \App\Models\Logradouro::query()->find($id);
         if ($logradouro) {
             $logradouro->update(['geo' => $geoJson]);
             // Opcional: DB::statement("UPDATE logradouros SET length_geo = ST_Length(geo::geography) WHERE id = ?", [$logradouro->id]);
@@ -620,7 +617,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaPoste')]
     public function salvarNovaGeometriaPoste($id, $geoJson)
     {
-        $poste = Poste::find($id);
+        $poste = Poste::query()->find($id);
         if ($poste) {
             $poste->update(['geo' => $geoJson]);
 
@@ -641,7 +638,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaArvore')]
     public function salvarNovaGeometriaArvore($id, $geoJson)
     {
-        $arvore = Arvore::find($id);
+        $arvore = Arvore::query()->find($id);
         if ($arvore) {
             $arvore->update(['geo' => $geoJson]);
             \Filament\Notifications\Notification::make()
@@ -668,14 +665,14 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaCemiterio')]
     public function salvarNovaGeometriaCemiterio($id, $geoJson)
     {
-        $cemiterio = Cemiterio::find($id);
+        $cemiterio = Cemiterio::query()->find($id);
         if ($cemiterio) {
             $cemiterio->update(['geo' => $geoJson]);
             DB::statement("UPDATE cemiterios SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$cemiterio->id]);
             \Filament\Notifications\Notification::make()->title('Polígono Atualizado!')->success()->send();
 
-            // NÃO PRECISA DISPARAR NADA AQUI! 
-            // O Javascript (OpenLayers) já arrastou a linha lá na tela do usuário, 
+            // NÃO PRECISA DISPARAR NADA AQUI!
+            // O Javascript (OpenLayers) já arrastou a linha lá na tela do usuário,
             // não precisamos fazer a tela piscar para mostrar o que ele já está vendo!
         }
     }
@@ -690,12 +687,12 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaQuadraCemiterio')]
     public function salvarNovaGeometriaQuadraCemiterio($id, $geoJson)
     {
-        $quadra = QuadraCemiterio::find($id);
+        $quadra = QuadraCemiterio::query()->find($id);
         if ($quadra) {
             $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
 
             // 🛑 MÁGICA TOPOLÓGICA: Impede de mover a quadra pra fora do cemitério dela
-            $contido = \App\Models\Cemiterio::where('id', $quadra->cemiterio_id)
+            $contido = \App\Models\Cemiterio::query()->where('id', $quadra->cemiterio_id)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->exists();
 
@@ -726,11 +723,11 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaLogradouroCemiterio')]
     public function salvarNovaGeometriaLogradouroCemiterio($id, $geoJson)
     {
-        $logradouro = LogradouroCemiterio::find($id);
+        $logradouro = LogradouroCemiterio::query()->find($id);
         if ($logradouro) {
             $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
 
-            $contido = \App\Models\Cemiterio::where('id', $logradouro->cemiterio_id)
+            $contido = \App\Models\Cemiterio::query()->where('id', $logradouro->cemiterio_id)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->exists();
 
@@ -755,12 +752,12 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaJazigo')]
     public function salvarNovaGeometriaJazigo($id, $geoJson)
     {
-        $jazigo = Jazigo::find($id);
+        $jazigo = Jazigo::query()->find($id);
         if ($jazigo) {
             $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
 
             // 🛑 Impede de mover o jazigo para fora da quadra dele
-            $contido = \App\Models\QuadraCemiterio::where('id', $jazigo->quadra_cemiterio_id)
+            $contido = \App\Models\QuadraCemiterio::query()->where('id', $jazigo->quadra_cemiterio_id)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->exists();
 
@@ -822,19 +819,19 @@ class MapaFullscreen extends Page
                     WITH drawn_line AS (
                         SELECT ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) AS geom
                     )
-                    SELECT 
+                    SELECT
                         l.id, l.numero_lote as lote_nome,
                         ST_AsGeoJSON(ST_Centroid(l.geo)) as centroid_geo,
-                        
+
                         -- Distância percorrida fiel à linha desenhada até o lote
                         ST_Length(
                             ST_LineSubstring(
-                                d.geom, 
-                                0, 
+                                d.geom,
+                                0,
                                 GREATEST(0.00001, LEAST(0.99999, ST_LineLocatePoint(d.geom, ST_Centroid(l.geo))))
                             )::geography
                         ) as distancia_metros,
-                        
+
                         -- Coordenadas para Produto Vetorial (Par / Ímpar)
                         ST_X(ST_Centroid(l.geo)) as cx,
                         ST_Y(ST_Centroid(l.geo)) as cy,
@@ -845,8 +842,8 @@ class MapaFullscreen extends Page
                     FROM lotes l
                     CROSS JOIN drawn_line d
                     WHERE l.tenant_id = ?
-                    
-                    -- 🛑 O TÚNEL RESTRITO DE 15 METROS: 
+
+                    -- 🛑 O TÚNEL RESTRITO DE 15 METROS:
                     -- A distância do POLÍGONO do lote até a linha desenhada deve ser menor que 15m.
                     -- Isso pega apenas quem faz divisa com o trajeto e NUNCA pega o vizinho de trás!
                     AND ST_DWithin(l.geo::geography, d.geom::geography, 15)
@@ -900,8 +897,8 @@ class MapaFullscreen extends Page
     public function confirmarNumeracaoAction()
     {
         /*  foreach ($this->resultadosNumeracao as $res) {
-             Lote::where('id', $res['lote_id'])->update([
-                 'numero_lote' => (string) $res['novo_numero'] 
+             Lote::query()->where('id', $res['lote_id'])->update([
+                 'numero_lote' => (string) $res['novo_numero']
              ]);
          } */
 
@@ -994,7 +991,7 @@ class MapaFullscreen extends Page
                     <div class="mb-4 text-sm text-gray-600 dark:text-gray-400 border-l-4 border-emerald-500 pl-3">
                         O corte topográfico abaixo foi processado usando a malha de satélites e dados de radar <strong>SRTM (Shuttle Radar Topography Mission)</strong>. Gráfico gerado a partir de <strong>{{ count($altimetriaData) }} pontos</strong> de amostragem.
                     </div>
-                    
+
                     {{-- A Mágica do Alpine.js: Ele percebe quando a div entra na tela e roda o gráfico --}}
                     <div class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm" style="height: 350px;"
                         x-data="{
@@ -1013,10 +1010,10 @@ class MapaFullscreen extends Page
                                     const canvas = document.getElementById('altimetriaChart');
                                     const dataElement = document.getElementById('altimetria-data');
                                     if(!canvas || !dataElement) return;
-                                    
+
                                     const rawData = JSON.parse(dataElement.textContent);
                                     const ctx = canvas.getContext('2d');
-                                    
+
                                     const labels = rawData.map((d, index) => (index * (100 / rawData.length)).toFixed(0) + '%');
                                     const elevations = rawData.map(d => d.elevation.toFixed(2));
 
@@ -1044,7 +1041,7 @@ class MapaFullscreen extends Page
                                         options: {
                                             responsive: true,
                                             maintainAspectRatio: false,
-                                        
+
                                             interaction: {
                                                 mode: 'index',
                                                 intersect: false,
@@ -1099,7 +1096,7 @@ class MapaFullscreen extends Page
             WITH linha AS (
                 SELECT ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) AS geom
             )
-            SELECT e.id 
+            SELECT e.id
             FROM edificacoes e CROSS JOIN linha l
             WHERE e.tenant_id = ?
             AND e.lote_id = ? -- Otimização: Testa apenas as casas do lote que está sendo cortado
@@ -1133,7 +1130,7 @@ class MapaFullscreen extends Page
                 SELECT (ST_Dump(ST_Split(lote_poly.geom, linha.geom))).geom AS parte
                 FROM lote_poly CROSS JOIN linha
             )
-            SELECT 
+            SELECT
                 ST_AsGeoJSON(parte) as geojson,
                 ST_Area(parte::geography) as area_m2
             FROM cortado
@@ -1176,12 +1173,12 @@ class MapaFullscreen extends Page
             ->modalSubmitActionLabel('✂️ Confirmar Corte')
             ->color('warning')
             ->action(function () {
-                $loteOriginal = \App\Models\Lote::find($this->loteParaDesmembrarId);
+                $loteOriginal = \App\Models\Lote::query()->find($this->loteParaDesmembrarId);
 
                 $partePrincipal = $this->previewDesmembramento[0];
                 $parteDesmembrada = $this->previewDesmembramento[1];
 
-                // 1. UPDATE: Reduz o tamanho do Lote Original 
+                // 1. UPDATE: Reduz o tamanho do Lote Original
                 // 🛑 CORREÇÃO: Apenas decodificamos a string do PostGIS para Array, e o seu Model (setGeoAttribute) faz o resto!
                 $loteOriginal->geo = json_decode($partePrincipal['geojson'], true);
                 $loteOriginal->area_geo = $partePrincipal['area_m2'];
@@ -1205,13 +1202,13 @@ class MapaFullscreen extends Page
                     'lote_id' => $novoLote->id,
                 ]);
 
-                // 4. ATUALIZAÇÃO MÁGICA DAS EDIFICAÇÕES: 
+                // 4. ATUALIZAÇÃO MÁGICA DAS EDIFICAÇÕES:
                 DB::statement("
-                    UPDATE edificacoes 
-                    SET lote_id = ? 
-                    WHERE lote_id = ? 
+                    UPDATE edificacoes
+                    SET lote_id = ?
+                    WHERE lote_id = ?
                     AND ST_Contains(
-                        ST_SetSRID(ST_GeomFromGeoJSON(?), 4326), 
+                        ST_SetSRID(ST_GeomFromGeoJSON(?), 4326),
                         ST_Centroid(geo::geometry)
                     )
                 ", [$novoLote->id, $loteOriginal->id, $parteDesmembrada['geojson']]);
@@ -1255,7 +1252,7 @@ class MapaFullscreen extends Page
         $uniao = DB::selectOne("
             WITH poly1 AS (SELECT geo::geometry as geom FROM lotes WHERE id = ?),
                  poly2 AS (SELECT geo::geometry as geom FROM lotes WHERE id = ?)
-            SELECT 
+            SELECT
                 ST_AsGeoJSON(ST_Union(poly1.geom, poly2.geom)) as geojson,
                 ST_Area(ST_Union(poly1.geom, poly2.geom)::geography) as nova_area
             FROM poly1, poly2
@@ -1278,8 +1275,8 @@ class MapaFullscreen extends Page
         return \Filament\Actions\Action::make('confirmarUnificacaoAction')
             ->modalHeading('Confirmar Unificação de Lotes')
             ->modalDescription(function () {
-                $lote1 = \App\Models\Lote::find($this->lotePrincipalToUnifyId);
-                $lote2 = \App\Models\Lote::find($this->loteSecundarioToUnifyId);
+                $lote1 = \App\Models\Lote::query()->find($this->lotePrincipalToUnifyId);
+                $lote2 = \App\Models\Lote::query()->find($this->loteSecundarioToUnifyId);
                 $novaArea = number_format($this->previewUnificacao['nova_area'] ?? 0, 2, ',', '.');
 
                 return new \Illuminate\Support\HtmlString(
@@ -1293,13 +1290,13 @@ class MapaFullscreen extends Page
                 \Filament\Forms\Components\TextInput::make('novo_numero_lote')
                     ->label('Número do Lote Unificado')
                     ->required()
-                    ->default(fn() => \App\Models\Lote::find($this->lotePrincipalToUnifyId)->numero_lote),
+                    ->default(fn() => \App\Models\Lote::query()->find($this->lotePrincipalToUnifyId)->numero_lote),
             ])
             ->modalSubmitActionLabel('🔗 Confirmar Unificação')
             ->color('success')
             ->action(function (array $data) {
-                $lotePrincipal = \App\Models\Lote::find($this->lotePrincipalToUnifyId);
-                $loteSecundario = \App\Models\Lote::find($this->loteSecundarioToUnifyId);
+                $lotePrincipal = \App\Models\Lote::query()->find($this->lotePrincipalToUnifyId);
+                $loteSecundario = \App\Models\Lote::query()->find($this->loteSecundarioToUnifyId);
                 $loteSecundarioIdParaDeletar = $loteSecundario->id;
 
                 $novaTestada = ($lotePrincipal->main_facade_length ?? 0) + ($loteSecundario->main_facade_length ?? 0);
@@ -1313,8 +1310,8 @@ class MapaFullscreen extends Page
                 $lotePrincipal->save();
 
                 // 2. MIGRAÇÃO DE HERANÇA (Transfere Unidades e Edificações)
-                \App\Models\UnidadeImobiliaria::where('lote_id', $loteSecundarioIdParaDeletar)->update(['lote_id' => $lotePrincipal->id]);
-                \App\Models\Edificacao::where('lote_id', $loteSecundarioIdParaDeletar)->update(['lote_id' => $lotePrincipal->id]);
+                \App\Models\UnidadeImobiliaria::query()->where('lote_id', $loteSecundarioIdParaDeletar)->update(['lote_id' => $lotePrincipal->id]);
+                \App\Models\Edificacao::query()->where('lote_id', $loteSecundarioIdParaDeletar)->update(['lote_id' => $lotePrincipal->id]);
 
                 // 3. APAGA O LOTE SECUNDÁRIO (Sofre SoftDelete e sai do mapa)
                 $loteSecundario->delete();
@@ -1372,7 +1369,7 @@ class MapaFullscreen extends Page
                         <b>{{ $mensagem }}</b><br>
                         Utilize o mouse para orbitar, o scroll para zoom e as ferramentas laterais para medição e fatiamento.
                     </div>
-                    
+
                     {{-- O Container do iFrame 3D --}}
                     <div class="w-full rounded-xl overflow-hidden border border-gray-300 dark:border-gray-700 bg-black shadow-inner" style="height: 650px;">
                         <iframe src="{{ $demoUrl }}" class="w-full h-full border-0" allow="fullscreen"></iframe>
@@ -1398,12 +1395,12 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaSetorFiscal')]
     public function salvarNovaGeometriaSetorFiscal($id, $geoJson)
     {
-        $setor = \App\Models\SetorFiscal::find($id);
+        $setor = \App\Models\SetorFiscal::query()->find($id);
         if ($setor) {
             $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
 
             // Validação de sobreposição com tolerância de 5m² para edição com Ímã (Ignorando a si mesmo)
-            $sobreposicao = \App\Models\SetorFiscal::where('tenant_id', $this->tenantId)
+            $sobreposicao = \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)
                 ->where('id', '!=', $setor->id)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->whereRaw("ST_Area(ST_Intersection(geo::geometry, $polyWKT)::geography) > 5.0")
@@ -1440,7 +1437,7 @@ class MapaFullscreen extends Page
             ->form([
                 \Filament\Forms\Components\Select::make('bairros')
                     ->label('Restringir por Bairro(s)')
-                    ->options(\App\Models\Bairro::where('tenant_id', $this->tenantId)->pluck('name', 'id'))
+                    ->options(\App\Models\Bairro::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id'))
                     ->multiple()
                     ->helperText('Deixe em branco para calcular a cidade inteira.'),
 
@@ -1455,8 +1452,8 @@ class MapaFullscreen extends Page
 
                 // MÁGICA POSTGIS: Pega os Lotes, cruza com o Setor Fiscal que ele cai dentro, e junta com a Tabela de Preços
                 $query = "
-                    SELECT 
-                        l.id as lote_id, 
+                    SELECT
+                        l.id as lote_id,
                         ST_AsGeoJSON(ST_Centroid(l.geo)) as centroid_geo,
                         l.area_geo,
                         COALESCE((SELECT SUM(area_geo) FROM edificacoes WHERE lote_id = l.id), 0) as area_construida,
@@ -1550,7 +1547,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaRuralLocalidade')] // Crie este novo Listener
     public function salvarNovaGeometriaRuralLocalidade($id, $geoJson)
     {
-        $reg = \App\Models\RuralLocalidade::find($id);
+        $reg = \App\Models\RuralLocalidade::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
             DB::statement("UPDATE rural_localidades SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]);
@@ -1568,7 +1565,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaRuralPropriedade')]
     public function salvarNovaGeometriaRuralPropriedade($id, $geoJson)
     {
-        $reg = \App\Models\RuralPropriedade::find($id);
+        $reg = \App\Models\RuralPropriedade::query()->find($id);
         if ($reg) {
             $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
 
@@ -1606,7 +1603,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaRuralEstrada')]
     public function salvarNovaGeometriaRuralEstrada($id, $geoJson)
     {
-        $reg = \App\Models\RuralEstrada::find($id);
+        $reg = \App\Models\RuralEstrada::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
             // O recalculo mágico de distância em metros sempre que a linha for puxada para o lado
@@ -1625,7 +1622,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaRuralHidrografia')]
     public function salvarNovaGeometriaRuralHidrografia($id, $geoJson)
     {
-        $reg = \App\Models\RuralHidrografia::find($id);
+        $reg = \App\Models\RuralHidrografia::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
             Notification::make()->title('Geometria da Hidrografia Atualizada!')->success()->send();
@@ -1642,7 +1639,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaRuralPonte')]
     public function salvarNovaGeometriaRuralPonte($id, $geoJson)
     {
-        $reg = \App\Models\RuralPonte::find($id);
+        $reg = \App\Models\RuralPonte::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
             Notification::make()->title('Posição da Ponte Atualizada!')->success()->send();
@@ -1659,7 +1656,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaRuralPontoInteresse')]
     public function salvarNovaGeometriaRuralPontoInteresse($id, $geoJson)
     {
-        $reg = \App\Models\RuralPontoInteresse::find($id);
+        $reg = \App\Models\RuralPontoInteresse::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
             Notification::make()->title('Localização do Ponto Atualizada!')->success()->send();
@@ -1677,7 +1674,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaBairro')]
     public function salvarNovaGeometriaBairro($id, $geoJson)
     {
-        $reg = \App\Models\Bairro::find($id);
+        $reg = \App\Models\Bairro::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
 
@@ -1702,7 +1699,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaLoteamento')]
     public function salvarNovaGeometriaLoteamento($id, $geoJson)
     {
-        $reg = \App\Models\Loteamento::find($id);
+        $reg = \App\Models\Loteamento::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
 
@@ -1727,7 +1724,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaQuadra')]
     public function salvarNovaGeometriaQuadra($id, $geoJson)
     {
-        $reg = \App\Models\Quadra::find($id);
+        $reg = \App\Models\Quadra::query()->find($id);
         if ($reg) {
             $polyWKT = "ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326))";
 
@@ -1754,12 +1751,12 @@ class MapaFullscreen extends Page
             }
 
             // Descobre em qual Bairro a quadra caiu agora
-            $bairro = \App\Models\Bairro::where('tenant_id', $this->tenantId)
+            $bairro = \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Area(ST_Difference($polyWKT, geo::geometry)::geography) <= 1.0")
                 ->first();
 
             // Descobre em qual Loteamento a quadra caiu agora
-            $loteamento = \App\Models\Loteamento::where('tenant_id', $this->tenantId)
+            $loteamento = \App\Models\Loteamento::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Area(ST_Difference($polyWKT, geo::geometry)::geography) <= 1.0")
                 ->first();
 
@@ -1769,7 +1766,7 @@ class MapaFullscreen extends Page
                 return;
             }
 
-            $perimetro = \App\Models\PerimetroUrbano::where('tenant_id', $this->tenantId)->whereRaw("ST_Intersects(geo, $polyWKT)")->first();
+            $perimetro = \App\Models\PerimetroUrbano::query()->where('tenant_id', $this->tenantId)->whereRaw("ST_Intersects(geo, $polyWKT)")->first();
 
             $reg->update([
                 'geo' => $geoJson,
@@ -1808,7 +1805,7 @@ class MapaFullscreen extends Page
                 SELECT (ST_Dump(ST_Split(poly_dump.geom, linha.geom))).geom AS parte
                 FROM poly_dump CROSS JOIN linha
             )
-            SELECT 
+            SELECT
                 ST_AsGeoJSON(parte) as geojson,
                 ST_Area(parte::geography) as area_m2
             FROM cortado
@@ -1860,7 +1857,7 @@ class MapaFullscreen extends Page
                     ->required(),
 
                 // -------------------------------------------------------------
-                // BLOCO 1: FILTRO POR ATRIBUTO 
+                // BLOCO 1: FILTRO POR ATRIBUTO
                 // -------------------------------------------------------------
                 Forms\Components\Group::make([
                     Forms\Components\Select::make('layer')
@@ -2097,6 +2094,16 @@ class MapaFullscreen extends Page
         $this->filtroAvancadoAtivo = false;
     }
 
+    public function excluirDocumento(int $id): void
+    {
+        $doc = \App\Models\Documento::query()->find($id);
+        if ($doc && $doc->tenant_id === $this->tenantId) {
+            \Illuminate\Support\Facades\Storage::delete($doc->path);
+            $doc->delete();
+            Notification::make()->title('Documento removido.')->warning()->send();
+        }
+    }
+
     // =========================================================================
     // ACTION DE ESTATÍSTICAS
     // =========================================================================
@@ -2127,9 +2134,9 @@ class MapaFullscreen extends Page
                             if (!$tipo) return ['all' => 'Todas'];
                             $opts = ['all' => '— Todas —'];
                             $rows = match ($tipo) {
-                                'bairros'            => \App\Models\Bairro::where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
-                                'setores_fiscais'    => \App\Models\SetorFiscal::where('tenant_id', $this->tenantId)->orderBy('nome')->pluck('nome', 'id'),
-                                'perimetros_urbanos' => \App\Models\PerimetroUrbano::where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
+                                'bairros'            => \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
+                                'setores_fiscais'    => \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)->orderBy('nome')->pluck('nome', 'id'),
+                                'perimetros_urbanos' => \App\Models\PerimetroUrbano::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
                                 default              => collect([]),
                             };
                             return $opts + $rows->toArray();
@@ -2188,7 +2195,7 @@ class MapaFullscreen extends Page
      */
     public function atualizarZonasTipos()
     {
-        $this->zonasTipos = \App\Models\Zona::where('tenant_id', $this->tenantId)
+        $this->zonasTipos = \App\Models\Zona::query()->where('tenant_id', $this->tenantId)
             ->select('id', 'name', 'sigla', 'rgb')
             ->get()
             ->map(fn($zona) => [
@@ -2210,7 +2217,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaZona')]
     public function salvarNovaGeometriaZona($id, $geoJson)
     {
-        $zona = \App\Models\Zona::find($id);
+        $zona = \App\Models\Zona::query()->find($id);
         if ($zona) {
             $zona->update(['geo' => $geoJson]);
 
@@ -2233,7 +2240,7 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaPontoPanoramico')]
     public function salvarNovaGeometriaPontoPanoramico($id, $geoJson)
     {
-        $ponto = \App\Models\PontoPanoramico::find($id);
+        $ponto = \App\Models\PontoPanoramico::query()->find($id);
         if ($ponto) {
             $ponto->update(['geo' => $geoJson]);
             \Filament\Notifications\Notification::make()->title('Localização do Ponto 360º Atualizada!')->success()->send();

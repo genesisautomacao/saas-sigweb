@@ -93,6 +93,23 @@
                                             class="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
                                     </template>
 
+                                    <template x-if="res.tipo === 'setor'">
+                                        <x-heroicon-o-rectangle-group
+                                            class="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                                    </template>
+                                    <template x-if="res.tipo === 'distrito'">
+                                        <x-heroicon-o-globe-americas
+                                            class="w-5 h-5 text-teal-500 flex-shrink-0 mt-0.5" />
+                                    </template>
+
+                                    <template x-if="res.tipo === 'loteamento'">
+                                        <x-heroicon-o-squares-2x2
+                                            class="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                                    </template>
+                                    <template x-if="res.tipo === 'quadra'">
+                                        <x-heroicon-o-stop class="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
+                                    </template>
+
                                     <div class="flex flex-col">
                                         <span class="text-sm font-bold text-gray-800 dark:text-gray-100"
                                             x-text="res.titulo"></span>
@@ -107,22 +124,32 @@
                 </div>
 
                 {{-- BOTÃO FILTRO AVANÇADO --}}
-                <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }"
-                    x-on:click="$wire.mountAction('filtroAvancadoAction')"
+                <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }" x-on:click="$wire.mountAction('filtroAvancadoAction')"
                     class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                     title="Filtro Avançado / Tematização">
                     <x-heroicon-o-funnel class="w-5 h-5" />
                 </button>
 
                 {{-- BOTÃO ESTATÍSTICAS --}}
-                <button type="button"
-                    x-on:click="$wire.mountAction('estatisticasAction')"
+                <button type="button" x-on:click="$wire.mountAction('estatisticasAction')"
                     class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                     title="Estatísticas por Área">
                     <x-heroicon-o-chart-bar class="w-5 h-5" />
                 </button>
 
                 <div class="flex items-center gap-1 px-1">
+
+                    {{-- ZOOM EXTENSÃO + VISÃO ANTERIOR --}}
+                    <button onclick="window.zoomExtensao()" title="Visão Geral (Zoom Extensão)"
+                        class="p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                        <x-heroicon-o-home class="w-5 h-5" />
+                    </button>
+                    <button onclick="window.visaoAnterior()" title="Visão Anterior"
+                        class="p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                        <x-heroicon-o-arrow-uturn-left class="w-5 h-5" />
+                    </button>
+                    <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
 
                     <button id="btn-pan" title="Mover Mapa (Cancelar Ferramentas)"
                         class="p-2 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-xl transition-colors focus:outline-none">
@@ -1976,7 +2003,8 @@
     <x-filament-actions::modals />
 
     {{-- PAINEL DE ESTATÍSTICAS --}}
-    <div id="painel-estatisticas" style="
+    <div id="painel-estatisticas"
+        style="
         display:none; position:absolute; top:70px; right:16px; z-index:1000;
         background:rgba(17,24,39,0.95); backdrop-filter:blur(8px);
         border:1px solid rgba(255,255,255,0.1); border-radius:12px;
@@ -1985,7 +2013,8 @@
     ">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
             <span id="stat-titulo" style="font-size:13px;font-weight:600;color:#f9fafb;">Estatísticas</span>
-            <button onclick="document.getElementById('painel-estatisticas').style.display='none'; window.limparOverlaysEstat();"
+            <button
+                onclick="document.getElementById('painel-estatisticas').style.display='none'; window.limparOverlaysEstat();"
                 style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:18px;line-height:1;">✕</button>
         </div>
         <div id="stat-resumo" style="font-size:11px;color:#9ca3af;margin-bottom:12px;"></div>
@@ -1994,7 +2023,8 @@
     </div>
 
     {{-- PAINEL DE FILTROS ATIVOS --}}
-    <div id="painel-filtros-ativos" style="
+    <div id="painel-filtros-ativos"
+        style="
         display: none;
         position: absolute;
         bottom: 40px;
@@ -2010,14 +2040,17 @@
         box-shadow: 0 4px 24px rgba(0,0,0,0.4);
     ">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-            <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.05em;">
+            <span
+                style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.05em;">
                 🎨 Tematizações Ativas
             </span>
-            <button onclick="$wire.limparFiltroAvancado()" style="
+            <button onclick="$wire.limparFiltroAvancado()"
+                style="
                 font-size:10px; padding:3px 8px; border-radius:6px;
                 background:rgba(239,68,68,0.2); color:#f87171;
                 border:1px solid rgba(239,68,68,0.3); cursor:pointer;
-            ">Limpar Todos</button>
+            ">Limpar
+                Todos</button>
         </div>
         <div id="lista-filtros-ativos" style="display:flex; flex-direction:column; gap:4px;"></div>
     </div>

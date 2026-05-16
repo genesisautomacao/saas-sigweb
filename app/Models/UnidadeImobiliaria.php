@@ -24,10 +24,10 @@ class UnidadeImobiliaria extends Model
         'dados_tributarios',
         'logradouro_nome',
         'numero_imovel',
-    ]; 
+    ];
 
     protected $casts = [
-        'dados_tributarios' => 'array', 
+        'dados_tributarios' => 'array',
     ];
 
     protected $hidden = ['geo'];
@@ -65,5 +65,10 @@ class UnidadeImobiliaria extends Model
     public function proprietario()
     {
         return $this->belongsTo(\App\Models\Pessoa::class, 'proprietario_id');
+    }
+
+    public function documentos()
+    {
+        return $this->morphMany(Documento::class, 'documentable');
     }
 }
