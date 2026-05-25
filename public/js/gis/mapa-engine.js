@@ -5659,4 +5659,72 @@ document.addEventListener("DOMContentLoaded", function () {
         const b = parseInt(hex.slice(5, 7), 16);
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
+
+    // =========================================================================
+    // B2 — LOCALIZAÇÃO POR COORDENADA DIGITADA
+    // =========================================================================
+    window.irParaCoordenada = function (lat, lon, zoom) {
+        const latF = parseFloat(lat);
+        const lonF = parseFloat(lon);
+        if (isNaN(latF) || isNaN(lonF)) {
+            alert("Coordenadas inválidas. Informe latitude e longitude numéricas.");
+            return;
+        }
+        map.getView().animate({
+            center: ol.proj.fromLonLat([lonF, latF]),
+            zoom: zoom || 18,
+            duration: 1500,
+        });
+    };
+
+    // =========================================================================
+    // B3 — TOGGLE DE RÓTULOS POR CAMADA
+    // Guarda as style functions originais e alterna entre com/sem texto
+    // =========================================================================
+    window.sigwebLabelsEnabled = {};
+    window.sigwebOriginalStyles = {};
+
+    window.toggleLayerLabels = function (layerName, enabled) {
+        window.sigwebLabelsEnabled[layerName] = enabled;
+
+        const layer = window.loadedLayers[layerName];
+        if (!layer) return;
+
+        if (enabled) {
+            if (window.sigwebOriginalStyles[layerName]) {
+                layer.setStyle(window.sigwebOriginalStyles[layerName]);
+            }
+        } else {
+            if (!window.sigwebOriginalStyles[layerName]) {
+                window.sigwebOriginalStyles[layerName] = layer.getStyleFunction();
+            }
+            layer.setStyle(function (feature, resolution) {
+                const originalFn = window.sigwebOriginalStyles[layerName];
+                const styles = originalFn ? originalFn(feature, resolution) : [];
+                const arr = Array.isArray(styles) ? styles : (styles ? [styles] : []);
+                return arr.map(s => {
+                    const clone = s.clone();
+                    clone.setText(null);
+                    return clone;
+                });
+            });
+        }
+    };
+
+    // Listener para evento disparado pelo blade
+    window.addEventListener("sigweb-toggle-labels", function (e) {
+        window.toggleLayerLabels(e.detail.layer, e.detail.enabled);
+    });
+
+    // =========================================================================
+    // B4 — CAPTURAR ENQUADRAMENTO ATUAL (para salvar como padrão)
+    // =========================================================================
+    window.getEnquadramentoAtual = function () {
+        const center = ol.proj.toLonLat(map.getView().getCenter());
+        return {
+            lon: parseFloat(center[0].toFixed(7)),
+            lat: parseFloat(center[1].toFixed(7)),
+            zoom: Math.round(map.getView().getZoom()),
+        };
+    };
 }); // <-- Fim do DOMContentLoaded

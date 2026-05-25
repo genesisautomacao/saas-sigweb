@@ -13,6 +13,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
         "mokhosh/filament-kanban": "^2.11",
+        "spatie/laravel-activitylog": "^4.12",
         "spatie/laravel-permission": "^7.1",
         "spatie/simple-excel": "^3.8"
     },

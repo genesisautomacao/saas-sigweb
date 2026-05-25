@@ -5,7 +5,14 @@
       "Bash(xargs grep -l \"WatermelonDB\\\\|offline\\\\|sync\")",
       "Bash(powershell -Command \"Get-ChildItem -Path app -Filter *.php -Recurse | Select-String -Pattern 'WatermelonDB|offline|sync' | Select-Object -ExpandProperty Path -Unique\")",
       "Bash(Select-String -Pattern \"logradouro\" -List)",
-      "Bash(Select-String -Pattern \"map|lotes|login\")"
+      "Bash(Select-String -Pattern \"map|lotes|login\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\laragon\\\\www\\\\saas-sigweb\" -Recurse -File -Filter \"*.js\" -Include \"*mapa*\")",
+      "Bash(Select-Object -First 20)",
+      "Bash(xargs grep -l \"HasMedia\\\\|Media\\\\|Foto\")",
+      "Bash(composer require *)",
+      "Bash(php -l app/Filament/Pages/MonitoramentoCampoPage.php)",
+      "Bash(php -l app/Filament/Pages/ProdutividadePage.php)",
+      "Bash(php -l app/Filament/Pages/MapaFullscreen.php)"
     ]
   }
 }

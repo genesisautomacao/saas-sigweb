@@ -7,12 +7,35 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasTenantSequentialId;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Lote extends Model
 {
-    use SoftDeletes, BelongsToTenant, HasTenantSequentialId;
+    use SoftDeletes, BelongsToTenant, HasTenantSequentialId, LogsActivity;
 
-    protected $fillable = ['tenant_id', 'sequential_id', 'quadra_id', 'zona_id', 'code', 'numero_lote', 'foto_frontal', 'observacao', 'area_geo', 'main_facade_length', 'geo'];
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['numero_lote', 'status_cadastro', 'ocupacao', 'situacao_quadra', 'observacao'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
+
+    protected $fillable = [
+        'tenant_id', 'sequential_id', 'quadra_id', 'zona_id', 'code',
+        'numero_lote', 'area_geo', 'main_facade_length',
+        'foto_frontal', 'foto_lateral_esq', 'foto_lateral_dir',
+        'observacao', 'status_cadastro', 'ocupacao', 'situacao_quadra',
+        'inconformidade_descricao', 'dados_vistoria',
+        'coletado_por_id', 'coletado_em',
+        'geo',
+    ];
+
+    protected $casts = [
+        'dados_vistoria' => 'array',
+        'coletado_em'    => 'datetime',
+    ];
     protected $hidden = ['geo'];
     protected $appends = ['geo_json'];
 

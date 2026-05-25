@@ -148,6 +148,40 @@
                         class="p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-xl transition-colors">
                         <x-heroicon-o-arrow-uturn-left class="w-5 h-5" />
                     </button>
+
+                    {{-- B4: SALVAR ENQUADRAMENTO PADRÃO --}}
+                    @if(filament()->getTenant() && auth()->user()?->hasAnyRole(['Master','Manager']))
+                    <button
+                        onclick="(function(){ const e = window.getEnquadramentoAtual?.(); if(e) { @this.call('salvarEnquadramento', e.lat, e.lon, e.zoom); } })()"
+                        title="Salvar enquadramento atual como padrão"
+                        class="p-2 text-gray-600 hover:bg-amber-100 dark:text-gray-300 dark:hover:bg-amber-900/30 rounded-xl transition-colors">
+                        <x-heroicon-o-bookmark class="w-5 h-5" />
+                    </button>
+                    @endif
+
+                    <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
+                    {{-- B2: IR PARA COORDENADA --}}
+                    <div x-data="{ aberto: false }" class="relative">
+                        <button @click="aberto = !aberto" @click.outside="aberto = false"
+                            title="Ir para coordenada (Lat / Lon)"
+                            class="p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-xl transition-colors flex items-center gap-1">
+                            <x-heroicon-o-map-pin class="w-5 h-5" />
+                        </button>
+                        <div x-show="aberto" x-cloak @keydown.escape="aberto = false"
+                            class="absolute top-10 left-0 z-50 bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 rounded-xl p-3 flex gap-2 items-center min-w-[280px]">
+                            <input id="coord-lat" type="number" step="any" placeholder="Latitude"
+                                class="w-28 text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 outline-none">
+                            <input id="coord-lon" type="number" step="any" placeholder="Longitude"
+                                class="w-28 text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 outline-none">
+                            <button
+                                @click="window.irParaCoordenada(document.getElementById('coord-lat').value, document.getElementById('coord-lon').value); aberto = false"
+                                class="px-3 py-1.5 text-xs bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                                Ir
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
 
 
@@ -847,32 +881,50 @@
                             </span>
                         </label>
 
-                        <label class="flex items-center space-x-3 cursor-pointer w-full">
-                            <input type="checkbox" data-layer="quadras"
-                                class="layer-toggle rounded border-gray-300 text-orange-500 focus:ring-orange-500 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-orange-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
-                                </div><span class="layer-text truncate">Quadras</span>
-                            </span>
-                        </label>
+                        <div class="flex items-center justify-between w-full">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="quadras"
+                                    class="layer-toggle rounded border-gray-300 text-orange-500 focus:ring-orange-500 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-3 bg-orange-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <span class="layer-text truncate">Quadras</span>
+                                </span>
+                            </label>
+                            <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer ml-2 flex-shrink-0" title="Exibir rótulos">
+                                <input type="checkbox" checked
+                                    onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'quadras',enabled:this.checked}}))"
+                                    class="rounded border-gray-300 w-3 h-3">
+                                <span>Rótulos</span>
+                            </label>
+                        </div>
 
-                        <label class="flex items-center space-x-3 cursor-pointer w-full">
-                            <input type="checkbox" data-layer="lotes"
-                                class="layer-toggle rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-emerald-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
-                                </div><span class="layer-text truncate">Lotes</span>
-                            </span>
-                        </label>
+                        <div class="flex items-center justify-between w-full mt-2">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="lotes"
+                                    class="layer-toggle rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-3 bg-emerald-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <span class="layer-text truncate">Lotes</span>
+                                </span>
+                            </label>
+                            <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer ml-2 flex-shrink-0" title="Exibir rótulos">
+                                <input type="checkbox" checked
+                                    onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'lotes',enabled:this.checked}}))"
+                                    class="rounded border-gray-300 w-3 h-3">
+                                <span>Rótulos</span>
+                            </label>
+                        </div>
 
-                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
-                            <input type="checkbox" data-layer="logradouros"
-                                class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div><span
-                                    class="layer-text truncate">Logradouros</span>
-                            </span>
-                        </label>
+                        <div class="flex items-center justify-between w-full mt-2">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="logradouros"
+                                    class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div>
+                                    <span class="layer-text truncate">Logradouros</span>
+                                </span>
+                            </label>
+                        </div>
 
 
                     </div>

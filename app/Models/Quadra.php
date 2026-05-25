@@ -8,10 +8,17 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasTenantSequentialId;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Quadra extends Model
 {
-    use HasFactory, SoftDeletes, BelongsToTenant, HasTenantSequentialId;
+    use HasFactory, SoftDeletes, BelongsToTenant, HasTenantSequentialId, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()->logOnly(['name'])->logOnlyDirty()->dontSubmitEmptyLogs();
+    }
 
     protected $table = 'quadras';
 

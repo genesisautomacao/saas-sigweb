@@ -2246,4 +2246,28 @@ class MapaFullscreen extends Page
             \Filament\Notifications\Notification::make()->title('Localização do Ponto 360º Atualizada!')->success()->send();
         }
     }
+
+    public function salvarEnquadramento(float $lat, float $lon, int $zoom): void
+    {
+        $tenant = Filament::getTenant();
+        if (!$tenant) {
+            return;
+        }
+
+        $data = $tenant->data ?? [];
+        $data['map_lat'] = $lat;
+        $data['map_lon'] = $lon;
+        $data['map_zoom'] = $zoom;
+        $tenant->update(['data' => $data]);
+
+        $this->mapLat = $lat;
+        $this->mapLon = $lon;
+        $this->mapZoom = $zoom;
+
+        Notification::make()
+            ->title('Enquadramento salvo')
+            ->body("Lat: {$lat}, Lon: {$lon}, Zoom: {$zoom}")
+            ->success()
+            ->send();
+    }
 }

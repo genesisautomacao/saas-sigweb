@@ -70,7 +70,7 @@ class MobileMapDataController extends Controller
             ->where('tenant_id', $tenantId)
             ->whereNull('deleted_at')
             ->whereNotNull('geo')
-            ->selectRaw('id, code, numero_lote, sequential_id, ST_AsGeoJSON(geo, 6) as geo_json');
+            ->selectRaw('id, code, numero_lote, sequential_id, status_cadastro, ocupacao, ST_AsGeoJSON(geo, 6) as geo_json');
 
         $this->applyBbox($q, 'geo', $bbox);
 
@@ -81,11 +81,13 @@ class MobileMapDataController extends Controller
             $features[] = [
                 'type' => 'Feature',
                 'properties' => [
-                    'id'            => $row->id,
-                    'name'          => $row->numero_lote ?? 'S/N',
-                    'codigo'        => $row->code,
-                    'sequential_id' => $row->sequential_id,
-                    'layer'         => 'lotes',
+                    'id'              => $row->id,
+                    'name'            => $row->numero_lote ?? 'S/N',
+                    'codigo'          => $row->code,
+                    'sequential_id'   => $row->sequential_id,
+                    'status_cadastro' => $row->status_cadastro ?? 'nao_visitado',
+                    'ocupacao'        => $row->ocupacao,
+                    'layer'           => 'lotes',
                 ],
                 'geometry' => $geom,
             ];
