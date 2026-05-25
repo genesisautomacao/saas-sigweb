@@ -23,6 +23,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants
         'email',
         'password',
         'email_verified_at',
+        'expo_push_token',
     ];
 
     protected $hidden = [

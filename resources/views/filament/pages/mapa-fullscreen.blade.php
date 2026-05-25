@@ -930,6 +930,25 @@
                             </span>
                         </label>
 
+                        {{-- TOGGLE: MODO MAPA DE CALOR --}}
+                        <div class="mt-3 pt-3 border-t border-rose-200/50 dark:border-rose-700/30">
+                            <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-2 font-bold">Modo de
+                                Visualização</div>
+                            <label class="flex items-center space-x-3 cursor-pointer w-full group">
+                                <input type="checkbox" id="toggle-modo-heatmap"
+                                    class="rounded border-gray-300 text-rose-600 focus:ring-rose-500 w-4 h-4 flex-shrink-0 transition-all">
+                                <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-1">
+                                    <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm"
+                                        style="background: radial-gradient(circle, #ef4444, #f59e0b, #3b82f6);"></div>
+                                    <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300">
+                                        Mapa de Calor (Hotmap)
+                                    </span>
+                                </span>
+                            </label>
+                            <p class="text-[10px] text-gray-400 mt-1 ps-7">Ativa a visualização por densidade. Os
+                                filtros acima definem quais dados são aquecidos.</p>
+                        </div>
+
                     </div>
                 </div>
 

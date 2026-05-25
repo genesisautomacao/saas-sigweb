@@ -4221,15 +4221,97 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     // =========================================================================
-    // LISTENERS DO MAPA DE CALOR SOCIAL
+    // LISTENERS DO MAPA DE CALOR SOCIAL + HEATMAP
     // =========================================================================
 
-    // Função utilitária para "piscar" os lotes e aplicar as novas cores
+    // Camadas de Heatmap — uma por tipo social
+    const heatmapRiscoSource = new ol.source.Vector();
+    const heatmapBeneficioSource = new ol.source.Vector();
+    const heatmapPcdSource = new ol.source.Vector();
+
+    const heatmapRiscoLayer = new ol.layer.Heatmap({
+        source: heatmapRiscoSource,
+        blur: 30,
+        radius: 20,
+        gradient: ["#fef9c3", "#fca5a5", "#ef4444", "#991b1b"],
+        zIndex: 9000,
+        visible: false,
+    });
+
+    const heatmapBeneficioLayer = new ol.layer.Heatmap({
+        source: heatmapBeneficioSource,
+        blur: 28,
+        radius: 18,
+        gradient: ["#fef9c3", "#fde68a", "#f59e0b", "#92400e"],
+        zIndex: 9001,
+        visible: false,
+    });
+
+    const heatmapPcdLayer = new ol.layer.Heatmap({
+        source: heatmapPcdSource,
+        blur: 28,
+        radius: 18,
+        gradient: ["#f3e8ff", "#d8b4fe", "#9333ea", "#581c87"],
+        zIndex: 9002,
+        visible: false,
+    });
+
+    map.addLayer(heatmapRiscoLayer);
+    map.addLayer(heatmapBeneficioLayer);
+    map.addLayer(heatmapPcdLayer);
+
+    let modoHeatmapAtivo = false;
+
+    // Popula as fontes de heatmap com os centroides dos lotes filtrados
+    function popularHeatmaps() {
+        heatmapRiscoSource.clear();
+        heatmapBeneficioSource.clear();
+        heatmapPcdSource.clear();
+
+        if (!window.loadedLayers["lotes"]) return;
+
+        const features = window.loadedLayers["lotes"].getSource().getFeatures();
+        features.forEach((f) => {
+            const geom = f.getGeometry();
+            if (!geom) return;
+
+            // Pega o centroide do polígono do lote
+            let point;
+            if (
+                geom.getType() === "Polygon" ||
+                geom.getType() === "MultiPolygon"
+            ) {
+                const extent = geom.getExtent();
+                point = new ol.geom.Point(ol.extent.getCenter(extent));
+            } else {
+                point = new ol.geom.Point(geom.getFirstCoordinate());
+            }
+
+            if (f.get("social_risco"))
+                heatmapRiscoSource.addFeature(new ol.Feature(point.clone()));
+            if (f.get("social_beneficio"))
+                heatmapBeneficioSource.addFeature(
+                    new ol.Feature(point.clone()),
+                );
+            if (f.get("social_pcd"))
+                heatmapPcdSource.addFeature(new ol.Feature(point.clone()));
+        });
+    }
+
+    // Atualiza visibilidade das camadas heatmap conforme filtros e modo ativo
+    function sincronizarHeatmaps() {
+        heatmapRiscoLayer.setVisible(modoHeatmapAtivo && filtroRiscoAtivo);
+        heatmapBeneficioLayer.setVisible(
+            modoHeatmapAtivo && filtroBeneficioAtivo,
+        );
+        heatmapPcdLayer.setVisible(modoHeatmapAtivo && filtroPcdAtivo);
+    }
+
+    // Função utilitária para re-aplicar cores nos lotes (modo normal)
     function atualizarCoresDosLotes() {
         if (window.loadedLayers["lotes"]) {
-            window.loadedLayers["lotes"].changed(); // Força o OpenLayers a re-ler a função de "style"
+            window.loadedLayers["lotes"].changed();
         } else {
-            // Se a camada de lotes estiver desligada, nós a ligamos à força para o gestor ver o resultado!
             const checkboxLotes = document.querySelector(
                 'input[data-layer="lotes"]',
             );
@@ -4238,6 +4320,37 @@ document.addEventListener("DOMContentLoaded", function () {
                 checkboxLotes.dispatchEvent(new Event("change"));
             }
         }
+        if (modoHeatmapAtivo) popularHeatmaps();
+        sincronizarHeatmaps();
+    }
+
+    // Toggle Heatmap
+    const checkHeatmap = document.getElementById("toggle-modo-heatmap");
+    if (checkHeatmap) {
+        checkHeatmap.addEventListener("change", function () {
+            modoHeatmapAtivo = this.checked;
+            if (modoHeatmapAtivo) {
+                // Garante que os lotes estão carregados para popular o heatmap
+                const checkboxLotes = document.querySelector(
+                    'input[data-layer="lotes"]',
+                );
+                if (checkboxLotes && !checkboxLotes.checked) {
+                    checkboxLotes.checked = true;
+                    checkboxLotes.dispatchEvent(new Event("change"));
+                    // Aguarda o fetch terminar antes de popular
+                    setTimeout(() => {
+                        popularHeatmaps();
+                        sincronizarHeatmaps();
+                    }, 1500);
+                } else {
+                    popularHeatmaps();
+                    sincronizarHeatmaps();
+                }
+            } else {
+                sincronizarHeatmaps(); // Esconde todos os heatmaps
+            }
+            atualizarCoresDosLotes();
+        });
     }
 
     const checkRisco = document.getElementById("filtro-social-risco");
