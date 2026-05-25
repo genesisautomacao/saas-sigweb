@@ -17,7 +17,7 @@ class AuthController extends Controller
             'expo_push_token'  => 'nullable|string',   // ← campo opcional do mobile
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::firstWhere('email', $request->email);
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Credenciais inválidas.'], 401);
@@ -30,14 +30,25 @@ class AuthController extends Controller
 
         $token = $user->createToken('app-mobile')->plainTextToken;
 
+        $tenant = $user->tenants()->first();
+        $data   = $tenant?->data ?? [];
+
         return response()->json([
-            'token' => $token,
-            'user'  => [
-                'id'        => $user->id,
-                'name'      => $user->name,
-                'email'     => $user->email,
-                'tenant_id' => $user->tenants()->first()->id ?? null,
-            ]
+            'token'  => $token,
+            'user'   => [
+                'id'    => $user->id,
+                'name'  => $user->name,
+                'email' => $user->email,
+            ],
+            'tenant' => [
+                'id'       => $tenant?->id,
+                'name'     => $tenant?->name,
+                'city'     => $data['city']     ?? null,
+                'state'    => $data['state']    ?? null,
+                'map_lat'  => $data['map_lat']  ?? null,
+                'map_lon'  => $data['map_lon']  ?? null,
+                'map_zoom' => $data['map_zoom'] ?? null,
+            ],
         ]);
     }
 
