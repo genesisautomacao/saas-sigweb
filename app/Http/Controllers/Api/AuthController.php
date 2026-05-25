@@ -30,8 +30,22 @@ class AuthController extends Controller
 
         $token = $user->createToken('app-mobile')->plainTextToken;
 
-        $tenant = $user->tenants()->first();
-        $data   = $tenant?->data ?? [];
+        $tenant  = $user->tenants()->first();
+        $data    = $tenant?->data ?? [];
+        $modules = $tenant?->modules ?? [];
+
+        $layerMap = [
+            'arborizacao' => ['arvores'],
+            'iluminacao'  => ['postes'],
+            'cemiterio'   => ['cemiterios', 'jazigos'],
+        ];
+
+        $layers = ['lotes', 'quadras', 'logradouros', 'bairros'];
+        foreach ($layerMap as $mod => $camadas) {
+            if (in_array($mod, $modules)) {
+                $layers = array_merge($layers, $camadas);
+            }
+        }
 
         return response()->json([
             'token'  => $token,
@@ -49,6 +63,7 @@ class AuthController extends Controller
                 'map_lon'  => $data['map_lon']  ?? null,
                 'map_zoom' => $data['map_zoom'] ?? null,
             ],
+            'layers' => $layers,
         ]);
     }
 

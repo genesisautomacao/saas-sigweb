@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(php artisan *)"
+      "Bash(php artisan *)",
+      "Bash(xargs grep -l \"WatermelonDB\\\\|offline\\\\|sync\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path app -Filter *.php -Recurse | Select-String -Pattern 'WatermelonDB|offline|sync' | Select-Object -ExpandProperty Path -Unique\")",
+      "Bash(Select-String -Pattern \"logradouro\" -List)",
+      "Bash(Select-String -Pattern \"map|lotes|login\")"
     ]
   }
 }

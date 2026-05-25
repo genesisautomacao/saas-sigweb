@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\ArvoreSyncController;
 use App\Http\Controllers\Api\SolicitacaoManutencaoController;
 use App\Http\Controllers\Api\SolicitacaoManutencaoSyncController;
 use App\Http\Controllers\Api\OgcController;
+use App\Http\Controllers\Api\MobileMapDataController;
+use App\Http\Controllers\Api\LoteSyncController;
 
 // Rota OGC Interoperability (WFS/WMS) com isolamento SaaS via Slug
 Route::get('/ogc/{tenant_slug}', [OgcController::class, 'handle']);
@@ -27,4 +29,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // 🛠️ Rotas do Motor Offline - MANUTENÇÕES
     Route::get('/sync/manutencoes/pull', [SolicitacaoManutencaoSyncController::class, 'pull']);
     Route::post('/sync/manutencoes/push', [SolicitacaoManutencaoSyncController::class, 'push']);
+
+    // 🏘️ Camadas do Mapa Mobile (autenticado, isolado por tenant, com suporte a bbox)
+    Route::get('/map/data', [MobileMapDataController::class, 'index']);
+
+    // 🏘️ Lotes Sync (offline-first — somente atualizações pelo app)
+    Route::get('/sync/lotes/pull',  [LoteSyncController::class, 'pull']);
+    Route::post('/sync/lotes/push', [LoteSyncController::class, 'push']);
 });
