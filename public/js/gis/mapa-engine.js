@@ -80,10 +80,23 @@ document.addEventListener("DOMContentLoaded", function () {
         perimetros: {
             z: 10,
             minZoom: 0,
-            style: new ol.style.Style({
-                stroke: new ol.style.Stroke({ color: "#ef4444", width: 3 }),
-                fill: new ol.style.Fill({ color: "rgba(239, 68, 68, 0.05)" }),
-            }),
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: "#ef4444", width: 3 }),
+                    fill: new ol.style.Fill({ color: "rgba(239, 68, 68, 0.05)" }),
+                });
+                if (zoom >= 12) {
+                    style.setText(new ol.style.Text({
+                        text: feature.get("name") ? feature.get("name").toString() : "",
+                        font: "bold 14px Arial, sans-serif",
+                        fill: new ol.style.Fill({ color: "#991b1b" }),
+                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                        overflow: true,
+                    }));
+                }
+                return style;
+            },
         },
 
         zonas: {
@@ -224,9 +237,23 @@ document.addEventListener("DOMContentLoaded", function () {
         logradouros: {
             z: 50,
             minZoom: 14,
-            style: new ol.style.Style({
-                stroke: new ol.style.Stroke({ color: "#3675ce", width: 3 }),
-            }),
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: "#3675ce", width: 3 }),
+                });
+                if (zoom >= 16) {
+                    style.setText(new ol.style.Text({
+                        text: feature.get("name") ? feature.get("name").toString() : "",
+                        font: "bold 11px Arial, sans-serif",
+                        fill: new ol.style.Fill({ color: "#1e3a8a" }),
+                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                        placement: "line",
+                        overflow: true,
+                    }));
+                }
+                return style;
+            },
         },
 
         postes: {
@@ -801,6 +828,19 @@ document.addEventListener("DOMContentLoaded", function () {
         view: view,
         controls: [],
     });
+
+    // ── #12 — COORDENADA DO CURSOR EM TEMPO REAL ────────────────────
+    const coordDisplay = document.getElementById('coord-display');
+    if (coordDisplay) {
+        map.on('pointermove', function (evt) {
+            if (evt.dragging) return;
+            const lonLat = ol.proj.toLonLat(evt.coordinate);
+            coordDisplay.textContent = 'Lat: ' + lonLat[1].toFixed(6) + '  Lon: ' + lonLat[0].toFixed(6);
+        });
+        map.getTargetElement().addEventListener('mouseleave', function () {
+            coordDisplay.textContent = 'Lat: —  Lon: —';
+        });
+    }
 
     // ── ZOOM EXTENSÃO + VISÃO ANTERIOR ──────────────────────────────
     // Guarda a view inicial diretamente do config do tenant
@@ -5684,20 +5724,46 @@ document.addEventListener("DOMContentLoaded", function () {
     window.sigwebLabelsEnabled = {};
     window.sigwebOriginalStyles = {};
 
-    window.toggleLayerLabels = function (layerName, enabled) {
+    window.sigwebLabelField = {};
+
+    window.toggleLayerLabels = function (layerName, enabled, attributeField) {
         window.sigwebLabelsEnabled[layerName] = enabled;
+
+        if (attributeField) {
+            window.sigwebLabelField[layerName] = attributeField;
+        }
 
         const layer = window.loadedLayers[layerName];
         if (!layer) return;
 
+        if (!window.sigwebOriginalStyles[layerName]) {
+            window.sigwebOriginalStyles[layerName] = layer.getStyleFunction();
+        }
+
         if (enabled) {
-            if (window.sigwebOriginalStyles[layerName]) {
+            const field = window.sigwebLabelField[layerName];
+            if (field && field !== '__default__') {
+                layer.setStyle(function (feature, resolution) {
+                    const originalFn = window.sigwebOriginalStyles[layerName];
+                    const styles = originalFn ? originalFn(feature, resolution) : [];
+                    const arr = Array.isArray(styles) ? styles : (styles ? [styles] : []);
+                    return arr.map(s => {
+                        const clone = s.clone();
+                        const val = feature.get(field);
+                        clone.setText(new ol.style.Text({
+                            text: val !== undefined && val !== null ? String(val) : '',
+                            font: 'bold 11px Arial, sans-serif',
+                            fill: new ol.style.Fill({ color: '#1f2937' }),
+                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                            overflow: true,
+                        }));
+                        return clone;
+                    });
+                });
+            } else {
                 layer.setStyle(window.sigwebOriginalStyles[layerName]);
             }
         } else {
-            if (!window.sigwebOriginalStyles[layerName]) {
-                window.sigwebOriginalStyles[layerName] = layer.getStyleFunction();
-            }
             layer.setStyle(function (feature, resolution) {
                 const originalFn = window.sigwebOriginalStyles[layerName];
                 const styles = originalFn ? originalFn(feature, resolution) : [];
@@ -5713,7 +5779,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Listener para evento disparado pelo blade
     window.addEventListener("sigweb-toggle-labels", function (e) {
-        window.toggleLayerLabels(e.detail.layer, e.detail.enabled);
+        window.toggleLayerLabels(e.detail.layer, e.detail.enabled, e.detail.field || null);
     });
 
     // =========================================================================

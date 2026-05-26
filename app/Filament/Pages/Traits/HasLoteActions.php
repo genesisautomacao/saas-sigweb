@@ -51,6 +51,25 @@ trait HasLoteActions
                     ->numeric()
                     ->nullable(),
 
+                Select::make('ocupacao')
+                    ->label('Ocupação do Lote')
+                    ->options([
+                        'baldio'    => 'Baldio',
+                        'construido' => 'Construído',
+                    ])
+                    ->placeholder('Selecione...')
+                    ->nullable(),
+
+                Select::make('situacao_quadra')
+                    ->label('Situação na Quadra')
+                    ->options([
+                        'meio_quadra' => 'Meio de Quadra',
+                        'esquina'     => 'Esquina',
+                        'encravado'   => 'Encravado',
+                    ])
+                    ->placeholder('Selecione...')
+                    ->nullable(),
+
                 Select::make('quadra_id')
                     ->label('Quadra (Auto-detectada)')
                     ->options(fn() => Quadra::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id'))
@@ -118,8 +137,10 @@ trait HasLoteActions
             ->fillForm(function (): array {
                 $lote = Lote::query()->find($this->loteAtivoId);
                 return [
-                    'numero_lote' => $lote ? $lote->numero_lote : '',
+                    'numero_lote'      => $lote ? $lote->numero_lote : '',
                     'main_facade_length' => $lote ? $lote->main_facade_length : null,
+                    'ocupacao'         => $lote ? $lote->ocupacao : null,
+                    'situacao_quadra'  => $lote ? $lote->situacao_quadra : null,
                 ];
             })
             ->form([
@@ -141,6 +162,25 @@ trait HasLoteActions
                 TextInput::make('main_facade_length')
                     ->label('Testada Principal / Frente (metros)')
                     ->numeric()
+                    ->nullable(),
+
+                Select::make('ocupacao')
+                    ->label('Ocupação do Lote')
+                    ->options([
+                        'baldio'     => 'Baldio',
+                        'construido' => 'Construído',
+                    ])
+                    ->placeholder('Selecione...')
+                    ->nullable(),
+
+                Select::make('situacao_quadra')
+                    ->label('Situação na Quadra')
+                    ->options([
+                        'meio_quadra' => 'Meio de Quadra',
+                        'esquina'     => 'Esquina',
+                        'encravado'   => 'Encravado',
+                    ])
+                    ->placeholder('Selecione...')
                     ->nullable(),
             ])
             ->action(function (array $data) {

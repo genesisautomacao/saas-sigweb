@@ -61,6 +61,25 @@ class LoteResource extends Resource
                             ->searchable()
                             ->required(),
 
+                        Forms\Components\Select::make('ocupacao')
+                            ->label('Ocupação do Lote')
+                            ->options([
+                                'baldio'     => 'Baldio',
+                                'construido' => 'Construído',
+                            ])
+                            ->placeholder('Selecione...')
+                            ->nullable(),
+
+                        Forms\Components\Select::make('situacao_quadra')
+                            ->label('Situação na Quadra')
+                            ->options([
+                                'meio_quadra' => 'Meio de Quadra',
+                                'esquina'     => 'Esquina',
+                                'encravado'   => 'Encravado',
+                            ])
+                            ->placeholder('Selecione...')
+                            ->nullable(),
+
                     ])->columns(3),
 
                 Forms\Components\Section::make('Geometria do Lote (Polígono)')
@@ -110,6 +129,31 @@ class LoteResource extends Resource
                     ->numeric(decimalPlaces: 2, decimalSeparator: ',', thousandsSeparator: '.')
                     ->suffix(' m²')
                     ->sortable(),
+
+                Tables\Columns\BadgeColumn::make('ocupacao')
+                    ->label('Ocupação')
+                    ->formatStateUsing(fn($state) => match($state) {
+                        'baldio'     => 'Baldio',
+                        'construido' => 'Construído',
+                        default      => '—',
+                    })
+                    ->color(fn($state) => match($state) {
+                        'baldio'     => 'warning',
+                        'construido' => 'success',
+                        default      => 'gray',
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\BadgeColumn::make('situacao_quadra')
+                    ->label('Situação')
+                    ->formatStateUsing(fn($state) => match($state) {
+                        'meio_quadra' => 'Meio de Quadra',
+                        'esquina'     => 'Esquina',
+                        'encravado'   => 'Encravado',
+                        default       => '—',
+                    })
+                    ->color('info')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('quadra_id')

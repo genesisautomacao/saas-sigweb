@@ -32,15 +32,19 @@ trait HasQuadraActions
                     ->label('Identificação da Quadra (Ex: A, 10, etc)')
                     ->required()
                     ->maxLength(255),
+                TextInput::make('setor_codigo')
+                    ->label('Código do Setor')
+                    ->maxLength(20)
+                    ->nullable(),
                 Select::make('bairro_id')
                     ->label('Bairro')
                     ->options(Bairro::where('tenant_id', $this->tenantId)->pluck('name', 'id'))
-                    ->default(fn() => $this->quadraBairroPreSelecionadoId) // Injeção automática
+                    ->default(fn() => $this->quadraBairroPreSelecionadoId)
                     ->searchable(),
                 Select::make('loteamento_id')
                     ->label('Loteamento')
                     ->options(Loteamento::where('tenant_id', $this->tenantId)->pluck('name', 'id'))
-                    ->default(fn() => $this->quadraLoteamentoPreSelecionadoId) // Injeção automática
+                    ->default(fn() => $this->quadraLoteamentoPreSelecionadoId)
                     ->searchable(),
             ])
             ->action(function (array $data) {
@@ -104,13 +108,15 @@ trait HasQuadraActions
             ->fillForm(function (): array {
                 $reg = Quadra::find($this->quadraAtivaId);
                 return [
-                    'name' => $reg?->name,
-                    'bairro_id' => $reg?->bairro_id,
+                    'name'         => $reg?->name,
+                    'setor_codigo' => $reg?->setor_codigo,
+                    'bairro_id'    => $reg?->bairro_id,
                     'loteamento_id' => $reg?->loteamento_id,
                 ];
             })
             ->form([
                 TextInput::make('name')->label('Identificação da Quadra')->required()->maxLength(255),
+                TextInput::make('setor_codigo')->label('Código do Setor')->maxLength(20)->nullable(),
                 Select::make('bairro_id')
                     ->label('Bairro')
                     ->options(Bairro::where('tenant_id', $this->tenantId)->pluck('name', 'id'))

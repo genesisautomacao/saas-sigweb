@@ -33,7 +33,12 @@ class QuadraResource extends Resource
                     ->label('Nome / Número da Quadra')
                     ->required()
                     ->maxLength(255),
-                
+
+                Forms\Components\TextInput::make('setor_codigo')
+                    ->label('Código do Setor')
+                    ->maxLength(20)
+                    ->nullable(),
+
                 Forms\Components\Select::make('bairro_id')
                     ->label('Bairro Pertencente')
                     ->relationship('bairro', 'name')
@@ -63,6 +68,7 @@ class QuadraResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
                 Tables\Columns\TextColumn::make('name')->label('Quadra')->searchable()->weight('bold'),
+                Tables\Columns\TextColumn::make('setor_codigo')->label('Setor')->searchable()->default('—'),
                 Tables\Columns\TextColumn::make('bairro.name')->label('Bairro')->searchable(),
                 Tables\Columns\TextColumn::make('loteamento.name')->label('Loteamento')->searchable(),
             ])

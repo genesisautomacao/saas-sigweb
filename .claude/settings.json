@@ -12,7 +12,14 @@
       "Bash(composer require *)",
       "Bash(php -l app/Filament/Pages/MonitoramentoCampoPage.php)",
       "Bash(php -l app/Filament/Pages/ProdutividadePage.php)",
-      "Bash(php -l app/Filament/Pages/MapaFullscreen.php)"
+      "Bash(php -l app/Filament/Pages/MapaFullscreen.php)",
+      "Bash(Get-ChildItem \"C:\\\\laragon\\\\www\\\\saas-sigweb\\\\database\\\\migrations\")",
+      "Bash(grep -iE \"^-.*\\\\.php$\")",
+      "Bash(Get-ChildItem \"C:\\\\laragon\\\\www\\\\saas-sigweb\\\\app\\\\Filament\\\\Pages\")",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\laragon\\\\www\\\\saas-sigweb\\\\database\\\\migrations\" | Where-Object { $_.Name -match 'mensagem|comunicacao|chat|notificacao|inconformidade_geo|geo' })",
+      "Bash(Get-ChildItem \"c:\\\\laragon\\\\www\\\\saas-sigweb\\\\database\\\\migrations\")",
+      "Bash(Sort-Object Name)",
+      "Bash(Select-Object -Last 5 -ExpandProperty Name)"
     ]
   }
 }

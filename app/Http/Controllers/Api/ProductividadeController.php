@@ -21,6 +21,7 @@ class ProductividadeController extends Controller
         $tenantId  = $request->user()->tenants()->first()->id;
         $data      = $request->input('data', now()->toDateString());
         $quadraId  = $request->input('quadra_id');
+        $setorId   = $request->input('setor_id');
 
         $base = DB::table('lotes')
             ->where('tenant_id', $tenantId)
@@ -29,6 +30,13 @@ class ProductividadeController extends Controller
 
         if ($quadraId) {
             $base->where('quadra_id', $quadraId);
+        }
+
+        if ($setorId) {
+            $base->whereRaw(
+                "ST_Intersects(ST_Centroid(geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
+                [$setorId]
+            );
         }
 
         // Totais gerais por status
@@ -50,6 +58,10 @@ class ProductividadeController extends Controller
             ->whereNull('l.deleted_at')
             ->whereIn('l.status_cadastro', ['coletado', 'pendente', 'inconformidade'])
             ->when($quadraId, fn ($q) => $q->where('l.quadra_id', $quadraId))
+            ->when($setorId, fn ($q) => $q->whereRaw(
+                "ST_Intersects(ST_Centroid(l.geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
+                [$setorId]
+            ))
             ->selectRaw("
                 u.id as user_id,
                 u.name as nome,
@@ -73,6 +85,10 @@ class ProductividadeController extends Controller
             ->whereNull('l.deleted_at')
             ->whereNotNull('l.geo')
             ->when($quadraId, fn ($q) => $q->where('l.quadra_id', $quadraId))
+            ->when($setorId, fn ($q) => $q->whereRaw(
+                "ST_Intersects(ST_Centroid(l.geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
+                [$setorId]
+            ))
             ->selectRaw("
                 l.quadra_id,
                 q.name as nome_quadra,
@@ -98,6 +114,7 @@ class ProductividadeController extends Controller
 
         return response()->json([
             'data'            => $data,
+            'setor_id'        => $setorId,
             'total_lotes'     => $totalLotes,
             'coletados'       => $totalColetados,
             'pendentes'       => $totalPendentes,

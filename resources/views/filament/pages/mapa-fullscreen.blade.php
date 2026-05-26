@@ -29,6 +29,16 @@
         {{-- O MAPA --}}
         <div id="sigweb-map" class="absolute inset-0 z-0 w-full h-full"></div>
 
+        {{-- #12 — COORDENADA DO CURSOR EM TEMPO REAL --}}
+        <div id="coord-display"
+            style="position:absolute;bottom:8px;left:16px;z-index:500;
+                   background:rgba(17,24,39,.75);backdrop-filter:blur(4px);
+                   color:#f9fafb;font:11px monospace;padding:3px 10px;
+                   border-radius:8px;pointer-events:none;
+                   border:1px solid rgba(255,255,255,.1);letter-spacing:.03em;">
+            Lat: —&nbsp;&nbsp;Lon: —
+        </div>
+
         {{-- TOOLTIP DE MEDIÇÃO (Escondido) --}}
         <div id="measure-tooltip" class="ol-tooltip" style="display: none;"></div>
 
@@ -845,41 +855,109 @@
                     <div x-show="activeTab === 'base'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
 
-                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
-                            <input type="checkbox" data-layer="perimetros"
-                                class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
-                                <span class="layer-text truncate">Perímetros/Limites</span>
-                            </span>
-                        </label>
+                        <div class="flex items-center justify-between w-full mt-2">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="perimetros"
+                                    class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <span class="layer-text truncate">Perímetros/Limites</span>
+                                </span>
+                            </label>
+                            <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                    <input type="checkbox" id="perimetros-label-toggle" checked
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'perimetros',enabled:this.checked,field:document.getElementById('perimetros-label-field').value}}))"
+                                        class="rounded border-gray-300 w-3 h-3">
+                                    <span>Rót.</span>
+                                </label>
+                                <select id="perimetros-label-field"
+                                    onchange="if(document.getElementById('perimetros-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'perimetros',enabled:true,field:this.value}}))"
+                                    class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                    style="font-size:10px;max-width:80px;padding:1px 2px;">
+                                    <option value="__default__">Padrão</option>
+                                    <option value="name">Nome</option>
+                                </select>
+                            </div>
+                        </div>
 
-                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
-                            <input type="checkbox" data-layer="setores_fiscais"
-                                class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
-                                <span class="layer-text truncate">Setores Fiscais</span>
-                            </span>
-                        </label>
+                        <div class="flex items-center justify-between w-full mt-2">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="setores_fiscais"
+                                    class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <span class="layer-text truncate">Setores Fiscais</span>
+                                </span>
+                            </label>
+                            <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                    <input type="checkbox" id="setores_fiscais-label-toggle" checked
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_fiscais',enabled:this.checked,field:document.getElementById('setores_fiscais-label-field').value}}))"
+                                        class="rounded border-gray-300 w-3 h-3">
+                                    <span>Rót.</span>
+                                </label>
+                                <select id="setores_fiscais-label-field"
+                                    onchange="if(document.getElementById('setores_fiscais-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_fiscais',enabled:true,field:this.value}}))"
+                                    class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                    style="font-size:10px;max-width:80px;padding:1px 2px;">
+                                    <option value="__default__">Padrão</option>
+                                    <option value="nome">Nome</option>
+                                </select>
+                            </div>
+                        </div>
 
-                        <label class="flex items-center space-x-3 cursor-pointer w-full">
-                            <input type="checkbox" data-layer="bairros"
-                                class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-blue-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
-                                <span class="layer-text truncate">Bairros</span>
-                            </span>
-                        </label>
+                        <div class="flex items-center justify-between w-full">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="bairros"
+                                    class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-3 bg-blue-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <span class="layer-text truncate">Bairros</span>
+                                </span>
+                            </label>
+                            <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                    <input type="checkbox" id="bairros-label-toggle" checked
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'bairros',enabled:this.checked,field:document.getElementById('bairros-label-field').value}}))"
+                                        class="rounded border-gray-300 w-3 h-3">
+                                    <span>Rót.</span>
+                                </label>
+                                <select id="bairros-label-field"
+                                    onchange="if(document.getElementById('bairros-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'bairros',enabled:true,field:this.value}}))"
+                                    class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                    style="font-size:10px;max-width:80px;padding:1px 2px;">
+                                    <option value="__default__">Padrão</option>
+                                    <option value="name">Nome</option>
+                                </select>
+                            </div>
+                        </div>
 
-                        <label class="flex items-center space-x-3 cursor-pointer w-full">
-                            <input type="checkbox" data-layer="loteamentos"
-                                class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-blue-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
-                                <span class="layer-text truncate">Loteamentos</span>
-                            </span>
-                        </label>
+                        <div class="flex items-center justify-between w-full">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="loteamentos"
+                                    class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-3 bg-blue-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <span class="layer-text truncate">Loteamentos</span>
+                                </span>
+                            </label>
+                            <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                    <input type="checkbox" id="loteamentos-label-toggle" checked
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'loteamentos',enabled:this.checked,field:document.getElementById('loteamentos-label-field').value}}))"
+                                        class="rounded border-gray-300 w-3 h-3">
+                                    <span>Rót.</span>
+                                </label>
+                                <select id="loteamentos-label-field"
+                                    onchange="if(document.getElementById('loteamentos-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'loteamentos',enabled:true,field:this.value}}))"
+                                    class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                    style="font-size:10px;max-width:80px;padding:1px 2px;">
+                                    <option value="__default__">Padrão</option>
+                                    <option value="name">Nome</option>
+                                </select>
+                            </div>
+                        </div>
 
                         <div class="flex items-center justify-between w-full">
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
@@ -890,12 +968,22 @@
                                     <span class="layer-text truncate">Quadras</span>
                                 </span>
                             </label>
-                            <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer ml-2 flex-shrink-0" title="Exibir rótulos">
-                                <input type="checkbox" checked
-                                    onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'quadras',enabled:this.checked}}))"
-                                    class="rounded border-gray-300 w-3 h-3">
-                                <span>Rótulos</span>
-                            </label>
+                            <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                    <input type="checkbox" id="quadras-label-toggle" checked
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'quadras',enabled:this.checked,field:document.getElementById('quadras-label-field').value}}))"
+                                        class="rounded border-gray-300 w-3 h-3">
+                                    <span>Rót.</span>
+                                </label>
+                                <select id="quadras-label-field"
+                                    onchange="if(document.getElementById('quadras-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'quadras',enabled:true,field:this.value}}))"
+                                    class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                    style="font-size:10px;max-width:80px;padding:1px 2px;">
+                                    <option value="__default__">Padrão</option>
+                                    <option value="name">Nome</option>
+                                    <option value="setor_codigo">Setor</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="flex items-center justify-between w-full mt-2">
@@ -907,12 +995,23 @@
                                     <span class="layer-text truncate">Lotes</span>
                                 </span>
                             </label>
-                            <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer ml-2 flex-shrink-0" title="Exibir rótulos">
-                                <input type="checkbox" checked
-                                    onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'lotes',enabled:this.checked}}))"
-                                    class="rounded border-gray-300 w-3 h-3">
-                                <span>Rótulos</span>
-                            </label>
+                            <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                    <input type="checkbox" id="lotes-label-toggle" checked
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'lotes',enabled:this.checked,field:document.getElementById('lotes-label-field').value}}))"
+                                        class="rounded border-gray-300 w-3 h-3">
+                                    <span>Rót.</span>
+                                </label>
+                                <select id="lotes-label-field"
+                                    onchange="if(document.getElementById('lotes-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'lotes',enabled:true,field:this.value}}))"
+                                    class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                    style="font-size:10px;max-width:80px;padding:1px 2px;">
+                                    <option value="__default__">Padrão</option>
+                                    <option value="numero_lote">Nº Lote</option>
+                                    <option value="area_geo">Área m²</option>
+                                    <option value="sequential_id">Seq. ID</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="flex items-center justify-between w-full mt-2">
@@ -924,6 +1023,22 @@
                                     <span class="layer-text truncate">Logradouros</span>
                                 </span>
                             </label>
+                            <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                    <input type="checkbox" id="logradouros-label-toggle" checked
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'logradouros',enabled:this.checked,field:document.getElementById('logradouros-label-field').value}}))"
+                                        class="rounded border-gray-300 w-3 h-3">
+                                    <span>Rót.</span>
+                                </label>
+                                <select id="logradouros-label-field"
+                                    onchange="if(document.getElementById('logradouros-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'logradouros',enabled:true,field:this.value}}))"
+                                    class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                    style="font-size:10px;max-width:80px;padding:1px 2px;">
+                                    <option value="__default__">Padrão</option>
+                                    <option value="name">Nome</option>
+                                    <option value="cep">CEP</option>
+                                </select>
+                            </div>
                         </div>
 
 

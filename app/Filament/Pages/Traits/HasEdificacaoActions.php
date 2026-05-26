@@ -55,6 +55,12 @@ trait HasEdificacaoActions
                     ->label('Estado de Conservação')
                     ->options(['Bom' => 'Bom', 'Regular' => 'Regular', 'Ruim' => 'Ruim'])
                     ->required(),
+                \Filament\Forms\Components\TextInput::make('pavimento')
+                    ->label('Nº de Pavimentos')
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue(99)
+                    ->nullable(),
             ])
             ->action(function (array $data) {
                 $data['tenant_id'] = $this->tenantId;
@@ -91,8 +97,9 @@ trait HasEdificacaoActions
             ->fillForm(function (): array {
                 $edif = Edificacao::find($this->edificacaoAtivaId);
                 return [
-                    'tipo' => $edif ? $edif->tipo : null,
+                    'tipo'               => $edif ? $edif->tipo : null,
                     'estado_conservacao' => $edif ? $edif->estado_conservacao : null,
+                    'pavimento'          => $edif ? $edif->pavimento : null,
                 ];
             })
             ->form([
@@ -102,6 +109,12 @@ trait HasEdificacaoActions
                 Select::make('estado_conservacao')
                     ->label('Estado de Conservação')
                     ->options(['Bom' => 'Bom', 'Regular' => 'Regular', 'Ruim' => 'Ruim'])->required(),
+                \Filament\Forms\Components\TextInput::make('pavimento')
+                    ->label('Nº de Pavimentos')
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue(99)
+                    ->nullable(),
             ])
             ->action(function (array $data) {
                 $edif = Edificacao::find($this->edificacaoAtivaId);

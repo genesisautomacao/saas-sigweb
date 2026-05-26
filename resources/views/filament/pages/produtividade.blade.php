@@ -7,6 +7,16 @@
             <input type="date" wire:model.live="dataFiltro"
                 class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary-500">
         </div>
+        <div>
+            <label class="text-xs font-medium text-gray-500 dark:text-gray-400 block mb-1">Setor Fiscal</label>
+            <select wire:model.live="setorId"
+                class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary-500">
+                <option value="">Todos os Setores</option>
+                @foreach(\App\Models\SetorFiscal::where('tenant_id', $this->tenantId)->orderBy('nome')->get() as $setor)
+                    <option value="{{ $setor->id }}">{{ $setor->nome }}</option>
+                @endforeach
+            </select>
+        </div>
     </div>
 
     {{-- Cards de resumo --}}

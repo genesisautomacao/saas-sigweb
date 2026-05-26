@@ -23,7 +23,7 @@ class Edificacao extends Model
     }
 
     protected $table = 'edificacoes';
-    protected $fillable = ['tenant_id', 'sequential_id', 'lote_id', 'code', 'tipo', 'tp_construcao', 'caracteristica_construcao', 'estado_conservacao', 'area_geo', 'geo'];
+    protected $fillable = ['tenant_id', 'sequential_id', 'lote_id', 'code', 'tipo', 'tp_construcao', 'caracteristica_construcao', 'estado_conservacao', 'pavimento', 'area_geo', 'geo'];
     protected $hidden = ['geo'];
     protected $appends = ['geo_json'];
 

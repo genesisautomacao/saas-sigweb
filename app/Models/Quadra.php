@@ -30,6 +30,7 @@ class Quadra extends Model
         'loteamento_id',
         'code',
         'name',
+        'setor_codigo',
         'geo',
     ];
 

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\SetorFiscal;
 use Filament\Facades\Filament;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ class ProdutividadePage extends Page
     public int $tenantId = 0;
     public string $dataFiltro = '';
     public ?int $quadraId = null;
+    public ?int $setorId = null;
 
     public function mount(): void
     {
@@ -38,6 +40,13 @@ class ProdutividadePage extends Page
 
         if ($this->quadraId) {
             $q->where('quadra_id', $this->quadraId);
+        }
+
+        if ($this->setorId) {
+            $q->whereRaw(
+                "ST_Intersects(ST_Centroid(geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
+                [$this->setorId]
+            );
         }
 
         $rows = (clone $q)->selectRaw("
@@ -73,6 +82,10 @@ class ProdutividadePage extends Page
             ->whereNull('l.deleted_at')
             ->whereNotNull('l.coletado_por_id')
             ->when($this->quadraId, fn ($q) => $q->where('l.quadra_id', $this->quadraId))
+            ->when($this->setorId, fn ($q) => $q->whereRaw(
+                "ST_Intersects(ST_Centroid(l.geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
+                [$this->setorId]
+            ))
             ->selectRaw("
                 u.id as user_id, u.name,
                 sum(case when date(l.coletado_em) = ? then 1 else 0 end) as coletados_hoje,
@@ -97,6 +110,10 @@ class ProdutividadePage extends Page
             ->where('l.tenant_id', $this->tenantId)
             ->whereNull('l.deleted_at')
             ->when($this->quadraId, fn ($q) => $q->where('l.quadra_id', $this->quadraId))
+            ->when($this->setorId, fn ($q) => $q->whereRaw(
+                "ST_Intersects(ST_Centroid(l.geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
+                [$this->setorId]
+            ))
             ->selectRaw("
                 l.quadra_id,
                 coalesce(q.name, 'S/Q') as quadra_nome,
