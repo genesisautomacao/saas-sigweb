@@ -278,6 +278,27 @@ class MapDataController extends Controller
                 $data = $buildFeatureCollection($itens, 'rural-pontos-interesse');
                 break;
 
+            case 'toponimias':
+                $items = \App\Models\Toponimia::where('tenant_id', $tenantId)->get();
+                $features = [];
+                foreach ($items as $item) {
+                    $features[] = [
+                        'type'       => 'Feature',
+                        'properties' => [
+                            'id'    => $item->id,
+                            'texto' => $item->texto,
+                            'layer' => 'toponimias',
+                            'estilo' => $item->estilo ?? [],
+                        ],
+                        'geometry' => [
+                            'type'        => 'Point',
+                            'coordinates' => [(float) $item->lon, (float) $item->lat],
+                        ],
+                    ];
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
             default:
                 return response()->json(['error' => 'Camada não encontrada'], 404);
         }

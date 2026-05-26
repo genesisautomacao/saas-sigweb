@@ -281,6 +281,12 @@
                                             <x-heroicon-o-camera class="w-4 h-4 text-blue-500" />
                                             Ponto 360º
                                         </button>
+                                        <button type="button"
+                                            @click="openDraw = false; window.ativarFerramentaToponimiia(true)"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-violet-50 hover:text-violet-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-chat-bubble-bottom-center-text class="w-4 h-4 text-violet-500" />
+                                            Texto / Toponímia
+                                        </button>
                                     </div>
                                 </div>
 
@@ -1310,6 +1316,37 @@
                                 <span class="layer-text truncate">Pontos de Interesse</span>
                             </span>
                         </label>
+
+                    </div>
+                </div>
+
+                {{-- GRUPO: ANOTAÇÕES DO MAPA --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'anotacoes' ? '' : 'anotacoes'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-violet-700 dark:text-violet-300 hover:bg-violet-50/50 dark:hover:bg-violet-900/20 flex justify-between items-center">
+                        <span class="flex items-center gap-2">Anotações</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'anotacoes' ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="activeTab === 'anotacoes'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
+
+                        <div class="flex items-center justify-between w-full mt-2">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="toponimias"
+                                    class="layer-toggle rounded border-gray-300 text-violet-600 focus:ring-violet-500 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-3 bg-violet-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <span class="layer-text truncate">Toponímias / Textos</span>
+                                </span>
+                            </label>
+                            <button type="button"
+                                onclick="window.ativarFerramentaToponimiia(true)"
+                                title="Clique no mapa para adicionar um texto"
+                                class="ml-2 flex-shrink-0 text-xs px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-200 transition-colors">
+                                + Texto
+                            </button>
+                        </div>
 
                     </div>
                 </div>

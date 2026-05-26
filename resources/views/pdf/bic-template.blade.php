@@ -229,11 +229,39 @@
         </tr>
     </table>
 
-    @if($mapImageBase64)
-        <div class="section-title">4. CROQUI DE LOCALIZAÇÃO GEORREFERENCIADA</div>
-        <div class="map-container">
-            <img src="{{ $mapImageBase64 }}" class="map-img" alt="Croqui Cartográfico">
-        </div>
+    @if($fotoFrontalBase64 || $mapImageBase64)
+        <div class="section-title">4. REGISTRO FOTOGRÁFICO / CROQUI DE LOCALIZAÇÃO</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+            <tr>
+                @if($fotoFrontalBase64)
+                    {{-- Foto frontal + mapa lado a lado (48% cada) --}}
+                    <td style="width:48%;vertical-align:top;padding-right:4px;border:none;">
+                        <img src="{{ $fotoFrontalBase64 }}" style="width:100%;max-height:220px;object-fit:cover;border:1px solid #d1d5db;border-radius:3px;display:block;" alt="Foto Frontal">
+                        <div style="text-align:center;font-size:8px;color:#6b7280;margin-top:2px;font-weight:bold;">Foto Frontal</div>
+                    </td>
+                    <td style="width:4%;border:none;"></td>
+                    <td style="width:48%;vertical-align:top;border:none;">
+                        @if($mapImageBase64)
+                            <img src="{{ $mapImageBase64 }}" style="width:100%;max-height:220px;object-fit:cover;border:1px solid #d1d5db;border-radius:3px;display:block;" alt="Croqui Cartográfico">
+                            <div style="text-align:center;font-size:8px;color:#6b7280;margin-top:2px;font-weight:bold;">Croqui Cartográfico</div>
+                        @else
+                            <div style="height:220px;border:1px dashed #d1d5db;border-radius:3px;display:flex;align-items:center;justify-content:center;background:#f9fafb;color:#9ca3af;font-size:9px;">Sem croqui</div>
+                        @endif
+                    </td>
+                @else
+                    {{-- Sem foto: mapa ocupa largura total --}}
+                    <td style="vertical-align:top;border:none;">
+                        @if($mapImageBase64)
+                            <div class="map-container">
+                                <img src="{{ $mapImageBase64 }}" class="map-img" alt="Croqui Cartográfico">
+                            </div>
+                        @else
+                            <div style="height:120px;border:1px dashed #d1d5db;border-radius:3px;display:flex;align-items:center;justify-content:center;background:#f9fafb;color:#9ca3af;font-size:9px;">Nenhuma imagem frontal encontrada</div>
+                        @endif
+                    </td>
+                @endif
+            </tr>
+        </table>
     @endif
 
     <div class="section-title">5. CARACTERÍSTICAS FÍSICAS</div>

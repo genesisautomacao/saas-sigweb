@@ -19,7 +19,8 @@
       "PowerShell(Get-ChildItem -Path \"C:\\\\laragon\\\\www\\\\saas-sigweb\\\\database\\\\migrations\" | Where-Object { $_.Name -match 'mensagem|comunicacao|chat|notificacao|inconformidade_geo|geo' })",
       "Bash(Get-ChildItem \"c:\\\\laragon\\\\www\\\\saas-sigweb\\\\database\\\\migrations\")",
       "Bash(Sort-Object Name)",
-      "Bash(Select-Object -Last 5 -ExpandProperty Name)"
+      "Bash(Select-Object -Last 5 -ExpandProperty Name)",
+      "Bash(grep -n 'HasUuids\\\\|incrementing\\\\|keyType\\\\|protected $primaryKey' c:laragonwwwsaas-sigwebappModelsLote.php c:laragonwwwsaas-sigwebappModelsQuadra.php)"
     ]
   }
 }

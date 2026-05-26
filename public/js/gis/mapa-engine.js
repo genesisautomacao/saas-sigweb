@@ -817,6 +817,33 @@ document.addEventListener("DOMContentLoaded", function () {
                 return style;
             },
         },
+
+        toponimias: {
+            z: 200, // Acima de tudo — é texto anotado pelo usuário
+            minZoom: 0,
+            style: function (feature) {
+                const texto  = feature.get('texto') || '';
+                const estilo = feature.get('estilo') || {};
+                const tam    = parseInt(estilo.tamanho || '16', 10);
+                const cor    = estilo.cor || '#1f2937';
+                return new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 5,
+                        fill: new ol.style.Fill({ color: cor }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 1.5 }),
+                    }),
+                    text: new ol.style.Text({
+                        text: texto,
+                        font: 'bold ' + tam + 'px Arial, sans-serif',
+                        fill: new ol.style.Fill({ color: cor }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                        overflow: true,
+                        offsetY: -14,
+                        textBaseline: 'bottom',
+                    }),
+                });
+            },
+        },
     };
 
     // 5. INICIA O MAPA
@@ -2342,6 +2369,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "edificacao_ativa", // Modo edição ganha de tudo
                 "postes",
                 "arvores",
+                "toponimias",
                 "rural-pontos-interesse",
                 "rural-pontes", // PONTOS (Maior prioridade)
                 "logradouros",
@@ -2470,6 +2498,10 @@ document.addEventListener("DOMContentLoaded", function () {
                             loteId: id,
                             loteNome: loteNome,
                         });
+                        break;
+
+                    case "toponimias":
+                        Livewire.dispatch("abrirOpcoesToponimiia", { id: id });
                         break;
                 }
 
@@ -2820,6 +2852,87 @@ document.addEventListener("DOMContentLoaded", function () {
             const feature = source
                 .getFeatures()
                 .find((f) => f.get("id") == data.id);
+            if (feature) source.removeFeature(feature);
+        }
+    });
+
+    // ── CIRURGIA EM MEMÓRIA: LOGRADOUROS ──────────────────────────────
+    window.addEventListener("adicionar-logradouro-mapa", (e) => {
+        const data = e.detail[0] || e.detail;
+        const checkbox = document.querySelector('input[data-layer="logradouros"]');
+        if (checkbox && checkbox.checked && window.loadedLayers["logradouros"]) {
+            const feature = new ol.Feature({
+                geometry: new ol.format.GeoJSON().readGeometry(data.geo, {
+                    dataProjection: "EPSG:4326",
+                    featureProjection: "EPSG:3857",
+                }),
+                id: data.id,
+                name: data.name,
+                layer: "logradouros",
+            });
+            window.loadedLayers["logradouros"].getSource().addFeature(feature);
+        }
+    });
+
+    window.addEventListener("atualizar-label-logradouro", (e) => {
+        const data = e.detail[0] || e.detail;
+        if (window.loadedLayers["logradouros"]) {
+            const feature = window.loadedLayers["logradouros"]
+                .getSource()
+                .getFeatures()
+                .find((f) => f.get("id") == data.id);
+            if (feature) {
+                feature.set("name", data.name);
+                feature.changed();
+            }
+        }
+    });
+
+    window.addEventListener("remover-logradouro-mapa", (e) => {
+        const data = e.detail[0] || e.detail;
+        if (window.loadedLayers["logradouros"]) {
+            const source = window.loadedLayers["logradouros"].getSource();
+            const feature = source.getFeatures().find((f) => f.get("id") == data.id);
+            if (feature) source.removeFeature(feature);
+        }
+    });
+
+    // ── CIRURGIA EM MEMÓRIA: TOPONÍMIAS ──────────────────────────────
+    window.addEventListener("adicionar-toponimia-mapa", (e) => {
+        const data = e.detail[0] || e.detail;
+        const checkbox = document.querySelector('input[data-layer="toponimias"]');
+        if (checkbox && checkbox.checked && window.loadedLayers["toponimias"]) {
+            const feature = new ol.Feature({
+                geometry: new ol.geom.Point(ol.proj.fromLonLat([data.lon, data.lat])),
+                id: data.id,
+                texto: data.texto,
+                estilo: data.estilo,
+                layer: "toponimias",
+            });
+            window.loadedLayers["toponimias"].getSource().addFeature(feature);
+        }
+    });
+
+    window.addEventListener("atualizar-label-toponimia", (e) => {
+        const data = e.detail[0] || e.detail;
+        if (window.loadedLayers["toponimias"]) {
+            const feature = window.loadedLayers["toponimias"]
+                .getSource()
+                .getFeatures()
+                .find((f) => f.get("id") == data.id);
+            if (feature) {
+                feature.set("texto", data.texto);
+                feature.set("estilo", data.estilo);
+                feature.changed();
+            }
+        }
+    });
+
+    window.addEventListener("remover-toponimia-mapa", (e) => {
+        const data = e.detail[0] || e.detail;
+        if (window.loadedLayers["toponimias"]) {
+            const source = window.loadedLayers["toponimias"].getSource();
+            const feature = source.getFeatures().find((f) => f.get("id") == data.id);
             if (feature) source.removeFeature(feature);
         }
     });
@@ -5780,6 +5893,47 @@ document.addEventListener("DOMContentLoaded", function () {
     // Listener para evento disparado pelo blade
     window.addEventListener("sigweb-toggle-labels", function (e) {
         window.toggleLayerLabels(e.detail.layer, e.detail.enabled, e.detail.field || null);
+    });
+
+    // =========================================================================
+    // #9 — FERRAMENTA DE TOPONÍMIA (texto livre no mapa)
+    // =========================================================================
+    let modoToponimia = false;
+
+    window.ativarFerramentaToponimiia = function (ativo) {
+        modoToponimia = ativo;
+        const mapEl = document.getElementById('sigweb-map');
+        if (mapEl) mapEl.style.cursor = ativo ? 'crosshair' : '';
+    };
+
+    map.on('click', function (evt) {
+        if (!modoToponimia) return;
+
+        const lonLat = ol.proj.toLonLat(evt.coordinate);
+        const lat = parseFloat(lonLat[1].toFixed(7));
+        const lon = parseFloat(lonLat[0].toFixed(7));
+
+        // Desativa o modo após o clique para não acionar duas vezes
+        modoToponimia = false;
+        document.getElementById('sigweb-map').style.cursor = '';
+
+        // Notifica o Livewire para abrir o modal de texto
+        Livewire.dispatch('abrirModalToponimia', { lat, lon });
+    });
+
+    // Recarrega uma camada vetorial já carregada (ex: após salvar uma toponímia)
+    window.addEventListener('sigweb-recarregar-camada', function (e) {
+        const layerName = e.detail?.layer;
+        if (!layerName || !window.loadedLayers?.[layerName]) return;
+        const source = window.loadedLayers[layerName].getSource();
+        if (source && source.refresh) source.refresh();
+    });
+
+    // Livewire dispatch 'recarregarCamada' → CustomEvent 'sigweb-recarregar-camada'
+    document.addEventListener('livewire:initialized', function () {
+        Livewire.on('recarregarCamada', function ({ layer }) {
+            window.dispatchEvent(new CustomEvent('sigweb-recarregar-camada', { detail: { layer } }));
+        });
     });
 
     // =========================================================================

@@ -6,6 +6,7 @@ use Filament\Forms;
 use Filament\Actions\Action;
 
 use App\Filament\Pages\Traits\HasLoteActions;
+use App\Filament\Pages\Traits\HasToponimiaActions;
 use App\Filament\Pages\Traits\HasEdificacaoActions;
 use \App\Filament\Pages\Traits\HasLogradouroActions;
 use App\Filament\Pages\Traits\HasPosteActions;
@@ -48,6 +49,7 @@ class MapaFullscreen extends Page
 {
     // Injetando as gavetas de lógica (Traits)
     use HasLoteActions;
+    use HasToponimiaActions;
     use HasEdificacaoActions;
     use HasLogradouroActions;
     use HasPosteActions;
