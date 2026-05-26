@@ -18,6 +18,11 @@ class MonitoramentoCampoPage extends Page
     protected static ?int $navigationSort = 98;
     protected static string $view = 'filament.pages.monitoramento-campo';
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('view_monitoramento_campo') ?? false;
+    }
+
     public int $tenantId = 0;
 
     public function mount(): void

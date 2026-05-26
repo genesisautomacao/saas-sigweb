@@ -27,7 +27,13 @@ class CreateRole extends CreateRecord
         $imobiliarioData = $data['permissions_imobiliario'] ?? [];
         $socialData = $data['permissions_social'] ?? [];
         $ruralData = $data['permissions_rural'] ?? [];
-        $patrimonioData = $data['permissions_patrimonio'] ?? []; // 🟢 NOVA LINHA
+        $patrimonioData      = $data['permissions_patrimonio'] ?? [];
+        $bpmnData            = $data['permissions_bpmn'] ?? [];
+        $viabilidadeData     = $data['permissions_viabilidade'] ?? [];
+        $pgvData             = $data['permissions_pgv'] ?? [];
+        $administracaoData   = $data['permissions_administracao'] ?? [];
+        $mapaCamadasData     = $data['permissions_mapa_camadas'] ?? [];
+        $mapaToolbarData     = $data['permissions_mapa_toolbar'] ?? [];
 
         $users = is_array($usersData) ? $usersData : ($usersData === true ? ['view_users', 'create_users', 'edit_users', 'delete_users'] : []);
         $roles = is_array($rolesData) ? $rolesData : ($rolesData === true ? ['view_roles', 'create_roles', 'edit_roles', 'delete_roles'] : []);
@@ -44,17 +50,24 @@ class CreateRole extends CreateRecord
         $social = is_array($socialData) ? $socialData : ($socialData === true ? ['view_cadastros_sociais', 'create_cadastros_sociais', 'edit_cadastros_sociais', 'delete_cadastros_sociais'] : []);
         $rural = is_array($ruralData) ? $ruralData : ($ruralData === true ? ['view_rural_localidades', 'create_rural_localidades', 'edit_rural_localidades', 'delete_rural_localidades', 'view_rural_propriedades', 'create_rural_propriedades', 'edit_rural_propriedades', 'delete_rural_propriedades', 'view_rural_estradas', 'create_rural_estradas', 'edit_rural_estradas', 'delete_rural_estradas', 'view_rural_hidrografias', 'create_rural_hidrografias', 'edit_rural_hidrografias', 'delete_rural_hidrografias', 'view_rural_pontes', 'create_rural_pontes', 'edit_rural_pontes', 'delete_rural_pontes', 'view_rural_pontos_interesse', 'create_rural_pontos_interesse', 'edit_rural_pontos_interesse', 'delete_rural_pontos_interesse'] : []);
         
-        // 🟢 NOVA LINHA
-        $patrimonio = is_array($patrimonioData) ? $patrimonioData : ($patrimonioData === true ? ['view_tipo_patrimonios', 'create_tipo_patrimonios', 'edit_tipo_patrimonios', 'delete_tipo_patrimonios', 'view_patrimonio_publicos', 'create_patrimonio_publicos', 'edit_patrimonio_publicos', 'delete_patrimonio_publicos'] : []);
+        $patrimonio    = is_array($patrimonioData)    ? $patrimonioData    : ($patrimonioData    === true ? ['view_tipo_patrimonios', 'create_tipo_patrimonios', 'edit_tipo_patrimonios', 'delete_tipo_patrimonios', 'view_patrimonio_publicos', 'create_patrimonio_publicos', 'edit_patrimonio_publicos', 'delete_patrimonio_publicos'] : []);
+        $bpmn          = is_array($bpmnData)          ? $bpmnData          : [];
+        $viabilidade   = is_array($viabilidadeData)   ? $viabilidadeData   : [];
+        $pgv           = is_array($pgvData)           ? $pgvData           : [];
+        $administracao = is_array($administracaoData) ? $administracaoData : [];
+        $mapaCamadas   = is_array($mapaCamadasData)   ? $mapaCamadasData   : [];
+        $mapaToolbar   = is_array($mapaToolbarData)   ? $mapaToolbarData   : [];
 
-        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $iluminacao, $arborizacao, $estoque, $manutencao, $cemiterio, $imobiliario, $social, $rural, $patrimonio);
+        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $iluminacao, $arborizacao, $estoque, $manutencao, $cemiterio, $imobiliario, $social, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $administracao, $mapaCamadas, $mapaToolbar);
 
         unset(
             $data['permissions_users'], $data['permissions_roles'], $data['permissions_pessoas'],
             $data['permissions_contatos'], $data['permissions_enderecos'], $data['permissions_documentos'],
             $data['permissions_iluminacao'], $data['permissions_arborizacao'], $data['permissions_estoque'],
             $data['permissions_manutencao'], $data['permissions_cemiterio'], $data['permissions_imobiliario'],
-            $data['permissions_social'], $data['permissions_rural'], $data['permissions_patrimonio']
+            $data['permissions_social'], $data['permissions_rural'], $data['permissions_patrimonio'],
+            $data['permissions_bpmn'], $data['permissions_viabilidade'], $data['permissions_pgv'],
+            $data['permissions_administracao'], $data['permissions_mapa_camadas'], $data['permissions_mapa_toolbar']
         );
 
         return $data;

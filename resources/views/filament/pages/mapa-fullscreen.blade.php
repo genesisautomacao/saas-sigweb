@@ -22,7 +22,8 @@
                 mapLat: {{ $mapLat }},
                 mapLon: {{ $mapLon }},
                 mapZoom: {{ $mapZoom }},
-                azureMapsKey: '{{ env('AZURE_MAPS_KEY', '') }}'
+                azureMapsKey: '{{ env('AZURE_MAPS_KEY', '') }}',
+                permissionsUrl: '/gis/{{ $tenantSlug }}/map-permissions'
             };
         </script>
 
@@ -133,19 +134,22 @@
                     </div>
                 </div>
 
-                {{-- BOTÃO FILTRO AVANÇADO --}}
-                <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }" x-on:click="$wire.mountAction('filtroAvancadoAction')"
-                    class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                    title="Filtro Avançado / Tematização">
-                    <x-heroicon-o-funnel class="w-5 h-5" />
-                </button>
+                {{-- GRUPO FILTROS (permissão toolbar_filtros) --}}
+                <div id="toolbar-filtros" class="flex items-center gap-0.5">
+                    {{-- BOTÃO FILTRO AVANÇADO --}}
+                    <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }" x-on:click="$wire.mountAction('filtroAvancadoAction')"
+                        class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                        title="Filtro Avançado / Tematização">
+                        <x-heroicon-o-funnel class="w-5 h-5" />
+                    </button>
 
-                {{-- BOTÃO ESTATÍSTICAS --}}
-                <button type="button" x-on:click="$wire.mountAction('estatisticasAction')"
-                    class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                    title="Estatísticas por Área">
-                    <x-heroicon-o-chart-bar class="w-5 h-5" />
-                </button>
+                    {{-- BOTÃO ESTATÍSTICAS --}}
+                    <button type="button" x-on:click="$wire.mountAction('estatisticasAction')"
+                        class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                        title="Estatísticas por Área">
+                        <x-heroicon-o-chart-bar class="w-5 h-5" />
+                    </button>
+                </div>
 
                 <div class="flex items-center gap-1 px-1">
 
@@ -202,8 +206,8 @@
 
                     <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
 
-                    {{-- DROPDOWN DE CRIAÇÃO (COM SANFONA) --}}
-                    <div x-data="{ openDraw: false, activeTabDraw: 'urbano' }" class="relative">
+                    {{-- DROPDOWN DE CRIAÇÃO (COM SANFONA) (permissão toolbar_criar_artefatos) --}}
+                    <div id="toolbar-criar-artefatos" x-data="{ openDraw: false, activeTabDraw: 'urbano' }" class="relative">
                         <button type="button" @click="openDraw = !openDraw" @click.outside="openDraw = false"
                             title="Desenhar no Mapa"
                             class="p-2 hover:bg-primary-100 dark:hover:bg-primary-900/20 rounded-xl text-gray-600 dark:text-gray-400 transition-colors focus:outline-none flex items-center gap-1">
@@ -432,6 +436,9 @@
                         </div>
                     </div>
 
+                    {{-- GRUPO FERRAMENTAS (permissão toolbar_ferramentas) --}}
+                    <div id="toolbar-ferramentas" class="flex items-center gap-0.5">
+
                     {{-- 🛠️ DROPDOWN DE FERRAMENTAS 🛠️ --}}
                     <div x-data="{ openTools: false }" class="relative">
                         <button @click="openTools = !openTools" @click.outside="openTools = false"
@@ -545,6 +552,7 @@
                             </div>
                         </div>
                     </div>
+                    </div>{{-- /toolbar-ferramentas --}}
 
 
                     {{-- BOTÃO DA ALTERNANCIA DE MAPAS --}}

@@ -176,6 +176,52 @@ class PermissionsSeeder extends Seeder
             /* Módulo de Patrimônios Públicos */
             'view_tipo_patrimonios', 'create_tipo_patrimonios', 'edit_tipo_patrimonios', 'delete_tipo_patrimonios',
             'view_patrimonio_publicos', 'create_patrimonio_publicos', 'edit_patrimonio_publicos', 'delete_patrimonio_publicos',
+
+            /* Módulo BPMN / Processos Digitais */
+            'view_bpmn_fluxos', 'create_bpmn_fluxos', 'edit_bpmn_fluxos', 'delete_bpmn_fluxos',
+            'view_processos_digitais', 'create_processos_digitais', 'edit_processos_digitais', 'delete_processos_digitais',
+
+            /* Módulo de Consultas de Viabilidade */
+            'view_cnaes', 'create_cnaes', 'edit_cnaes', 'delete_cnaes',
+            'view_regras_zoneamento', 'create_regras_zoneamento', 'edit_regras_zoneamento', 'delete_regras_zoneamento',
+            'view_parametros_urbanos', 'create_parametros_urbanos', 'edit_parametros_urbanos', 'delete_parametros_urbanos',
+
+            /* Módulo PGV / Gestão Tributária */
+            'view_pgv_parametros', 'create_pgv_parametros', 'edit_pgv_parametros', 'delete_pgv_parametros',
+            'view_setores_fiscais', 'create_setores_fiscais', 'edit_setores_fiscais', 'delete_setores_fiscais',
+            'view_lote_valor_historicos', 'create_lote_valor_historicos', 'edit_lote_valor_historicos', 'delete_lote_valor_historicos',
+
+            /* Páginas de Administração */
+            'view_auditoria',
+            'view_monitoramento_campo',
+            'view_produtividade',
+
+            /* Permissões de visibilidade de camadas GIS */
+            'ver_camada_perimetros',
+            'ver_camada_setores_fiscais',
+            'ver_camada_bairros',
+            'ver_camada_loteamentos',
+            'ver_camada_quadras',
+            'ver_camada_lotes',
+            'ver_camada_logradouros',
+            'ver_camada_postes',
+            'ver_camada_arvores',
+            'ver_camada_zonas',
+            'ver_camada_patrimonio_publico',
+            'ver_camada_cemiterios',
+            'ver_camada_rural_localidades',
+            'ver_camada_rural_propriedades',
+            'ver_camada_rural_estradas',
+            'ver_camada_rural_hidrografias',
+            'ver_camada_rural_pontes',
+            'ver_camada_rural_pontos_interesse',
+            'ver_camada_pontos_panoramicos',
+            'ver_camada_toponimias',
+
+            /* Permissões da toolbar do mapa */
+            'toolbar_criar_artefatos',
+            'toolbar_ferramentas',
+            'toolbar_filtros',
         ];
 
         foreach ($permissions as $permission) {

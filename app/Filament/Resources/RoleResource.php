@@ -348,6 +348,132 @@ class RoleResource extends Resource
                                     ->columns(2),
                             ])->columns(1)->columnSpanFull(),
 
+                        // CAIXA 16: BPMN E PROCESSOS DIGITAIS
+                        Forms\Components\Fieldset::make('Módulo: Processos Digitais (BPMN)')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_bpmn')
+                                    ->label('Fluxos BPMN e Processos')
+                                    ->options([
+                                        'view_bpmn_fluxos'          => 'Ver Fluxos BPMN',
+                                        'create_bpmn_fluxos'        => 'Criar Fluxos BPMN',
+                                        'edit_bpmn_fluxos'          => 'Editar Fluxos BPMN',
+                                        'delete_bpmn_fluxos'        => 'Excluir Fluxos BPMN',
+                                        'view_processos_digitais'   => 'Ver Processos Digitais',
+                                        'create_processos_digitais' => 'Criar Processos Digitais',
+                                        'edit_processos_digitais'   => 'Editar Processos Digitais',
+                                        'delete_processos_digitais' => 'Excluir Processos Digitais',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(2),
+                            ])->columns(1)->columnSpanFull(),
+
+                        // CAIXA 17: CONSULTAS DE VIABILIDADE
+                        Forms\Components\Fieldset::make('Módulo: Consultas de Viabilidade')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_viabilidade')
+                                    ->label('CNAEs, Regras de Zoneamento e Parâmetros Urbanísticos')
+                                    ->options([
+                                        'view_cnaes'                 => 'Ver CNAEs e Atividades',
+                                        'create_cnaes'               => 'Criar CNAEs',
+                                        'edit_cnaes'                 => 'Editar CNAEs',
+                                        'delete_cnaes'               => 'Excluir CNAEs',
+                                        'view_regras_zoneamento'     => 'Ver Regras de Zoneamento',
+                                        'create_regras_zoneamento'   => 'Criar Regras de Zoneamento',
+                                        'edit_regras_zoneamento'     => 'Editar Regras de Zoneamento',
+                                        'delete_regras_zoneamento'   => 'Excluir Regras de Zoneamento',
+                                        'view_parametros_urbanos'    => 'Ver Parâmetros de Loteamento',
+                                        'create_parametros_urbanos'  => 'Criar Parâmetros de Loteamento',
+                                        'edit_parametros_urbanos'    => 'Editar Parâmetros de Loteamento',
+                                        'delete_parametros_urbanos'  => 'Excluir Parâmetros de Loteamento',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(2),
+                            ])->columns(1)->columnSpanFull(),
+
+                        // CAIXA 18: GESTÃO TRIBUTÁRIA (PGV)
+                        Forms\Components\Fieldset::make('Módulo: Gestão Tributária (PGV)')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_pgv')
+                                    ->label('Parâmetros PGV, Setores Fiscais e Histórico de Valores')
+                                    ->options([
+                                        'view_pgv_parametros'          => 'Ver Parâmetros Base (PGV)',
+                                        'create_pgv_parametros'        => 'Criar Parâmetros Base',
+                                        'edit_pgv_parametros'          => 'Editar Parâmetros Base',
+                                        'delete_pgv_parametros'        => 'Excluir Parâmetros Base',
+                                        'view_setores_fiscais'         => 'Ver Setores Fiscais',
+                                        'create_setores_fiscais'       => 'Criar Setores Fiscais',
+                                        'edit_setores_fiscais'         => 'Editar Setores Fiscais',
+                                        'delete_setores_fiscais'       => 'Excluir Setores Fiscais',
+                                        'view_lote_valor_historicos'   => 'Ver Valores Venais (Histórico)',
+                                        'create_lote_valor_historicos' => 'Criar Valores Venais',
+                                        'edit_lote_valor_historicos'   => 'Editar Valores Venais',
+                                        'delete_lote_valor_historicos' => 'Excluir Valores Venais',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(2),
+                            ])->columns(1)->columnSpanFull(),
+
+                        // CAIXA 19: PÁGINAS DE ADMINISTRAÇÃO
+                        Forms\Components\Fieldset::make('Administração — Páginas Gerenciais')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_administracao')
+                                    ->label('Acesso às páginas de administração')
+                                    ->options([
+                                        'view_auditoria'          => 'Auditoria (Histórico de Operações)',
+                                        'view_monitoramento_campo' => 'Monitoramento de Campo (GPS)',
+                                        'view_produtividade'      => 'Relatório de Produtividade',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(3),
+                            ])->columns(1)->columnSpanFull(),
+
+                        // CAIXA 20: VISIBILIDADE DE CAMADAS NO MAPA
+                        Forms\Components\Fieldset::make('Mapa — Visibilidade de Camadas (ver_camada_*)')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_mapa_camadas')
+                                    ->label('Camadas visíveis no mapa interativo')
+                                    ->helperText('Deixe vazio = sem restrição (todos veem). Marque para liberar acesso por camada.')
+                                    ->options([
+                                        'ver_camada_perimetros'            => 'Perímetros / Limites',
+                                        'ver_camada_setores_fiscais'       => 'Setores Fiscais',
+                                        'ver_camada_bairros'               => 'Bairros',
+                                        'ver_camada_loteamentos'           => 'Loteamentos',
+                                        'ver_camada_quadras'               => 'Quadras',
+                                        'ver_camada_lotes'                 => 'Lotes',
+                                        'ver_camada_logradouros'           => 'Logradouros / Ruas',
+                                        'ver_camada_postes'                => 'Postes / Iluminação',
+                                        'ver_camada_arvores'               => 'Árvores',
+                                        'ver_camada_zonas'                 => 'Zonas de Uso (PGV)',
+                                        'ver_camada_patrimonio_publico'    => 'Patrimônio Público',
+                                        'ver_camada_cemiterios'            => 'Cemitérios',
+                                        'ver_camada_rural_localidades'     => 'Localidades Rurais',
+                                        'ver_camada_rural_propriedades'    => 'Propriedades Rurais',
+                                        'ver_camada_rural_estradas'        => 'Estradas Rurais',
+                                        'ver_camada_rural_hidrografias'    => 'Hidrografia (Rios)',
+                                        'ver_camada_rural_pontes'          => 'Pontes',
+                                        'ver_camada_rural_pontos_interesse' => 'Pontos de Interesse',
+                                        'ver_camada_pontos_panoramicos'    => 'Pontos Panorâmicos 360°',
+                                        'ver_camada_toponimias'            => 'Toponímias / Textos',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(4),
+                            ])->columns(1)->columnSpanFull(),
+
+                        // CAIXA 17: FERRAMENTAS DO MAPA (TOOLBAR)
+                        Forms\Components\Fieldset::make('Mapa — Toolbar (toolbar_*)')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_mapa_toolbar')
+                                    ->label('Seções da barra de ferramentas')
+                                    ->helperText('Deixe vazio = sem restrição. A pesquisa é sempre visível.')
+                                    ->options([
+                                        'toolbar_criar_artefatos' => 'Criar Artefatos (Lotes, Quadras, Ruas...)',
+                                        'toolbar_ferramentas'     => 'Ferramentas (Medição, Impressão, Exportação)',
+                                        'toolbar_filtros'         => 'Filtros e Estatísticas',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(3),
+                            ])->columns(1)->columnSpanFull(),
+
                     ])->columns(4),
 
             ]);

@@ -20,14 +20,19 @@ class AuditoriaPage extends Page implements HasTable
     protected static ?int $navigationSort = 99;
     protected static string $view = 'filament.pages.auditoria-page';
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('view_auditoria') ?? false;
+    }
+
     protected function getTableQuery(): Builder
     {
         $tenantId = filament()->getTenant()?->id;
 
         return Activity::query()
-            ->when($tenantId, fn ($q) => $q->where(function ($q) use ($tenantId) {
-                $q->whereHasMorph('subject', '*', fn ($q) => $q->where('tenant_id', $tenantId))
-                  ->orWhereHasMorph('causer', 'App\Models\User', fn ($q) => $q->whereHas('tenants', fn ($q) => $q->where('tenants.id', $tenantId)));
+            ->when($tenantId, fn($q) => $q->where(function ($q) use ($tenantId) {
+                $q->whereHasMorph('subject', '*', fn($q) => $q->where('tenant_id', $tenantId))
+                    ->orWhereHasMorph('causer', 'App\Models\User', fn($q) => $q->whereHas('tenants', fn($q) => $q->where('tenants.id', $tenantId)));
             }))
             ->latest();
     }
@@ -52,7 +57,7 @@ class AuditoriaPage extends Page implements HasTable
                     'warning' => 'updated',
                     'danger'  => 'deleted',
                 ])
-                ->formatStateUsing(fn ($state) => match ($state) {
+                ->formatStateUsing(fn($state) => match ($state) {
                     'created' => 'Criado',
                     'updated' => 'Atualizado',
                     'deleted' => 'Excluído',
@@ -61,7 +66,7 @@ class AuditoriaPage extends Page implements HasTable
 
             Tables\Columns\TextColumn::make('subject_type')
                 ->label('Entidade')
-                ->formatStateUsing(fn ($state) => class_basename($state))
+                ->formatStateUsing(fn($state) => class_basename($state))
                 ->searchable(),
 
             Tables\Columns\TextColumn::make('subject_id')
@@ -92,8 +97,8 @@ class AuditoriaPage extends Page implements HasTable
                 ])
                 ->query(function (Builder $query, array $data) {
                     return $query
-                        ->when($data['de'],  fn ($q, $v) => $q->whereDate('created_at', '>=', $v))
-                        ->when($data['ate'], fn ($q, $v) => $q->whereDate('created_at', '<=', $v));
+                        ->when($data['de'],  fn($q, $v) => $q->whereDate('created_at', '>=', $v))
+                        ->when($data['ate'], fn($q, $v) => $q->whereDate('created_at', '<=', $v));
                 }),
         ];
     }
@@ -104,7 +109,7 @@ class AuditoriaPage extends Page implements HasTable
             Tables\Actions\Action::make('ver_propriedades')
                 ->label('Ver detalhes')
                 ->icon('heroicon-o-eye')
-                ->modalContent(fn (Activity $record) => view('filament.pages.auditoria-detalhes', ['activity' => $record]))
+                ->modalContent(fn(Activity $record) => view('filament.pages.auditoria-detalhes', ['activity' => $record]))
                 ->modalHeading('Detalhes da Operação')
                 ->modalSubmitAction(false)
                 ->modalCancelActionLabel('Fechar'),

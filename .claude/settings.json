@@ -20,7 +20,9 @@
       "Bash(Get-ChildItem \"c:\\\\laragon\\\\www\\\\saas-sigweb\\\\database\\\\migrations\")",
       "Bash(Sort-Object Name)",
       "Bash(Select-Object -Last 5 -ExpandProperty Name)",
-      "Bash(grep -n 'HasUuids\\\\|incrementing\\\\|keyType\\\\|protected $primaryKey' c:laragonwwwsaas-sigwebappModelsLote.php c:laragonwwwsaas-sigwebappModelsQuadra.php)"
+      "Bash(grep -n 'HasUuids\\\\|incrementing\\\\|keyType\\\\|protected $primaryKey' c:laragonwwwsaas-sigwebappModelsLote.php c:laragonwwwsaas-sigwebappModelsQuadra.php)",
+      "Bash(Get-ChildItem -Path \"c:\\\\laragon\\\\www\\\\saas-sigweb\\\\app\\\\Filament\\\\Resources\" -Filter \"*.php\")",
+      "Bash(Select-Object Name)"
     ]
   }
 }

@@ -38,8 +38,42 @@ class EditRole extends EditRecord
         $data['permissions_social'] = array_values(array_intersect($permissions, ['view_cadastros_sociais', 'create_cadastros_sociais', 'edit_cadastros_sociais', 'delete_cadastros_sociais']));
         $data['permissions_rural'] = array_values(array_intersect($permissions, ['view_rural_localidades', 'create_rural_localidades', 'edit_rural_localidades', 'delete_rural_localidades', 'view_rural_propriedades', 'create_rural_propriedades', 'edit_rural_propriedades', 'delete_rural_propriedades', 'view_rural_estradas', 'create_rural_estradas', 'edit_rural_estradas', 'delete_rural_estradas', 'view_rural_hidrografias', 'create_rural_hidrografias', 'edit_rural_hidrografias', 'delete_rural_hidrografias', 'view_rural_pontes', 'create_rural_pontes', 'edit_rural_pontes', 'delete_rural_pontes', 'view_rural_pontos_interesse', 'create_rural_pontos_interesse', 'edit_rural_pontos_interesse', 'delete_rural_pontos_interesse']));
         
-        // 🟢 NOVA LINHA
         $data['permissions_patrimonio'] = array_values(array_intersect($permissions, ['view_tipo_patrimonios', 'create_tipo_patrimonios', 'edit_tipo_patrimonios', 'delete_tipo_patrimonios', 'view_patrimonio_publicos', 'create_patrimonio_publicos', 'edit_patrimonio_publicos', 'delete_patrimonio_publicos']));
+
+        $data['permissions_bpmn'] = array_values(array_intersect($permissions, [
+            'view_bpmn_fluxos', 'create_bpmn_fluxos', 'edit_bpmn_fluxos', 'delete_bpmn_fluxos',
+            'view_processos_digitais', 'create_processos_digitais', 'edit_processos_digitais', 'delete_processos_digitais',
+        ]));
+
+        $data['permissions_viabilidade'] = array_values(array_intersect($permissions, [
+            'view_cnaes', 'create_cnaes', 'edit_cnaes', 'delete_cnaes',
+            'view_regras_zoneamento', 'create_regras_zoneamento', 'edit_regras_zoneamento', 'delete_regras_zoneamento',
+            'view_parametros_urbanos', 'create_parametros_urbanos', 'edit_parametros_urbanos', 'delete_parametros_urbanos',
+        ]));
+
+        $data['permissions_pgv'] = array_values(array_intersect($permissions, [
+            'view_pgv_parametros', 'create_pgv_parametros', 'edit_pgv_parametros', 'delete_pgv_parametros',
+            'view_setores_fiscais', 'create_setores_fiscais', 'edit_setores_fiscais', 'delete_setores_fiscais',
+            'view_lote_valor_historicos', 'create_lote_valor_historicos', 'edit_lote_valor_historicos', 'delete_lote_valor_historicos',
+        ]));
+
+        $data['permissions_administracao'] = array_values(array_intersect($permissions, [
+            'view_auditoria', 'view_monitoramento_campo', 'view_produtividade',
+        ]));
+
+        $data['permissions_mapa_camadas'] = array_values(array_intersect($permissions, [
+            'ver_camada_perimetros', 'ver_camada_setores_fiscais', 'ver_camada_bairros',
+            'ver_camada_loteamentos', 'ver_camada_quadras', 'ver_camada_lotes',
+            'ver_camada_logradouros', 'ver_camada_postes', 'ver_camada_arvores',
+            'ver_camada_zonas', 'ver_camada_patrimonio_publico', 'ver_camada_cemiterios',
+            'ver_camada_rural_localidades', 'ver_camada_rural_propriedades', 'ver_camada_rural_estradas',
+            'ver_camada_rural_hidrografias', 'ver_camada_rural_pontes', 'ver_camada_rural_pontos_interesse',
+            'ver_camada_pontos_panoramicos', 'ver_camada_toponimias',
+        ]));
+
+        $data['permissions_mapa_toolbar'] = array_values(array_intersect($permissions, [
+            'toolbar_criar_artefatos', 'toolbar_ferramentas', 'toolbar_filtros',
+        ]));
 
         return $data;
     }
@@ -60,7 +94,13 @@ class EditRole extends EditRecord
         $imobiliarioData = $data['permissions_imobiliario'] ?? [];
         $socialData = $data['permissions_social'] ?? [];
         $ruralData = $data['permissions_rural'] ?? [];
-        $patrimonioData = $data['permissions_patrimonio'] ?? []; // 🟢 NOVA LINHA
+        $patrimonioData      = $data['permissions_patrimonio'] ?? [];
+        $bpmnData            = $data['permissions_bpmn'] ?? [];
+        $viabilidadeData     = $data['permissions_viabilidade'] ?? [];
+        $pgvData             = $data['permissions_pgv'] ?? [];
+        $administracaoData   = $data['permissions_administracao'] ?? [];
+        $mapaCamadasData     = $data['permissions_mapa_camadas'] ?? [];
+        $mapaToolbarData     = $data['permissions_mapa_toolbar'] ?? [];
 
         $users = is_array($usersData) ? $usersData : ($usersData === true ? ['view_users', 'create_users', 'edit_users', 'delete_users'] : []);
         $roles = is_array($rolesData) ? $rolesData : ($rolesData === true ? ['view_roles', 'create_roles', 'edit_roles', 'delete_roles'] : []);
@@ -77,10 +117,15 @@ class EditRole extends EditRecord
         $social = is_array($socialData) ? $socialData : ($socialData === true ? ['view_cadastros_sociais', 'create_cadastros_sociais', 'edit_cadastros_sociais', 'delete_cadastros_sociais'] : []);
         $rural = is_array($ruralData) ? $ruralData : ($ruralData === true ? ['view_rural_localidades', 'create_rural_localidades', 'edit_rural_localidades', 'delete_rural_localidades', 'view_rural_propriedades', 'create_rural_propriedades', 'edit_rural_propriedades', 'delete_rural_propriedades', 'view_rural_estradas', 'create_rural_estradas', 'edit_rural_estradas', 'delete_rural_estradas', 'view_rural_hidrografias', 'create_rural_hidrografias', 'edit_rural_hidrografias', 'delete_rural_hidrografias', 'view_rural_pontes', 'create_rural_pontes', 'edit_rural_pontes', 'delete_rural_pontes', 'view_rural_pontos_interesse', 'create_rural_pontos_interesse', 'edit_rural_pontos_interesse', 'delete_rural_pontos_interesse'] : []);
         
-        // 🟢 NOVA LINHA
-        $patrimonio = is_array($patrimonioData) ? $patrimonioData : ($patrimonioData === true ? ['view_tipo_patrimonios', 'create_tipo_patrimonios', 'edit_tipo_patrimonios', 'delete_tipo_patrimonios', 'view_patrimonio_publicos', 'create_patrimonio_publicos', 'edit_patrimonio_publicos', 'delete_patrimonio_publicos'] : []);
+        $patrimonio    = is_array($patrimonioData)    ? $patrimonioData    : ($patrimonioData    === true ? ['view_tipo_patrimonios', 'create_tipo_patrimonios', 'edit_tipo_patrimonios', 'delete_tipo_patrimonios', 'view_patrimonio_publicos', 'create_patrimonio_publicos', 'edit_patrimonio_publicos', 'delete_patrimonio_publicos'] : []);
+        $bpmn          = is_array($bpmnData)          ? $bpmnData          : [];
+        $viabilidade   = is_array($viabilidadeData)   ? $viabilidadeData   : [];
+        $pgv           = is_array($pgvData)           ? $pgvData           : [];
+        $administracao = is_array($administracaoData) ? $administracaoData : [];
+        $mapaCamadas   = is_array($mapaCamadasData)   ? $mapaCamadasData   : [];
+        $mapaToolbar   = is_array($mapaToolbarData)   ? $mapaToolbarData   : [];
 
-        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $iluminacao, $arborizacao, $estoque, $manutencao, $cemiterio, $imobiliario, $social, $rural, $patrimonio);
+        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $iluminacao, $arborizacao, $estoque, $manutencao, $cemiterio, $imobiliario, $social, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $administracao, $mapaCamadas, $mapaToolbar);
 
         unset(
             $data['permissions_users'],
@@ -97,7 +142,13 @@ class EditRole extends EditRecord
             $data['permissions_imobiliario'],
             $data['permissions_social'],
             $data['permissions_rural'],
-            $data['permissions_patrimonio']
+            $data['permissions_patrimonio'],
+            $data['permissions_bpmn'],
+            $data['permissions_viabilidade'],
+            $data['permissions_pgv'],
+            $data['permissions_administracao'],
+            $data['permissions_mapa_camadas'],
+            $data['permissions_mapa_toolbar']
         );
 
         return $data;

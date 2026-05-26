@@ -17,6 +17,11 @@ class ProdutividadePage extends Page
     protected static ?int $navigationSort = 97;
     protected static string $view = 'filament.pages.produtividade';
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can('view_produtividade') ?? false;
+    }
+
     public int $tenantId = 0;
     public string $dataFiltro = '';
     public ?int $quadraId = null;

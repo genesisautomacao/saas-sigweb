@@ -869,6 +869,51 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // ── PERMISSÕES DE CAMADAS E TOOLBAR ────────────────────────────
+    if (config.permissionsUrl) {
+        fetch(config.permissionsUrl, { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (perms) {
+                if (!perms || perms.bypass) return;
+
+                if (Array.isArray(perms.layers)) {
+                    const allowed = new Set(perms.layers);
+                    document.querySelectorAll('input.layer-toggle[data-layer]').forEach(function (chk) {
+                        const layerKey = chk.dataset.layer.replace(/-/g, '_');
+                        if (!allowed.has(layerKey)) {
+                            // A label é o pai direto do input para todos os tipos de camada.
+                            // Para camadas com controles de rótulo, a label fica dentro de um
+                            // div.justify-between — nesse caso, escondemos o div inteiro.
+                            // Para camadas simples (rural, infra, cemitério), escondemos só a label.
+                            const label = chk.closest('label');
+                            if (!label) return;
+                            const parent = label.parentElement;
+                            const wrapper = (parent && parent.tagName === 'DIV' && parent.classList.contains('justify-between'))
+                                ? parent
+                                : label;
+                            wrapper.style.display = 'none';
+                        }
+                    });
+                }
+
+                if (perms.toolbar) {
+                    if (perms.toolbar.criar_artefatos === false) {
+                        const el = document.getElementById('toolbar-criar-artefatos');
+                        if (el) el.style.display = 'none';
+                    }
+                    if (perms.toolbar.ferramentas === false) {
+                        const el = document.getElementById('toolbar-ferramentas');
+                        if (el) el.style.display = 'none';
+                    }
+                    if (perms.toolbar.filtros === false) {
+                        const el = document.getElementById('toolbar-filtros');
+                        if (el) el.style.display = 'none';
+                    }
+                }
+            })
+            .catch(function () {}); // falha silenciosa — exibe tudo em vez de bloquear
+    }
+
     // ── ZOOM EXTENSÃO + VISÃO ANTERIOR ──────────────────────────────
     // Guarda a view inicial diretamente do config do tenant
     const initialCenter = ol.proj.fromLonLat([config.mapLon, config.mapLat]);
