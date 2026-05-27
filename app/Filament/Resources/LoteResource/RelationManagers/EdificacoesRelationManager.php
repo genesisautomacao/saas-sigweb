@@ -19,9 +19,44 @@ class EdificacoesRelationManager extends RelationManager
         return $form
             ->schema([
                 Forms\Components\Select::make('tipo')
-                    ->label('Tipo')
-                    ->options(['Casa' => 'Casa', 'Predio' => 'Prédio', 'Galpao' => 'Galpão'])
+                    ->label('Finalidade / Uso')
+                    ->options([
+                        'Residencial' => 'Residencial',
+                        'Comercial'   => 'Comercial',
+                        'Industrial'  => 'Industrial',
+                        'Misto'       => 'Misto',
+                        'Outro'       => 'Outro',
+                    ])
                     ->required(),
+                Forms\Components\Select::make('tp_construcao')
+                    ->label('Tipo de Construção (material)')
+                    ->options([
+                        'Alvenaria' => 'Alvenaria',
+                        'Madeira'   => 'Madeira',
+                        'Mista'     => 'Mista',
+                        'Outro'     => 'Outro',
+                    ])
+                    ->required(),
+                Forms\Components\TextInput::make('caracteristica_construcao')
+                    ->label('Característica da Construção')
+                    ->placeholder('Ex: Pavimento 1, Anexo, Edícula...')
+                    ->maxLength(255)
+                    ->nullable(),
+                Forms\Components\Select::make('estado_conservacao')
+                    ->label('Estado de Conservação')
+                    ->options([
+                        'Ruim'    => 'Ruim',
+                        'Regular' => 'Regular',
+                        'Médio'   => 'Médio',
+                        'Bom'     => 'Bom',
+                    ])
+                    ->required(),
+                Forms\Components\TextInput::make('pavimento')
+                    ->label('Nº de Pavimentos')
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue(99)
+                    ->nullable(),
                 Forms\Components\TextInput::make('area_geo')
                     ->label('Área (m²)')
                     ->numeric()
@@ -35,7 +70,17 @@ class EdificacoesRelationManager extends RelationManager
             ->recordTitleAttribute('id')
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID'),
-                Tables\Columns\TextColumn::make('tipo')->label('Tipo')->badge(),
+                Tables\Columns\TextColumn::make('tipo')->label('Finalidade')->badge()->color('info'),
+                Tables\Columns\TextColumn::make('tp_construcao')->label('Construção')->badge()->color('gray'),
+                Tables\Columns\TextColumn::make('estado_conservacao')->label('Conservação')->badge()
+                    ->color(fn ($state) => match ($state) {
+                        'Bom'     => 'success',
+                        'Médio'   => 'warning',
+                        'Regular' => 'warning',
+                        'Ruim'    => 'danger',
+                        default   => 'gray',
+                    }),
+                Tables\Columns\TextColumn::make('pavimento')->label('Pavimentos')->alignCenter(),
                 Tables\Columns\TextColumn::make('area_geo')
                     ->label('Área Construída')
                     ->suffix(' m²')

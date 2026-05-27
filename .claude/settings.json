@@ -35,7 +35,10 @@
       "Bash(php -l routes/api.php)",
       "Bash(php -l app/Filament/Pages/MensagensPage.php)",
       "Bash(findstr /R \"mensagens\")",
-      "Bash(php -l app/Services/Expo/ExpoPushService.php)"
+      "Bash(php -l app/Services/Expo/ExpoPushService.php)",
+      "Bash(php -l app/Filament/Pages/Traits/HasEdificacaoActions.php)",
+      "Bash(php -l app/Filament/Resources/LoteResource/RelationManagers/EdificacoesRelationManager.php)",
+      "Bash(php -l app/Http/Controllers/Api/LoteSyncController.php)"
     ]
   }
 }

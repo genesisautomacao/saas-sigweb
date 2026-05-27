@@ -72,7 +72,7 @@ class LoteSyncController extends Controller
             ->whereIn('lote_id', $loteIds)
             ->whereNull('deleted_at')
             ->get(['id', 'code', 'lote_id', 'tipo', 'tp_construcao',
-                   'caracteristica_construcao', 'estado_conservacao', 'area_geo'])
+                   'caracteristica_construcao', 'estado_conservacao', 'pavimento', 'area_geo'])
             ->groupBy('lote_id');
 
         $lotes = $lotesRaw->map(fn ($l) => [
@@ -94,13 +94,16 @@ class LoteSyncController extends Controller
             'coletado_por_id'         => $l->coletado_por_id,
             'coletado_em'             => $l->coletado_em,
             'sequential_id'           => $l->sequential_id,
-            'geo_json'                => $l->geo_json_raw,
+            // geo_json: decodificar string raw do PostGIS para objeto JSON real
+            // (mobile espera {type, coordinates}, não string escapada)
+            'geo_json'                => $l->geo_json_raw ? json_decode($l->geo_json_raw) : null,
             'unidades_imobiliarias'   => ($unidadesAgrupadas[$l->id] ?? collect())->map(fn ($u) => [
                 'id'                        => $u->code,
                 'inscricao_imobiliaria'     => $u->inscricao_imobiliaria,
                 'codigo_imovel_tributario'  => $u->codigo_imovel_tributario,
                 'logradouro_nome'           => $u->logradouro_nome,
                 'numero_imovel'             => $u->numero_imovel,
+                'complemento'               => null, // TODO: coluna ainda não existe no banco
                 'dados_tributarios'         => $u->dados_tributarios,
             ])->values(),
             'edificacoes' => ($edificacoesAgrupadas[$l->id] ?? collect())->map(fn ($e) => [
@@ -109,6 +112,7 @@ class LoteSyncController extends Controller
                 'tp_construcao'            => $e->tp_construcao,
                 'caracteristica_construcao'=> $e->caracteristica_construcao,
                 'estado_conservacao'       => $e->estado_conservacao,
+                'pavimento'                => $e->pavimento !== null ? (int) $e->pavimento : null,
                 'area_geo'                 => $e->area_geo !== null ? (float) $e->area_geo : null,
             ])->values(),
         ]);
@@ -191,6 +195,7 @@ class LoteSyncController extends Controller
                                 'tp_construcao'            => $edApp['tp_construcao'] ?? null,
                                 'caracteristica_construcao'=> $edApp['caracteristica_construcao'] ?? null,
                                 'estado_conservacao'       => $edApp['estado_conservacao'] ?? null,
+                                'pavimento'                => isset($edApp['pavimento']) ? (int) $edApp['pavimento'] : null,
                                 'area_geo'                 => isset($edApp['area_geo']) ? (float) $edApp['area_geo'] : null,
                             ], fn ($v) => $v !== null));
                     }

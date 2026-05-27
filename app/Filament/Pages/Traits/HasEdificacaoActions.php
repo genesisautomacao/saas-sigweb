@@ -49,12 +49,37 @@ trait HasEdificacaoActions
             ->modalWidth('md')
             ->form([
                 Select::make('tipo')
-                    ->label('Tipo de Construção')
-                    ->options(['Alvenaria' => 'Alvenaria', 'Madeira' => 'Madeira', 'Mista' => 'Mista'])
+                    ->label('Finalidade / Uso')
+                    ->options([
+                        'Residencial' => 'Residencial',
+                        'Comercial'   => 'Comercial',
+                        'Industrial'  => 'Industrial',
+                        'Misto'       => 'Misto',
+                        'Outro'       => 'Outro',
+                    ])
                     ->required(),
+                Select::make('tp_construcao')
+                    ->label('Tipo de Construção (material)')
+                    ->options([
+                        'Alvenaria' => 'Alvenaria',
+                        'Madeira'   => 'Madeira',
+                        'Mista'     => 'Mista',
+                        'Outro'     => 'Outro',
+                    ])
+                    ->required(),
+                \Filament\Forms\Components\TextInput::make('caracteristica_construcao')
+                    ->label('Característica da Construção')
+                    ->placeholder('Ex: Pavimento 1, Anexo, Edícula...')
+                    ->maxLength(255)
+                    ->nullable(),
                 Select::make('estado_conservacao')
                     ->label('Estado de Conservação')
-                    ->options(['Bom' => 'Bom', 'Regular' => 'Regular', 'Ruim' => 'Ruim'])
+                    ->options([
+                        'Ruim'    => 'Ruim',
+                        'Regular' => 'Regular',
+                        'Médio'   => 'Médio',
+                        'Bom'     => 'Bom',
+                    ])
                     ->required(),
                 \Filament\Forms\Components\TextInput::make('pavimento')
                     ->label('Nº de Pavimentos')
@@ -99,19 +124,48 @@ trait HasEdificacaoActions
             ->fillForm(function (): array {
                 $edif = Edificacao::find($this->edificacaoAtivaId);
                 return [
-                    'tipo'               => $edif ? $edif->tipo : null,
-                    'estado_conservacao' => $edif ? $edif->estado_conservacao : null,
-                    'pavimento'          => $edif ? $edif->pavimento : null,
-                    'area_geo'          => $edif ? $edif->area_geo : null,
+                    'tipo'                       => $edif?->tipo,
+                    'tp_construcao'              => $edif?->tp_construcao,
+                    'caracteristica_construcao'  => $edif?->caracteristica_construcao,
+                    'estado_conservacao'         => $edif?->estado_conservacao,
+                    'pavimento'                  => $edif?->pavimento,
+                    'area_geo'                   => $edif?->area_geo,
                 ];
             })
             ->form([
                 Select::make('tipo')
-                    ->label('Tipo de Construção')
-                    ->options(['Alvenaria' => 'Alvenaria', 'Madeira' => 'Madeira', 'Mista' => 'Mista'])->required(),
+                    ->label('Finalidade / Uso')
+                    ->options([
+                        'Residencial' => 'Residencial',
+                        'Comercial'   => 'Comercial',
+                        'Industrial'  => 'Industrial',
+                        'Misto'       => 'Misto',
+                        'Outro'       => 'Outro',
+                    ])
+                    ->required(),
+                Select::make('tp_construcao')
+                    ->label('Tipo de Construção (material)')
+                    ->options([
+                        'Alvenaria' => 'Alvenaria',
+                        'Madeira'   => 'Madeira',
+                        'Mista'     => 'Mista',
+                        'Outro'     => 'Outro',
+                    ])
+                    ->required(),
+                \Filament\Forms\Components\TextInput::make('caracteristica_construcao')
+                    ->label('Característica da Construção')
+                    ->placeholder('Ex: Pavimento 1, Anexo, Edícula...')
+                    ->maxLength(255)
+                    ->nullable(),
                 Select::make('estado_conservacao')
                     ->label('Estado de Conservação')
-                    ->options(['Bom' => 'Bom', 'Regular' => 'Regular', 'Ruim' => 'Ruim'])->required(),
+                    ->options([
+                        'Ruim'    => 'Ruim',
+                        'Regular' => 'Regular',
+                        'Médio'   => 'Médio',
+                        'Bom'     => 'Bom',
+                    ])
+                    ->required(),
                 \Filament\Forms\Components\TextInput::make('pavimento')
                     ->label('Nº de Pavimentos')
                     ->numeric()
