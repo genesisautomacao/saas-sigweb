@@ -4,6 +4,7 @@ namespace App\Filament\Pages\Traits;
 
 use App\Models\Edificacao;
 use App\Models\Lote;
+use Dom\Text;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
@@ -61,6 +62,7 @@ trait HasEdificacaoActions
                     ->minValue(1)
                     ->maxValue(99)
                     ->nullable(),
+
             ])
             ->action(function (array $data) {
                 $data['tenant_id'] = $this->tenantId;
@@ -78,7 +80,7 @@ trait HasEdificacaoActions
 
                 $this->geometriaRascunho = null;
                 $this->dispatch('limpar-rascunho-mapa');
-                
+
                 $this->mostrarEdificacoesLoteAtivo = false;
                 $this->toggleEdificacoesLote();
             });
@@ -91,7 +93,7 @@ trait HasEdificacaoActions
     {
         return Action::make('opcoesEdificacao')
             ->hiddenLabel()
-            ->modalHeading(fn () => 'Edificação #' . $this->edificacaoAtivaId)
+            ->modalHeading(fn() => 'Edificação #' . $this->edificacaoAtivaId)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Alterações')
             ->fillForm(function (): array {
@@ -100,6 +102,7 @@ trait HasEdificacaoActions
                     'tipo'               => $edif ? $edif->tipo : null,
                     'estado_conservacao' => $edif ? $edif->estado_conservacao : null,
                     'pavimento'          => $edif ? $edif->pavimento : null,
+                    'area_geo'          => $edif ? $edif->area_geo : null,
                 ];
             })
             ->form([
@@ -115,6 +118,9 @@ trait HasEdificacaoActions
                     ->minValue(1)
                     ->maxValue(99)
                     ->nullable(),
+                \Filament\Forms\Components\TextInput::make('area_geo')
+                    ->label('Área (m²)')
+                    ->readOnly(),
             ])
             ->action(function (array $data) {
                 $edif = Edificacao::find($this->edificacaoAtivaId);
@@ -129,21 +135,21 @@ trait HasEdificacaoActions
                     ->color('warning')
                     ->icon('heroicon-o-map')
                     ->action(function () {
-                        $this->showFicha = false; 
+                        $this->showFicha = false;
                         $this->dispatch('iniciar-edicao-geometria-edificacao', id: $this->edificacaoAtivaId);
                         $this->dispatch('fechar-modal-filament');
                     }),
-                    
+
                 Action::make('excluir_edif')
                     ->label('Excluir')
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
-                    ->action(function() {
+                    ->action(function () {
                         Edificacao::where('id', $this->edificacaoAtivaId)->delete();
                         Notification::make()->title('Edificação Excluída!')->success()->send();
                         $this->mostrarEdificacoesLoteAtivo = false;
-                        $this->toggleEdificacoesLote(); 
+                        $this->toggleEdificacoesLote();
                     }),
             ]);
     }

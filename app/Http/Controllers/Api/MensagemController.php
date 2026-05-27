@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Mensagem;
 use App\Models\User;
-use App\Services\Expo\ExpoPushService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -119,26 +118,13 @@ class MensagemController extends Controller
             ], 422);
         }
 
+        // Push notification dispara automaticamente via Model event Mensagem::created
         $mensagem = Mensagem::create([
             'tenant_id'       => $tenantId,
             'remetente_id'    => $request->user()->id,
             'destinatario_id' => (int) $request->input('destinatario_id'),
             'texto'           => $request->input('texto'),
         ]);
-
-        // Push notification (best-effort — falhas não interrompem o fluxo)
-        if ($destinatario->expo_push_token) {
-            app(ExpoPushService::class)->send(
-                expoToken: $destinatario->expo_push_token,
-                title: $request->user()->name,
-                body: mb_strimwidth($request->input('texto'), 0, 100, '...'),
-                data: [
-                    'tipo'       => 'mensagem',
-                    'contatoId'  => $request->user()->id,
-                    'mensagemId' => $mensagem->id,
-                ],
-            );
-        }
 
         return response()->json(['data' => $mensagem], 201);
     }
