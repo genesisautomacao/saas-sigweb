@@ -137,7 +137,8 @@
                 {{-- GRUPO FILTROS (permissão toolbar_filtros) --}}
                 <div id="toolbar-filtros" class="flex items-center gap-0.5">
                     {{-- BOTÃO FILTRO AVANÇADO --}}
-                    <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }" x-on:click="$wire.mountAction('filtroAvancadoAction')"
+                    <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }"
+                        x-on:click="$wire.mountAction('filtroAvancadoAction')"
                         class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                         title="Filtro Avançado / Tematização">
                         <x-heroicon-o-funnel class="w-5 h-5" />
@@ -164,13 +165,15 @@
                     </button>
 
                     {{-- B4: SALVAR ENQUADRAMENTO PADRÃO --}}
-                    @if(filament()->getTenant() && auth()->user()?->hasAnyRole(['Master','Manager']))
-                    <button
-                        onclick="(function(){ const e = window.getEnquadramentoAtual?.(); if(e) { @this.call('salvarEnquadramento', e.lat, e.lon, e.zoom); } })()"
-                        title="Salvar enquadramento atual como padrão"
-                        class="p-2 text-gray-600 hover:bg-amber-100 dark:text-gray-300 dark:hover:bg-amber-900/30 rounded-xl transition-colors">
-                        <x-heroicon-o-bookmark class="w-5 h-5" />
-                    </button>
+                    @if (filament()->getTenant() &&
+                            auth()->user()
+                                ?->hasAnyRole(['Master', 'Manager']))
+                        <button
+                            onclick="(function(){ const e = window.getEnquadramentoAtual?.(); if(e) { @this.call('salvarEnquadramento', e.lat, e.lon, e.zoom); } })()"
+                            title="Salvar enquadramento atual como padrão"
+                            class="p-2 text-gray-600 hover:bg-amber-100 dark:text-gray-300 dark:hover:bg-amber-900/30 rounded-xl transition-colors">
+                            <x-heroicon-o-bookmark class="w-5 h-5" />
+                        </button>
                     @endif
 
                     <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
@@ -288,7 +291,8 @@
                                         <button type="button"
                                             @click="openDraw = false; window.ativarFerramentaToponimiia(true)"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-violet-50 hover:text-violet-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-chat-bubble-bottom-center-text class="w-4 h-4 text-violet-500" />
+                                            <x-heroicon-o-chat-bubble-bottom-center-text
+                                                class="w-4 h-4 text-violet-500" />
                                             Texto / Toponímia
                                         </button>
                                     </div>
@@ -439,119 +443,125 @@
                     {{-- GRUPO FERRAMENTAS (permissão toolbar_ferramentas) --}}
                     <div id="toolbar-ferramentas" class="flex items-center gap-0.5">
 
-                    {{-- 🛠️ DROPDOWN DE FERRAMENTAS 🛠️ --}}
-                    <div x-data="{ openTools: false }" class="relative">
-                        <button @click="openTools = !openTools" @click.outside="openTools = false"
-                            title="Ferramentas Avançadas"
-                            class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors focus:outline-none flex items-center gap-1">
-                            <x-heroicon-o-wrench-screwdriver class="w-5 h-5" />
-                            <x-heroicon-o-chevron-down class="w-3 h-3" />
-                        </button>
-                        <div x-show="openTools" style="display: none;"
-                            class="fixed mt-2 w-[240px] bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-[9999]"
-                            style="left: 360px;"> {{-- Ajuste a posição left se precisar --}}
-                            <div
-                                class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
-                                <span
-                                    class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Ferramentas</span>
-                            </div>
-                            <div class="py-1 flex flex-col">
+                        {{-- 🛠️ DROPDOWN DE FERRAMENTAS 🛠️ --}}
+                        <div x-data="{ openTools: false }" class="relative">
+                            <button @click="openTools = !openTools" @click.outside="openTools = false"
+                                title="Ferramentas Avançadas"
+                                class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors focus:outline-none flex items-center gap-1">
+                                <x-heroicon-o-wrench-screwdriver class="w-5 h-5" />
+                                <x-heroicon-o-chevron-down class="w-3 h-3" />
+                            </button>
+                            <div x-show="openTools" style="display: none;"
+                                class="fixed mt-2 w-[240px] bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-[9999]"
+                                style="left: 360px;"> {{-- Ajuste a posição left se precisar --}}
+                                <div
+                                    class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                                    <span
+                                        class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Ferramentas</span>
+                                </div>
+                                <div class="py-1 flex flex-col">
 
-                                <button id="btn-tool-numeracao" @click="openTools = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
-                                    <x-heroicon-o-hashtag class="w-4 h-4 text-blue-500" /> Numeração Predial
-                                </button>
-
-                                <button id="btn-tool-altimetria" @click="openTools = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
-                                    <x-heroicon-o-chart-bar class="w-4 h-4 text-emerald-500" /> Perfil de Terreno
-                                    (Altimetria)
-                                </button>
-
-                                <button id="btn-tool-unificar" @click="openTools = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-purple-50 dark:hover:bg-gray-700 hover:text-purple-600 flex items-center gap-2 font-bold transition-colors">
-                                    <x-heroicon-o-link class="w-4 h-4 text-purple-500" /> Unificar Lotes (Solda)
-                                </button>
-
-                                <button wire:click="mountAction('abrirNuvemPontosAction')" @click="openTools = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
-                                    <x-heroicon-o-cube class="w-4 h-4 text-blue-500" /> Visualizador 3D (LiDAR)
-                                </button>
-
-                                <button wire:click="mountAction('configurarPgvAction')" @click="openTools = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors border-b border-gray-100 pb-3 mb-1">
-                                    <x-heroicon-o-banknotes class="w-4 h-4 text-emerald-500" /> Simulador de Valores
-                                    (PGV)
-                                </button>
-
-                                <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
-
-                                <button id="btn-measure-line" @click="openTools = false"
-                                    class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
-                                    <x-heroicon-o-arrows-right-left class="w-4 h-4 text-gray-500" /> Medir Distância
-                                </button>
-
-                                <button id="btn-measure-area" @click="openTools = false"
-                                    class="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
-                                    <x-heroicon-o-view-columns class="w-4 h-4 text-gray-500" /> Medir Área
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- DROPDOWN IMPRESSÃO E EXPORTAÇÃO --}}
-                    <div class="relative" x-data="{ open: false }" @click.away="open = false">
-                        <button @click="open = !open" title="Impressão e Exportação"
-                            class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors flex items-center gap-2 font-bold text-sm">
-                            <x-heroicon-o-printer class="w-5 h-5" />
-                            <span class="hidden md:inline">Imprimir / Exportar</span>
-                            <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform"
-                                x-bind:class="open ? 'rotate-180' : ''" />
-                        </button>
-
-                        <div x-show="open" style="display: none; background-color: white; border: 1px solid #e5e7eb;"
-                            x-transition:enter="transition ease-out duration-100"
-                            x-transition:enter-start="opacity-0 scale-95"
-                            x-transition:enter-end="opacity-100 scale-100"
-                            class="absolute right-0 mt-2 w-72 dark:bg-gray-800 rounded-xl shadow-2xl z-[1001] overflow-hidden">
-
-                            <div class="p-2">
-                                <div class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                    Formatos de Impressão (PDF)</div>
-
-                                @foreach (['A4', 'A3', 'A2', 'A1', 'A0'] as $formato)
-                                    <div class="flex items-center gap-1 px-2 mb-1">
-                                        <button
-                                            @click="$dispatch('gerar-pdf-mapa', { size: '{{ $formato }}', orientation: 'portrait' }); open = false"
-                                            style="text-align: left; background: none; border: none; padding: 6px 12px; font-size: 12px; color: #374151; flex: 1; cursor: pointer;"
-                                            class="hover:bg-blue-50 rounded-lg">
-                                            {{ $formato }} - Retrato
-                                        </button>
-                                        <button
-                                            @click="$dispatch('gerar-pdf-mapa', { size: '{{ $formato }}', orientation: 'landscape' }); open = false"
-                                            style="background-color: #eff6ff; color: #1d4ed8; font-size: 10px; font-weight: bold; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer;">
-                                            PAISAGEM
-                                        </button>
-                                    </div>
-                                @endforeach
-
-                                <div style="margin: 8px 0; border-top: 1px solid #f3f4f6;"></div>
-
-                                <div class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                    Exportar Camadas (SHP)</div>
-
-                                @foreach (['lotes' => 'Lotes', 'logradouros' => 'Logradouros', 'bairros' => 'Bairros', 'quadras' => 'Quadras'] as $key => $label)
-                                    <button
-                                        @click="$dispatch('exportar-camada-shp', { layer: '{{ $key }}' }); open = false"
-                                        style="width: 100%; text-align: left; background: none; border: none; padding: 8px 12px; font-size: 12px; color: #374151; display: flex; align-items: center; gap: 8px; cursor: pointer;"
-                                        class="hover:bg-emerald-50 rounded-lg">
-                                        <x-heroicon-o-arrow-down-tray class="w-4 h-4 text-emerald-500" />
-                                        Exportar {{ $label }}
+                                    <button id="btn-tool-numeracao" @click="openTools = false"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
+                                        <x-heroicon-o-hashtag class="w-4 h-4 text-blue-500" /> Numeração Predial
                                     </button>
-                                @endforeach
+
+                                    <button id="btn-tool-altimetria" @click="openTools = false"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
+                                        <x-heroicon-o-chart-bar class="w-4 h-4 text-emerald-500" /> Perfil de Terreno
+                                        (Altimetria)
+                                    </button>
+
+                                    <button id="btn-tool-unificar" @click="openTools = false"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-purple-50 dark:hover:bg-gray-700 hover:text-purple-600 flex items-center gap-2 font-bold transition-colors">
+                                        <x-heroicon-o-link class="w-4 h-4 text-purple-500" /> Unificar Lotes (Solda)
+                                    </button>
+
+                                    <button wire:click="mountAction('abrirNuvemPontosAction')"
+                                        @click="openTools = false"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
+                                        <x-heroicon-o-cube class="w-4 h-4 text-blue-500" /> Visualizador 3D (LiDAR)
+                                    </button>
+
+                                    <button wire:click="mountAction('configurarPgvAction')" @click="openTools = false"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors border-b border-gray-100 pb-3 mb-1">
+                                        <x-heroicon-o-banknotes class="w-4 h-4 text-emerald-500" /> Simulador de
+                                        Valores
+                                        (PGV)
+                                    </button>
+
+                                    <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+
+                                    <button id="btn-measure-line" @click="openTools = false"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
+                                        <x-heroicon-o-arrows-right-left class="w-4 h-4 text-gray-500" /> Medir
+                                        Distância
+                                    </button>
+
+                                    <button id="btn-measure-area" @click="openTools = false"
+                                        class="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
+                                        <x-heroicon-o-view-columns class="w-4 h-4 text-gray-500" /> Medir Área
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
+
+                        {{-- DROPDOWN IMPRESSÃO E EXPORTAÇÃO --}}
+                        <div class="relative" x-data="{ open: false }" @click.away="open = false">
+                            <button @click="open = !open" title="Impressão e Exportação"
+                                class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors flex items-center gap-2 font-bold text-sm">
+                                <x-heroicon-o-printer class="w-5 h-5" />
+                                <span class="hidden md:inline">Imprimir / Exportar</span>
+                                <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform"
+                                    x-bind:class="open ? 'rotate-180' : ''" />
+                            </button>
+
+                            <div x-show="open"
+                                style="display: none; background-color: white; border: 1px solid #e5e7eb;"
+                                x-transition:enter="transition ease-out duration-100"
+                                x-transition:enter-start="opacity-0 scale-95"
+                                x-transition:enter-end="opacity-100 scale-100"
+                                class="absolute right-0 mt-2 w-72 dark:bg-gray-800 rounded-xl shadow-2xl z-[1001] overflow-hidden">
+
+                                <div class="p-2">
+                                    <div
+                                        class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                        Formatos de Impressão (PDF)</div>
+
+                                    @foreach (['A4', 'A3', 'A2', 'A1', 'A0'] as $formato)
+                                        <div class="flex items-center gap-1 px-2 mb-1">
+                                            <button
+                                                @click="$dispatch('gerar-pdf-mapa', { size: '{{ $formato }}', orientation: 'portrait' }); open = false"
+                                                style="text-align: left; background: none; border: none; padding: 6px 12px; font-size: 12px; color: #374151; flex: 1; cursor: pointer;"
+                                                class="hover:bg-blue-50 rounded-lg">
+                                                {{ $formato }} - Retrato
+                                            </button>
+                                            <button
+                                                @click="$dispatch('gerar-pdf-mapa', { size: '{{ $formato }}', orientation: 'landscape' }); open = false"
+                                                style="background-color: #eff6ff; color: #1d4ed8; font-size: 10px; font-weight: bold; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer;">
+                                                PAISAGEM
+                                            </button>
+                                        </div>
+                                    @endforeach
+
+                                    <div style="margin: 8px 0; border-top: 1px solid #f3f4f6;"></div>
+
+                                    <div
+                                        class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                        Exportar Camadas (SHP)</div>
+
+                                    @foreach (['lotes' => 'Lotes', 'logradouros' => 'Logradouros', 'bairros' => 'Bairros', 'quadras' => 'Quadras'] as $key => $label)
+                                        <button
+                                            @click="$dispatch('exportar-camada-shp', { layer: '{{ $key }}' }); open = false"
+                                            style="width: 100%; text-align: left; background: none; border: none; padding: 8px 12px; font-size: 12px; color: #374151; display: flex; align-items: center; gap: 8px; cursor: pointer;"
+                                            class="hover:bg-emerald-50 rounded-lg">
+                                            <x-heroicon-o-arrow-down-tray class="w-4 h-4 text-emerald-500" />
+                                            Exportar {{ $label }}
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
                     </div>{{-- /toolbar-ferramentas --}}
 
 
@@ -874,12 +884,15 @@
                                 <input type="checkbox" data-layer="perimetros"
                                     class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
                                 <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                    <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
+                                    </div>
                                     <span class="layer-text truncate">Perímetros/Limites</span>
                                 </span>
                             </label>
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
-                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                <label
+                                    class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
+                                    title="Exibir rótulos">
                                     <input type="checkbox" id="perimetros-label-toggle" checked
                                         onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'perimetros',enabled:this.checked,field:document.getElementById('perimetros-label-field').value}}))"
                                         class="rounded border-gray-300 w-3 h-3">
@@ -900,12 +913,15 @@
                                 <input type="checkbox" data-layer="setores_fiscais"
                                     class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
                                 <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                    <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
+                                    </div>
                                     <span class="layer-text truncate">Setores Fiscais</span>
                                 </span>
                             </label>
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
-                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                <label
+                                    class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
+                                    title="Exibir rótulos">
                                     <input type="checkbox" id="setores_fiscais-label-toggle" checked
                                         onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_fiscais',enabled:this.checked,field:document.getElementById('setores_fiscais-label-field').value}}))"
                                         class="rounded border-gray-300 w-3 h-3">
@@ -926,12 +942,15 @@
                                 <input type="checkbox" data-layer="bairros"
                                     class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
                                 <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                    <div class="w-3 h-3 bg-blue-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <div class="w-3 h-3 bg-blue-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
+                                    </div>
                                     <span class="layer-text truncate">Bairros</span>
                                 </span>
                             </label>
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
-                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                <label
+                                    class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
+                                    title="Exibir rótulos">
                                     <input type="checkbox" id="bairros-label-toggle" checked
                                         onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'bairros',enabled:this.checked,field:document.getElementById('bairros-label-field').value}}))"
                                         class="rounded border-gray-300 w-3 h-3">
@@ -952,12 +971,15 @@
                                 <input type="checkbox" data-layer="loteamentos"
                                     class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
                                 <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                    <div class="w-3 h-3 bg-blue-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <div class="w-3 h-3 bg-blue-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
+                                    </div>
                                     <span class="layer-text truncate">Loteamentos</span>
                                 </span>
                             </label>
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
-                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                <label
+                                    class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
+                                    title="Exibir rótulos">
                                     <input type="checkbox" id="loteamentos-label-toggle" checked
                                         onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'loteamentos',enabled:this.checked,field:document.getElementById('loteamentos-label-field').value}}))"
                                         class="rounded border-gray-300 w-3 h-3">
@@ -978,12 +1000,15 @@
                                 <input type="checkbox" data-layer="quadras"
                                     class="layer-toggle rounded border-gray-300 text-orange-500 focus:ring-orange-500 w-4 h-4 flex-shrink-0">
                                 <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                    <div class="w-3 h-3 bg-orange-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <div class="w-3 h-3 bg-orange-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
+                                    </div>
                                     <span class="layer-text truncate">Quadras</span>
                                 </span>
                             </label>
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
-                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                <label
+                                    class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
+                                    title="Exibir rótulos">
                                     <input type="checkbox" id="quadras-label-toggle" checked
                                         onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'quadras',enabled:this.checked,field:document.getElementById('quadras-label-field').value}}))"
                                         class="rounded border-gray-300 w-3 h-3">
@@ -1005,12 +1030,16 @@
                                 <input type="checkbox" data-layer="lotes"
                                     class="layer-toggle rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
                                 <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                    <div class="w-3 h-3 bg-emerald-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <div
+                                        class="w-3 h-3 bg-emerald-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
+                                    </div>
                                     <span class="layer-text truncate">Lotes</span>
                                 </span>
                             </label>
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
-                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                <label
+                                    class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
+                                    title="Exibir rótulos">
                                     <input type="checkbox" id="lotes-label-toggle" checked
                                         onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'lotes',enabled:this.checked,field:document.getElementById('lotes-label-field').value}}))"
                                         class="rounded border-gray-300 w-3 h-3">
@@ -1028,6 +1057,27 @@
                             </div>
                         </div>
 
+                        {{-- Sub-linha: Status de Coleta (recolore os lotes pelo status_cadastro) --}}
+                        <div x-data="{ statusColorOn: false }" class="ml-7 mt-1">
+                            <label
+                                class="flex items-center gap-2 cursor-pointer text-xs text-gray-600 dark:text-gray-300">
+                                <input type="checkbox" x-model="statusColorOn"
+                                    @change="window.dispatchEvent(new CustomEvent('sigweb-toggle-status-color',{detail:{enabled:statusColorOn}}))"
+                                    class="rounded border-gray-300 w-3 h-3">
+                                <span class="flex items-center gap-1">
+                                    <x-heroicon-o-paint-brush class="w-3 h-3" />
+                                    Status de Coleta
+                                </span>
+                            </label>
+                            <div x-show="statusColorOn" x-transition
+                                class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-500 dark:text-gray-400">
+                                <span class="inline-flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#10B981"></span> Coletado</span>
+                                <span class="inline-flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#F59E0B"></span> Pendente</span>
+                                <span class="inline-flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#EF4444"></span> Inconformidade</span>
+                                <span class="inline-flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#9CA3AF"></span> Não visitado</span>
+                            </div>
+                        </div>
+
                         <div class="flex items-center justify-between w-full mt-2">
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                 <input type="checkbox" data-layer="logradouros"
@@ -1038,7 +1088,9 @@
                                 </span>
                             </label>
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
-                                <label class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer" title="Exibir rótulos">
+                                <label
+                                    class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
+                                    title="Exibir rótulos">
                                     <input type="checkbox" id="logradouros-label-toggle" checked
                                         onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'logradouros',enabled:this.checked,field:document.getElementById('logradouros-label-field').value}}))"
                                         class="rounded border-gray-300 w-3 h-3">
@@ -1344,12 +1396,12 @@
                                 <input type="checkbox" data-layer="toponimias"
                                     class="layer-toggle rounded border-gray-300 text-violet-600 focus:ring-violet-500 w-4 h-4 flex-shrink-0">
                                 <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                    <div class="w-3 h-3 bg-violet-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
+                                    <div class="w-3 h-3 bg-violet-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
+                                    </div>
                                     <span class="layer-text truncate">Toponímias / Textos</span>
                                 </span>
                             </label>
-                            <button type="button"
-                                onclick="window.ativarFerramentaToponimiia(true)"
+                            <button type="button" onclick="window.ativarFerramentaToponimiia(true)"
                                 title="Clique no mapa para adicionar um texto"
                                 class="ml-2 flex-shrink-0 text-xs px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-200 transition-colors">
                                 + Texto
@@ -1534,17 +1586,34 @@
                     <p class="text-xl font-black text-gray-800 dark:text-white">{{ $loteAtivoNome }}</p>
                     <p class="text-xs text-gray-500 mt-1">ID Sistema: #{{ $loteSequentialId }}</p>
 
-                    @if($loteStatusCadastro)
+                    @if ($loteStatusCadastro)
                         @php
                             $statusMap = [
-                                'nao_visitado'   => ['label' => 'Não Visitado',   'bg' => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200', 'dot' => 'bg-gray-400'],
-                                'coletado'       => ['label' => 'Coletado',       'bg' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300', 'dot' => 'bg-emerald-500'],
-                                'pendente'       => ['label' => 'Pendente',       'bg' => 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300', 'dot' => 'bg-amber-500'],
-                                'inconformidade' => ['label' => 'Inconformidade', 'bg' => 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300', 'dot' => 'bg-red-500'],
+                                'nao_visitado' => [
+                                    'label' => 'Não Visitado',
+                                    'bg' => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
+                                    'dot' => 'bg-gray-400',
+                                ],
+                                'coletado' => [
+                                    'label' => 'Coletado',
+                                    'bg' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
+                                    'dot' => 'bg-emerald-500',
+                                ],
+                                'pendente' => [
+                                    'label' => 'Pendente',
+                                    'bg' => 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
+                                    'dot' => 'bg-amber-500',
+                                ],
+                                'inconformidade' => [
+                                    'label' => 'Inconformidade',
+                                    'bg' => 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+                                    'dot' => 'bg-red-500',
+                                ],
                             ];
                             $s = $statusMap[$loteStatusCadastro] ?? $statusMap['nao_visitado'];
                         @endphp
-                        <span class="inline-flex items-center gap-1.5 mt-2 px-2.5 py-0.5 rounded-full text-xs font-bold {{ $s['bg'] }}">
+                        <span
+                            class="inline-flex items-center gap-1.5 mt-2 px-2.5 py-0.5 rounded-full text-xs font-bold {{ $s['bg'] }}">
                             <span class="w-2 h-2 rounded-full {{ $s['dot'] }}"></span> {{ $s['label'] }}
                         </span>
                     @endif
@@ -1576,22 +1645,29 @@
                         </div>
                     </div>
 
-                    @if($loteOcupacao || $loteSituacaoQuadra)
+                    @if ($loteOcupacao || $loteSituacaoQuadra)
                         @php
                             $ocupacaoLabel = ['baldio' => 'Baldio', 'construido' => 'Construído'];
-                            $situacaoLabel = ['meio_quadra' => 'Meio de Quadra', 'esquina' => 'Esquina', 'encravado' => 'Encravado'];
+                            $situacaoLabel = [
+                                'meio_quadra' => 'Meio de Quadra',
+                                'esquina' => 'Esquina',
+                                'encravado' => 'Encravado',
+                            ];
                         @endphp
-                        <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 grid grid-cols-2 gap-4 text-xs">
-                            @if($loteOcupacao)
+                        <div
+                            class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 grid grid-cols-2 gap-4 text-xs">
+                            @if ($loteOcupacao)
                                 <div>
                                     <p class="text-[10px] text-gray-400 uppercase font-bold">Ocupação</p>
-                                    <p class="font-bold text-gray-700 dark:text-gray-300">{{ $ocupacaoLabel[$loteOcupacao] ?? '—' }}</p>
+                                    <p class="font-bold text-gray-700 dark:text-gray-300">
+                                        {{ $ocupacaoLabel[$loteOcupacao] ?? '—' }}</p>
                                 </div>
                             @endif
-                            @if($loteSituacaoQuadra)
+                            @if ($loteSituacaoQuadra)
                                 <div>
                                     <p class="text-[10px] text-gray-400 uppercase font-bold">Situação</p>
-                                    <p class="font-bold text-gray-700 dark:text-gray-300">{{ $situacaoLabel[$loteSituacaoQuadra] ?? '—' }}</p>
+                                    <p class="font-bold text-gray-700 dark:text-gray-300">
+                                        {{ $situacaoLabel[$loteSituacaoQuadra] ?? '—' }}</p>
                                 </div>
                             @endif
                         </div>
@@ -1599,11 +1675,14 @@
 
                 </div>
 
-                @if($loteColetadoPor)
+                @if ($loteColetadoPor)
                     <div class="mb-4 -mt-2 text-xs text-gray-500 italic flex items-center gap-1.5">
                         <x-heroicon-o-user-circle class="w-3.5 h-3.5 text-gray-400" />
-                        Coletado por <strong class="text-gray-700 dark:text-gray-300 not-italic">{{ $loteColetadoPor }}</strong>
-                        @if($loteColetadoEm) em {{ $loteColetadoEm }} @endif
+                        Coletado por <strong
+                            class="text-gray-700 dark:text-gray-300 not-italic">{{ $loteColetadoPor }}</strong>
+                        @if ($loteColetadoEm)
+                            em {{ $loteColetadoEm }}
+                        @endif
                     </div>
                 @endif
 

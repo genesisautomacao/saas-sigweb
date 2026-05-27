@@ -27,7 +27,8 @@
       "Bash(php -l c:/laragon/www/saas-sigweb/app/Filament/Pages/MapaFullscreen.php)",
       "Bash(php -l c:/laragon/www/saas-sigweb/app/Filament/Pages/Traits/HasLoteActions.php)",
       "Bash(php -l c:/laragon/www/saas-sigweb/app/Filament/Resources/LoteResource.php)",
-      "Bash(php -l c:/laragon/www/saas-sigweb/app/Models/Lote.php)"
+      "Bash(php -l c:/laragon/www/saas-sigweb/app/Models/Lote.php)",
+      "Bash(php -l c:/laragon/www/saas-sigweb/app/Http/Controllers/Api/MapDataController.php)"
     ]
   }
 }

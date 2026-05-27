@@ -84,16 +84,25 @@ document.addEventListener("DOMContentLoaded", function () {
                 const zoom = view.getZoomForResolution(resolution);
                 const style = new ol.style.Style({
                     stroke: new ol.style.Stroke({ color: "#ef4444", width: 3 }),
-                    fill: new ol.style.Fill({ color: "rgba(239, 68, 68, 0.05)" }),
+                    fill: new ol.style.Fill({
+                        color: "rgba(239, 68, 68, 0.05)",
+                    }),
                 });
                 if (zoom >= 12) {
-                    style.setText(new ol.style.Text({
-                        text: feature.get("name") ? feature.get("name").toString() : "",
-                        font: "bold 14px Arial, sans-serif",
-                        fill: new ol.style.Fill({ color: "#991b1b" }),
-                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
-                        overflow: true,
-                    }));
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name")
+                                ? feature.get("name").toString()
+                                : "",
+                            font: "bold 14px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: "#991b1b" }),
+                            stroke: new ol.style.Stroke({
+                                color: "#ffffff",
+                                width: 3,
+                            }),
+                            overflow: true,
+                        }),
+                    );
                 }
                 return style;
             },
@@ -243,14 +252,21 @@ document.addEventListener("DOMContentLoaded", function () {
                     stroke: new ol.style.Stroke({ color: "#3675ce", width: 3 }),
                 });
                 if (zoom >= 16) {
-                    style.setText(new ol.style.Text({
-                        text: feature.get("name") ? feature.get("name").toString() : "",
-                        font: "bold 11px Arial, sans-serif",
-                        fill: new ol.style.Fill({ color: "#1e3a8a" }),
-                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
-                        placement: "line",
-                        overflow: true,
-                    }));
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name")
+                                ? feature.get("name").toString()
+                                : "",
+                            font: "bold 11px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: "#1e3a8a" }),
+                            stroke: new ol.style.Stroke({
+                                color: "#ffffff",
+                                width: 3,
+                            }),
+                            placement: "line",
+                            overflow: true,
+                        }),
+                    );
                 }
                 return style;
             },
@@ -822,24 +838,30 @@ document.addEventListener("DOMContentLoaded", function () {
             z: 200, // Acima de tudo — é texto anotado pelo usuário
             minZoom: 0,
             style: function (feature) {
-                const texto  = feature.get('texto') || '';
-                const estilo = feature.get('estilo') || {};
-                const tam    = parseInt(estilo.tamanho || '16', 10);
-                const cor    = estilo.cor || '#1f2937';
+                const texto = feature.get("texto") || "";
+                const estilo = feature.get("estilo") || {};
+                const tam = parseInt(estilo.tamanho || "16", 10);
+                const cor = estilo.cor || "#1f2937";
                 return new ol.style.Style({
                     image: new ol.style.Circle({
                         radius: 5,
                         fill: new ol.style.Fill({ color: cor }),
-                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 1.5 }),
+                        stroke: new ol.style.Stroke({
+                            color: "#ffffff",
+                            width: 1.5,
+                        }),
                     }),
                     text: new ol.style.Text({
                         text: texto,
-                        font: 'bold ' + tam + 'px Arial, sans-serif',
+                        font: "bold " + tam + "px Arial, sans-serif",
                         fill: new ol.style.Fill({ color: cor }),
-                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                        stroke: new ol.style.Stroke({
+                            color: "#ffffff",
+                            width: 3,
+                        }),
                         overflow: true,
                         offsetY: -14,
-                        textBaseline: 'bottom',
+                        textBaseline: "bottom",
                     }),
                 });
             },
@@ -857,57 +879,75 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // ── #12 — COORDENADA DO CURSOR EM TEMPO REAL ────────────────────
-    const coordDisplay = document.getElementById('coord-display');
+    const coordDisplay = document.getElementById("coord-display");
     if (coordDisplay) {
-        map.on('pointermove', function (evt) {
+        map.on("pointermove", function (evt) {
             if (evt.dragging) return;
             const lonLat = ol.proj.toLonLat(evt.coordinate);
-            coordDisplay.textContent = 'Lat: ' + lonLat[1].toFixed(6) + '  Lon: ' + lonLat[0].toFixed(6);
+            coordDisplay.textContent =
+                "Lat: " +
+                lonLat[1].toFixed(6) +
+                "  Lon: " +
+                lonLat[0].toFixed(6);
         });
-        map.getTargetElement().addEventListener('mouseleave', function () {
-            coordDisplay.textContent = 'Lat: —  Lon: —';
+        map.getTargetElement().addEventListener("mouseleave", function () {
+            coordDisplay.textContent = "Lat: —  Lon: —";
         });
     }
 
     // ── PERMISSÕES DE CAMADAS E TOOLBAR ────────────────────────────
     if (config.permissionsUrl) {
-        fetch(config.permissionsUrl, { credentials: 'same-origin' })
-            .then(function (r) { return r.ok ? r.json() : null; })
+        fetch(config.permissionsUrl, { credentials: "same-origin" })
+            .then(function (r) {
+                return r.ok ? r.json() : null;
+            })
             .then(function (perms) {
                 if (!perms || perms.bypass) return;
 
                 if (Array.isArray(perms.layers)) {
                     const allowed = new Set(perms.layers);
-                    document.querySelectorAll('input.layer-toggle[data-layer]').forEach(function (chk) {
-                        const layerKey = chk.dataset.layer.replace(/-/g, '_');
-                        if (!allowed.has(layerKey)) {
-                            // A label é o pai direto do input para todos os tipos de camada.
-                            // Para camadas com controles de rótulo, a label fica dentro de um
-                            // div.justify-between — nesse caso, escondemos o div inteiro.
-                            // Para camadas simples (rural, infra, cemitério), escondemos só a label.
-                            const label = chk.closest('label');
-                            if (!label) return;
-                            const parent = label.parentElement;
-                            const wrapper = (parent && parent.tagName === 'DIV' && parent.classList.contains('justify-between'))
-                                ? parent
-                                : label;
-                            wrapper.style.display = 'none';
-                        }
-                    });
+                    document
+                        .querySelectorAll("input.layer-toggle[data-layer]")
+                        .forEach(function (chk) {
+                            const layerKey = chk.dataset.layer.replace(
+                                /-/g,
+                                "_",
+                            );
+                            if (!allowed.has(layerKey)) {
+                                // A label é o pai direto do input para todos os tipos de camada.
+                                // Para camadas com controles de rótulo, a label fica dentro de um
+                                // div.justify-between — nesse caso, escondemos o div inteiro.
+                                // Para camadas simples (rural, infra, cemitério), escondemos só a label.
+                                const label = chk.closest("label");
+                                if (!label) return;
+                                const parent = label.parentElement;
+                                const wrapper =
+                                    parent &&
+                                    parent.tagName === "DIV" &&
+                                    parent.classList.contains("justify-between")
+                                        ? parent
+                                        : label;
+                                wrapper.style.display = "none";
+                            }
+                        });
                 }
 
                 if (perms.toolbar) {
                     if (perms.toolbar.criar_artefatos === false) {
-                        const el = document.getElementById('toolbar-criar-artefatos');
-                        if (el) el.style.display = 'none';
+                        const el = document.getElementById(
+                            "toolbar-criar-artefatos",
+                        );
+                        if (el) el.style.display = "none";
                     }
                     if (perms.toolbar.ferramentas === false) {
-                        const el = document.getElementById('toolbar-ferramentas');
-                        if (el) el.style.display = 'none';
+                        const el = document.getElementById(
+                            "toolbar-ferramentas",
+                        );
+                        if (el) el.style.display = "none";
                     }
                     if (perms.toolbar.filtros === false) {
-                        const el = document.getElementById('toolbar-filtros');
-                        if (el) el.style.display = 'none';
+                        const el = document.getElementById("toolbar-filtros");
+                        if (el) el.style.display = "none";
                     }
                 }
             })
@@ -2904,8 +2944,14 @@ document.addEventListener("DOMContentLoaded", function () {
     // ── CIRURGIA EM MEMÓRIA: LOGRADOUROS ──────────────────────────────
     window.addEventListener("adicionar-logradouro-mapa", (e) => {
         const data = e.detail[0] || e.detail;
-        const checkbox = document.querySelector('input[data-layer="logradouros"]');
-        if (checkbox && checkbox.checked && window.loadedLayers["logradouros"]) {
+        const checkbox = document.querySelector(
+            'input[data-layer="logradouros"]',
+        );
+        if (
+            checkbox &&
+            checkbox.checked &&
+            window.loadedLayers["logradouros"]
+        ) {
             const feature = new ol.Feature({
                 geometry: new ol.format.GeoJSON().readGeometry(data.geo, {
                     dataProjection: "EPSG:4326",
@@ -2937,7 +2983,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const data = e.detail[0] || e.detail;
         if (window.loadedLayers["logradouros"]) {
             const source = window.loadedLayers["logradouros"].getSource();
-            const feature = source.getFeatures().find((f) => f.get("id") == data.id);
+            const feature = source
+                .getFeatures()
+                .find((f) => f.get("id") == data.id);
             if (feature) source.removeFeature(feature);
         }
     });
@@ -2945,10 +2993,14 @@ document.addEventListener("DOMContentLoaded", function () {
     // ── CIRURGIA EM MEMÓRIA: TOPONÍMIAS ──────────────────────────────
     window.addEventListener("adicionar-toponimia-mapa", (e) => {
         const data = e.detail[0] || e.detail;
-        const checkbox = document.querySelector('input[data-layer="toponimias"]');
+        const checkbox = document.querySelector(
+            'input[data-layer="toponimias"]',
+        );
         if (checkbox && checkbox.checked && window.loadedLayers["toponimias"]) {
             const feature = new ol.Feature({
-                geometry: new ol.geom.Point(ol.proj.fromLonLat([data.lon, data.lat])),
+                geometry: new ol.geom.Point(
+                    ol.proj.fromLonLat([data.lon, data.lat]),
+                ),
                 id: data.id,
                 texto: data.texto,
                 estilo: data.estilo,
@@ -2977,7 +3029,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const data = e.detail[0] || e.detail;
         if (window.loadedLayers["toponimias"]) {
             const source = window.loadedLayers["toponimias"].getSource();
-            const feature = source.getFeatures().find((f) => f.get("id") == data.id);
+            const feature = source
+                .getFeatures()
+                .find((f) => f.get("id") == data.id);
             if (feature) source.removeFeature(feature);
         }
     });
@@ -5865,7 +5919,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const latF = parseFloat(lat);
         const lonF = parseFloat(lon);
         if (isNaN(latF) || isNaN(lonF)) {
-            alert("Coordenadas inválidas. Informe latitude e longitude numéricas.");
+            alert(
+                "Coordenadas inválidas. Informe latitude e longitude numéricas.",
+            );
             return;
         }
         map.getView().animate({
@@ -5900,21 +5956,35 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (enabled) {
             const field = window.sigwebLabelField[layerName];
-            if (field && field !== '__default__') {
+            if (field && field !== "__default__") {
                 layer.setStyle(function (feature, resolution) {
                     const originalFn = window.sigwebOriginalStyles[layerName];
-                    const styles = originalFn ? originalFn(feature, resolution) : [];
-                    const arr = Array.isArray(styles) ? styles : (styles ? [styles] : []);
-                    return arr.map(s => {
+                    const styles = originalFn
+                        ? originalFn(feature, resolution)
+                        : [];
+                    const arr = Array.isArray(styles)
+                        ? styles
+                        : styles
+                          ? [styles]
+                          : [];
+                    return arr.map((s) => {
                         const clone = s.clone();
                         const val = feature.get(field);
-                        clone.setText(new ol.style.Text({
-                            text: val !== undefined && val !== null ? String(val) : '',
-                            font: 'bold 11px Arial, sans-serif',
-                            fill: new ol.style.Fill({ color: '#1f2937' }),
-                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
-                            overflow: true,
-                        }));
+                        clone.setText(
+                            new ol.style.Text({
+                                text:
+                                    val !== undefined && val !== null
+                                        ? String(val)
+                                        : "",
+                                font: "bold 11px Arial, sans-serif",
+                                fill: new ol.style.Fill({ color: "#1f2937" }),
+                                stroke: new ol.style.Stroke({
+                                    color: "#ffffff",
+                                    width: 3,
+                                }),
+                                overflow: true,
+                            }),
+                        );
                         return clone;
                     });
                 });
@@ -5924,9 +5994,15 @@ document.addEventListener("DOMContentLoaded", function () {
         } else {
             layer.setStyle(function (feature, resolution) {
                 const originalFn = window.sigwebOriginalStyles[layerName];
-                const styles = originalFn ? originalFn(feature, resolution) : [];
-                const arr = Array.isArray(styles) ? styles : (styles ? [styles] : []);
-                return arr.map(s => {
+                const styles = originalFn
+                    ? originalFn(feature, resolution)
+                    : [];
+                const arr = Array.isArray(styles)
+                    ? styles
+                    : styles
+                      ? [styles]
+                      : [];
+                return arr.map((s) => {
                     const clone = s.clone();
                     clone.setText(null);
                     return clone;
@@ -5937,7 +6013,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Listener para evento disparado pelo blade
     window.addEventListener("sigweb-toggle-labels", function (e) {
-        window.toggleLayerLabels(e.detail.layer, e.detail.enabled, e.detail.field || null);
+        window.toggleLayerLabels(
+            e.detail.layer,
+            e.detail.enabled,
+            e.detail.field || null,
+        );
     });
 
     // =========================================================================
@@ -5948,29 +6028,30 @@ document.addEventListener("DOMContentLoaded", function () {
     window.sigwebStatusColorBaseStyle = {};
 
     window.toggleLotesStatusColor = function (enabled) {
-        const layerName = 'lotes';
+        const layerName = "lotes";
         window.sigwebStatusColorEnabled[layerName] = enabled;
 
         const layer = window.loadedLayers[layerName];
         if (!layer) return;
 
         if (!window.sigwebStatusColorBaseStyle[layerName]) {
-            window.sigwebStatusColorBaseStyle[layerName] = layer.getStyleFunction();
+            window.sigwebStatusColorBaseStyle[layerName] =
+                layer.getStyleFunction();
         }
 
         const STATUS_COLORS = {
-            'nao_visitado':   { fill: 'rgba(156,163,175,0.35)', stroke: '#6B7280' },
-            'coletado':       { fill: 'rgba(16,185,129,0.40)',  stroke: '#059669' },
-            'pendente':       { fill: 'rgba(245,158,11,0.40)',  stroke: '#D97706' },
-            'inconformidade': { fill: 'rgba(239,68,68,0.40)',   stroke: '#DC2626' },
+            nao_visitado: { fill: "rgba(156,163,175,0.35)", stroke: "#6B7280" },
+            coletado: { fill: "rgba(16,185,129,0.40)", stroke: "#059669" },
+            pendente: { fill: "rgba(245,158,11,0.40)", stroke: "#D97706" },
+            inconformidade: { fill: "rgba(239,68,68,0.40)", stroke: "#DC2626" },
         };
 
         if (enabled) {
             layer.setStyle(function (feature, resolution) {
-                const status = feature.get('status_cadastro') || 'nao_visitado';
+                const status = feature.get("status_cadastro") || "nao_visitado";
                 const c = STATUS_COLORS[status] || STATUS_COLORS.nao_visitado;
                 return new ol.style.Style({
-                    fill:   new ol.style.Fill({ color: c.fill }),
+                    fill: new ol.style.Fill({ color: c.fill }),
                     stroke: new ol.style.Stroke({ color: c.stroke, width: 2 }),
                 });
             });
@@ -5979,7 +6060,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     };
 
-    window.addEventListener('sigweb-toggle-status-color', function (e) {
+    window.addEventListener("sigweb-toggle-status-color", function (e) {
         window.toggleLotesStatusColor(e.detail.enabled);
     });
 
@@ -5990,11 +6071,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     window.ativarFerramentaToponimiia = function (ativo) {
         modoToponimia = ativo;
-        const mapEl = document.getElementById('sigweb-map');
-        if (mapEl) mapEl.style.cursor = ativo ? 'crosshair' : '';
+        const mapEl = document.getElementById("sigweb-map");
+        if (mapEl) mapEl.style.cursor = ativo ? "crosshair" : "";
     };
 
-    map.on('click', function (evt) {
+    map.on("click", function (evt) {
         if (!modoToponimia) return;
 
         const lonLat = ol.proj.toLonLat(evt.coordinate);
@@ -6003,14 +6084,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Desativa o modo após o clique para não acionar duas vezes
         modoToponimia = false;
-        document.getElementById('sigweb-map').style.cursor = '';
+        document.getElementById("sigweb-map").style.cursor = "";
 
         // Notifica o Livewire para abrir o modal de texto
-        Livewire.dispatch('abrirModalToponimia', { lat, lon });
+        Livewire.dispatch("abrirModalToponimia", { lat, lon });
     });
 
     // Recarrega uma camada vetorial já carregada (ex: após salvar uma toponímia)
-    window.addEventListener('sigweb-recarregar-camada', function (e) {
+    window.addEventListener("sigweb-recarregar-camada", function (e) {
         const layerName = e.detail?.layer;
         if (!layerName || !window.loadedLayers?.[layerName]) return;
         const source = window.loadedLayers[layerName].getSource();
@@ -6018,9 +6099,13 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // Livewire dispatch 'recarregarCamada' → CustomEvent 'sigweb-recarregar-camada'
-    document.addEventListener('livewire:initialized', function () {
-        Livewire.on('recarregarCamada', function ({ layer }) {
-            window.dispatchEvent(new CustomEvent('sigweb-recarregar-camada', { detail: { layer } }));
+    document.addEventListener("livewire:initialized", function () {
+        Livewire.on("recarregarCamada", function ({ layer }) {
+            window.dispatchEvent(
+                new CustomEvent("sigweb-recarregar-camada", {
+                    detail: { layer },
+                }),
+            );
         });
     });
 

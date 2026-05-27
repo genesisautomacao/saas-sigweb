@@ -103,7 +103,7 @@ class MapDataController extends Controller
             case 'lotes':
                 // 🛑 A MÁGICA: Buscamos os lotes e já trazemos a contagem de vulnerabilidades sociais!
                 $lotes = Lote::query()->where('lotes.tenant_id', $tenantId)
-                    ->select('lotes.id', 'lotes.numero_lote', 'lotes.geo', 'lotes.code', 'lotes.status_cadastro')
+                    ->select('lotes.id', 'lotes.sequential_id', 'lotes.numero_lote', 'lotes.area_geo', 'lotes.geo', 'lotes.code', 'lotes.status_cadastro')
                     ->withExists([
                         // Verifica se existe alguma Unidade no Lote que tenha um Cadastro Social em Área de Risco
                         'unidadesImobiliarias as tem_area_risco' => function ($query) {
@@ -137,6 +137,9 @@ class MapDataController extends Controller
                                 'name' => $lote->numero_lote ?? 'S/N',
                                 'codigo' => $lote->code,
                                 'layer' => 'lotes',
+                                'numero_lote' => $lote->numero_lote,
+                                'sequential_id' => $lote->sequential_id,
+                                'area_geo' => $lote->area_geo !== null ? round((float) $lote->area_geo, 2) : null,
                                 // 👇 AS ETIQUETAS DE BI PARA O MAPA 👇
                                 'social_risco' => (bool) $lote->tem_area_risco,
                                 'social_beneficio' => (bool) $lote->tem_beneficio,
