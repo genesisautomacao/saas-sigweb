@@ -28,7 +28,14 @@
       "Bash(php -l c:/laragon/www/saas-sigweb/app/Filament/Pages/Traits/HasLoteActions.php)",
       "Bash(php -l c:/laragon/www/saas-sigweb/app/Filament/Resources/LoteResource.php)",
       "Bash(php -l c:/laragon/www/saas-sigweb/app/Models/Lote.php)",
-      "Bash(php -l c:/laragon/www/saas-sigweb/app/Http/Controllers/Api/MapDataController.php)"
+      "Bash(php -l c:/laragon/www/saas-sigweb/app/Http/Controllers/Api/MapDataController.php)",
+      "Bash(findstr /R \"mensagens toponimia setor boletim productivity nearest sync/lotes inconformidade\")",
+      "Bash(php -l app/Models/Mensagem.php)",
+      "Bash(php -l app/Http/Controllers/Api/MensagemController.php)",
+      "Bash(php -l routes/api.php)",
+      "Bash(php -l app/Filament/Pages/MensagensPage.php)",
+      "Bash(findstr /R \"mensagens\")",
+      "Bash(php -l app/Services/Expo/ExpoPushService.php)"
     ]
   }
 }

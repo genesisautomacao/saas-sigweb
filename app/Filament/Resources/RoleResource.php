@@ -422,9 +422,10 @@ class RoleResource extends Resource
                                         'view_auditoria'          => 'Auditoria (Histórico de Operações)',
                                         'view_monitoramento_campo' => 'Monitoramento de Campo (GPS)',
                                         'view_produtividade'      => 'Relatório de Produtividade',
+                                        'view_mensagens'          => 'Mensagens (Chat Supervisor ↔ Cadastrador)',
                                     ])
                                     ->bulkToggleable()
-                                    ->columns(3),
+                                    ->columns(2),
                             ])->columns(1)->columnSpanFull(),
 
                         // CAIXA 20: VISIBILIDADE DE CAMADAS NO MAPA

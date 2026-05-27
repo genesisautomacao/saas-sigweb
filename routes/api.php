@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\LoteSyncController;
 use App\Http\Controllers\Api\LoteNearestController;
 use App\Http\Controllers\Api\CadastradorLocationController;
 use App\Http\Controllers\Api\ProductividadeController;
+use App\Http\Controllers\Api\MensagemController;
 
 // Rota OGC Interoperability (WFS/WMS) com isolamento SaaS via Slug
 Route::get('/ogc/{tenant_slug}', [OgcController::class, 'handle']);
@@ -47,4 +48,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Relatório de produtividade (por cadastrador / quadra / dia)
     Route::get('/reports/productivity', ProductividadeController::class);
+
+    // Mensagens supervisor ↔ cadastrador
+    Route::get('/contatos', [MensagemController::class, 'contatos']);
+    Route::get('/mensagens', [MensagemController::class, 'index']);
+    Route::post('/mensagens', [MensagemController::class, 'store']);
+    Route::put('/mensagens/{id}/lida', [MensagemController::class, 'marcarLida']);
 });

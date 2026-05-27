@@ -104,6 +104,10 @@ Protected by Laravel Sanctum (`auth:sanctum`). Endpoints in [routes/api.php](rou
 | `POST /api/cadastradores/location` | Atualiza posição GPS do cadastrador (upsert por user) |
 | `GET /api/cadastradores/locations` | Lista cadastradores ativos nos últimos 10 min |
 | `GET /api/reports/productivity` | Estatísticas de coleta por cadastrador e quadra |
+| `GET /api/contatos` | Lista users do tenant com role atribuída (exceto o próprio). Resposta `{data: [{id, name, email, role}]}` |
+| `GET /api/mensagens` | Lista mensagens do user logado (remetente OU destinatário). Opcional `?contato_id=X` |
+| `POST /api/mensagens` | Envia mensagem. Body: `{destinatario_id, texto}` — valida same-tenant. Dispara push Expo se destinatário tiver `expo_push_token` |
+| `PUT /api/mensagens/{id}/lida` | Marca mensagem como lida (somente o destinatário pode) |
 | `GET /api/ogc/{tenant_slug}` | Interoperabilidade WFS/WMS (OGC) |
 
 **CTM Field Collection — estrutura do Lote para mobile:**
@@ -346,5 +350,42 @@ O JSON pode ser array raiz `[{...}]` ou `{"imoveis": [{...}]}`. Cada item precis
 | B4 | Botão "Salvar enquadramento padrão" — salva `map_lat/lon/zoom` no `tenant.data` via Livewire | `MapaFullscreen.php::salvarEnquadramento()` + blade | ✅ |
 | B5 | `MonitoramentoCampoPage` — mapa Leaflet com cadastradores ativos (poll 30s) | `app/Filament/Pages/MonitoramentoCampoPage.php` | ✅ |
 | B6 | Dashboard de produtividade WEB — cards resumo + tabelas por cadastrador/quadra | `app/Filament/Pages/ProdutividadePage.php` | ✅ |
+| B7 | Mensagens (chat Supervisor ↔ Cadastrador) — `MensagensPage` poll 5s + endpoints API + push Expo | `app/Filament/Pages/MensagensPage.php` · `app/Http/Controllers/Api/MensagemController.php` · `app/Models/Mensagem.php` · `app/Services/Expo/ExpoPushService.php` | ✅ |
+| B8 | Toggle "Status de Coleta" no mapa principal — recolore lotes por `status_cadastro` | `public/js/gis/mapa-engine.js::toggleLotesStatusColor` · `mapa-fullscreen.blade.php` | ✅ |
+| B9 | Ficha lateral do lote no mapa — badge de status + ocupação/situação + rodapé "Coletado por" | `MapaFullscreen.php::carregarFicha` · `mapa-fullscreen.blade.php` | ✅ |
+| B10 | Modal "Editar Dados" expandido — status, observação, inconformidade (`live()`), `dados_vistoria` | `HasLoteActions::editarDadosLoteAction` | ✅ |
+| B11 | Modal "Fotos do Lote" — 3 colunas (frontal + 2 laterais) compartilhando storage com mobile | `HasLoteActions::gerenciarFotosLoteAction` | ✅ |
 
 **Legenda:** ✅ Concluído · ⏳ Pendente · 🔄 Em andamento
+
+---
+
+### Conformidade dos 30 itens do TR de Antônio Carlos
+
+Após confronto com `check_final.pdf`, status final:
+
+| Item TR | Estado | Notas |
+|---|---|---|
+| #1 BDG/CTM-Geo da Prefeitura | 📋 Aguardando definição | Depende do formato que a Prefeitura entregar (ver seção abaixo) |
+| #2 a #12, #14 | ✅ Atendido | Login, perfis, auditoria, admin, menus dinâmicos, histórico, camadas, navegação, toponímia, rótulos (com seletor de campo), tematização (toggle Status de Coleta), coordenadas (B2), mapa CTM |
+| #13 Boletim PDF com fotos | ✅ Atendido | `BicPdfService::generatePdf` já entrega PDF por unidade imobiliária com foto frontal + print do mapa |
+| #15 a #20, #22, #23, #24 | ✅ Atendido | API mobile (nearest, push/pull com boletim livre + 3 fotos, sync 1-clique, GPS tracking), Monitoramento, Produtividade com filtro setor, Status de Coleta no mapa, Basemaps (OSM/Esri/Azure/Ortofoto) |
+| #18 Inconformidade geométrica | ✅ Atendido | Status `inconformidade` pinta o lote em vermelho via `toggleLotesStatusColor` + campo `inconformidade_descricao` para anotação textual. TR usa "marcações no mapa" como **"se possível"**, não mandatório |
+| #21 Chat supervisor ↔ cadastrador | ✅ Atendido | `MensagensPage` Filament + 3 endpoints API com poll 30s |
+| #25, #26, #27, #30 | ✅ Atendido (backend) | Backend expõe endpoints necessários; UI/captura são do app mobile |
+| #28 Zoom original do projeto | ✅ Atendido | B4 — `salvarEnquadramento()` grava em `tenant.data.map_lat/lon/zoom` |
+| #29 Compatibilidade web | ✅ Atendido | Filament 3 é compatível com Chrome/Edge/Firefox |
+
+**Total Laravel/WEB: 29/30 atendidos.** Único item em aberto é o #1, sem bloqueio técnico — depende da Prefeitura.
+
+---
+
+## Item #1 (TR Antônio Carlos) — Integração BDG/CTM-Geo: AGUARDANDO DEFINIÇÃO
+
+A PoC exige "acesso direto aos dados do BDG/CTM-Geo da Prefeitura via internet". O caminho concreto depende do que a Prefeitura disponibilizar. Três cenários cobertos pelo sistema atual:
+
+1. **Arquivos (Shapefile / DWG / GeoPackage)** — Importação via PostGIS já existe no projeto (`ogr2ogr` + scripts de ingestão). Processo manual: upload + comando artisan. Esforço: imediato.
+2. **WMS/WFS publicado pelo município** — Adicionar como camada base no `basemaps` do `public/js/gis/mapa-engine.js` (linha ~32), seguindo o padrão usado para Azure/Esri Sat. Não exige mudança no backend. Esforço: ~1h.
+3. **Conexão direta ao banco da Prefeitura** — Configurar segunda conexão em `config/database.php` + job de sincronização periódico (`spatie/laravel-schedule-monitor` opcional). Esforço: 2-3 semanas.
+
+**Ação:** o time comercial precisa confirmar com a Prefeitura o formato de entrega antes da implementação. **Não bloqueia a PoC** se a base de demonstração for entregue como arquivo.

@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    <div class="flex flex-col gap-4">
+    <div wire:poll.30s class="flex flex-col gap-4">
 
         {{-- Cabeçalho de status --}}
         <div class="flex items-center justify-between">

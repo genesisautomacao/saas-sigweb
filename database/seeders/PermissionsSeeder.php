@@ -195,6 +195,7 @@ class PermissionsSeeder extends Seeder
             'view_auditoria',
             'view_monitoramento_campo',
             'view_produtividade',
+            'view_mensagens',
 
             /* Permissões de visibilidade de camadas GIS */
             'ver_camada_perimetros',

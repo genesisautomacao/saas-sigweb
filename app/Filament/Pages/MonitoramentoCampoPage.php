@@ -6,9 +6,7 @@ use Filament\Facades\Filament;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\Polling;
 
-#[Polling('30s')]
 class MonitoramentoCampoPage extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-map-pin';
