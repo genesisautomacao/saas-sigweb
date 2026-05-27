@@ -1534,6 +1534,21 @@
                     <p class="text-xl font-black text-gray-800 dark:text-white">{{ $loteAtivoNome }}</p>
                     <p class="text-xs text-gray-500 mt-1">ID Sistema: #{{ $loteSequentialId }}</p>
 
+                    @if($loteStatusCadastro)
+                        @php
+                            $statusMap = [
+                                'nao_visitado'   => ['label' => 'Não Visitado',   'bg' => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200', 'dot' => 'bg-gray-400'],
+                                'coletado'       => ['label' => 'Coletado',       'bg' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300', 'dot' => 'bg-emerald-500'],
+                                'pendente'       => ['label' => 'Pendente',       'bg' => 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300', 'dot' => 'bg-amber-500'],
+                                'inconformidade' => ['label' => 'Inconformidade', 'bg' => 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300', 'dot' => 'bg-red-500'],
+                            ];
+                            $s = $statusMap[$loteStatusCadastro] ?? $statusMap['nao_visitado'];
+                        @endphp
+                        <span class="inline-flex items-center gap-1.5 mt-2 px-2.5 py-0.5 rounded-full text-xs font-bold {{ $s['bg'] }}">
+                            <span class="w-2 h-2 rounded-full {{ $s['dot'] }}"></span> {{ $s['label'] }}
+                        </span>
+                    @endif
+
                     <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 grid grid-cols-2 gap-4">
                         <div>
                             <p class="text-[10px] text-gray-400 uppercase font-bold flex items-center gap-1">
@@ -1561,7 +1576,36 @@
                         </div>
                     </div>
 
+                    @if($loteOcupacao || $loteSituacaoQuadra)
+                        @php
+                            $ocupacaoLabel = ['baldio' => 'Baldio', 'construido' => 'Construído'];
+                            $situacaoLabel = ['meio_quadra' => 'Meio de Quadra', 'esquina' => 'Esquina', 'encravado' => 'Encravado'];
+                        @endphp
+                        <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 grid grid-cols-2 gap-4 text-xs">
+                            @if($loteOcupacao)
+                                <div>
+                                    <p class="text-[10px] text-gray-400 uppercase font-bold">Ocupação</p>
+                                    <p class="font-bold text-gray-700 dark:text-gray-300">{{ $ocupacaoLabel[$loteOcupacao] ?? '—' }}</p>
+                                </div>
+                            @endif
+                            @if($loteSituacaoQuadra)
+                                <div>
+                                    <p class="text-[10px] text-gray-400 uppercase font-bold">Situação</p>
+                                    <p class="font-bold text-gray-700 dark:text-gray-300">{{ $situacaoLabel[$loteSituacaoQuadra] ?? '—' }}</p>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+
                 </div>
+
+                @if($loteColetadoPor)
+                    <div class="mb-4 -mt-2 text-xs text-gray-500 italic flex items-center gap-1.5">
+                        <x-heroicon-o-user-circle class="w-3.5 h-3.5 text-gray-400" />
+                        Coletado por <strong class="text-gray-700 dark:text-gray-300 not-italic">{{ $loteColetadoPor }}</strong>
+                        @if($loteColetadoEm) em {{ $loteColetadoEm }} @endif
+                    </div>
+                @endif
 
                 {{-- AÇÕES DO LOTE --}}
                 <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase pt-6 mb-4">Ações do Lote</h3>
@@ -1627,11 +1671,11 @@
                         <x-heroicon-o-document-text class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
                     </button>
 
-                    {{-- 👈 NOVO BOTÃO: IMAGEM FRONTAL --}}
-                    <button type="button" wire:click="mountAction('gerenciarFotoFrontal')"
+                    {{-- 👈 BOTÃO: GERENCIAR AS 3 FOTOS DO LOTE (frontal + 2 laterais) --}}
+                    <button type="button" wire:click="mountAction('gerenciarFotosLote')"
                         style="width: 100%; margin-top: 10px; background-color: #4b5563; color: white; font-weight: bold; padding: 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; cursor: pointer;">
                         <x-heroicon-o-camera class="w-5 h-5" />
-                        Imagem Frontal do Imóvel
+                        Fotos do Lote
                     </button>
 
                 </div>

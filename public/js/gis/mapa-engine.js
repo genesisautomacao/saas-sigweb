@@ -5941,6 +5941,49 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // =========================================================================
+    // STATUS DE COLETA — colore os lotes por status_cadastro (Antônio Carlos PoC)
+    // Verde=coletado · Amarelo=pendente · Vermelho=inconformidade · Cinza=não visitado
+    // =========================================================================
+    window.sigwebStatusColorEnabled = {};
+    window.sigwebStatusColorBaseStyle = {};
+
+    window.toggleLotesStatusColor = function (enabled) {
+        const layerName = 'lotes';
+        window.sigwebStatusColorEnabled[layerName] = enabled;
+
+        const layer = window.loadedLayers[layerName];
+        if (!layer) return;
+
+        if (!window.sigwebStatusColorBaseStyle[layerName]) {
+            window.sigwebStatusColorBaseStyle[layerName] = layer.getStyleFunction();
+        }
+
+        const STATUS_COLORS = {
+            'nao_visitado':   { fill: 'rgba(156,163,175,0.35)', stroke: '#6B7280' },
+            'coletado':       { fill: 'rgba(16,185,129,0.40)',  stroke: '#059669' },
+            'pendente':       { fill: 'rgba(245,158,11,0.40)',  stroke: '#D97706' },
+            'inconformidade': { fill: 'rgba(239,68,68,0.40)',   stroke: '#DC2626' },
+        };
+
+        if (enabled) {
+            layer.setStyle(function (feature, resolution) {
+                const status = feature.get('status_cadastro') || 'nao_visitado';
+                const c = STATUS_COLORS[status] || STATUS_COLORS.nao_visitado;
+                return new ol.style.Style({
+                    fill:   new ol.style.Fill({ color: c.fill }),
+                    stroke: new ol.style.Stroke({ color: c.stroke, width: 2 }),
+                });
+            });
+        } else {
+            layer.setStyle(window.sigwebStatusColorBaseStyle[layerName]);
+        }
+    };
+
+    window.addEventListener('sigweb-toggle-status-color', function (e) {
+        window.toggleLotesStatusColor(e.detail.enabled);
+    });
+
+    // =========================================================================
     // #9 — FERRAMENTA DE TOPONÍMIA (texto livre no mapa)
     // =========================================================================
     let modoToponimia = false;

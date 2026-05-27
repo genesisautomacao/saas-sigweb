@@ -86,4 +86,12 @@ class Lote extends Model
     {
         return $this->hasMany(Edificacao::class, 'lote_id');
     }
+
+    /**
+     * Quem coletou este lote em campo (preenchido pelo mobile via push)
+     */
+    public function coletor()
+    {
+        return $this->belongsTo(User::class, 'coletado_por_id');
+    }
 }

@@ -133,14 +133,18 @@ trait HasLoteActions
         return Action::make('editarDadosLote')
             ->modalHeading('Editar Dados do Lote')
             ->modalSubmitActionLabel('Salvar Alterações')
-            ->modalWidth('md')
+            ->modalWidth('xl')
             ->fillForm(function (): array {
                 $lote = Lote::query()->find($this->loteAtivoId);
                 return [
-                    'numero_lote'      => $lote ? $lote->numero_lote : '',
-                    'main_facade_length' => $lote ? $lote->main_facade_length : null,
-                    'ocupacao'         => $lote ? $lote->ocupacao : null,
-                    'situacao_quadra'  => $lote ? $lote->situacao_quadra : null,
+                    'numero_lote'              => $lote?->numero_lote ?? '',
+                    'main_facade_length'       => $lote?->main_facade_length,
+                    'ocupacao'                 => $lote?->ocupacao,
+                    'situacao_quadra'          => $lote?->situacao_quadra,
+                    'status_cadastro'          => $lote?->status_cadastro ?? 'nao_visitado',
+                    'observacao'               => $lote?->observacao,
+                    'inconformidade_descricao' => $lote?->inconformidade_descricao,
+                    'dados_vistoria'           => $lote?->dados_vistoria ?? [],
                 ];
             })
             ->form([
@@ -182,6 +186,39 @@ trait HasLoteActions
                     ])
                     ->placeholder('Selecione...')
                     ->nullable(),
+
+                Select::make('status_cadastro')
+                    ->label('Status do Cadastro')
+                    ->options([
+                        'nao_visitado'   => 'Não Visitado',
+                        'coletado'       => 'Coletado',
+                        'pendente'       => 'Pendente',
+                        'inconformidade' => 'Inconformidade',
+                    ])
+                    ->required()
+                    ->live()
+                    ->columnSpanFull(),
+
+                \Filament\Forms\Components\Textarea::make('observacao')
+                    ->label('Observação Geral')
+                    ->rows(3)
+                    ->nullable()
+                    ->columnSpanFull(),
+
+                \Filament\Forms\Components\Textarea::make('inconformidade_descricao')
+                    ->label('Descrição da Inconformidade')
+                    ->rows(3)
+                    ->nullable()
+                    ->visible(fn (\Filament\Forms\Get $get) => $get('status_cadastro') === 'inconformidade')
+                    ->columnSpanFull(),
+
+                \Filament\Forms\Components\KeyValue::make('dados_vistoria')
+                    ->label('Boletim de Campo (Dados Livres)')
+                    ->keyLabel('Campo')
+                    ->valueLabel('Valor')
+                    ->reorderable()
+                    ->nullable()
+                    ->columnSpanFull(),
             ])
             ->action(function (array $data) {
                 $lote = Lote::query()->find($this->loteAtivoId);
@@ -189,7 +226,11 @@ trait HasLoteActions
                     $lote->update($data);
                     Notification::make()->title('Lote atualizado!')->success()->send();
                     $this->loteAtivoNome = $data['numero_lote'];
-                    $this->loteFacePrincipal = $data['main_facade_length'];
+                    $this->loteFacePrincipal = $data['main_facade_length'] ?? 0;
+                    // Refletir mudanças na ficha lateral imediatamente
+                    $this->loteStatusCadastro = $data['status_cadastro'] ?? null;
+                    $this->loteOcupacao       = $data['ocupacao'] ?? null;
+                    $this->loteSituacaoQuadra = $data['situacao_quadra'] ?? null;
                     $this->dispatch('atualizar-label-lote', ['id' => $lote->id, 'numero_lote' => $data['numero_lote']]);
                 }
             });
@@ -1307,50 +1348,66 @@ trait HasLoteActions
     }
 
     /**
-     * Ação: Gerenciar Imagem Frontal do Imóvel
+     * Ação: Gerenciar as 3 Fotos do Lote (frontal + 2 laterais)
+     * Modal 4xl com 3 colunas, FileUpload em cada — compatível com o storage do mobile (LoteSyncController).
      */
-    public function gerenciarFotoFrontalAction(): Action
+    public function gerenciarFotosLoteAction(): Action
     {
-        return Action::make('gerenciarFotoFrontal')
-            ->label('Imagem Frontal')
+        return Action::make('gerenciarFotosLote')
+            ->label('Fotos do Lote')
             ->icon('heroicon-o-camera')
             ->color('gray')
-            ->modalHeading("Imagem Frontal - Lote " . (\App\Models\Lote::query()->find($this->loteAtivoId)?->numero_lote))
-            ->modalWidth('2xl')
-            ->fillForm(fn($arguments): array => [
-                'lote_id' => $this->loteAtivoId,
-                'foto_frontal' => \App\Models\Lote::query()->find($this->loteAtivoId)?->foto_frontal,
-            ])
+            ->modalHeading(fn() => 'Fotos do Lote ' . (\App\Models\Lote::query()->find($this->loteAtivoId)?->numero_lote))
+            ->modalDescription('Frontal, lateral esquerda e lateral direita. As fotos são compartilhadas com o app mobile.')
+            ->modalWidth('4xl')
+            ->modalSubmitActionLabel('Salvar Fotos')
+            ->fillForm(function (): array {
+                $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
+                return [
+                    'foto_frontal'     => $lote?->foto_frontal,
+                    'foto_lateral_esq' => $lote?->foto_lateral_esq,
+                    'foto_lateral_dir' => $lote?->foto_lateral_dir,
+                ];
+            })
             ->form([
-                \Filament\Forms\Components\Hidden::make('lote_id'),
+                \Filament\Forms\Components\Grid::make(3)->schema([
+                    \Filament\Forms\Components\FileUpload::make('foto_frontal')
+                        ->label('Frontal')
+                        ->image()
+                        ->imageEditor()
+                        ->disk('public')
+                        ->directory('lotes_fotos')
+                        ->maxSize(5120)
+                        ->nullable(),
 
-                // Se já tiver foto, mostra a prévia
-                \Filament\Forms\Components\Placeholder::make('previa')
-                    ->label('Visualização Atual')
-                    ->visible(fn($get) => !empty($get('foto_frontal')))
-                    ->content(fn($get) => new \Illuminate\Support\HtmlString(
-                        '<img src="' . asset('storage/' . $get('foto_frontal')) . '" class="w-full h-auto rounded-lg shadow-md border">'
-                    )),
+                    \Filament\Forms\Components\FileUpload::make('foto_lateral_esq')
+                        ->label('Lateral Esquerda')
+                        ->image()
+                        ->imageEditor()
+                        ->disk('public')
+                        ->directory('lotes_fotos')
+                        ->maxSize(5120)
+                        ->nullable(),
 
-                // Campo de Upload
-                \Filament\Forms\Components\FileUpload::make('nova_foto')
-                    ->label(fn($get) => empty($get('foto_frontal')) ? 'Adicionar Foto Frontal' : 'Alterar Foto')
-                    ->image()
-                    ->directory('lotes/fotos-frontais')
-                    ->imageEditor()
-                    ->required(fn($get) => empty($get('foto_frontal')))
-                    ->helperText('Formatos aceitos: JPG, PNG. O sistema redimensionará automaticamente.'),
+                    \Filament\Forms\Components\FileUpload::make('foto_lateral_dir')
+                        ->label('Lateral Direita')
+                        ->image()
+                        ->imageEditor()
+                        ->disk('public')
+                        ->directory('lotes_fotos')
+                        ->maxSize(5120)
+                        ->nullable(),
+                ]),
             ])
             ->action(function (array $data) {
-                $lote = \App\Models\Lote::query()->find($data['lote_id']);
-
-                if ($lote && isset($data['nova_foto'])) {
-                    $lote->update(['foto_frontal' => $data['nova_foto']]);
-
-                    Notification::make()
-                        ->title('Imagem atualizada com sucesso!')
-                        ->success()
-                        ->send();
+                $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
+                if ($lote) {
+                    $lote->update([
+                        'foto_frontal'     => $data['foto_frontal'] ?? null,
+                        'foto_lateral_esq' => $data['foto_lateral_esq'] ?? null,
+                        'foto_lateral_dir' => $data['foto_lateral_dir'] ?? null,
+                    ]);
+                    Notification::make()->title('Fotos atualizadas com sucesso!')->success()->send();
                 }
             });
     }

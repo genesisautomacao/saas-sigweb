@@ -96,6 +96,13 @@ class MapaFullscreen extends Page
     public float $loteAreaConstruida = 0.0;
     public float $loteFacePrincipal = 0.0;
 
+    // Dados de vistoria de campo (Antônio Carlos PoC)
+    public ?string $loteStatusCadastro = null;
+    public ?string $loteOcupacao = null;
+    public ?string $loteSituacaoQuadra = null;
+    public ?string $loteColetadoPor = null;
+    public ?string $loteColetadoEm = null;
+
     /* desmembramento */
     public ?int $loteParaDesmembrarId = null;
     public ?string $linhaDeCorteGeoJson = null;
@@ -177,6 +184,15 @@ class MapaFullscreen extends Page
         $this->loteFacePrincipal = $lote ? (float) $lote->main_facade_length : 0.0;
         $this->loteAreaConstruida = (float) Edificacao::query()->where('lote_id', $loteId)->sum('area_geo');
         $this->loteSequentialId = $lote ? $lote->sequential_id : 'S/N';
+
+        // Dados de vistoria de campo
+        $this->loteStatusCadastro = $lote?->status_cadastro;
+        $this->loteOcupacao       = $lote?->ocupacao;
+        $this->loteSituacaoQuadra = $lote?->situacao_quadra;
+        $this->loteColetadoPor    = $lote?->coletado_por_id
+            ? \App\Models\User::query()->find($lote->coletado_por_id)?->name
+            : null;
+        $this->loteColetadoEm     = $lote?->coletado_em?->format('d/m/Y H:i');
 
         $this->showFicha = true;
     }

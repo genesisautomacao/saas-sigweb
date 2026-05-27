@@ -82,6 +82,85 @@ class LoteResource extends Resource
 
                     ])->columns(3),
 
+                Forms\Components\Section::make('Dados de Vistoria de Campo')
+                    ->description('Preenchidos automaticamente pelo agente mobile, editáveis pelo supervisor.')
+                    ->collapsed()
+                    ->collapsible()
+                    ->schema([
+                        Forms\Components\Select::make('status_cadastro')
+                            ->label('Status do Cadastro')
+                            ->options([
+                                'nao_visitado'   => 'Não Visitado',
+                                'coletado'       => 'Coletado',
+                                'pendente'       => 'Pendente',
+                                'inconformidade' => 'Inconformidade',
+                            ])
+                            ->default('nao_visitado')
+                            ->required()
+                            ->live()
+                            ->columnSpanFull(),
+
+                        Forms\Components\Grid::make(3)->schema([
+                            Forms\Components\FileUpload::make('foto_frontal')
+                                ->label('Foto Frontal')
+                                ->image()
+                                ->imageEditor()
+                                ->disk('public')
+                                ->directory('lotes_fotos')
+                                ->maxSize(5120)
+                                ->nullable(),
+
+                            Forms\Components\FileUpload::make('foto_lateral_esq')
+                                ->label('Lateral Esquerda')
+                                ->image()
+                                ->imageEditor()
+                                ->disk('public')
+                                ->directory('lotes_fotos')
+                                ->maxSize(5120)
+                                ->nullable(),
+
+                            Forms\Components\FileUpload::make('foto_lateral_dir')
+                                ->label('Lateral Direita')
+                                ->image()
+                                ->imageEditor()
+                                ->disk('public')
+                                ->directory('lotes_fotos')
+                                ->maxSize(5120)
+                                ->nullable(),
+                        ])->columnSpanFull(),
+
+                        Forms\Components\Textarea::make('observacao')
+                            ->label('Observação Geral')
+                            ->rows(3)
+                            ->nullable()
+                            ->columnSpanFull(),
+
+                        Forms\Components\Textarea::make('inconformidade_descricao')
+                            ->label('Descrição da Inconformidade')
+                            ->rows(3)
+                            ->nullable()
+                            ->visible(fn (Forms\Get $get) => $get('status_cadastro') === 'inconformidade')
+                            ->columnSpanFull(),
+
+                        Forms\Components\KeyValue::make('dados_vistoria')
+                            ->label('Boletim de Campo (Dados Livres)')
+                            ->keyLabel('Campo')
+                            ->valueLabel('Valor')
+                            ->reorderable()
+                            ->nullable()
+                            ->columnSpanFull(),
+
+                        Forms\Components\Grid::make(2)->schema([
+                            Forms\Components\Select::make('coletado_por_id')
+                                ->label('Coletado por')
+                                ->relationship('coletor', 'name')
+                                ->disabled(),
+                            Forms\Components\DateTimePicker::make('coletado_em')
+                                ->label('Coletado em')
+                                ->disabled(),
+                        ])->columnSpanFull(),
+                    ]),
+
                 Forms\Components\Section::make('Geometria do Lote (Polígono)')
                     ->description('Caso não desenhado no mapa, insira o GeoJSON gerado pela topografia.')
                     ->schema([
@@ -107,6 +186,24 @@ class LoteResource extends Resource
                     ->sortable()
                     ->searchable()
                     ->weight('bold'),
+
+                Tables\Columns\TextColumn::make('status_cadastro')
+                    ->label('Status')
+                    ->badge()
+                    ->formatStateUsing(fn($state) => match($state) {
+                        'nao_visitado'   => 'Não Visitado',
+                        'coletado'       => 'Coletado',
+                        'pendente'       => 'Pendente',
+                        'inconformidade' => 'Inconformidade',
+                        default          => '—',
+                    })
+                    ->color(fn($state) => match($state) {
+                        'coletado'       => 'success',
+                        'pendente'       => 'warning',
+                        'inconformidade' => 'danger',
+                        default          => 'gray',
+                    })
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('unidadesImobiliarias.codigo_imovel_tributario')
                     ->label('Códigos Fiscais (Unidades)')
@@ -161,12 +258,22 @@ class LoteResource extends Resource
                     ->relationship('quadra', 'name')
                     ->multiple()
                     ->preload(),
-                    
+
                 Tables\Filters\SelectFilter::make('zona_id')
                     ->label('Filtrar por Zona')
                     ->relationship('zona', 'name')
                     ->multiple()
                     ->preload(),
+
+                Tables\Filters\SelectFilter::make('status_cadastro')
+                    ->label('Status do Cadastro')
+                    ->options([
+                        'nao_visitado'   => 'Não Visitado',
+                        'coletado'       => 'Coletado',
+                        'pendente'       => 'Pendente',
+                        'inconformidade' => 'Inconformidade',
+                    ])
+                    ->multiple(),
             ])
             ->actions([
                 Tables\Actions\Action::make('ver_no_mapa')
