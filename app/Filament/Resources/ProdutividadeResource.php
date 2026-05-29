@@ -11,6 +11,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class ProdutividadeResource extends Resource
 {
@@ -111,7 +112,27 @@ class ProdutividadeResource extends Resource
             ->filters([
                 SelectFilter::make('coletado_por_id')
                     ->label('Cadastrador')
-                    ->relationship('coletor', 'name')
+                    ->options(function (): array {
+                        $tenant = \Filament\Facades\Filament::getTenant();
+                        if (!$tenant) {
+                            return [];
+                        }
+
+                        // Apenas usuários do tenant atual que tenham AO MENOS uma role atribuída no tenant
+                        return DB::table('users as u')
+                            ->join('tenant_user as tu', 'tu.user_id', '=', 'u.id')
+                            ->where('tu.tenant_id', $tenant->id)
+                            ->whereExists(function ($q) use ($tenant) {
+                                $q->select(DB::raw(1))
+                                    ->from('model_has_roles as mhr')
+                                    ->whereColumn('mhr.model_id', 'u.id')
+                                    ->where('mhr.model_type', \App\Models\User::class)
+                                    ->where('mhr.tenant_id', $tenant->id);
+                            })
+                            ->orderBy('u.name')
+                            ->pluck('u.name', 'u.id')
+                            ->toArray();
+                    })
                     ->searchable()
                     ->preload(),
 

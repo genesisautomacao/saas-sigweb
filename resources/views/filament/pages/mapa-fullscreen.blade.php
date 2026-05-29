@@ -134,21 +134,21 @@
                 </div>
 
                 {{-- GRUPO FILTROS (permissão toolbar_filtros) --}}
-                {{-- <div id="toolbar-filtros" class="flex items-center gap-0.5"> --}}
-                {{-- BOTÃO FILTRO AVANÇADO --}}
-                <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }" x-on:click="$wire.mountAction('filtroAvancadoAction')"
-                    class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                    title="Filtro Avançado / Tematização">
-                    <x-heroicon-o-funnel class="w-5 h-5" />
-                </button>
+                <div id="toolbar-filtros" class="flex items-center gap-0.5">
+                    {{-- BOTÃO FILTRO AVANÇADO --}}
+                    <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }" x-on:click="$wire.mountAction('filtroAvancadoAction')"
+                        class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                        title="Filtro Avançado / Tematização">
+                        <x-heroicon-o-funnel class="w-5 h-5" />
+                    </button>
 
-                {{-- BOTÃO ESTATÍSTICAS --}}
-                <button type="button" x-on:click="$wire.mountAction('estatisticasAction')"
-                    class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                    title="Estatísticas por Área">
-                    <x-heroicon-o-chart-bar class="w-5 h-5" />
-                </button>
-                {{--  </div> --}}
+                    {{-- BOTÃO ESTATÍSTICAS --}}
+                    <button type="button" x-on:click="$wire.mountAction('estatisticasAction')"
+                        class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                        title="Estatísticas por Área">
+                        <x-heroicon-o-chart-bar class="w-5 h-5" />
+                    </button>
+                </div>
 
                 <div class="flex items-center gap-1 px-1">
 
@@ -681,8 +681,9 @@
                         <span class="hidden md:inline">Camadas</span>
                     </button>
 
-                    {{-- BOTÃO TOGGLE CAD AVANÇADO --}}
-                    <button type="button" @click="$dispatch('toggle-cad-avancado')"
+                    {{-- BOTÃO TOGGLE CAD AVANÇADO (permissão toolbar_ferramentas) --}}
+                    <button type="button" data-permission-group="toolbar:ferramentas"
+                        @click="$dispatch('toggle-cad-avancado')"
                         class="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-primary-600 dark:text-primary-400 font-bold text-sm flex items-center gap-2"
                         title="Módulo CAD Avançado">
                         <x-heroicon-o-cpu-chip class="w-5 h-5" />
