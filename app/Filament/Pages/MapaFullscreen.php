@@ -1924,12 +1924,37 @@ class MapaFullscreen extends Page
                         ->placeholder('Ex: 250, Asfalto, Boa...')
                         ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
-                    // 🎨 NOVO CAMPO: Definição de cor para Tematização (Fica fora dos grupos para aparecer em todos)
-                    Forms\Components\ColorPicker::make('cor_tematizacao')
-                        ->label('Cor da Tematização')
-                        ->default('#f59e0b') // Laranja padrão
-                        ->helperText('Escolha a cor para destacar os resultados no mapa.')
-                        ->required(),
+                    // 🎨 ESTILIZAÇÃO DA TEMATIZAÇÃO (cor + transparência do fundo, cor + espessura da borda)
+                    Forms\Components\Grid::make(2)->schema([
+                        Forms\Components\ColorPicker::make('cor_tematizacao')
+                            ->label('Cor de Fundo')
+                            ->default('#f59e0b')
+                            ->required(),
+
+                        Forms\Components\TextInput::make('transparencia_fundo')
+                            ->label('Opacidade do Fundo')
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue(100)
+                            ->step(5)
+                            ->default(40)
+                            ->suffix('%')
+                            ->helperText('0% = transparente, 100% = opaco'),
+
+                        Forms\Components\ColorPicker::make('cor_borda')
+                            ->label('Cor da Borda')
+                            ->default('#f59e0b')
+                            ->helperText('Pode ser diferente do fundo.'),
+
+                        Forms\Components\TextInput::make('espessura_borda')
+                            ->label('Espessura da Borda')
+                            ->numeric()
+                            ->minValue(1)
+                            ->maxValue(20)
+                            ->step(1)
+                            ->default(4)
+                            ->suffix('px'),
+                    ])->columnSpanFull(),
 
                 ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 

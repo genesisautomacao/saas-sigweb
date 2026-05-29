@@ -48,6 +48,12 @@ class PermissionsSeeder extends Seeder
             'edit_documentos',
             'delete_documentos',
 
+            /* Módulo Administrativo: Pontos Panorâmicos 360º */
+            'view_pontos_panoramicos',
+            'create_pontos_panoramicos',
+            'edit_pontos_panoramicos',
+            'delete_pontos_panoramicos',
+
             /* Módulo: Iluminação Pública */
             'view_tipos_poste',
             'create_tipos_poste',

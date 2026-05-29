@@ -29,6 +29,7 @@ class EditRole extends EditRecord
         $data['permissions_contatos'] = array_values(array_intersect($permissions, ['view_contatos', 'create_contatos', 'edit_contatos', 'delete_contatos']));
         $data['permissions_enderecos'] = array_values(array_intersect($permissions, ['view_enderecos', 'create_enderecos', 'edit_enderecos', 'delete_enderecos']));
         $data['permissions_documentos'] = array_values(array_intersect($permissions, ['view_documentos', 'create_documentos', 'edit_documentos', 'delete_documentos']));
+        $data['permissions_pontos_panoramicos'] = array_values(array_intersect($permissions, ['view_pontos_panoramicos', 'create_pontos_panoramicos', 'edit_pontos_panoramicos', 'delete_pontos_panoramicos']));
         $data['permissions_iluminacao'] = array_values(array_intersect($permissions, ['view_tipos_poste', 'create_tipos_poste', 'edit_tipos_poste', 'delete_tipos_poste', 'view_postes', 'create_postes', 'edit_postes', 'delete_postes']));
         $data['permissions_arborizacao'] = array_values(array_intersect($permissions, ['view_arvores', 'create_arvores', 'edit_arvores', 'delete_arvores']));
         $data['permissions_estoque'] = array_values(array_intersect($permissions, ['view_locais_estoque', 'create_locais_estoque', 'edit_locais_estoque', 'delete_locais_estoque', 'view_marcas', 'create_marcas', 'edit_marcas', 'delete_marcas', 'view_produtos', 'create_produtos', 'edit_produtos', 'delete_produtos', 'view_estoques', 'create_estoques', 'edit_estoques', 'delete_estoques', 'view_movimentacoes', 'create_movimentacoes', 'edit_movimentacoes', 'delete_movimentacoes']));
@@ -86,6 +87,7 @@ class EditRole extends EditRecord
         $contatosData = $data['permissions_contatos'] ?? [];
         $enderecosData = $data['permissions_enderecos'] ?? [];
         $documentosData = $data['permissions_documentos'] ?? [];
+        $pontosPanoramicosData = $data['permissions_pontos_panoramicos'] ?? [];
         $iluminacaoData = $data['permissions_iluminacao'] ?? [];
         $arborizacaoData = $data['permissions_arborizacao'] ?? [];
         $estoqueData = $data['permissions_estoque'] ?? [];
@@ -108,6 +110,7 @@ class EditRole extends EditRecord
         $contatos = is_array($contatosData) ? $contatosData : ($contatosData === true ? ['view_contatos', 'create_contatos', 'edit_contatos', 'delete_contatos'] : []);
         $enderecos = is_array($enderecosData) ? $enderecosData : ($enderecosData === true ? ['view_enderecos', 'create_enderecos', 'edit_enderecos', 'delete_enderecos'] : []);
         $documentos = is_array($documentosData) ? $documentosData : ($documentosData === true ? ['view_documentos', 'create_documentos', 'edit_documentos', 'delete_documentos'] : []);
+        $pontosPanoramicos = is_array($pontosPanoramicosData) ? $pontosPanoramicosData : ($pontosPanoramicosData === true ? ['view_pontos_panoramicos', 'create_pontos_panoramicos', 'edit_pontos_panoramicos', 'delete_pontos_panoramicos'] : []);
         $iluminacao = is_array($iluminacaoData) ? $iluminacaoData : ($iluminacaoData === true ? ['view_tipos_poste', 'create_tipos_poste', 'edit_tipos_poste', 'delete_tipos_poste', 'view_postes', 'create_postes', 'edit_postes', 'delete_postes'] : []);
         $arborizacao = is_array($arborizacaoData) ? $arborizacaoData : ($arborizacaoData === true ? ['view_arvores', 'create_arvores', 'edit_arvores', 'delete_arvores'] : []);
         $estoque = is_array($estoqueData) ? $estoqueData : ($estoqueData === true ? ['view_locais_estoque', 'create_locais_estoque', 'edit_locais_estoque', 'delete_locais_estoque', 'view_marcas', 'create_marcas', 'edit_marcas', 'delete_marcas', 'view_produtos', 'create_produtos', 'edit_produtos', 'delete_produtos', 'view_estoques', 'create_estoques', 'edit_estoques', 'delete_estoques', 'view_movimentacoes', 'create_movimentacoes', 'edit_movimentacoes', 'delete_movimentacoes'] : []);
@@ -125,7 +128,7 @@ class EditRole extends EditRecord
         $mapaCamadas   = is_array($mapaCamadasData)   ? $mapaCamadasData   : [];
         $mapaToolbar   = is_array($mapaToolbarData)   ? $mapaToolbarData   : [];
 
-        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $iluminacao, $arborizacao, $estoque, $manutencao, $cemiterio, $imobiliario, $social, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $administracao, $mapaCamadas, $mapaToolbar);
+        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $pontosPanoramicos, $iluminacao, $arborizacao, $estoque, $manutencao, $cemiterio, $imobiliario, $social, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $administracao, $mapaCamadas, $mapaToolbar);
 
         unset(
             $data['permissions_users'],
@@ -134,6 +137,7 @@ class EditRole extends EditRecord
             $data['permissions_contatos'],
             $data['permissions_enderecos'],
             $data['permissions_documentos'],
+            $data['permissions_pontos_panoramicos'],
             $data['permissions_iluminacao'],
             $data['permissions_arborizacao'],
             $data['permissions_estoque'],

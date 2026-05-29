@@ -50,13 +50,13 @@ class AppPanelProvider extends PanelProvider
                     ->url('https://api.whatsapp.com/send?phone=5516982281632', shouldOpenInNewTab: true)
                     ->icon('heroicon-o-chat-bubble-left-ellipsis')
                     ->group('Ajuda')
-                    ->sort(10),
+                    ->sort(99),
             ])
 
             // 🛑 GATILHO PARA A BARRA DE BUSCA NO MENU LATERAL
             ->renderHook(
                 PanelsRenderHook::SIDEBAR_NAV_START,
-                fn () => view('filament.components.sidebar-search')
+                fn() => view('filament.components.sidebar-search')
             )
 
             // 1. SIDEBAR RETRÁTIL (Cria o ícone do menu hamburger e encolhe a barra)
@@ -88,7 +88,7 @@ class AppPanelProvider extends PanelProvider
             ->pages([
                 \App\Filament\Pages\Dashboard::class, // <-- Agora ele usa o seu Dashboard customizado!
             ])
-            
+
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 //Widgets\AccountWidget::class,

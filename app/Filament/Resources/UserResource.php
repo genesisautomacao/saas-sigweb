@@ -22,7 +22,7 @@ class UserResource extends Resource
     protected static ?string $modelLabel = 'Usuário da Equipe';
     protected static ?string $pluralModelLabel = 'Equipe';
     protected static ?string $navigationGroup = 'Configurações';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 33;
 
     public static function form(Form $form): Form
     {
@@ -133,7 +133,6 @@ class UserResource extends Resource
             ->checkIfRecordIsSelectableUsing(
                 fn(\App\Models\User $record): bool => $record->id !== \Filament\Facades\Filament::auth()->id(),
             );
-
     }
 
     public static function getRelations(): array

@@ -70,8 +70,7 @@
                     x-ref="inputWrapper">
                     <x-heroicon-o-magnifying-glass class="w-5 h-5 text-gray-400 mr-2" />
                     <input type="text" x-model="termo" @input.debounce.500ms="buscar(); posicionarDropdown()"
-                        @keydown.enter="buscar()" x-ref="inputField"
-                        placeholder="Buscar lote, Cód Tributário ou Logradouro..."
+                        @keydown.enter="buscar()" x-ref="inputField" placeholder="Pesquisar..."
                         class="w-full bg-transparent border-none focus:ring-0 text-sm text-gray-700 dark:text-gray-200 outline-none">
 
                     {{-- Spinner de Carregando --}}
@@ -135,22 +134,21 @@
                 </div>
 
                 {{-- GRUPO FILTROS (permissão toolbar_filtros) --}}
-                <div id="toolbar-filtros" class="flex items-center gap-0.5">
-                    {{-- BOTÃO FILTRO AVANÇADO --}}
-                    <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }"
-                        x-on:click="$wire.mountAction('filtroAvancadoAction')"
-                        class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                        title="Filtro Avançado / Tematização">
-                        <x-heroicon-o-funnel class="w-5 h-5" />
-                    </button>
+                {{-- <div id="toolbar-filtros" class="flex items-center gap-0.5"> --}}
+                {{-- BOTÃO FILTRO AVANÇADO --}}
+                <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }" x-on:click="$wire.mountAction('filtroAvancadoAction')"
+                    class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                    title="Filtro Avançado / Tematização">
+                    <x-heroicon-o-funnel class="w-5 h-5" />
+                </button>
 
-                    {{-- BOTÃO ESTATÍSTICAS --}}
-                    <button type="button" x-on:click="$wire.mountAction('estatisticasAction')"
-                        class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                        title="Estatísticas por Área">
-                        <x-heroicon-o-chart-bar class="w-5 h-5" />
-                    </button>
-                </div>
+                {{-- BOTÃO ESTATÍSTICAS --}}
+                <button type="button" x-on:click="$wire.mountAction('estatisticasAction')"
+                    class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                    title="Estatísticas por Área">
+                    <x-heroicon-o-chart-bar class="w-5 h-5" />
+                </button>
+                {{--  </div> --}}
 
                 <div class="flex items-center gap-1 px-1">
 
@@ -176,32 +174,50 @@
                         </button>
                     @endif
 
-                    <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
-
-                    {{-- B2: IR PARA COORDENADA --}}
-                    <div x-data="{ aberto: false }" class="relative">
-                        <button @click="aberto = !aberto" @click.outside="aberto = false"
-                            title="Ir para coordenada (Lat / Lon)"
+                    {{-- B2: IR PARA COORDENADA LAT/LON + ESCALA --}}
+                    <div x-data="{ aberto: false }" class="relative" @click.outside="aberto = false">
+                        <button @click="aberto = !aberto" title="Ir para coordenada / escala"
                             class="p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-xl transition-colors flex items-center gap-1">
                             <x-heroicon-o-map-pin class="w-5 h-5" />
                         </button>
                         <div x-show="aberto" x-cloak @keydown.escape="aberto = false"
-                            class="absolute top-10 left-0 z-50 bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 rounded-xl p-3 flex gap-2 items-center min-w-[280px]">
-                            <input id="coord-lat" type="number" step="any" placeholder="Latitude"
-                                class="w-28 text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 outline-none">
-                            <input id="coord-lon" type="number" step="any" placeholder="Longitude"
-                                class="w-28 text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 outline-none">
-                            <button
-                                @click="window.irParaCoordenada(document.getElementById('coord-lat').value, document.getElementById('coord-lon').value); aberto = false"
-                                class="px-3 py-1.5 text-xs bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
-                                Ir
-                            </button>
+                            class="absolute top-10 left-0 z-50 bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 rounded-xl p-3 min-w-[300px] space-y-2">
+
+                            {{-- Linha 1: Lat/Lon --}}
+                            <div class="flex gap-2 items-center">
+                                <input id="coord-lat" type="number" step="any" placeholder="Latitude"
+                                    @keydown.enter="window.irParaCoordenada(document.getElementById('coord-lat').value, document.getElementById('coord-lon').value); aberto = false"
+                                    class="w-28 text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 outline-none">
+                                <input id="coord-lon" type="number" step="any" placeholder="Longitude"
+                                    @keydown.enter="window.irParaCoordenada(document.getElementById('coord-lat').value, document.getElementById('coord-lon').value); aberto = false"
+                                    class="w-28 text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 outline-none">
+                                <button
+                                    @click="window.irParaCoordenada(document.getElementById('coord-lat').value, document.getElementById('coord-lon').value); aberto = false"
+                                    class="px-3 py-1.5 text-xs bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                                    Ir
+                                </button>
+                            </div>
+
+                            {{-- Linha 2: Escala --}}
+                            <div class="flex gap-2 items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                                <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Escala 1 /</span>
+                                <input id="coord-escala" type="number" min="1" step="1"
+                                    placeholder="ex: 1000"
+                                    @keydown.enter="window.irParaEscala(document.getElementById('coord-escala').value); aberto = false"
+                                    class="flex-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 outline-none">
+                                <button
+                                    @click="window.irParaEscala(document.getElementById('coord-escala').value); aberto = false"
+                                    class="px-3 py-1.5 text-xs bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                                    Aplicar
+                                </button>
+                            </div>
                         </div>
                     </div>
 
                     <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
 
 
+                    {{-- Mãozinha --}}
                     <button id="btn-pan" title="Mover Mapa (Cancelar Ferramentas)"
                         class="p-2 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-xl transition-colors focus:outline-none">
                         <x-heroicon-o-hand-raised class="w-5 h-5" />
@@ -1058,7 +1074,7 @@
                         </div>
 
                         {{-- Sub-linha: Status de Coleta (recolore os lotes pelo status_cadastro) --}}
-                        <div x-data="{ statusColorOn: false }" class="ml-7 mt-1">
+                        <div data-permission-group="layer:lotes" x-data="{ statusColorOn: false }" class="ml-7 mt-1">
                             <label
                                 class="flex items-center gap-2 cursor-pointer text-xs text-gray-600 dark:text-gray-300">
                                 <input type="checkbox" x-model="statusColorOn"
@@ -1071,10 +1087,18 @@
                             </label>
                             <div x-show="statusColorOn" x-transition
                                 class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-500 dark:text-gray-400">
-                                <span class="inline-flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#10B981"></span> Coletado</span>
-                                <span class="inline-flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#F59E0B"></span> Pendente</span>
-                                <span class="inline-flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#EF4444"></span> Inconformidade</span>
-                                <span class="inline-flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#9CA3AF"></span> Não visitado</span>
+                                <span class="inline-flex items-center gap-1"><span
+                                        style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#10B981"></span>
+                                    Coletado</span>
+                                <span class="inline-flex items-center gap-1"><span
+                                        style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#F59E0B"></span>
+                                    Pendente</span>
+                                <span class="inline-flex items-center gap-1"><span
+                                        style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#EF4444"></span>
+                                    Inconformidade</span>
+                                <span class="inline-flex items-center gap-1"><span
+                                        style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#9CA3AF"></span>
+                                    Não visitado</span>
                             </div>
                         </div>
 
@@ -1111,8 +1135,9 @@
                     </div>
                 </div>
 
-                {{-- GRUPO 2: INTELIGÊNCIA SOCIAL --}}
-                <div class="border-b border-gray-100/50 dark:border-gray-700/50 bg-rose-50/30 dark:bg-rose-900/10">
+                {{-- GRUPO 2: INTELIGÊNCIA SOCIAL (vinculada à camada de lotes) --}}
+                <div data-permission-group="layer:lotes"
+                    class="border-b border-gray-100/50 dark:border-gray-700/50 bg-rose-50/30 dark:bg-rose-900/10">
                     <button @click="activeTab = activeTab === 'social' ? '' : 'social'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-rose-700 dark:text-rose-300 hover:bg-rose-100/50 dark:hover:bg-rose-800/50 flex justify-between items-center transition-colors">
                         <span class="flex items-center gap-2">Inteligência Social</span>
@@ -1186,7 +1211,7 @@
                 </div>
 
                 {{-- GRUPO 3: ZONEAMENTO URBANO --}}
-                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                <div data-permission-group="layer:zonas" class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'zonas' ? '' : 'zonas'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
                         <span class="flex items-center gap-2">Zoneamento Urbano</span>
@@ -1412,7 +1437,8 @@
                 </div>
 
                 {{-- GRUPO OGC: CONEXÕES EXTERNAS (WMS) --}}
-                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                <div data-permission-group="toolbar:ferramentas"
+                    class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'ogc' ? '' : 'ogc'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 flex justify-between items-center transition-colors">
                         <span class="flex items-center gap-2">WMS Externo (OGC)</span>

@@ -16,8 +16,8 @@ class AuditoriaPage extends Page implements HasTable
     protected static ?string $navigationIcon = 'heroicon-o-clock';
     protected static ?string $navigationLabel = 'Auditoria';
     protected static ?string $title = 'Histórico de Operações';
-    protected static ?string $navigationGroup = 'Administração';
-    protected static ?int $navigationSort = 99;
+    protected static ?string $navigationGroup = 'Configurações';
+    protected static ?int $navigationSort = 35;
     protected static string $view = 'filament.pages.auditoria-page';
 
     public static function canAccess(): bool

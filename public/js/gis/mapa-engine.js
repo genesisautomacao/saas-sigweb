@@ -906,13 +906,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 if (Array.isArray(perms.layers)) {
                     const allowed = new Set(perms.layers);
+
+                    // Sub-camadas que herdam a permissão de uma camada-pai.
+                    // Quem tem ver_camada_cemiterios vê automaticamente quadras_cemiterio,
+                    // logradouros_cemiterio e jazigos — sem precisar de permissões separadas.
+                    const LAYER_PERMISSION_ALIASES = {
+                        quadras_cemiterio:     'cemiterios',
+                        logradouros_cemiterio: 'cemiterios',
+                        jazigos:               'cemiterios',
+                    };
+
                     document
                         .querySelectorAll("input.layer-toggle[data-layer]")
                         .forEach(function (chk) {
-                            const layerKey = chk.dataset.layer.replace(
+                            const rawKey = chk.dataset.layer.replace(
                                 /-/g,
                                 "_",
                             );
+                            const layerKey = LAYER_PERMISSION_ALIASES[rawKey] || rawKey;
                             if (!allowed.has(layerKey)) {
                                 // A label é o pai direto do input para todos os tipos de camada.
                                 // Para camadas com controles de rótulo, a label fica dentro de um
@@ -931,6 +942,28 @@ document.addEventListener("DOMContentLoaded", function () {
                             }
                         });
                 }
+
+                // Esconde GRUPOS inteiros marcados com data-permission-group="layer:X" ou "toolbar:X".
+                // Útil para containers que não têm input.layer-toggle direto (ex: Inteligência Social,
+                // WMS Externo) ou onde os checkboxes internos somem mas o cabeçalho permanece (Zoneamento).
+                document.querySelectorAll('[data-permission-group]').forEach(function (el) {
+                    const spec = el.dataset.permissionGroup || '';
+                    const idx = spec.indexOf(':');
+                    if (idx < 0) return;
+                    const type = spec.substring(0, idx);
+                    const key  = spec.substring(idx + 1);
+                    let allowed = true;
+                    if (type === 'layer') {
+                        if (Array.isArray(perms.layers)) {
+                            allowed = perms.layers.includes(key);
+                        }
+                    } else if (type === 'toolbar') {
+                        if (perms.toolbar && perms.toolbar[key] === false) {
+                            allowed = false;
+                        }
+                    }
+                    if (!allowed) el.style.display = 'none';
+                });
 
                 if (perms.toolbar) {
                     if (perms.toolbar.criar_artefatos === false) {
@@ -4857,22 +4890,30 @@ document.addEventListener("DOMContentLoaded", function () {
                         },
                     );
 
-                    // 🪄 LÊ A COR E APLICA O ESTILO CUSTOMIZADO
-                    const corHex = dados.cor_tematizacao || "#f59e0b";
+                    // 🪄 LÊ AS OPÇÕES DE ESTILO (com fallback para os defaults antigos)
+                    const corFundo   = dados.cor_tematizacao || "#f59e0b";
+                    const corBorda   = dados.cor_borda || corFundo;
+                    const opacidade  = dados.transparencia_fundo !== undefined && dados.transparencia_fundo !== null && dados.transparencia_fundo !== ''
+                        ? Math.max(0, Math.min(100, parseFloat(dados.transparencia_fundo))) / 100
+                        : 0.4;
+                    const espessura  = dados.espessura_borda !== undefined && dados.espessura_borda !== null && dados.espessura_borda !== ''
+                        ? Math.max(1, Math.min(20, parseInt(dados.espessura_borda)))
+                        : 4;
+
                     const estiloCustomizado = new ol.style.Style({
                         fill: new ol.style.Fill({
-                            color: hexToRgba(corHex, 0.4),
+                            color: hexToRgba(corFundo, opacidade),
                         }),
                         stroke: new ol.style.Stroke({
-                            color: corHex,
-                            width: 4,
+                            color: corBorda,
+                            width: espessura,
                         }),
                         image: new ol.style.Circle({
                             radius: 8,
-                            fill: new ol.style.Fill({ color: corHex }),
+                            fill: new ol.style.Fill({ color: corFundo }),
                             stroke: new ol.style.Stroke({
-                                color: "#ffffff",
-                                width: 2,
+                                color: corBorda,
+                                width: Math.max(2, Math.min(espessura, 4)),
                             }),
                         }),
                     });
@@ -4901,7 +4942,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     window.filtrosAtivos.push({
                         id: filtroId,
                         descricao,
-                        cor: corHex,
+                        cor: corFundo,
                         total: features.length,
                     });
                     window.atualizarPainelFiltros();
@@ -5913,8 +5954,54 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================================
-    // B2 — LOCALIZAÇÃO POR COORDENADA DIGITADA
+    // B2 — LOCALIZAÇÃO POR COORDENADA DIGITADA + ESCALA + MARCADOR PISCANTE
     // =========================================================================
+
+    /**
+     * Pisca um marcador vermelho temporário na coordenada (lat, lon) por ~4 segundos.
+     * Usado após irParaCoordenada e poderia ser usado também em outras buscas no mapa.
+     */
+    window.piscarMarcadorTemporario = function (lat, lon) {
+        const latF = parseFloat(lat);
+        const lonF = parseFloat(lon);
+        if (isNaN(latF) || isNaN(lonF)) return;
+
+        const coord = ol.proj.fromLonLat([lonF, latF]);
+        const feature = new ol.Feature({ geometry: new ol.geom.Point(coord) });
+
+        const styleOn = new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 14,
+                fill: new ol.style.Fill({ color: "rgba(239,68,68,0.55)" }),
+                stroke: new ol.style.Stroke({ color: "#dc2626", width: 3 }),
+            }),
+        });
+        const styleOff = new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 14,
+                fill: new ol.style.Fill({ color: "rgba(239,68,68,0)" }),
+                stroke: new ol.style.Stroke({ color: "rgba(220,38,38,0.25)", width: 1 }),
+            }),
+        });
+        feature.setStyle(styleOn);
+
+        const source = new ol.source.Vector({ features: [feature] });
+        const layer = new ol.layer.Vector({ source: source, zIndex: 9999 });
+        map.addLayer(layer);
+
+        let visible = true;
+        let count = 0;
+        const interval = setInterval(function () {
+            visible = !visible;
+            feature.setStyle(visible ? styleOn : styleOff);
+            count++;
+            if (count >= 8) {
+                clearInterval(interval);
+                map.removeLayer(layer);
+            }
+        }, 500);
+    };
+
     window.irParaCoordenada = function (lat, lon, zoom) {
         const latF = parseFloat(lat);
         const lonF = parseFloat(lon);
@@ -5924,10 +6011,36 @@ document.addEventListener("DOMContentLoaded", function () {
             );
             return;
         }
+        map.getView().animate(
+            {
+                center: ol.proj.fromLonLat([lonF, latF]),
+                zoom: zoom || 18,
+                duration: 1500,
+            },
+            function () {
+                // Após o voo terminar, pisca o marcador temporário no destino
+                window.piscarMarcadorTemporario(latF, lonF);
+            },
+        );
+    };
+
+    /**
+     * Ajusta o zoom do mapa para corresponder a uma escala 1:X.
+     * Fórmula: resolution = scale / (DPI * inches_per_meter)
+     * Com DPI=96 e inches_per_meter=39.3701 → divisor ≈ 3780.
+     */
+    window.irParaEscala = function (escala) {
+        const escalaF = parseFloat(escala);
+        if (isNaN(escalaF) || escalaF <= 0) {
+            alert(
+                "Escala inválida. Informe um número positivo (ex: 1000 para 1:1000).",
+            );
+            return;
+        }
+        const resolution = escalaF / 3780;
         map.getView().animate({
-            center: ol.proj.fromLonLat([lonF, latF]),
-            zoom: zoom || 18,
-            duration: 1500,
+            resolution: resolution,
+            duration: 800,
         });
     };
 

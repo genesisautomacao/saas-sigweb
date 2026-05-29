@@ -11,10 +11,10 @@ use Livewire\Attributes\Computed;
 class ProdutividadePage extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar';
-    protected static ?string $navigationLabel = 'Produtividade';
-    protected static ?string $title = 'Relatório de Produtividade';
-    protected static ?string $navigationGroup = 'Administração';
-    protected static ?int $navigationSort = 97;
+    protected static ?string $navigationLabel = 'Resumo de Produtividade';
+    protected static ?string $title = 'Resumo de Produtividade';
+    protected static ?string $navigationGroup = 'Coleta cadastral';
+    protected static ?int $navigationSort = 31;
     protected static string $view = 'filament.pages.produtividade';
 
     public static function canAccess(): bool
@@ -68,7 +68,7 @@ class ProdutividadePage extends Page
             'total'          => $total,
             'coletados'      => (int) $rows->coletados,
             'pendentes'      => (int) $rows->pendentes,
-            'inconformidades'=> (int) $rows->inconformidades,
+            'inconformidades' => (int) $rows->inconformidades,
             'nao_visitados'  => (int) $rows->nao_visitados,
             'percentual'     => $total > 0 ? round((int) $rows->coletados * 100 / $total, 1) : 0,
         ];
@@ -86,8 +86,8 @@ class ProdutividadePage extends Page
             ->where('l.tenant_id', $this->tenantId)
             ->whereNull('l.deleted_at')
             ->whereNotNull('l.coletado_por_id')
-            ->when($this->quadraId, fn ($q) => $q->where('l.quadra_id', $this->quadraId))
-            ->when($this->setorId, fn ($q) => $q->whereRaw(
+            ->when($this->quadraId, fn($q) => $q->where('l.quadra_id', $this->quadraId))
+            ->when($this->setorId, fn($q) => $q->whereRaw(
                 "ST_Intersects(ST_Centroid(l.geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
                 [$this->setorId]
             ))
@@ -99,7 +99,7 @@ class ProdutividadePage extends Page
             ->groupBy('u.id', 'u.name')
             ->orderByDesc('coletados_hoje')
             ->get()
-            ->map(fn ($r) => (array) $r)
+            ->map(fn($r) => (array) $r)
             ->toArray();
     }
 
@@ -114,8 +114,8 @@ class ProdutividadePage extends Page
             ->leftJoin('quadras as q', 'q.id', '=', 'l.quadra_id')
             ->where('l.tenant_id', $this->tenantId)
             ->whereNull('l.deleted_at')
-            ->when($this->quadraId, fn ($q) => $q->where('l.quadra_id', $this->quadraId))
-            ->when($this->setorId, fn ($q) => $q->whereRaw(
+            ->when($this->quadraId, fn($q) => $q->where('l.quadra_id', $this->quadraId))
+            ->when($this->setorId, fn($q) => $q->whereRaw(
                 "ST_Intersects(ST_Centroid(l.geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
                 [$this->setorId]
             ))
@@ -133,7 +133,7 @@ class ProdutividadePage extends Page
             ->orderByDesc('coletados')
             ->limit(20)
             ->get()
-            ->map(fn ($r) => (array) $r)
+            ->map(fn($r) => (array) $r)
             ->toArray();
     }
 }

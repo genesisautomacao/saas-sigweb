@@ -14,8 +14,8 @@ class MensagensPage extends Page
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
     protected static ?string $navigationLabel = 'Mensagens';
     protected static ?string $title = 'Mensagens';
-    protected static ?string $navigationGroup = 'Administração';
-    protected static ?int $navigationSort = 99;
+    protected static ?string $navigationGroup = 'Coleta cadastral';
+    protected static ?int $navigationSort = 33;
     protected static string $view = 'filament.pages.mensagens';
 
     public static function canAccess(): bool
@@ -89,9 +89,9 @@ class MensagensPage extends Page
                 'nao_lidas'  => $naoLidas,
             ];
         })
-        ->sortByDesc(fn ($c) => $c['nao_lidas'])
-        ->values()
-        ->toArray();
+            ->sortByDesc(fn($c) => $c['nao_lidas'])
+            ->values()
+            ->toArray();
     }
 
     #[Computed]

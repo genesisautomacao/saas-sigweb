@@ -18,7 +18,7 @@ class RoleResource extends Resource
     protected static ?string $modelLabel = 'Papel de Acesso';
     protected static ?string $pluralModelLabel = 'Papéis de Acesso';
     protected static ?string $navigationGroup = 'Configurações';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 34;
 
     public static function form(Form $form): Form
     {
@@ -121,6 +121,20 @@ class RoleResource extends Resource
                                         'create_documentos' => 'Criar Documentos',
                                         'edit_documentos' => 'Editar Documentos',
                                         'delete_documentos' => 'Excluir Documentos',
+                                    ])
+                                    ->bulkToggleable(),
+                            ])->columns(1)->columnSpan(1),
+
+                        // CAIXA 6b: ADMINISTRATIVO - PONTOS PANORÂMICOS 360º
+                        Forms\Components\Fieldset::make('Módulo Administrativo: Pontos Panorâmicos 360º')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_pontos_panoramicos')
+                                    ->label('Gestão de Imagens 360º')
+                                    ->options([
+                                        'view_pontos_panoramicos'   => 'Visualizar Pontos 360º',
+                                        'create_pontos_panoramicos' => 'Criar Pontos 360º',
+                                        'edit_pontos_panoramicos'   => 'Editar Pontos 360º',
+                                        'delete_pontos_panoramicos' => 'Excluir Pontos 360º',
                                     ])
                                     ->bulkToggleable(),
                             ])->columns(1)->columnSpan(1),

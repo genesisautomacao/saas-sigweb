@@ -38,7 +38,15 @@
       "Bash(php -l app/Services/Expo/ExpoPushService.php)",
       "Bash(php -l app/Filament/Pages/Traits/HasEdificacaoActions.php)",
       "Bash(php -l app/Filament/Resources/LoteResource/RelationManagers/EdificacoesRelationManager.php)",
-      "Bash(php -l app/Http/Controllers/Api/LoteSyncController.php)"
+      "Bash(php -l app/Http/Controllers/Api/LoteSyncController.php)",
+      "Bash(php -l app/Policies/PontoPanoramicoPolicy.php)",
+      "Bash(php -l app/Filament/Resources/RoleResource.php)",
+      "Bash(php -l app/Filament/Resources/RoleResource/Pages/CreateRole.php)",
+      "Bash(php -l app/Filament/Resources/RoleResource/Pages/EditRole.php)",
+      "Bash(php -l database/seeders/PermissionsSeeder.php)",
+      "Bash(php -l app/Filament/Resources/ProdutividadeResource.php)",
+      "Bash(php -l app/Filament/Resources/ProdutividadeResource/Pages/ListProdutividade.php)",
+      "Bash(php -l app/Services/Exports/ProdutividadeExportService.php)"
     ]
   }
 }

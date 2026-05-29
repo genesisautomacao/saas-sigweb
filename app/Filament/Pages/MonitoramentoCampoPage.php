@@ -12,8 +12,8 @@ class MonitoramentoCampoPage extends Page
     protected static ?string $navigationIcon = 'heroicon-o-map-pin';
     protected static ?string $navigationLabel = 'Monitoramento de Campo';
     protected static ?string $title = 'Monitoramento em Tempo Real';
-    protected static ?string $navigationGroup = 'Administração';
-    protected static ?int $navigationSort = 98;
+    protected static ?string $navigationGroup = 'Coleta cadastral';
+    protected static ?int $navigationSort = 30;
     protected static string $view = 'filament.pages.monitoramento-campo';
 
     public static function canAccess(): bool
