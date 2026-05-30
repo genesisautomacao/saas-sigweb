@@ -62,7 +62,9 @@ class MapDataController extends Controller
                             'categoria' => $item->categoria ?? null, // Pontos de Interesse
                             'tipo' => $item->tipo ?? null, // Localidades e Hidrografia
                             'tipo_pavimento' => $item->tipo_pavimento ?? null, // Estradas
-                            'estado_conservacao' => $item->estado_conservacao ?? null, // Pontos e Pontes
+                            'estado_conservacao' => $item->estado_conservacao ?? null, // Pontos, Pontes e Meio-fio
+                            'material' => $item->material ?? null, // Meio-fio
+                            'extensao_geo' => isset($item->extensao_geo) ? (float) $item->extensao_geo : null, // Meio-fio
                         ],
                         'geometry' => $item->geo_json
                     ];
@@ -98,6 +100,13 @@ class MapDataController extends Controller
 
             case 'logradouros':
                 $data = $buildFeatureCollection(Logradouro::query()->where('tenant_id', $tenantId)->get(), 'logradouros');
+                break;
+
+            case 'meio_fios':
+                $data = $buildFeatureCollection(
+                    \App\Models\MeioFio::query()->where('tenant_id', $tenantId)->get(),
+                    'meio_fios'
+                );
                 break;
 
             case 'lotes':
@@ -604,6 +613,7 @@ class MapDataController extends Controller
             'zonas',
             'rural_localidades',
             'perimetros_urbanos',
+            'meio_fios',
         ];
 
         try {

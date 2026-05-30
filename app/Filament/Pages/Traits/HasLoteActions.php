@@ -209,7 +209,7 @@ trait HasLoteActions
                     ->label('Descrição da Inconformidade')
                     ->rows(3)
                     ->nullable()
-                    ->visible(fn (\Filament\Forms\Get $get) => $get('status_cadastro') === 'inconformidade')
+                    ->visible(fn(\Filament\Forms\Get $get) => $get('status_cadastro') === 'inconformidade')
                     ->columnSpanFull(),
 
                 \Filament\Forms\Components\KeyValue::make('dados_vistoria')
@@ -1191,7 +1191,7 @@ trait HasLoteActions
             ->modalDescription(fn() => 'Selecione o formato de exportação desejado para o Lote ' . $this->loteAtivoNome)
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Cancelar')
-            ->modalWidth('3xl')
+            ->modalWidth('2xl')
             ->extraModalFooterActions([
                 Action::make('export_pdf')
                     ->label('Gerar PDF')
@@ -1203,63 +1203,11 @@ trait HasLoteActions
                     ])
                     ->action(function () {}),
 
-                // 🛑 ROTINA 1: EXPORTAÇÃO PARA AUTOCAD (DXF) VIA GDAL
-                Action::make('export_dwg')
-                    ->label('Gerar CAD (DXF)')
-                    ->color('info')
-                    ->icon('heroicon-o-swatch')
-                    ->action(function () {
-                        $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
 
-                        // 1. Gera o GeoJSON base
-                        $geoJsonQuery = \Illuminate\Support\Facades\DB::selectOne("SELECT ST_AsGeoJSON(geo) as geojson FROM lotes WHERE id = ?", [$lote->id]);
 
-                        // 2. Prepara o formato. O Driver DXF do GDAL lê a propriedade 'Layer' para nomear a camada no AutoCAD
-                        $featureCollection = [
-                            'type' => 'FeatureCollection',
-                            'features' => [
-                                [
-                                    'type' => 'Feature',
-                                    'properties' => [
-                                        'Layer' => 'Lote_' . ($lote->numero_lote ?? $lote->id),
-                                    ],
-                                    'geometry' => json_decode($geoJsonQuery->geojson)
-                                ]
-                            ]
-                        ];
-
-                        $jsonContent = json_encode($featureCollection);
-
-                        try {
-                            $tempDir = storage_path('app/temp_dxf_' . uniqid());
-                            if (!is_dir($tempDir)) mkdir($tempDir);
-
-                            $geoJsonPath = $tempDir . '/lote.geojson';
-                            file_put_contents($geoJsonPath, $jsonContent);
-
-                            $dxfPath = $tempDir . '/Lote_' . ($lote->numero_lote ?? $lote->id) . '.dxf';
-
-                            // 3. Invoca o conversor do servidor (ogr2ogr) mandando cuspir um DXF
-                            $process = \Illuminate\Support\Facades\Process::run("ogr2ogr -f \"DXF\" {$dxfPath} {$geoJsonPath}");
-
-                            if ($process->successful() && file_exists($dxfPath)) {
-                                return response()->download($dxfPath)->deleteFileAfterSend(true);
-                            }
-                        } catch (\Exception $e) {
-                            // Silencioso para cair na notificação abaixo
-                        }
-
-                        // 4. FALLBACK: Se o Laragon (Windows) não tiver o GDAL instalado, ele avisa elegantemente
-                        \Filament\Notifications\Notification::make()
-                            ->title('Aviso de Ambiente')
-                            ->body('O conversor GDAL (ogr2ogr) não foi detectado no seu servidor local. A exportação CAD funcionará nativamente quando o sistema estiver no servidor Linux de produção.')
-                            ->danger()
-                            ->send();
-                    }),
-
-                // 🛑 ROTINA 2: EXPORTAÇÃO SHAPEFILE / GEOJSON
+                // 🛑 ROTINA 2: EXPORTAÇÃO SHAPEFILE
                 Action::make('export_shp')
-                    ->label('Gerar Shapefile / GeoJSON')
+                    ->label('Gerar Shapefile')
                     ->color('success')
                     ->icon('heroicon-o-map')
                     ->action(function () {

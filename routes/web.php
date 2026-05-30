@@ -19,6 +19,18 @@ Route::get('/api/search-lote', [MapDataController::class, 'searchLote']);
 Route::get('/api/mapa/advanced-query', [MapDataController::class, 'advancedSpatialQuery']);
 Route::get('/api/mapa/estatisticas', [MapDataController::class, 'getEstatisticas']);
 
+// Exportação de camada em Shapefile (.zip) — TR Tangará Intranet #30
+Route::middleware(['web', 'auth'])->get('/api/mapa/export-shp', function (\Illuminate\Http\Request $request) {
+    $layer    = (string) $request->query('layer');
+    $tenantId = (int) $request->query('tenant_id');
+
+    if (!$layer || !$tenantId) {
+        abort(400, 'Parâmetros layer e tenant_id são obrigatórios.');
+    }
+
+    return app(\App\Services\Exports\ShapefileExportService::class)->exportStream($layer, $tenantId);
+})->name('api.mapa.export-shp');
+
 // Rota exclusiva para o Mapa do Portal do Cidadão
 Route::get('/cidadao/lotes-geojson', [\App\Http\Controllers\CidadaoMapController::class, 'getLotes'])->middleware('web');
 

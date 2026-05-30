@@ -133,10 +133,12 @@
                     </div>
                 </div>
 
-                {{-- GRUPO FILTROS (permissão toolbar_filtros) --}}
-                <div id="toolbar-filtros" class="flex items-center gap-0.5">
+                {{-- FERRAENTAS SOLTAS NA BARRA PRINCIPAL --}}
+                <div class="flex items-center gap-1 px-1">
+
                     {{-- BOTÃO FILTRO AVANÇADO --}}
-                    <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }" x-on:click="$wire.mountAction('filtroAvancadoAction')"
+                    <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }"
+                        x-on:click="$wire.mountAction('filtroAvancadoAction')"
                         class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                         title="Filtro Avançado / Tematização">
                         <x-heroicon-o-funnel class="w-5 h-5" />
@@ -148,9 +150,6 @@
                         title="Estatísticas por Área">
                         <x-heroicon-o-chart-bar class="w-5 h-5" />
                     </button>
-                </div>
-
-                <div class="flex items-center gap-1 px-1">
 
                     {{-- ZOOM EXTENSÃO + VISÃO ANTERIOR --}}
                     <button onclick="window.zoomExtensao()" title="Visão Geral (Zoom Extensão)"
@@ -269,6 +268,7 @@
                                             <x-heroicon-o-globe-americas class="w-4 h-4 text-red-500" />
                                             Distrito / Limite (Polígono)
                                         </button>
+
                                         <button @click="open = false; enableDrawing('zona')"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-globe-americas class="w-4 h-4 text-purple-500" />
@@ -303,6 +303,12 @@
                                             @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-slate-100 hover:text-slate-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-minus class="w-4 h-4 text-slate-500" /> Logradouro (Linha)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('meio_fio')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-minus class="w-4 h-4 text-amber-700" />
+                                            Meio-fio / Calçada (Linha)
                                         </button>
 
                                         <button @click="open = false; enableDrawing('ponto_panoramico')"
@@ -572,15 +578,39 @@
                                         class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                                         Exportar Camadas (SHP)</div>
 
-                                    @foreach (['lotes' => 'Lotes', 'logradouros' => 'Logradouros', 'bairros' => 'Bairros', 'quadras' => 'Quadras'] as $key => $label)
-                                        <button
-                                            @click="$dispatch('exportar-camada-shp', { layer: '{{ $key }}' }); open = false"
-                                            style="width: 100%; text-align: left; background: none; border: none; padding: 8px 12px; font-size: 12px; color: #374151; display: flex; align-items: center; gap: 8px; cursor: pointer;"
-                                            class="hover:bg-emerald-50 rounded-lg">
-                                            <x-heroicon-o-arrow-down-tray class="w-4 h-4 text-emerald-500" />
-                                            Exportar {{ $label }}
-                                        </button>
-                                    @endforeach
+                                    @php
+                                        $camadasShp = [
+                                            'lotes' => 'Lotes',
+                                            'edificacoes' => 'Edificações',
+                                            'logradouros' => 'Logradouros',
+                                            'quadras' => 'Quadras',
+                                            'bairros' => 'Bairros',
+                                            'loteamentos' => 'Loteamentos',
+                                            'zonas' => 'Zonas',
+                                            'perimetros_urbanos' => 'Distritos / Limites',
+                                            'setores_fiscais' => 'Setores Fiscais',
+                                            'arvores' => 'Árvores',
+                                            'postes' => 'Postes',
+                                            'cemiterios' => 'Cemitérios',
+                                            'rural_propriedades' => 'Propriedades Rurais',
+                                            'rural_estradas' => 'Estradas Rurais',
+                                            'rural_pontes' => 'Pontes Rurais',
+                                            'rural_localidades' => 'Localidades Rurais',
+                                            'rural_hidrografias' => 'Hidrografias',
+                                        ];
+                                    @endphp
+
+                                    <div style="max-height: 240px; overflow-y: auto;">
+                                        @foreach ($camadasShp as $key => $label)
+                                            <button
+                                                @click="$dispatch('exportar-camada-shp', { layer: '{{ $key }}' }); open = false"
+                                                style="width: 100%; text-align: left; background: none; border: none; padding: 6px 12px; font-size: 12px; color: #374151; display: flex; align-items: center; gap: 8px; cursor: pointer;"
+                                                class="hover:bg-emerald-50 rounded-lg">
+                                                <x-heroicon-o-arrow-down-tray class="w-4 h-4 text-emerald-500" />
+                                                {{ $label }}
+                                            </button>
+                                        @endforeach
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1138,6 +1168,17 @@
                             </div>
                         </div>
 
+                        {{-- Meio-fio / Calçada (TR Tangará Intranet #57) --}}
+                        <div class="flex items-center justify-between w-full mt-2">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="meio_fios"
+                                    class="layer-toggle rounded border-gray-300 text-amber-700 focus:ring-amber-700 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-1 bg-amber-700 rounded flex-shrink-0"></div>
+                                    <span class="layer-text truncate">Meio-fio / Calçada</span>
+                                </span>
+                            </label>
+                        </div>
 
                     </div>
                 </div>
@@ -1909,17 +1950,28 @@
                 featureToHighlight = source.getFeatures().find(f => f.get('id') == quadraId);
                 if (featureToHighlight) {
                     featureToHighlight.setStyle(new ol.style.Style({
-                        stroke: new ol.style.Stroke({ color: '#1d4ed8', width: 4 }),
-                        fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.15)' })
+                        stroke: new ol.style.Stroke({
+                            color: '#1d4ed8',
+                            width: 4
+                        }),
+                        fill: new ol.style.Fill({
+                            color: 'rgba(59, 130, 246, 0.15)'
+                        })
                     }));
 
                     // Zoom para enquadrar a quadra
                     try {
                         const extent = featureToHighlight.getGeometry().getExtent();
                         if (window.map && extent) {
-                            window.map.getView().fit(extent, { padding: [80, 80, 80, 80], duration: 600, maxZoom: 19 });
+                            window.map.getView().fit(extent, {
+                                padding: [80, 80, 80, 80],
+                                duration: 600,
+                                maxZoom: 19
+                            });
                         }
-                    } catch (e) { /* segue mesmo se o fit falhar */ }
+                    } catch (e) {
+                        /* segue mesmo se o fit falhar */
+                    }
                 }
             }
 

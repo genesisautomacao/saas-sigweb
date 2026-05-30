@@ -28,6 +28,7 @@ use App\Filament\Pages\Traits\HasQuadraActions;
 use App\Filament\Pages\Traits\HasZonaActions;
 use App\Filament\Pages\Traits\HasPontoPanoramicoActions;
 use App\Filament\Pages\Traits\HasPerimetroUrbanoActions;
+use App\Filament\Pages\Traits\HasMeioFioActions;
 
 use App\Models\Lote;
 use App\Models\Edificacao;
@@ -72,6 +73,7 @@ class MapaFullscreen extends Page
     use HasZonaActions;
     use HasPontoPanoramicoActions;
     use HasPerimetroUrbanoActions;
+    use HasMeioFioActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';
@@ -494,6 +496,25 @@ class MapaFullscreen extends Page
 
             // Distrito / Limite — polígono livre, sem cruzamento topológico obrigatório
             $this->mountAction('criarPerimetroUrbano');
+        } elseif ($entityType === 'meio_fio') {
+
+            // Meio-fio / Calçada — linha livre. Pré-detecta o logradouro mais próximo
+            // (operador KNN <-> do PostGIS) e calcula a extensão para exibir no form.
+            $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+
+            $logradouro = DB::selectOne(
+                "SELECT id FROM logradouros
+                 WHERE tenant_id = ? AND geo IS NOT NULL AND deleted_at IS NULL
+                 ORDER BY geo::geometry <-> {$lineWKT}::geometry
+                 LIMIT 1",
+                [$this->tenantId]
+            );
+            $this->meioFioLogradouroPreSelecionadoId = $logradouro?->id;
+
+            $ext = DB::selectOne("SELECT ST_Length({$lineWKT}::geography) AS metros");
+            $this->meioFioExtensaoCalculada = $ext?->metros ? round((float) $ext->metros, 2) : null;
+
+            $this->mountAction('criarMeioFio');
         } elseif ($entityType === 'loteamento') {
 
             $this->mountAction('criarLoteamento');
@@ -1728,6 +1749,31 @@ class MapaFullscreen extends Page
             $reg->update(['geo' => $geoJson]);
 
             \Filament\Notifications\Notification::make()->title('Limites do Distrito atualizados!')->success()->send();
+        }
+    }
+
+    // --- MÓDULO MEIO-FIO / CALÇADA (TR Tangará #57) ---
+    #[On('abrirOpcoesMeioFio')]
+    public function abrirOpcoesMeioFio($id)
+    {
+        $this->meioFioAtivoId = $id;
+        $this->mountAction('opcoesMeioFio');
+    }
+
+    #[On('salvarNovaGeometriaMeioFio')]
+    public function salvarNovaGeometriaMeioFio($id, $geoJson)
+    {
+        $reg = \App\Models\MeioFio::query()->find($id);
+        if ($reg) {
+            $reg->update(['geo' => $geoJson]);
+
+            // Recalcula extensão
+            try {
+                DB::statement('UPDATE meio_fios SET extensao_geo = ST_Length(geo::geography) WHERE id = ?', [$reg->id]);
+            } catch (\Exception $e) {
+            }
+
+            \Filament\Notifications\Notification::make()->title('Geometria do meio-fio atualizada!')->success()->send();
         }
     }
 

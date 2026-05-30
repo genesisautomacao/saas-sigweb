@@ -47,7 +47,9 @@
       "Bash(php -l app/Filament/Resources/ProdutividadeResource.php)",
       "Bash(php -l app/Filament/Resources/ProdutividadeResource/Pages/ListProdutividade.php)",
       "Bash(php -l app/Services/Exports/ProdutividadeExportService.php)",
-      "Bash(findstr /S /I \"simplesoftwareio bacon/bacon-qr chillerlan endroid\" composer.json composer.lock)"
+      "Bash(findstr /S /I \"simplesoftwareio bacon/bacon-qr chillerlan endroid\" composer.json composer.lock)",
+      "Bash(where ogr2ogr *)",
+      "Bash(ogr2ogr --version)"
     ]
   }
 }

@@ -272,6 +272,27 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
+        meio_fios: {
+            z: 55,
+            minZoom: 15,
+            style: function (feature) {
+                // Cor varia pelo estado de conservação
+                const estado = feature.get("estado_conservacao");
+                let color = "#92400e"; // marrom — padrão / desconhecido
+                if (estado === "bom") color = "#65a30d"; // verde
+                else if (estado === "regular") color = "#ca8a04"; // amarelo
+                else if (estado === "ruim") color = "#dc2626"; // vermelho
+
+                return new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: color,
+                        width: 4,
+                        lineDash: [8, 4],
+                    }),
+                });
+            },
+        },
+
         postes: {
             z: 100,
             minZoom: 14,
@@ -1332,6 +1353,7 @@ document.addEventListener("DOMContentLoaded", function () {
             "edificacao_ativa",
             "pontos_panoramicos",
             "logradouros",
+            "meio_fios",
             "zonas",
             "bairros",
             "loteamentos",
@@ -1378,6 +1400,44 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 if (featureTooltip) {
                     featureTooltip.innerHTML = name || "Rua Interna sem nome";
+                    featureTooltip.style.display = "block";
+                    featureTooltip.style.left = e.originalEvent.clientX + "px";
+                    featureTooltip.style.top = e.originalEvent.clientY + "px";
+                }
+            } else if (layer === "meio_fios") {
+                // Hover do meio-fio: engrossa o tracejado em destaque âmbar
+                feature.setStyle(
+                    new ol.style.Style({
+                        stroke: new ol.style.Stroke({
+                            color: "#f59e0b",
+                            width: 6,
+                            lineDash: [10, 5],
+                        }),
+                    }),
+                );
+
+                if (featureTooltip) {
+                    const seq = feature.get("sequential_id");
+                    const titulo = seq ? `Meio-fio #${seq}` : "Meio-fio";
+                    const estado = feature.get("estado_conservacao");
+                    const material = feature.get("material");
+                    const ext = feature.get("extensao_geo");
+                    const labelMaterial = material
+                        ? material.charAt(0).toUpperCase() + material.slice(1)
+                        : "Material não informado";
+                    const labelEstado = estado
+                        ? "Estado: " + estado.charAt(0).toUpperCase() + estado.slice(1)
+                        : "Estado não informado";
+                    const labelExt = ext
+                        ? Number(ext).toLocaleString("pt-BR", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                          }) + " m"
+                        : "";
+                    featureTooltip.innerHTML =
+                        `<strong>${titulo}</strong><br>` +
+                        `${labelMaterial} · ${labelEstado}` +
+                        (labelExt ? `<br><em>${labelExt}</em>` : "");
                     featureTooltip.style.display = "block";
                     featureTooltip.style.left = e.originalEvent.clientX + "px";
                     featureTooltip.style.top = e.originalEvent.clientY + "px";
@@ -2492,6 +2552,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "rural-pontes", // PONTOS (Maior prioridade)
                 "logradouros",
                 "logradouros_cemiterio",
+                "meio_fios",
                 "rural-estradas",
                 "pontos_panoramicos", // LINHAS
                 "jazigos", // Polígono Micro
@@ -2548,6 +2609,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         break;
                     case "logradouros":
                         Livewire.dispatch("abrirOpcoesLogradouro", { id: id });
+                        break;
+                    case "meio_fios":
+                        Livewire.dispatch("abrirOpcoesMeioFio", { id: id });
                         break;
                     case "logradouros_cemiterio":
                         Livewire.dispatch("abrirOpcoesLogradouroCemiterio", {
@@ -2859,6 +2923,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "logradouro_cemiterio",
                 "rural_estrada",
                 "rural_hidro_linha",
+                "meio_fio",
             ].includes(entityType)
         )
             geometryType = "LineString";
@@ -2971,6 +3036,50 @@ document.addEventListener("DOMContentLoaded", function () {
         const data = e.detail[0] || e.detail;
         if (window.loadedLayers["lotes"]) {
             const source = window.loadedLayers["lotes"].getSource();
+            const feature = source
+                .getFeatures()
+                .find((f) => f.get("id") == data.id);
+            if (feature) source.removeFeature(feature);
+        }
+    });
+
+    // ── CIRURGIA EM MEMÓRIA: MEIO-FIO / CALÇADA (TR Tangará #57) ──────
+    window.addEventListener("adicionar-meio_fio-mapa", (e) => {
+        const data = e.detail[0] || e.detail;
+        if (drawSource) drawSource.clear();
+        const checkbox = document.querySelector('input[data-layer="meio_fios"]');
+        if (checkbox && checkbox.checked && window.loadedLayers["meio_fios"]) {
+            const feature = new ol.Feature({
+                geometry: new ol.format.GeoJSON().readGeometry(data.geo, {
+                    dataProjection: "EPSG:4326",
+                    featureProjection: "EPSG:3857",
+                }),
+                id: data.id,
+                name: data.name,
+                layer: "meio_fios",
+            });
+            window.loadedLayers["meio_fios"].getSource().addFeature(feature);
+        }
+    });
+
+    window.addEventListener("atualizar-label-meio_fio", (e) => {
+        const data = e.detail[0] || e.detail;
+        if (window.loadedLayers["meio_fios"]) {
+            const feature = window.loadedLayers["meio_fios"]
+                .getSource()
+                .getFeatures()
+                .find((f) => f.get("id") == data.id);
+            if (feature) {
+                feature.set("name", data.name);
+                feature.changed();
+            }
+        }
+    });
+
+    window.addEventListener("remover-meio_fio-mapa", (e) => {
+        const data = e.detail[0] || e.detail;
+        if (window.loadedLayers["meio_fios"]) {
+            const source = window.loadedLayers["meio_fios"].getSource();
             const feature = source
                 .getFeatures()
                 .find((f) => f.get("id") == data.id);
@@ -3246,6 +3355,11 @@ document.addEventListener("DOMContentLoaded", function () {
             cor: "#ef4444",
         },
         {
+            evento: "iniciar-edicao-geometria-meio_fio",
+            layer: "meio_fios",
+            cor: "#92400e",
+        },
+        {
             evento: "iniciar-edicao-geometria-loteamento",
             layer: "loteamentos",
             cor: "#2563eb",
@@ -3371,6 +3485,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     quadras: "quadra",
                     bairros: "bairro",
                     perimetros: "perimetro_urbano",
+                    meio_fios: "meio_fio",
                     loteamentos: "loteamento",
                     edificacao_ativa: "edificacao",
                     logradouros: "logradouro",
@@ -3440,6 +3555,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             else if (layerName === "perimetros")
                 Livewire.dispatch("salvarNovaGeometriaPerimetroUrbano", {
+                    id: id,
+                    geoJson: geoJson,
+                });
+            else if (layerName === "meio_fios")
+                Livewire.dispatch("salvarNovaGeometriaMeioFio", {
                     id: id,
                     geoJson: geoJson,
                 });
@@ -4216,6 +4336,7 @@ document.addEventListener("DOMContentLoaded", function () {
             zonas: { label: "da nova Zona de Uso", func: "zona" },
             bairros: { label: "do novo Bairro", func: "bairro" },
             perimetros: { label: "do novo Distrito / Limite", func: "perimetro_urbano" },
+            meio_fios: { label: "do novo Meio-fio / Calçada", func: "meio_fio" },
             loteamentos: { label: "do novo Loteamento", func: "loteamento" },
             quadras: { label: "da nova Quadra", func: "quadra" },
 
@@ -5636,63 +5757,52 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================================
-    // 21. EXPORTAÇÃO PARA SHAPEFILE (SHP) VIA CLOUD OGR2OGR
+    // 21. EXPORTAÇÃO PARA SHAPEFILE (SHP) — server-side via ogr2ogr (TR Tangará #30)
+    // Antes usava cloud externo (ogre.adc4gis.com); agora chama nosso endpoint
+    // /api/mapa/export-shp que serve PostGIS → ogr2ogr → .zip no servidor.
     // =========================================================================
     window.addEventListener("exportar-camada-shp", (e) => {
         const data = e.detail[0] || e.detail;
         const layerName = data.layer;
-
-        if (!window.loadedLayers[layerName]) {
-            alert(
-                `⚠️ A camada ${layerName.toUpperCase()} não está carregada no mapa. Ligue-a no menu lateral antes de exportar.`,
-            );
+        if (!layerName) {
+            alert("⚠️ Camada não informada para exportação.");
             return;
         }
 
-        const features = window.loadedLayers[layerName]
-            .getSource()
-            .getFeatures();
-        if (features.length === 0) {
-            alert(
-                `⚠️ A camada ${layerName} está vazia ou sem dados no momento.`,
-            );
-            return;
-        }
+        // Aviso amigável: a exportação pega TODA a camada do tenant, não só o que está visível
+        const overlay = document.getElementById("print-loading-overlay");
+        const statusText = document.getElementById("print-status-text");
+        if (overlay) overlay.style.display = "flex";
+        if (statusText) statusText.textContent = `Exportando ${layerName.toUpperCase()} para SHP...`;
 
-        // 1. Extrai tudo para GeoJSON e reverte a projeção do Mapa (3857) para o padrão Mundial (4326)
-        const format = new ol.format.GeoJSON();
-        const geojsonStr = format.writeFeatures(features, {
-            featureProjection: "EPSG:3857",
-            dataProjection: "EPSG:4326",
-        });
+        const url = `/api/mapa/export-shp?layer=${encodeURIComponent(layerName)}&tenant_id=${config.tenantId}`;
 
-        // 2. Cria um formulário fantasma para acionar a API Pública do OGRE (OGR2OGR)
-        const form = document.createElement("form");
-        form.method = "POST";
-        form.action = "https://ogre.adc4gis.com/convertJson";
-
-        // Target _blank faz o download iniciar em segundo plano sem tirar o usuário do SIGWEB
-        form.target = "_blank";
-
-        const inputJson = document.createElement("input");
-        inputJson.type = "hidden";
-        inputJson.name = "json";
-        inputJson.value = geojsonStr;
-
-        const inputName = document.createElement("input");
-        inputName.type = "hidden";
-        inputName.name = "outputName";
-        inputName.value = "SIGWEB_Exportacao_" + layerName.toUpperCase();
-
-        form.appendChild(inputJson);
-        form.appendChild(inputName);
-        document.body.appendChild(form);
-
-        // 3. Dispara o POST. O Servidor converte e devolve o .ZIP automaticamente!
-        form.submit();
-
-        // 4. Limpa a sujeira do HTML após 1 segundo
-        setTimeout(() => document.body.removeChild(form), 1000);
+        fetch(url, { credentials: "same-origin" })
+            .then(async (resp) => {
+                if (!resp.ok) {
+                    const txt = await resp.text();
+                    throw new Error(`HTTP ${resp.status}: ${txt.substring(0, 200)}`);
+                }
+                return resp.blob();
+            })
+            .then((blob) => {
+                const dlUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = dlUrl;
+                a.download = `${layerName}-${new Date().toISOString().slice(0, 10)}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(dlUrl);
+                document.body.removeChild(a);
+            })
+            .catch((err) => {
+                console.error("Erro ao exportar SHP:", err);
+                alert(`❌ Falha na exportação SHP.\n${err.message}\n\nVerifique se o GDAL (ogr2ogr) está instalado no servidor.`);
+            })
+            .finally(() => {
+                if (overlay) overlay.style.display = "none";
+                if (statusText) statusText.textContent = "Processando Mapa...";
+            });
     });
 
     // =========================================================================

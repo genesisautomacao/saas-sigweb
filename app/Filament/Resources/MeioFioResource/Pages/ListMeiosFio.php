@@ -1,16 +1,16 @@
 <?php
 
-namespace App\Filament\Resources\PerimetroUrbanoResource\Pages;
+namespace App\Filament\Resources\MeioFioResource\Pages;
 
-use App\Filament\Resources\PerimetroUrbanoResource;
-use App\Services\Exports\PerimetroUrbanoExportService;
+use App\Filament\Resources\MeioFioResource;
+use App\Services\Exports\MeioFioExportService;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Pages\ListRecords;
 
-class ListPerimetrosUrbanos extends ListRecords
+class ListMeiosFio extends ListRecords
 {
-    protected static string $resource = PerimetroUrbanoResource::class;
+    protected static string $resource = MeioFioResource::class;
 
     protected function getHeaderActions(): array
     {
@@ -19,31 +19,31 @@ class ListPerimetrosUrbanos extends ListRecords
                 Actions\Action::make('export_excel')
                     ->label('Exportar Excel')
                     ->icon('heroicon-o-table-cells')
-                    ->action(fn (PerimetroUrbanoExportService $service, $livewire) => $service->exportToExcel($livewire->getFilteredTableQuery()->get())),
+                    ->action(fn (MeioFioExportService $service, $livewire) => $service->exportToExcel($livewire->getFilteredTableQuery()->with('logradouro')->get())),
                 Actions\Action::make('export_pdf')
                     ->label('Exportar PDF')
                     ->icon('heroicon-o-document-text')
-                    ->action(fn (PerimetroUrbanoExportService $service, $livewire) => $service->exportToPdf($livewire->getFilteredTableQuery()->get())),
+                    ->action(fn (MeioFioExportService $service, $livewire) => $service->exportToPdf($livewire->getFilteredTableQuery()->with('logradouro')->get())),
             ])
                 ->label('Exportar')
                 ->icon('heroicon-m-arrow-down-tray')
                 ->button()
                 ->color('gray'),
 
-            Actions\Action::make('novo_distrito')
-                ->label('Novo Distrito / Limite')
+            Actions\Action::make('novo_meio_fio')
+                ->label('Novo Meio-fio / Calçada')
                 ->icon('heroicon-o-plus')
                 ->color('primary')
                 ->modalHeading('Forma de Cadastro Geográfico')
-                ->modalDescription('Como deseja registrar a delimitação deste Distrito / Limite?')
+                ->modalDescription('Como deseja registrar este trecho?')
                 ->modalSubmitActionLabel('Continuar')
                 ->modalWidth('md')
                 ->form([
                     Forms\Components\Radio::make('metodo')
                         ->hiddenLabel()
                         ->options([
-                            'mapa'    => '🗺️ Desenhar o Polígono no Mapa Interativo',
-                            'geojson' => '💻 Preencher Manualmente / Importar GeoJSON',
+                            'mapa'    => '🗺️ Desenhar a linha no Mapa Interativo',
+                            'geojson' => '💻 Preencher manualmente / Importar GeoJSON',
                         ])
                         ->default('mapa')
                         ->required(),
@@ -51,9 +51,9 @@ class ListPerimetrosUrbanos extends ListRecords
                 ->action(function (array $data) {
                     if ($data['metodo'] === 'mapa') {
                         $tenant = \Filament\Facades\Filament::getTenant();
-                        return redirect()->to(url('/app/' . $tenant->slug . '/mapa-interativo?layer=perimetros&action=create'));
+                        return redirect()->to(url('/app/' . $tenant->slug . '/mapa-interativo?layer=meio_fios&action=create'));
                     }
-                    return redirect()->to(PerimetroUrbanoResource::getUrl('create'));
+                    return redirect()->to(MeioFioResource::getUrl('create'));
                 }),
         ];
     }

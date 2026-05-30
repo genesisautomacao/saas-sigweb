@@ -380,6 +380,24 @@ Após confronto com `check_final.pdf`, status final:
 
 ---
 
+## TR Tangará/SC — Sistema de Permissões e Itens de Cadastro por Perfil
+
+> **Item TR Tangará Intranet #88 — "Configuração da utilização/visualização de Itens de Cadastro em determinado Perfil"**
+>
+> Este item tem duas leituras possíveis. Sob a **leitura ampla** (entidades cadastrais + camadas + funcionalidades), o sistema **já atende** através do stack de permissões existente, sem necessidade de novo código:
+>
+> 1. **Acesso por entidade (CRUD por perfil):** todo Resource Filament tem Policy auto-descoberta em `app/Policies/{Model}Policy.php` que controla `viewAny`, `view`, `create`, `update`, `delete` baseado nas permissões Spatie atribuídas ao papel. Exemplo: `LotePolicy::create()` checa `$user->can('create_lote')`. Master e Manager têm bypass total via `Gate::before` em [AppServiceProvider.php](app/Providers/AppServiceProvider.php).
+>
+> 2. **Acesso por camada do mapa:** permissões com prefixo `ver_camada_*` (ex: `ver_camada_lotes`, `ver_camada_perimetros`, `ver_camada_zonas`, `ver_camada_arvores`, etc.) controlam a visibilidade de cada camada GIS. Configuração centralizada na CAIXA 20 da [RoleResource.php](app/Filament/Resources/RoleResource.php), aplicada pelo mecanismo `data-permission-group="layer:X"` no painel de camadas do `mapa-fullscreen.blade.php`.
+>
+> 3. **Acesso por funcionalidade do mapa:** permissões com prefixo `toolbar_*` (`toolbar_criar_artefatos`, `toolbar_ferramentas`, `toolbar_filtros`) controlam botões da barra superior. Configuração via CAIXA 19 da `RoleResource`.
+>
+> 4. **Acesso por página administrativa:** permissões individuais (`view_auditoria`, `view_monitoramento_campo`, `view_produtividade`, `view_mensagens`) controlam acesso a Pages Filament via `canAccess()`.
+>
+> Ou seja: na leitura ampla, **#88 está atendido**. Sob a leitura estrita (controlar campos EAV criados dinamicamente pelo gestor — item #75), depende de refactor arquitetural fora do escopo PoC.
+
+---
+
 ## Item #1 (TR Antônio Carlos) — Integração BDG/CTM-Geo: AGUARDANDO DEFINIÇÃO
 
 A PoC exige "acesso direto aos dados do BDG/CTM-Geo da Prefeitura via internet". O caminho concreto depende do que a Prefeitura disponibilizar. Três cenários cobertos pelo sistema atual:

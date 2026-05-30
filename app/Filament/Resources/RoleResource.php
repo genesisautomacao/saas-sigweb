@@ -269,6 +269,16 @@ class RoleResource extends Resource
                                         'edit_bairros' => 'Editar Bairros',
                                         'delete_bairros' => 'Excluir Bairros',
 
+                                        'view_perimetros_urbanos' => 'Vis. Distritos',
+                                        'create_perimetros_urbanos' => 'Criar Distritos',
+                                        'edit_perimetros_urbanos' => 'Editar Distritos',
+                                        'delete_perimetros_urbanos' => 'Excluir Distritos',
+
+                                        'view_meio_fios' => 'Vis. Meio-fio',
+                                        'create_meio_fios' => 'Criar Meio-fio',
+                                        'edit_meio_fios' => 'Editar Meio-fio',
+                                        'delete_meio_fios' => 'Excluir Meio-fio',
+
                                         'view_loteamentos' => 'Vis. Loteamentos',
                                         'create_loteamentos' => 'Criar Loteam.',
                                         'edit_loteamentos' => 'Editar Loteam.',
@@ -453,6 +463,7 @@ class RoleResource extends Resource
                                         'ver_camada_setores_fiscais'       => 'Setores Fiscais',
                                         'ver_camada_bairros'               => 'Bairros',
                                         'ver_camada_loteamentos'           => 'Loteamentos',
+                                        'ver_camada_meio_fios'             => 'Meio-fio / Calçada',
                                         'ver_camada_quadras'               => 'Quadras',
                                         'ver_camada_lotes'                 => 'Lotes',
                                         'ver_camada_logradouros'           => 'Logradouros / Ruas',
