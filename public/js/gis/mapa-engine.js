@@ -5366,7 +5366,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     window.addEventListener("iniciar-desenho-filtro", (e) => {
         const dados = e.detail[0] || e.detail.dados || e.detail;
-        console.log("✏️ Modo de Desenho Ativo! Alvo:", dados.draw_target_layer);
+        console.log("✏️ Modo de Desenho Ativo! Alvo:", dados.draw_target_layer, "| Shape:", dados.draw_shape);
 
         // Limpa desenhos e consultas anteriores
         drawFiltroSource.clear();
@@ -5374,6 +5374,53 @@ document.addEventListener("DOMContentLoaded", function () {
         // Se já tinha uma caneta ligada, desliga para não bugar
         if (drawFiltroInteraction) {
             map.removeInteraction(drawFiltroInteraction);
+        }
+
+        // 🟢 NOVO RAMO: Buffer Circular — clique único + raio em metros
+        if (dados.draw_shape === "BufferCircular") {
+            const raio = Number.parseFloat(dados.raio_metros) || 100;
+            const steps = raio > 5000 ? 128 : 64;
+
+            const targetEl = map.getTargetElement();
+            if (targetEl) targetEl.style.cursor = "crosshair";
+
+            const clickHandler = (evt) => {
+                map.un("singleclick", clickHandler);
+                if (targetEl) targetEl.style.cursor = "";
+
+                // Converte o ponto clicado de EPSG:3857 -> EPSG:4326 (lon, lat)
+                const [lon, lat] = ol.proj.toLonLat(evt.coordinate);
+
+                try {
+                    const pointGeoJson = turf.point([lon, lat]);
+                    const bufferGeoJson = turf.buffer(pointGeoJson, raio, {
+                        units: "meters",
+                        steps,
+                    });
+
+                    // Desenha o círculo na camada de preview (será limpo após a consulta)
+                    const formatoGeoJSON = new ol.format.GeoJSON();
+                    const featurePreview = formatoGeoJSON.readFeature(
+                        bufferGeoJson,
+                        {
+                            dataProjection: "EPSG:4326",
+                            featureProjection: "EPSG:3857",
+                        },
+                    );
+                    drawFiltroSource.addFeature(featurePreview);
+
+                    const drawnGeometry = JSON.stringify(bufferGeoJson.geometry);
+                    executarConsultaDesenho(drawnGeometry, dados);
+                } catch (err) {
+                    console.error("❌ Erro ao gerar buffer circular:", err);
+                    alert(
+                        "Falha ao gerar o buffer circular. Verifique o raio informado.",
+                    );
+                }
+            };
+
+            map.on("singleclick", clickHandler);
+            return;
         }
 
         // 2. Configura o formato da caneta (Polígono Livre ou Caixa)
@@ -5409,22 +5456,40 @@ document.addEventListener("DOMContentLoaded", function () {
                 },
             );
 
-            // 4. Monta a URL e dispara o Fetch para a nossa nova Rota 3 na API
-            let queryParams = new URLSearchParams({
+            executarConsultaDesenho(drawnGeometry, dados);
+        });
+
+        // ============================================================
+        // Função compartilhada Polígono / Retângulo / Buffer Circular
+        // ============================================================
+        function executarConsultaDesenho(drawnGeometry, dados) {
+            // 4. Monta o body e dispara o Fetch via POST (geometry pode ter >8KB → 414 em GET)
+            const bodyParams = new URLSearchParams({
                 tenant_id: config.tenantId,
                 tipo_filtro: "desenho",
                 draw_target_layer: dados.draw_target_layer,
-                drawn_geometry: drawnGeometry, // A String do GeoJSON
+                drawn_geometry: drawnGeometry, // A String do GeoJSON (vai no body)
                 draw_spatial_operator: dados.draw_within
                     ? "ST_Within"
                     : "ST_Intersects",
             });
 
-            const url = `/api/mapa/advanced-query?${queryParams.toString()}`;
-            console.log("🌐 Buscando cruzamento do desenho na URL:", url);
+            const url = "/api/mapa/advanced-query";
+            console.log("🌐 POST cruzamento de desenho:", url);
 
-            // Fetch idêntico ao que estabilizamos no passo anterior
-            fetch(url)
+            const csrfToken = document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute("content");
+
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-Requested-With": "XMLHttpRequest",
+                    ...(csrfToken ? { "X-CSRF-TOKEN": csrfToken } : {}),
+                },
+                body: bodyParams.toString(),
+            })
                 .then(async (response) => {
                     const contentType = response.headers.get("content-type");
                     if (!response.ok) {
@@ -5524,7 +5589,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         "Falha ao analisar a área desenhada. Veja o console.",
                     );
                 });
-        });
+        }
     });
 
     /* =========================================================

@@ -49,7 +49,9 @@
       "Bash(php -l app/Services/Exports/ProdutividadeExportService.php)",
       "Bash(findstr /S /I \"simplesoftwareio bacon/bacon-qr chillerlan endroid\" composer.json composer.lock)",
       "Bash(where ogr2ogr *)",
-      "Bash(ogr2ogr --version)"
+      "Bash(ogr2ogr --version)",
+      "Bash(node --check \"c:\\\\laragon\\\\www\\\\saas-sigweb\\\\public\\\\js\\\\gis\\\\mapa-engine.js\")",
+      "Bash(grep -c '$request->query\\(' 'c:\\\\laragon\\\\www\\\\saas-sigweb\\\\app\\\\Http\\\\Controllers\\\\Api\\\\MapDataController.php')"
     ]
   }
 }

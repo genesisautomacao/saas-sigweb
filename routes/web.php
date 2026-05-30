@@ -16,7 +16,9 @@ Route::get('/api/gis-data', [MapDataController::class, 'getMapData'])->name('api
 Route::get('/api/search-lote', [MapDataController::class, 'searchLote']);
 
 // Adicione isto junto das suas outras rotas de mapa:
-Route::get('/api/mapa/advanced-query', [MapDataController::class, 'advancedSpatialQuery']);
+// Aceita GET (consultas por atributo / espacial / intervalo — payload pequeno)
+// e POST (consultas por desenho com GeoJSON longo — evita 414 URI Too Long)
+Route::match(['get', 'post'], '/api/mapa/advanced-query', [MapDataController::class, 'advancedSpatialQuery']);
 Route::get('/api/mapa/estatisticas', [MapDataController::class, 'getEstatisticas']);
 
 // Exportação de camada em Shapefile (.zip) — TR Tangará Intranet #30

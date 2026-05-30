@@ -321,6 +321,8 @@ O JSON pode ser array raiz `[{...}]` ou `{"imoveis": [{...}]}`. Cada item precis
 
 **Salvar enquadramento** chama `@this.call('salvarEnquadramento', lat, lon, zoom)` no Livewire, que grava em `tenant.data['map_lat/lon/zoom']` — o mesmo campo lido pelo mobile no login. Visível apenas para roles Master/Manager.
 
+**Buffer Circular no Filtro Avançado (TR Tangará Intranet #23)** — o `filtroAvancadoAction` (`MapaFullscreen.php`) no bloco "Desenho" expõe 3 formatos: `Polygon` (traço livre), `Box` (retângulo) e `BufferCircular`. No modo Buffer, o usuário informa um raio em metros (1–50.000) e, ao iniciar a consulta, o engine entra em modo "clique único" — o ponto clicado vira centro de um círculo gerado via `turf.buffer(turf.point([lon,lat]), raio, {units:'meters', steps:64})` (`steps:128` para raios >5km) e o GeoJSON resultante é enviado para `MapDataController::advancedSpatialQuery` exatamente como qualquer outro `drawn_geometry`. O toggle "TOTALMENTE dentro" continua válido (`ST_Within` vs. `ST_Intersects`).
+
 ---
 
 ## PoC Antônio Carlos/MG — Checklist de Implementação

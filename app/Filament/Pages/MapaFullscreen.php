@@ -2138,9 +2138,22 @@ class MapaFullscreen extends Page
                         ->options([
                             'Polygon' => 'Traçado Livre (Polígono)',
                             'Box' => 'Caixa (Retângulo)',
+                            'BufferCircular' => 'Buffer Circular (clique + raio)',
                         ])
                         ->default('Polygon')
+                        ->live()
                         ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
+
+                    Forms\Components\TextInput::make('raio_metros')
+                        ->label('Raio do Buffer (em metros)')
+                        ->helperText('Após clicar em "Iniciar Consulta", clique no mapa para definir o centro do buffer.')
+                        ->numeric()
+                        ->minValue(1)
+                        ->maxValue(50000)
+                        ->default(100)
+                        ->suffix('m')
+                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'desenho' && $get('draw_shape') === 'BufferCircular')
+                        ->visible(fn(Forms\Get $get) => $get('draw_shape') === 'BufferCircular'),
 
                     // 🎨 NOVO CAMPO: Definição de cor para Tematização (Fica fora dos grupos para aparecer em todos)
                     Forms\Components\ColorPicker::make('cor_tematizacao')
@@ -2216,9 +2229,15 @@ class MapaFullscreen extends Page
                     // Manda uma ordem especial para o JS ligar a ferramenta de desenho
                     $this->dispatch('iniciar-desenho-filtro', dados: $data);
 
+                    $bodyMsg = match ($data['draw_shape'] ?? 'Polygon') {
+                        'BufferCircular' => 'Clique no mapa para marcar o centro do buffer. O círculo de raio definido será desenhado e os artefatos consultados automaticamente.',
+                        'Box' => 'Clique e arraste no mapa para desenhar o retângulo de pesquisa.',
+                        default => 'Clique no mapa para desenhar a área de pesquisa. Dê dois cliques para finalizar o polígono.',
+                    };
+
                     \Filament\Notifications\Notification::make()
                         ->title('Modo de Desenho Ativo')
-                        ->body('Clique no mapa para desenhar a área de pesquisa. Dê dois cliques para finalizar o polígono.')
+                        ->body($bodyMsg)
                         ->info()
                         ->send();
                 } else {

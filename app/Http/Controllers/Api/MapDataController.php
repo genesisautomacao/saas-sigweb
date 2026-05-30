@@ -27,8 +27,8 @@ class MapDataController extends Controller
 {
     public function getMapData(Request $request)
     {
-        $tenantId = $request->query('tenant_id');
-        $layer = $request->query('layer');
+        $tenantId = $request->input('tenant_id');
+        $layer = $request->input('layer');
 
         if (!$tenantId || !$layer) {
             return response()->json(['error' => 'Parâmetros inválidos'], 400);
@@ -321,8 +321,8 @@ class MapDataController extends Controller
 
     public function searchLote(Request $request)
     {
-        $tenantId = $request->query('tenant_id');
-        $termo = (string) $request->query('termo');
+        $tenantId = $request->input('tenant_id');
+        $termo = (string) $request->input('termo');
         // Modo público: o frontend do cidadão envia ?publico=1 — não retornar nome nem CPF do proprietário,
         // e também não permitir busca por esses campos sensíveis.
         $publico = $request->boolean('publico');
@@ -589,8 +589,8 @@ class MapDataController extends Controller
 
     public function advancedSpatialQuery(Request $request)
     {
-        $tenantId = $request->query('tenant_id');
-        $tipoFiltro = $request->query('tipo_filtro', 'atributo'); // Identifica qual aba do form foi usada
+        $tenantId = $request->input('tenant_id');
+        $tipoFiltro = $request->input('tipo_filtro', 'atributo'); // Identifica qual aba do form foi usada
 
         if (!$tenantId) {
             return response()->json(['error' => 'Parâmetros incompletos (Tenant ID não fornecido)'], 400);
@@ -626,14 +626,14 @@ class MapDataController extends Controller
             // ROTA 1: CRUZAMENTO ESPACIAL (Entre Camadas)
             // ========================================================================
             if ($tipoFiltro === 'espacial') {
-                $targetLayer = $request->query('spatial_target_layer');
-                $operator    = $request->query('spatial_operator');
-                $refLayer    = $request->query('spatial_reference_layer');
-                $refIds      = $request->query('spatial_reference_ids'); // 👈 AGORA BUSCAMOS O ARRAY
+                $targetLayer = $request->input('spatial_target_layer');
+                $operator    = $request->input('spatial_operator');
+                $refLayer    = $request->input('spatial_reference_layer');
+                $refIds      = $request->input('spatial_reference_ids'); // 👈 AGORA BUSCAMOS O ARRAY
 
                 // 🛡️ Fallback de segurança caso o JS ainda mande o id solto (para manter a compatibilidade)
-                if (empty($refIds) && $request->query('spatial_reference_id')) {
-                    $refIds = [$request->query('spatial_reference_id')];
+                if (empty($refIds) && $request->input('spatial_reference_id')) {
+                    $refIds = [$request->input('spatial_reference_id')];
                 }
 
                 if (!$targetLayer || !$operator || !$refLayer || empty($refIds)) {
@@ -674,11 +674,11 @@ class MapDataController extends Controller
             // 🟢 ROTA 3: CRUZAMENTO POR DESENHO (Polígono / Retângulo)
             // ========================================================================
             elseif ($tipoFiltro === 'desenho') {
-                $targetLayer = $request->query('draw_target_layer'); // O que buscar (ex: lotes)
-                $drawnGeometry = $request->query('drawn_geometry');  // O GeoJSON do desenho do usuário
+                $targetLayer = $request->input('draw_target_layer'); // O que buscar (ex: lotes)
+                $drawnGeometry = $request->input('drawn_geometry');  // O GeoJSON do desenho do usuário
 
                 // 👈 Puxa o operador que o JS vai nos mandar agora
-                $drawOperator = $request->query('draw_spatial_operator', 'ST_Intersects');
+                $drawOperator = $request->input('draw_spatial_operator', 'ST_Intersects');
 
                 if (!$targetLayer || !$drawnGeometry) {
                     return response()->json(['error' => 'Parâmetros incompletos. Geometria de desenho ausente.'], 400);
@@ -717,10 +717,10 @@ class MapDataController extends Controller
             // ROTA 2: FILTRO POR ATRIBUTO (O Tradicional)
             // ========================================================================
             elseif ($tipoFiltro === 'atributo') {
-                $layer = $request->query('layer');
-                $field = $request->query('field');
-                $operator = $request->query('operator');
-                $value = $request->query('value');
+                $layer = $request->input('layer');
+                $field = $request->input('field');
+                $operator = $request->input('operator');
+                $value = $request->input('value');
 
                 if (!$layer || !$field || !$operator || $value === null) {
                     return response()->json(['error' => 'Parâmetros incompletos para a query de atributos'], 400);
@@ -753,8 +753,8 @@ class MapDataController extends Controller
                 // 📊 ROTA 4: TEMATIZAÇÃO POR INTERVALO DE CLASSES
                 // ========================================================================
             } elseif ($tipoFiltro === 'intervalo') {
-                $layer = $request->query('layer'); // 'lotes'
-                $attr = $request->query('interval_attribute'); // 'area_geo'
+                $layer = $request->input('layer'); // 'lotes'
+                $attr = $request->input('interval_attribute'); // 'area_geo'
 
                 if (!$layer || !$attr) {
                     return response()->json(['error' => 'Parâmetros incompletos para o Intervalo'], 400);
@@ -843,11 +843,11 @@ class MapDataController extends Controller
     public function getEstatisticas(Request $request)
     {
         try {
-            $tenantId   = $request->query('tenant_id');
-            $areaType   = $request->query('area_type');   // bairros | setores_fiscais | perimetros_urbanos
-            $areaId     = $request->query('area_id');     // id da área (ou 'all')
-            $targetLayer= $request->query('target_layer'); // lotes | edificacoes | logradouros
-            $groupField = $request->query('group_field'); // campo para agrupar
+            $tenantId   = $request->input('tenant_id');
+            $areaType   = $request->input('area_type');   // bairros | setores_fiscais | perimetros_urbanos
+            $areaId     = $request->input('area_id');     // id da área (ou 'all')
+            $targetLayer= $request->input('target_layer'); // lotes | edificacoes | logradouros
+            $groupField = $request->input('group_field'); // campo para agrupar
  
             // ----------------------------------------------------------------
             // 1. Mapa de configuração por camada
