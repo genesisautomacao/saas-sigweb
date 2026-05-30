@@ -103,7 +103,7 @@ trait HasQuadraActions
         return Action::make('opcoesQuadra')
             ->hiddenLabel()
             ->modalHeading(fn() => 'Editar Quadra: ' . Quadra::find($this->quadraAtivaId)?->name)
-            ->modalWidth('xl')
+            ->modalWidth('3xl')
             ->modalSubmitActionLabel('Salvar Alterações')
             ->fillForm(function (): array {
                 $reg = Quadra::find($this->quadraAtivaId);
@@ -155,6 +155,16 @@ trait HasQuadraActions
                         $this->dispatch('iniciar-edicao-geometria-quadra', id: $this->quadraAtivaId);
                         $this->dispatch('fechar-modal-filament');
                     }),
+                Action::make('imprimir_planta_quadra')
+                    ->label('Planta da Quadra')
+                    ->color('success')
+                    ->icon('heroicon-o-document-text')
+                    ->action(function () {
+                        // Fecha a modal e dispara a captura do mapa via JS.
+                        // O JS encerra chamando $this->imprimirPlantaQuadra($id, $base64).
+                        $this->dispatch('capturar-mapa-planta-quadra', id: $this->quadraAtivaId);
+                        $this->dispatch('fechar-modal-filament');
+                    }),
                 Action::make('excluir_quadra')
                     ->label('Excluir')
                     ->color('danger')
@@ -167,5 +177,21 @@ trait HasQuadraActions
                         $this->dispatch('fechar-modal-filament');
                     }),
             ]);
+    }
+
+    /**
+     * Recebe o base64 do canvas capturado e gera o PDF da Planta da Quadra.
+     * (TR Tangará Intranet #16)
+     */
+    public function imprimirPlantaQuadra($quadraId, $mapImageBase64)
+    {
+        $quadra = Quadra::query()->find($quadraId);
+        if (!$quadra) {
+            Notification::make()->title('Erro')->body('Quadra não encontrada.')->danger()->send();
+            return;
+        }
+
+        $service = app(\App\Services\Gis\PlantaQuadraPdfService::class);
+        return $service->generatePdf($quadraId, $mapImageBase64);
     }
 }

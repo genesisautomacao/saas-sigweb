@@ -1564,4 +1564,108 @@ document.addEventListener("DOMContentLoaded", function () {
         const b = parseInt(h.substring(4, 6), 16);
         return `rgba(${r},${g},${b},${alpha})`;
     }
+
+    // =========================================================================
+    // MOTOR DE IMPRESSÃO PÚBLICO — A4/A3 (TR Tangará Internet #16 e #17)
+    // Replica fielmente a lógica do mapa-engine.js, restrita aos formatos
+    // exigidos para o ambiente cidadão.
+    // =========================================================================
+    const dimensoesPapelCidadao = {
+        a3: [420, 297],
+        a4: [297, 210],
+    };
+
+    window.addEventListener("gerar-pdf-mapa", (e) => {
+        const data = e.detail[0] || e.detail;
+        const format = (data.size || "a4").toLowerCase();
+        const orientation = data.orientation || "portrait";
+
+        if (!dimensoesPapelCidadao[format]) {
+            alert("Formato não suportado no mapa público.");
+            return;
+        }
+
+        const overlay = document.getElementById("print-loading-overlay");
+        if (overlay) overlay.style.display = "flex";
+
+        const dim = dimensoesPapelCidadao[format];
+        const widthMm = orientation === "landscape" ? dim[0] : dim[1];
+        const heightMm = orientation === "landscape" ? dim[1] : dim[0];
+
+        const dpi = 150;
+        const widthPx = Math.round((widthMm * dpi) / 25.4);
+        const heightPx = Math.round((heightMm * dpi) / 25.4);
+
+        const originalSize = map.getSize();
+        const originalResolution = view.getResolution();
+
+        map.setSize([widthPx, heightPx]);
+        const scaling = Math.min(widthPx / originalSize[0], heightPx / originalSize[1]);
+        view.setResolution(originalResolution / scaling);
+
+        map.once("rendercomplete", function () {
+            const mapCanvas = document.createElement("canvas");
+            mapCanvas.width = widthPx;
+            mapCanvas.height = heightPx;
+            const mapContext = mapCanvas.getContext("2d");
+
+            mapContext.fillStyle = "white";
+            mapContext.fillRect(0, 0, widthPx, heightPx);
+
+            document.querySelectorAll(".ol-layer canvas").forEach((canvas) => {
+                if (canvas.width > 0) {
+                    const opacity = canvas.parentNode.style.opacity || 1;
+                    mapContext.globalAlpha = Number(opacity);
+
+                    const transform = canvas.style.transform;
+                    if (transform) {
+                        const matrix = transform
+                            .match(/^matrix\(([^]*)\)$/)[1]
+                            .split(",")
+                            .map(Number);
+                        CanvasRenderingContext2D.prototype.setTransform.apply(mapContext, matrix);
+                    }
+                    mapContext.drawImage(canvas, 0, 0);
+                }
+            });
+
+            mapContext.globalAlpha = 1;
+            mapContext.setTransform(1, 0, 0, 1, 0, 0);
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    orientation: orientation,
+                    unit: "mm",
+                    format: format,
+                });
+
+                pdf.addImage(
+                    mapCanvas.toDataURL("image/jpeg", 0.85),
+                    "JPEG",
+                    0, 0,
+                    widthMm, heightMm,
+                );
+
+                pdf.setFontSize(10);
+                pdf.setTextColor(50, 50, 50);
+                pdf.text(
+                    `Mapa Público — Gerado em ${new Date().toLocaleDateString("pt-BR")}`,
+                    10,
+                    heightMm - 6,
+                );
+
+                pdf.save(`Mapa_Publico_${format.toUpperCase()}_${orientation}.pdf`);
+            } catch (err) {
+                console.error("Erro na compilação do PDF público:", err);
+                alert("❌ Falha ao gerar o PDF. Tente um formato menor.");
+            } finally {
+                map.setSize(originalSize);
+                view.setResolution(originalResolution);
+                if (overlay) overlay.style.display = "none";
+            }
+        });
+
+        map.renderSync();
+    });
 }); // <-- Fim do DOMContentLoaded

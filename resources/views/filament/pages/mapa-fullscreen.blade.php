@@ -1894,6 +1894,84 @@
             window.capturarMapaParcelamento(data.lote_id, data.qtd_lotes);
         });
 
+        // Ouvinte para Planta de Quadra (TR Tangará Intranet #16)
+        window.addEventListener('capturar-mapa-planta-quadra', (e) => {
+            const data = e.detail[0] || e.detail;
+            window.capturarMapaPlantaQuadra(data.id);
+        });
+
+        /* PLANTA DE QUADRA — captura mapa centrado na quadra com a quadra destacada */
+        window.capturarMapaPlantaQuadra = function(quadraId) {
+            // Destaca a quadra no mapa
+            let featureToHighlight = null;
+            if (window.loadedLayers && window.loadedLayers['quadras']) {
+                const source = window.loadedLayers['quadras'].getSource();
+                featureToHighlight = source.getFeatures().find(f => f.get('id') == quadraId);
+                if (featureToHighlight) {
+                    featureToHighlight.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#1d4ed8', width: 4 }),
+                        fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.15)' })
+                    }));
+
+                    // Zoom para enquadrar a quadra
+                    try {
+                        const extent = featureToHighlight.getGeometry().getExtent();
+                        if (window.map && extent) {
+                            window.map.getView().fit(extent, { padding: [80, 80, 80, 80], duration: 600, maxZoom: 19 });
+                        }
+                    } catch (e) { /* segue mesmo se o fit falhar */ }
+                }
+            }
+
+            setTimeout(() => {
+                try {
+                    const mapCanvas = document.createElement('canvas');
+                    const canvases = document.querySelectorAll('.ol-layer canvas');
+
+                    if (canvases.length > 0) {
+                        const mapaElement = document.getElementById('sigweb-map');
+                        mapCanvas.width = mapaElement.clientWidth;
+                        mapCanvas.height = mapaElement.clientHeight;
+                        const mapContext = mapCanvas.getContext('2d');
+
+                        mapContext.fillStyle = '#ffffff';
+                        mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
+
+                        Array.prototype.forEach.call(canvases, function(canvas) {
+                            if (canvas.width > 0) {
+                                const opacity = canvas.parentNode.style.opacity;
+                                mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+                                mapContext.setTransform(1, 0, 0, 1, 0, 0);
+                                const transform = canvas.style.transform;
+                                if (transform) {
+                                    const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
+                                    if (matrix) {
+                                        const m = matrix[1].split(',').map(Number);
+                                        mapContext.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+                                    }
+                                }
+                                mapContext.drawImage(canvas, 0, 0);
+                            }
+                        });
+
+                        mapContext.globalAlpha = 1;
+                        mapContext.setTransform(1, 0, 0, 1, 0, 0);
+
+                        const dataURL = mapCanvas.toDataURL('image/jpeg', 0.85);
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id'))
+                            .imprimirPlantaQuadra(quadraId, dataURL);
+                    }
+                } catch (error) {
+                    console.error("Erro na captura do mapa para Planta de Quadra:", error);
+                    alert("Não foi possível capturar a imagem do mapa.");
+                } finally {
+                    if (featureToHighlight) {
+                        featureToHighlight.setStyle(undefined);
+                    }
+                }
+            }, 1200); // delay maior para garantir que o fit/zoom completou
+        };
+
         /* IMPRESSÃO ÚNICA COM DESTAQUE */
         window.capturarMapaEImprimirBic = function(unidadeId, loteId) {
             // 🛑 MÁGICA 1: Encontrar a feature do lote via loadedLayers (como na Viabilidade)

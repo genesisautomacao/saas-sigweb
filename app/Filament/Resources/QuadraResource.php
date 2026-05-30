@@ -100,6 +100,15 @@ class QuadraResource extends Resource
                         return null;
                     })
                     ->visible(fn($record) => $record->geo_json !== null),
+
+                // Planta de Quadra (TR Tangará #16) — versão sem croqui
+                Tables\Actions\Action::make('imprimirPlantaQuadra')
+                    ->label('Planta')
+                    ->icon('heroicon-o-document-text')
+                    ->color('success')
+                    ->tooltip('Imprime a Planta da Quadra (sem croqui — para incluir o croqui, use a opção "Planta" no mapa interativo)')
+                    ->action(fn ($record) => app(\App\Services\Gis\PlantaQuadraPdfService::class)->generatePdf($record->id, null)),
+
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([

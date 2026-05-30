@@ -4,6 +4,17 @@
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
         <link rel="stylesheet" href="{{ asset('css/gis/mapa-sigweb.css') }}">
 
+        {{-- Lib para geração de PDF (TR Tangará Internet #16/#17 — A4 e A3) --}}
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+        {{-- OVERLAY DE CARREGAMENTO PARA IMPRESSÃO --}}
+        <div id="print-loading-overlay"
+            style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; color: white;">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white mb-4"></div>
+            <h2 id="print-status-text" class="text-xl font-bold">Gerando PDF do mapa...</h2>
+            <p class="text-sm opacity-80">Isso pode levar alguns segundos.</p>
+        </div>
+
         <script>
             window.mapConfig = {
                 tenantId: {{ $tenantId }},
@@ -129,6 +140,44 @@
                     class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors focus:outline-none flex items-center gap-1">
                     <x-heroicon-o-view-columns class="w-5 h-5" />
                 </button>
+
+                <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
+                {{-- DROPDOWN DE IMPRESSÃO PDF (TR Tangará Internet #16 e #17 — A4 e A3) --}}
+                <div class="relative" x-data="{ open: false }" @click.away="open = false">
+                    <button @click="open = !open" type="button" title="Imprimir mapa em PDF"
+                        class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors flex items-center gap-1 text-sm">
+                        <x-heroicon-o-printer class="w-5 h-5" />
+                        <span class="hidden md:inline font-bold">PDF</span>
+                        <x-heroicon-o-chevron-down class="w-3 h-3 transition-transform"
+                            x-bind:class="open ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="open"
+                        style="display: none; background-color: white; border: 1px solid #e5e7eb;"
+                        x-transition
+                        class="absolute right-0 mt-2 w-64 dark:bg-gray-800 rounded-xl shadow-2xl z-[1001] overflow-hidden">
+                        <div class="p-2">
+                            <div class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                Formato de Impressão
+                            </div>
+                            @foreach (['A4', 'A3'] as $formato)
+                                <div class="flex items-center gap-1 px-2 mb-1">
+                                    <button
+                                        @click="$dispatch('gerar-pdf-mapa', { size: '{{ $formato }}', orientation: 'portrait' }); open = false"
+                                        style="text-align: left; background: none; border: none; padding: 6px 12px; font-size: 12px; color: #374151; flex: 1; cursor: pointer;"
+                                        class="hover:bg-blue-50 rounded-lg">
+                                        {{ $formato }} — Retrato
+                                    </button>
+                                    <button
+                                        @click="$dispatch('gerar-pdf-mapa', { size: '{{ $formato }}', orientation: 'landscape' }); open = false"
+                                        style="background-color: #eff6ff; color: #1d4ed8; font-size: 10px; font-weight: bold; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer;">
+                                        PAISAGEM
+                                    </button>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
 
                 <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
 
