@@ -263,6 +263,12 @@
                                     </button>
 
                                     <div x-show="activeTabDraw === 'urbano'" x-collapse class="py-1">
+                                        <button type="button" onclick="enableDrawing('perimetro_urbano')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-globe-americas class="w-4 h-4 text-red-500" />
+                                            Distrito / Limite (Polígono)
+                                        </button>
                                         <button @click="open = false; enableDrawing('zona')"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-globe-americas class="w-4 h-4 text-purple-500" />
@@ -903,7 +909,7 @@
                                 <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                     <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
                                     </div>
-                                    <span class="layer-text truncate">Perímetros/Limites</span>
+                                    <span class="layer-text truncate">Distritos / Limites</span>
                                 </span>
                             </label>
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">

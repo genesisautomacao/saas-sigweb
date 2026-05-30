@@ -36,9 +36,9 @@ class ZonaResource extends Resource
                     ->required()
                     ->maxLength(50),
 
-                // ADICIONADO: Perímetro Urbano
+                // Distrito a que pertence
                 Forms\Components\Select::make('perimetro_id')
-                    ->label('Perímetro Urbano')
+                    ->label('Distrito')
                     ->options(fn() => \App\Models\PerimetroUrbano::pluck('name', 'id'))
                     ->searchable()
                     ->preload()

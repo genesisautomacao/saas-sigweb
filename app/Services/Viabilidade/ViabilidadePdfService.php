@@ -2,70 +2,125 @@
 
 namespace App\Services\Viabilidade;
 
+use App\Models\ViabilidadeEmissao;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Str;
 use Filament\Facades\Filament;
+use Illuminate\Support\Str;
 
 class ViabilidadePdfService
 {
     /**
-     * Gera o PDF de Viabilidade.
-     * @param array $dadosAnalise (Retorno do ViabilidadeService)
-     * @param string|null $mapImageBase64 (String da imagem do mapa capturada via JS)
+     * Registra a emissão no banco e retorna [protocolo, urlValidacao, hash].
+     * Snapshot é gravado para permitir validação pública posterior (#21/#14 TR Tangará).
+     */
+    protected function registrarEmissao(string $tipoPrefixo, string $tipo, array $dadosAnalise): array
+    {
+        $tenantId = $this->resolverTenantId($dadosAnalise);
+
+        $protocolo = ViabilidadeEmissao::gerarProtocolo($tipoPrefixo);
+        $hash = hash('sha256', $protocolo . '|' . ($tenantId ?? 0) . '|' . json_encode($dadosAnalise) . '|' . config('app.key'));
+
+        ViabilidadeEmissao::create([
+            'tenant_id'              => $tenantId,
+            'protocolo'              => $protocolo,
+            'hash_seguranca'         => $hash,
+            'tipo'                   => $tipo,
+            'status'                 => $dadosAnalise['status'] ?? $dadosAnalise['resultado'] ?? null,
+            'numero_lote'            => $dadosAnalise['numero_lote'] ?? null,
+            'inscricao_imobiliaria'  => $dadosAnalise['inscricao_imobiliaria'] ?? null,
+            'lote_id'                => $dadosAnalise['lote_id'] ?? null,
+            'unidade_imobiliaria_id' => $dadosAnalise['unidade_imobiliaria_id'] ?? null,
+            'dados_snapshot'         => $dadosAnalise,
+            'emitido_por'            => auth()->id(),
+        ]);
+
+        return [
+            'protocolo'    => $protocolo,
+            'urlValidacao' => url("/v/{$protocolo}"),
+            'hash'         => $hash,
+        ];
+    }
+
+    /**
+     * Descobre o tenant_id em cascata:
+     *  1. Tenant ativo no Filament (modo logado / intranet)
+     *  2. tenant_id do Lote referenciado em $dadosAnalise (modo público / cidadão anônimo)
+     *  3. tenant_id da Unidade Imobiliária referenciada
+     */
+    protected function resolverTenantId(array $dadosAnalise): ?int
+    {
+        $tenant = Filament::getTenant();
+        if ($tenant?->id) {
+            return $tenant->id;
+        }
+
+        if (!empty($dadosAnalise['lote_id'])) {
+            $tenantId = \Illuminate\Support\Facades\DB::table('lotes')
+                ->where('id', $dadosAnalise['lote_id'])
+                ->value('tenant_id');
+            if ($tenantId) {
+                return (int) $tenantId;
+            }
+        }
+
+        if (!empty($dadosAnalise['unidade_imobiliaria_id'])) {
+            $tenantId = \Illuminate\Support\Facades\DB::table('unidade_imobiliarias')
+                ->where('id', $dadosAnalise['unidade_imobiliaria_id'])
+                ->value('tenant_id');
+            if ($tenantId) {
+                return (int) $tenantId;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Gera o PDF de Viabilidade (funcionamento/uso).
      */
     public function generatePdf(array $dadosAnalise, ?string $mapImageBase64 = null)
     {
-        // 🛑 MÁGICA: Pegando o Tenant ativo do jeito certo no Filament
         $tenant = Filament::getTenant();
-
         $dataHora = now()->format('d/m/Y H:i:s');
-        $protocolo = 'VIA-' . date('Ymd') . '-' . Str::upper(Str::random(4));
 
-        // Remove as barras do número do lote (Ex: "S/N" vira "S-N") para o Windows não dar erro
-        $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote']);
+        $emissao = $this->registrarEmissao('VIA', 'viabilidade', $dadosAnalise);
+        $protocolo = $emissao['protocolo'];
+        $urlValidacao = $emissao['urlValidacao'];
+
+        $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote'] ?? 'S-N');
         $fileName = 'viabilidade-' . $numeroLoteSeguro . '.pdf';
 
-        // Prepara a imagem do mapa (se vier do JS)
-        $mapImage = null;
-        if ($mapImageBase64) {
-            $mapImage = $mapImageBase64;
-        }
+        $mapImage = $mapImageBase64;
 
-        // 🛑 MÁGICA: Caminho da view atualizado para resources/views/pdf/
         $pdf = Pdf::loadView(
             'pdf.viabilidade-template',
-            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImage')
+            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImage', 'urlValidacao')
         );
-
-        // Configuração A4 Retrato
         $pdf->setPaper('a4', 'portrait');
 
-        // Retorna o objeto stream para o Livewire fazer o download
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
         }, $fileName);
     }
 
-    /**
-     * Gera o PDF exclusivo para Parcelamento do Solo.
-     */
     public function generateParcelamentoPdf(array $dadosAnalise, ?string $mapImageBase64 = null)
     {
         $tenant = Filament::getTenant();
         $dataHora = now()->format('d/m/Y H:i:s');
-        $protocolo = 'PARC-' . date('Ymd') . '-' . Str::upper(Str::random(4));
 
-        $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote']);
+        $emissao = $this->registrarEmissao('PARC', 'parcelamento', $dadosAnalise);
+        $protocolo = $emissao['protocolo'];
+        $urlValidacao = $emissao['urlValidacao'];
+
+        $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote'] ?? 'S-N');
         $fileName = 'parcelamento-' . $numeroLoteSeguro . '.pdf';
 
         $mapImage = $mapImageBase64;
 
-        // Aponta para o novo template Blade do Passo 3
         $pdf = Pdf::loadView(
             'pdf.viabilidade-parcelamento',
-            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImage')
+            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImage', 'urlValidacao')
         );
-
         $pdf->setPaper('A4', 'portrait');
 
         return response()->streamDownload(function () use ($pdf) {
@@ -73,21 +128,22 @@ class ViabilidadePdfService
         }, $fileName);
     }
 
-   public function generateUnificacaoPdf(array $dadosAnalise, ?string $mapImageBase64 = null)
+    public function generateUnificacaoPdf(array $dadosAnalise, ?string $mapImageBase64 = null)
     {
         $tenant = Filament::getTenant();
         $dataHora = now()->format('d/m/Y H:i:s');
-        $protocolo = 'UNIF-' . date('Ymd') . '-' . Str::upper(Str::random(4));
+
+        $emissao = $this->registrarEmissao('UNIF', 'unificacao', $dadosAnalise);
+        $protocolo = $emissao['protocolo'];
+        $urlValidacao = $emissao['urlValidacao'];
 
         $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote'] ?? 'S-N');
         $fileName = 'unificacao-' . $numeroLoteSeguro . '.pdf';
 
-        // 🛑 AQUI ESTÁ O PULO DO GATO: Direcionando para a nova View
         $pdf = Pdf::loadView(
-            'pdf.viabilidade-unificacao', // Nome exato do arquivo que criaremos abaixo
-            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImageBase64')
+            'pdf.viabilidade-unificacao',
+            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImageBase64', 'urlValidacao')
         );
-
         $pdf->setPaper('A4', 'portrait');
 
         return response()->streamDownload(function () use ($pdf) {

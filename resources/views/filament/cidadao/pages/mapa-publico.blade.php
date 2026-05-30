@@ -43,7 +43,7 @@
                     <x-heroicon-o-magnifying-glass class="w-5 h-5 text-gray-400 mr-2" />
                     <input type="text" x-model="termo" @input.debounce.500ms="buscar(); posicionarDropdown()"
                         @keydown.enter="buscar()" x-ref="inputField"
-                        placeholder="Buscar lote, Cód Tributário ou Logradouro..."
+                        placeholder="Buscar lote, edifício, logradouro, quadra, bairro, setor, distrito..."
                         class="w-full bg-transparent border-none focus:ring-0 text-sm text-gray-700 dark:text-gray-200 outline-none">
                     <div x-show="loading" style="display: none;" class="absolute right-3">
                         <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
@@ -58,6 +58,8 @@
                                     class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer transition-colors flex items-start gap-3">
                                     <template x-if="res.tipo === 'lote'"><x-heroicon-o-map-pin
                                             class="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" /></template>
+                                    <template x-if="res.tipo === 'edificio'"><x-heroicon-o-building-office-2
+                                            class="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" /></template>
                                     <template x-if="res.tipo === 'logradouro'"><x-heroicon-o-minus
                                             class="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" /></template>
                                     <template x-if="res.tipo === 'bairro'"><x-heroicon-o-map
@@ -174,13 +176,13 @@
                     <div x-show="activeTab === 'base'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
 
-                        {{-- Perimetro --}}
+                        {{-- Distritos --}}
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
                                 data-layer="perimetros"
                                 class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0"><span
                                 class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
-                                <span class="layer-text truncate">Perímetros/Limites</span>
+                                <span class="layer-text truncate">Distritos / Limites</span>
                             </span></label>
 
                         {{-- Setores --}}
@@ -727,7 +729,7 @@
                     }
                     this.loading = true;
                     this.posicionarDropdown();
-                    fetch(`/api/search-lote?tenant_id=${window.mapConfig.tenantId}&termo=${this.termo}`)
+                    fetch(`/api/search-lote?tenant_id=${window.mapConfig.tenantId}&termo=${encodeURIComponent(this.termo)}&publico=1`)
                         .then(res => res.json()).then(data => {
                             this.resultados = data;
                         })

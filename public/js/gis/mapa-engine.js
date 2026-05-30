@@ -2505,7 +2505,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 "zonas", // Polígonos Grandes
                 "bairros",
                 "loteamentos",
-                "rural-localidades", // Polígonos Gigantes (Menor prioridade)
+                "rural-localidades",
+                "perimetros", // Distritos / Limites — polígonos gigantes (menor prioridade)
             ];
 
             let clickedFeature = null;
@@ -2590,6 +2591,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         break; // 👈 ADICIONE ESTA LINHA
                     case "bairros":
                         Livewire.dispatch("abrirOpcoesBairro", { id: id });
+                        break;
+                    case "perimetros":
+                        Livewire.dispatch("abrirOpcoesPerimetroUrbano", { id: id });
                         break;
                     case "loteamentos":
                         Livewire.dispatch("abrirOpcoesLoteamento", { id: id });
@@ -2974,6 +2978,50 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
+    // ── CIRURGIA EM MEMÓRIA: DISTRITOS / LIMITES (PerimetroUrbano) ────
+    window.addEventListener("adicionar-perimetro-urbano-mapa", (e) => {
+        const data = e.detail[0] || e.detail;
+        if (drawSource) drawSource.clear();
+        const checkbox = document.querySelector('input[data-layer="perimetros"]');
+        if (checkbox && checkbox.checked && window.loadedLayers["perimetros"]) {
+            const feature = new ol.Feature({
+                geometry: new ol.format.GeoJSON().readGeometry(data.geo, {
+                    dataProjection: "EPSG:4326",
+                    featureProjection: "EPSG:3857",
+                }),
+                id: data.id,
+                name: data.name,
+                layer: "perimetros",
+            });
+            window.loadedLayers["perimetros"].getSource().addFeature(feature);
+        }
+    });
+
+    window.addEventListener("atualizar-label-perimetro-urbano", (e) => {
+        const data = e.detail[0] || e.detail;
+        if (window.loadedLayers["perimetros"]) {
+            const feature = window.loadedLayers["perimetros"]
+                .getSource()
+                .getFeatures()
+                .find((f) => f.get("id") == data.id);
+            if (feature) {
+                feature.set("name", data.name);
+                feature.changed();
+            }
+        }
+    });
+
+    window.addEventListener("remover-perimetro-urbano-mapa", (e) => {
+        const data = e.detail[0] || e.detail;
+        if (window.loadedLayers["perimetros"]) {
+            const source = window.loadedLayers["perimetros"].getSource();
+            const feature = source
+                .getFeatures()
+                .find((f) => f.get("id") == data.id);
+            if (feature) source.removeFeature(feature);
+        }
+    });
+
     // ── CIRURGIA EM MEMÓRIA: LOGRADOUROS ──────────────────────────────
     window.addEventListener("adicionar-logradouro-mapa", (e) => {
         const data = e.detail[0] || e.detail;
@@ -3193,6 +3241,11 @@ document.addEventListener("DOMContentLoaded", function () {
             cor: "#3b82f6",
         },
         {
+            evento: "iniciar-edicao-geometria-perimetro_urbano",
+            layer: "perimetros",
+            cor: "#ef4444",
+        },
+        {
             evento: "iniciar-edicao-geometria-loteamento",
             layer: "loteamentos",
             cor: "#2563eb",
@@ -3317,6 +3370,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     lotes: "lote",
                     quadras: "quadra",
                     bairros: "bairro",
+                    perimetros: "perimetro_urbano",
                     loteamentos: "loteamento",
                     edificacao_ativa: "edificacao",
                     logradouros: "logradouro",
@@ -3381,6 +3435,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             else if (layerName === "bairros")
                 Livewire.dispatch("salvarNovaGeometriaBairro", {
+                    id: id,
+                    geoJson: geoJson,
+                });
+            else if (layerName === "perimetros")
+                Livewire.dispatch("salvarNovaGeometriaPerimetroUrbano", {
                     id: id,
                     geoJson: geoJson,
                 });
@@ -4156,6 +4215,7 @@ document.addEventListener("DOMContentLoaded", function () {
             },
             zonas: { label: "da nova Zona de Uso", func: "zona" },
             bairros: { label: "do novo Bairro", func: "bairro" },
+            perimetros: { label: "do novo Distrito / Limite", func: "perimetro_urbano" },
             loteamentos: { label: "do novo Loteamento", func: "loteamento" },
             quadras: { label: "da nova Quadra", func: "quadra" },
 
@@ -4247,6 +4307,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (typeof window.enableDrawing === "function") {
                     window.enableDrawing(funcEnt);
                 }
+
+                // 🧲 Race condition fix: a camada foi ligada agora mesmo e o fetch é async.
+                // Re-aplica o ímã após a camada terminar de carregar features.
+                [800, 1800, 3000].forEach((delay) => {
+                    setTimeout(() => {
+                        if (typeof window.enableUniversalSnap === "function") {
+                            window.enableUniversalSnap();
+                        }
+                    }, delay);
+                });
             }, 800);
         }
     }

@@ -339,7 +339,7 @@ class TenantResource extends Resource
                             Forms\Components\Select::make('camada')
                                 ->label('Qual camada você está enviando?')
                                 ->options([
-                                    'PerimetroUrbano' => '1. Perímetros Urbanos',
+                                    'PerimetroUrbano' => '1. Distritos / Limites',
                                     'Zona' => '2. Zoneamento',
                                     'Bairro' => '3. Bairros',
                                     'Loteamento' => '4. Loteamentos',

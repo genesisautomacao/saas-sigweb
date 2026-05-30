@@ -46,7 +46,8 @@
       "Bash(php -l database/seeders/PermissionsSeeder.php)",
       "Bash(php -l app/Filament/Resources/ProdutividadeResource.php)",
       "Bash(php -l app/Filament/Resources/ProdutividadeResource/Pages/ListProdutividade.php)",
-      "Bash(php -l app/Services/Exports/ProdutividadeExportService.php)"
+      "Bash(php -l app/Services/Exports/ProdutividadeExportService.php)",
+      "Bash(findstr /S /I \"simplesoftwareio bacon/bacon-qr chillerlan endroid\" composer.json composer.lock)"
     ]
   }
 }

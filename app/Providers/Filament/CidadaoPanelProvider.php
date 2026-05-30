@@ -2,14 +2,16 @@
 
 namespace App\Providers\Filament;
 
-use Filament\Http\Middleware\Authenticate;
+use App\Http\Middleware\AuthenticateCidadaoComMapaPublico;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -63,7 +65,37 @@ class CidadaoPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->authMiddleware([
-                Authenticate::class,
-            ]);
+                AuthenticateCidadaoComMapaPublico::class,
+            ])
+
+            // Botão "Acessar mapa sem cadastro" abaixo do formulário de login/cadastro
+            ->renderHook(
+                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+                fn (): string => Blade::render(<<<'BLADE'
+                    <div class="fi-section-content p-4 mt-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-center">
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                            Quer apenas consultar o mapa?
+                        </p>
+                        <a href="/mapa-publico"
+                           class="inline-flex items-center justify-center gap-2 font-semibold text-primary-600 hover:text-primary-700 text-sm">
+                            Acessar mapa sem cadastro →
+                        </a>
+                    </div>
+                BLADE)
+            )
+            ->renderHook(
+                PanelsRenderHook::AUTH_REGISTER_FORM_AFTER,
+                fn (): string => Blade::render(<<<'BLADE'
+                    <div class="fi-section-content p-4 mt-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-center">
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                            Quer apenas consultar o mapa?
+                        </p>
+                        <a href="/mapa-publico"
+                           class="inline-flex items-center justify-center gap-2 font-semibold text-primary-600 hover:text-primary-700 text-sm">
+                            Acessar mapa sem cadastro →
+                        </a>
+                    </div>
+                BLADE)
+            );
     }
 }

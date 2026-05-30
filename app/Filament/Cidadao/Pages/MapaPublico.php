@@ -50,7 +50,24 @@ class MapaPublico extends Page
         if (!$tenant) {
             /** @var \App\Models\User|null $user */
             $user = Filament::auth()->user();
-            if ($user) $tenant = $user->tenants()->first();
+            if ($user) {
+                $tenant = $user->tenants()->first();
+            }
+        }
+
+        // Modo anônimo: tenta resolver tenant por query string (?t=slug).
+        if (!$tenant) {
+            $slug = request()->query('t');
+            if ($slug) {
+                $tenant = \App\Models\Tenant::where('slug', $slug)->first();
+            }
+        }
+
+        // Sem tenant identificado em modo anônimo → manda escolher a prefeitura primeiro.
+        // (Multi-tenant: não pode chutar a primeira cidade — o cidadão escolhe a dele.)
+        if (!$tenant && ! Filament::auth()->check()) {
+            redirect('/mapa-publico')->send();
+            exit;
         }
 
         if ($tenant) {
@@ -68,6 +85,14 @@ class MapaPublico extends Page
         } else {
             \Filament\Notifications\Notification::make()->title('Sem cidade vinculada')->body('Seu usuário não está atrelado a nenhuma prefeitura.')->danger()->send();
         }
+    }
+
+    /**
+     * Modo anônimo (sem login) — limita ações sensíveis no painel.
+     */
+    public function isAnonimo(): bool
+    {
+        return ! Filament::auth()->check();
     }
 
     // ---- LÓGICA DO FILTRO AVANÇADO ----
@@ -103,9 +128,16 @@ class MapaPublico extends Page
                             'logradouros'        => 'Logradouros',
                             'quadras'            => 'Quadras',
                             'bairros'            => 'Bairros',
+                            'loteamentos'        => 'Loteamentos',
+                            'zonas'              => 'Zonas Urbanas',
+                            'perimetros_urbanos' => 'Distritos / Limites',
+                            'arvores'            => 'Árvores (Arborização)',
+                            'postes'             => 'Postes / Iluminação',
+                            'cemiterios'         => 'Cemitérios',
                             'rural_propriedades' => 'Propriedades Rurais (CAR)',
                             'rural_estradas'     => 'Estradas Rurais',
                             'rural_pontes'       => 'Pontes Rurais',
+                            'rural_localidades'  => 'Localidades Rurais',
                         ])
                         ->live()
                         ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
@@ -114,7 +146,13 @@ class MapaPublico extends Page
                         ->label('Atributo (Campo de Busca)')
                         ->options(fn(Forms\Get $get): array => match ($get('layer')) {
                             'lotes'              => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)', 'numero_lote' => 'Número do Lote'],
-                            'edificacoes'        => ['area_geo' => 'Área Construída (m²)', 'tipo' => 'Tipo de Uso'],
+                            'edificacoes'        => ['area_geo' => 'Área Construída (m²)', 'tipo' => 'Finalidade / Uso', 'tp_construcao' => 'Material', 'estado_conservacao' => 'Conservação', 'pavimento' => 'Pavimentos'],
+                            'arvores'            => ['botanical_species' => 'Espécie Botânica', 'size' => 'Porte', 'phytosanitary_condition' => 'Condição Fitossanitária', 'general_state' => 'Estado Geral', 'trunk_diameter_dap' => 'DAP (cm)', 'total_height' => 'Altura Total (m)'],
+                            'postes'             => ['structural_condition' => 'Condição Estrutural', 'luminaire_type' => 'Tipo de Luminária', 'lamp_power' => 'Potência', 'height' => 'Altura (m)'],
+                            'cemiterios'         => ['name' => 'Nome', 'area_geo' => 'Área (m²)'],
+                            'zonas'              => ['name' => 'Nome', 'sigla' => 'Sigla'],
+                            'perimetros_urbanos' => ['name' => 'Nome', 'distrito' => 'Distrito'],
+                            'loteamentos'        => ['name' => 'Nome'],
                             'rural_propriedades' => ['area_geo' => 'Área em m²', 'codigo_car' => 'Código CAR'],
                             'rural_estradas'     => ['extensao_geo' => 'Extensão (m)', 'tipo_pavimento' => 'Pavimento', 'condicao_trafego' => 'Condição'],
                             'rural_pontes'       => ['capacidade_carga_toneladas' => 'Capacidade (Ton)', 'material_construcao' => 'Material'],
@@ -175,12 +213,13 @@ class MapaPublico extends Page
                     Forms\Components\Select::make('spatial_reference_layer')
                         ->label('Qual a área de referência?')
                         ->options([
-                            'quadras'          => 'Quadras',
-                            'bairros'          => 'Bairros',
-                            'loteamentos'      => 'Loteamentos',
-                            'zonas'            => 'Zonas Urbanas',
-                            'rural_localidades' => 'Localidades Rurais / Distritos',
-                            'cemiterios'       => 'Cemitérios',
+                            'quadras'           => 'Quadras',
+                            'bairros'           => 'Bairros',
+                            'loteamentos'       => 'Loteamentos',
+                            'zonas'             => 'Zonas Urbanas',
+                            'perimetros_urbanos' => 'Distritos / Limites',
+                            'rural_localidades' => 'Localidades Rurais',
+                            'cemiterios'        => 'Cemitérios',
                         ])
                         ->live()
                         ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
@@ -195,6 +234,7 @@ class MapaPublico extends Page
                                 'bairros'           => \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'loteamentos'       => \App\Models\Loteamento::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'zonas'             => \App\Models\Zona::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'perimetros_urbanos' => \App\Models\PerimetroUrbano::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'rural_localidades' => \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'cemiterios'        => \App\Models\Cemiterio::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 default             => [],
@@ -253,15 +293,34 @@ class MapaPublico extends Page
                 Forms\Components\Group::make([
                     Forms\Components\Select::make('interval_layer')
                         ->label('Camada para Análise')
-                        ->options(['lotes' => 'Lotes Urbanos', 'edificacoes' => 'Edificações'])
+                        ->options([
+                            'lotes'              => 'Lotes Urbanos',
+                            'edificacoes'        => 'Edificações',
+                            'arvores'            => 'Árvores',
+                            'postes'             => 'Postes',
+                            'cemiterios'         => 'Cemitérios',
+                            'quadras'            => 'Quadras',
+                            'bairros'            => 'Bairros',
+                            'rural_propriedades' => 'Propriedades Rurais',
+                            'rural_estradas'     => 'Estradas Rurais',
+                            'rural_pontes'       => 'Pontes Rurais',
+                        ])
+                        ->live()
                         ->default('lotes'),
 
                     Forms\Components\Select::make('interval_attribute')
                         ->label('Atributo Numérico (Escala)')
-                        ->options([
-                            'area_geo'           => 'Área em m²',
-                            'main_facade_length' => 'Testada (m)',
-                        ])
+                        ->options(fn(Forms\Get $get): array => match ($get('interval_layer')) {
+                            'arvores'            => ['trunk_diameter_dap' => 'DAP (cm)', 'total_height' => 'Altura Total (m)', 'canopy_diameter' => 'Diâmetro da Copa (m)'],
+                            'postes'             => ['height' => 'Altura (m)', 'lamp_quantity' => 'Qtde de Lâmpadas'],
+                            'cemiterios'         => ['area_geo' => 'Área em m²'],
+                            'quadras'            => ['area_geo' => 'Área em m²'],
+                            'bairros'            => ['area_geo' => 'Área em m²'],
+                            'rural_propriedades' => ['area_geo' => 'Área em m²'],
+                            'rural_estradas'     => ['extensao_geo' => 'Extensão (m)'],
+                            'rural_pontes'       => ['capacidade_carga_toneladas' => 'Capacidade (Ton)'],
+                            default              => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)'],
+                        })
                         ->default('area_geo'),
 
                     Forms\Components\Select::make('num_classes')

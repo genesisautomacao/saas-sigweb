@@ -22,6 +22,23 @@ Route::get('/api/mapa/estatisticas', [MapDataController::class, 'getEstatisticas
 // Rota exclusiva para o Mapa do Portal do Cidadão
 Route::get('/cidadao/lotes-geojson', [\App\Http\Controllers\CidadaoMapController::class, 'getLotes'])->middleware('web');
 
+// Seletor público de prefeitura — usado quando o cidadão acessa o mapa anonimamente
+// e precisa escolher de qual município quer ver os dados.
+Route::get('/mapa-publico', function () {
+    $tenants = \App\Models\Tenant::orderBy('name')->get(['id', 'slug', 'name']);
+    return view('mapa-publico-selecionar-cidade', ['tenants' => $tenants]);
+})->name('mapa.publico.selecionar');
+
+// Atalho legado: redireciona para o seletor (ou direto para o mapa se vier com slug)
+Route::get('/mapa-anonimo/{tenantSlug?}', function (?string $tenantSlug = null) {
+    return $tenantSlug
+        ? redirect('/cidadao/mapa-publico?t=' . urlencode($tenantSlug))
+        : redirect('/mapa-publico');
+})->name('mapa.anonimo');
+
+// Validação pública de PDFs de Viabilidade/Parcelamento/Unificação (TR Tangará #21 / #14)
+Route::get('/v/{protocolo}', [\App\Http\Controllers\ValidarViabilidadeController::class, 'show'])->name('viabilidade.validar');
+
 // Permissões de camadas e toolbar do mapa (sessão web — sem token Sanctum)
 Route::get('/gis/{tenantSlug}/map-permissions', function (\Illuminate\Http\Request $request, string $tenantSlug) {
     if (! auth()->check()) {

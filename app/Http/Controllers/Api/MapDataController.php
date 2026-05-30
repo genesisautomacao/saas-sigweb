@@ -314,6 +314,9 @@ class MapDataController extends Controller
     {
         $tenantId = $request->query('tenant_id');
         $termo = (string) $request->query('termo');
+        // Modo público: o frontend do cidadão envia ?publico=1 — não retornar nome nem CPF do proprietário,
+        // e também não permitir busca por esses campos sensíveis.
+        $publico = $request->boolean('publico');
 
         if (!$tenantId || strlen($termo) < 1) {
             return response()->json([]);
@@ -332,18 +335,21 @@ class MapDataController extends Controller
                 ->where('lotes.tenant_id', $tenantId)
                 ->whereNotNull('lotes.geo')
                 ->whereNull('lotes.deleted_at')
-                ->where(function ($q) use ($termo) {
+                ->where(function ($q) use ($termo, $publico) {
                     $q->where('lotes.numero_lote', $termo)
                         ->orWhere('unidade_imobiliarias.inscricao_imobiliaria', $termo)
                         ->orWhere('unidade_imobiliarias.codigo_imovel_tributario', $termo)
                         ->orWhere('unidade_imobiliarias.logradouro_nome', 'ilike', "%{$termo}%")
                         ->orWhereRaw("CONCAT(unidade_imobiliarias.logradouro_nome, ', ', unidade_imobiliarias.numero_imovel) ILIKE ?", ["%{$termo}%"])
                         ->orWhereRaw("CONCAT(unidade_imobiliarias.logradouro_nome, ' ', unidade_imobiliarias.numero_imovel) ILIKE ?", ["%{$termo}%"])
-                        // Busca por proprietário no JSON
-                        ->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'proprietario_name' ILIKE ?", ["%{$termo}%"])
-                        ->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'proprietario_cpf' ILIKE ?", ["%{$termo}%"])
-                        // 🟢 EXIGÊNCIA EDITAL: Busca por Nome do Edifício / Condomínio dentro do JSON
+                        // Busca por Nome do Edifício / Condomínio (não-sensível, permanece no modo público)
                         ->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'nome_edificio' ILIKE ?", ["%{$termo}%"]);
+
+                    // Campos sensíveis: só no modo logado (intranet)
+                    if (! $publico) {
+                        $q->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'proprietario_name' ILIKE ?", ["%{$termo}%"])
+                          ->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'proprietario_cpf' ILIKE ?", ["%{$termo}%"]);
+                    }
                 })
                 ->selectRaw("
                     lotes.id, 
@@ -372,9 +378,9 @@ class MapDataController extends Controller
                 $coords = $centroide->coordinates ?? null;
                 if (!$coords) continue;
 
-                // Montagem Inteligente do Subtítulo
+                // Montagem Inteligente do Subtítulo (oculta proprietário no modo público)
                 $subtitulo = "Cód Tributário: $cod";
-                if ($l->proprietario_nome) {
+                if (! $publico && $l->proprietario_nome) {
                     $subtitulo .= " | Prop: " . $l->proprietario_nome . " (doc: " . $l->proprietario_cpf . ")";
                 }
 
@@ -541,7 +547,7 @@ class MapDataController extends Controller
                     'id'       => $distrito->id,
                     'tipo'     => 'distrito',
                     'titulo'   => $distrito->name,
-                    'subtitulo'=> 'Distrito / Perímetro Urbano',
+                    'subtitulo'=> 'Distrito / Limites',
                     'coords'   => $coords
                 ];
             }
@@ -577,7 +583,8 @@ class MapDataController extends Controller
             'arvores',
             'cemiterios',
             'zonas',
-            'rural_localidades'
+            'rural_localidades',
+            'perimetros_urbanos',
         ];
 
         try {

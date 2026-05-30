@@ -33,7 +33,7 @@ trait HasZonaActions
                     ->maxLength(50),
 
                 Select::make('perimetro_id')
-                    ->label('Perímetro Urbano')
+                    ->label('Distrito')
                     ->options(fn() => \App\Models\PerimetroUrbano::pluck('name', 'id'))
                     ->searchable()
                     ->preload()
@@ -112,7 +112,7 @@ trait HasZonaActions
                 TextInput::make('name')->label('Nome da Zona')->required()->maxLength(255),
                 TextInput::make('sigla')->label('Sigla')->required()->maxLength(50),
                 Select::make('perimetro_id')
-                    ->label('Perímetro Urbano')
+                    ->label('Distrito')
                     ->options(fn() => \App\Models\PerimetroUrbano::pluck('name', 'id'))
                     ->searchable()
                     ->preload()

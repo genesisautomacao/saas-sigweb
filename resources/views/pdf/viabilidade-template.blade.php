@@ -318,6 +318,14 @@
         
     </div>
 
+    {{-- BLOCO DE AUTENTICAÇÃO (TR Tangará #21 / #14) --}}
+    <div style="margin-top: 24px; padding: 12px; border: 1.5px dashed #1f2937; border-radius: 6px; font-size: 10px; line-height: 1.5; background: #f9fafb;">
+        <div style="font-weight: bold; font-size: 11px; margin-bottom: 4px;">Autenticação do Documento</div>
+        <div><strong>Código:</strong> {{ $protocolo }}</div>
+        <div><strong>Validar em:</strong> {{ $urlValidacao ?? url('/v/'.$protocolo) }}</div>
+        <div style="color: #6b7280; margin-top: 4px;">Este documento foi emitido eletronicamente. Para conferir sua autenticidade, acesse o endereço acima ou informe o código no portal da Prefeitura.</div>
+    </div>
+
     {{-- FOOTER --}}
     <div class="footer">
         Gerado via Sistema SIGWEB | Data: {{ $dataHora }} | Operador: {{ auth()->user()->name ?? 'Sistema' }}

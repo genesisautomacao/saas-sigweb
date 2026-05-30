@@ -449,7 +449,7 @@ class RoleResource extends Resource
                                     ->label('Camadas visíveis no mapa interativo')
                                     ->helperText('Deixe vazio = sem restrição (todos veem). Marque para liberar acesso por camada.')
                                     ->options([
-                                        'ver_camada_perimetros'            => 'Perímetros / Limites',
+                                        'ver_camada_perimetros'            => 'Distritos / Limites',
                                         'ver_camada_setores_fiscais'       => 'Setores Fiscais',
                                         'ver_camada_bairros'               => 'Bairros',
                                         'ver_camada_loteamentos'           => 'Loteamentos',

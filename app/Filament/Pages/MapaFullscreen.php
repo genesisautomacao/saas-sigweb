@@ -27,6 +27,7 @@ use App\Filament\Pages\Traits\HasLoteamentoActions;
 use App\Filament\Pages\Traits\HasQuadraActions;
 use App\Filament\Pages\Traits\HasZonaActions;
 use App\Filament\Pages\Traits\HasPontoPanoramicoActions;
+use App\Filament\Pages\Traits\HasPerimetroUrbanoActions;
 
 use App\Models\Lote;
 use App\Models\Edificacao;
@@ -70,6 +71,7 @@ class MapaFullscreen extends Page
     use HasQuadraActions;
     use HasZonaActions;
     use HasPontoPanoramicoActions;
+    use HasPerimetroUrbanoActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';
@@ -488,6 +490,10 @@ class MapaFullscreen extends Page
 
             // Simples e direto: desenhou, abriu a modal de criar!
             $this->mountAction('criarBairro');
+        } elseif ($entityType === 'perimetro_urbano') {
+
+            // Distrito / Limite — polígono livre, sem cruzamento topológico obrigatório
+            $this->mountAction('criarPerimetroUrbano');
         } elseif ($entityType === 'loteamento') {
 
             $this->mountAction('criarLoteamento');
@@ -1706,6 +1712,25 @@ class MapaFullscreen extends Page
         }
     }
 
+    // --- MÓDULO DISTRITOS / LIMITES (PerimetroUrbano) ---
+    #[On('abrirOpcoesPerimetroUrbano')]
+    public function abrirOpcoesPerimetroUrbano($id)
+    {
+        $this->perimetroUrbanoAtivoId = $id;
+        $this->mountAction('opcoesPerimetroUrbano');
+    }
+
+    #[On('salvarNovaGeometriaPerimetroUrbano')]
+    public function salvarNovaGeometriaPerimetroUrbano($id, $geoJson)
+    {
+        $reg = \App\Models\PerimetroUrbano::query()->find($id);
+        if ($reg) {
+            $reg->update(['geo' => $geoJson]);
+
+            \Filament\Notifications\Notification::make()->title('Limites do Distrito atualizados!')->success()->send();
+        }
+    }
+
     // --- MÓDULO LOTEAMENTOS ---
     #[On('abrirOpcoesLoteamento')]
     public function abrirOpcoesLoteamento($id)
@@ -1881,14 +1906,21 @@ class MapaFullscreen extends Page
                     Forms\Components\Select::make('layer')
                         ->label('Camada / Entidade')
                         ->options([
-                            'lotes' => 'Lotes Urbanos',
-                            'edificacoes' => 'Edificações',
-                            'logradouros' => 'Logradouros',
-                            'quadras' => 'Quadras',
-                            'bairros' => 'Bairros',
+                            'lotes'              => 'Lotes Urbanos',
+                            'edificacoes'        => 'Edificações',
+                            'logradouros'        => 'Logradouros',
+                            'quadras'            => 'Quadras',
+                            'bairros'            => 'Bairros',
+                            'loteamentos'        => 'Loteamentos',
+                            'zonas'              => 'Zonas Urbanas',
+                            'perimetros_urbanos' => 'Distritos / Limites',
+                            'arvores'            => 'Árvores (Arborização)',
+                            'postes'             => 'Postes / Iluminação',
+                            'cemiterios'         => 'Cemitérios',
                             'rural_propriedades' => 'Propriedades Rurais (CAR)',
-                            'rural_estradas' => 'Estradas Rurais',
-                            'rural_pontes' => 'Pontes Rurais',
+                            'rural_estradas'     => 'Estradas Rurais',
+                            'rural_pontes'       => 'Pontes Rurais',
+                            'rural_localidades'  => 'Localidades Rurais',
                         ])
                         ->live()
                         ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
@@ -1896,12 +1928,18 @@ class MapaFullscreen extends Page
                     Forms\Components\Select::make('field')
                         ->label('Atributo (Campo de Busca)')
                         ->options(fn(Forms\Get $get): array => match ($get('layer')) {
-                            'lotes' => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)', 'numero_lote' => 'Número do Lote'],
-                            'edificacoes' => ['area_geo' => 'Área Construída (m²)', 'tipo' => 'Tipo de Uso'],
+                            'lotes'              => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)', 'numero_lote' => 'Número do Lote', 'status_cadastro' => 'Status de Coleta'],
+                            'edificacoes'        => ['area_geo' => 'Área Construída (m²)', 'tipo' => 'Finalidade / Uso', 'tp_construcao' => 'Material', 'estado_conservacao' => 'Conservação', 'pavimento' => 'Pavimentos'],
+                            'arvores'            => ['botanical_species' => 'Espécie Botânica', 'size' => 'Porte', 'phytosanitary_condition' => 'Condição Fitossanitária', 'general_state' => 'Estado Geral', 'trunk_diameter_dap' => 'DAP (cm)', 'total_height' => 'Altura Total (m)', 'risk_potential' => 'Potencial de Risco'],
+                            'postes'             => ['structural_condition' => 'Condição Estrutural', 'luminaire_type' => 'Tipo de Luminária', 'lamp_power' => 'Potência da Lâmpada', 'height' => 'Altura (m)'],
+                            'cemiterios'         => ['name' => 'Nome', 'area_geo' => 'Área (m²)'],
+                            'zonas'              => ['name' => 'Nome', 'sigla' => 'Sigla'],
+                            'perimetros_urbanos' => ['name' => 'Nome', 'distrito' => 'Distrito'],
+                            'loteamentos'        => ['name' => 'Nome'],
                             'rural_propriedades' => ['area_geo' => 'Área em m² (area_geo)', 'codigo_car' => 'Código CAR'],
-                            'rural_estradas' => ['extensao_geo' => 'Extensão (m)', 'tipo_pavimento' => 'Tipo de Pavimento', 'condicao_trafego' => 'Condição'],
-                            'rural_pontes' => ['capacidade_carga_toneladas' => 'Capacidade (Toneladas)', 'material_construcao' => 'Material'],
-                            default => ['name' => 'Nome / Número'],
+                            'rural_estradas'     => ['extensao_geo' => 'Extensão (m)', 'tipo_pavimento' => 'Tipo de Pavimento', 'condicao_trafego' => 'Condição'],
+                            'rural_pontes'       => ['capacidade_carga_toneladas' => 'Capacidade (Toneladas)', 'material_construcao' => 'Material'],
+                            default              => ['name' => 'Nome / Número'],
                         })
                         ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
@@ -1990,7 +2028,8 @@ class MapaFullscreen extends Page
                             'bairros' => 'Bairros',
                             'loteamentos' => 'Loteamentos',
                             'zonas' => 'Zonas Urbanas',
-                            'rural_localidades' => 'Localidades Rurais / Distritos',
+                            'perimetros_urbanos' => 'Distritos / Limites',
+                            'rural_localidades' => 'Localidades Rurais',
                             'cemiterios' => 'Cemitérios'
                         ])
                         ->live()
@@ -2006,6 +2045,7 @@ class MapaFullscreen extends Page
                                 'bairros' => \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'loteamentos' => \App\Models\Loteamento::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'zonas' => \App\Models\Zona::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'perimetros_urbanos' => \App\Models\PerimetroUrbano::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'rural_localidades' => \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'cemiterios' => \App\Models\Cemiterio::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 default => [],
@@ -2072,15 +2112,34 @@ class MapaFullscreen extends Page
                 Forms\Components\Group::make([
                     Forms\Components\Select::make('interval_layer')
                         ->label('Camada para Análise')
-                        ->options(['lotes' => 'Lotes Urbanos', 'edificacoes' => 'Edificações'])
+                        ->options([
+                            'lotes'              => 'Lotes Urbanos',
+                            'edificacoes'        => 'Edificações',
+                            'arvores'            => 'Árvores',
+                            'postes'             => 'Postes',
+                            'cemiterios'         => 'Cemitérios',
+                            'quadras'            => 'Quadras',
+                            'bairros'            => 'Bairros',
+                            'rural_propriedades' => 'Propriedades Rurais',
+                            'rural_estradas'     => 'Estradas Rurais',
+                            'rural_pontes'       => 'Pontes Rurais',
+                        ])
+                        ->live()
                         ->default('lotes'),
 
                     Forms\Components\Select::make('interval_attribute')
                         ->label('Atributo Numérico (Escala)')
-                        ->options([
-                            'area_geo' => 'Área em m²',
-                            'main_facade_length' => 'Testada (m)',
-                        ])
+                        ->options(fn(Forms\Get $get): array => match ($get('interval_layer')) {
+                            'arvores'            => ['trunk_diameter_dap' => 'DAP (cm)', 'total_height' => 'Altura Total (m)', 'canopy_diameter' => 'Diâmetro da Copa (m)', 'risk_potential' => 'Potencial de Risco'],
+                            'postes'             => ['height' => 'Altura (m)', 'lamp_quantity' => 'Quantidade de Lâmpadas'],
+                            'cemiterios'         => ['area_geo' => 'Área em m²'],
+                            'quadras'            => ['area_geo' => 'Área em m²'],
+                            'bairros'            => ['area_geo' => 'Área em m²'],
+                            'rural_propriedades' => ['area_geo' => 'Área em m²'],
+                            'rural_estradas'     => ['extensao_geo' => 'Extensão (m)'],
+                            'rural_pontes'       => ['capacidade_carga_toneladas' => 'Capacidade (Toneladas)'],
+                            default              => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)'],
+                        })
                         ->default('area_geo'),
 
                     Forms\Components\Select::make('num_classes')
@@ -2164,7 +2223,7 @@ class MapaFullscreen extends Page
                         ->options([
                             'bairros'            => 'Bairro',
                             'setores_fiscais'    => 'Setor Fiscal',
-                            'perimetros_urbanos' => 'Perímetro Urbano / Distrito',
+                            'perimetros_urbanos' => 'Distrito',
                         ])
                         ->default('bairros')
                         ->live()
