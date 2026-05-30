@@ -485,11 +485,19 @@ class MapDataController extends Controller
 
             // --- 5. BUSCA DE QUADRAS ---
             $quadras = \Illuminate\Support\Facades\DB::table('quadras')
-                ->where('tenant_id', $tenantId)
-                ->whereNull('deleted_at')
-                ->whereNotNull('geo')
-                ->where('name', 'ilike', "%{$termo}%")
-                ->selectRaw("id, name, ST_AsGeoJSON(ST_PointOnSurface(geo::geometry)) as centroide")
+                ->leftJoin('bairros', 'quadras.bairro_id', '=', 'bairros.id')
+                ->leftJoin('loteamentos', 'quadras.loteamento_id', '=', 'loteamentos.id')
+                ->where('quadras.tenant_id', $tenantId)
+                ->whereNull('quadras.deleted_at')
+                ->whereNotNull('quadras.geo')
+                ->where('quadras.name', 'ilike', "%{$termo}%")
+                ->selectRaw("
+                    quadras.id,
+                    quadras.name,
+                    bairros.name as bairro_nome,
+                    loteamentos.name as loteamento_nome,
+                    ST_AsGeoJSON(ST_PointOnSurface(quadras.geo::geometry)) as centroide
+                ")
                 ->limit(5)
                 ->get();
 
@@ -497,11 +505,22 @@ class MapDataController extends Controller
                 $centroide = json_decode($quadra->centroide);
                 $coords = $centroide->coordinates ?? null;
                 if (!$coords) continue;
+
+                // Subtítulo: prioriza Bairro; se não houver, mostra Loteamento; senão "Quadra Urbana"
+                $partes = [];
+                if (!empty($quadra->bairro_nome)) {
+                    $partes[] = 'Bairro ' . $quadra->bairro_nome;
+                }
+                if (!empty($quadra->loteamento_nome)) {
+                    $partes[] = 'Loteamento ' . $quadra->loteamento_nome;
+                }
+                $subtitulo = !empty($partes) ? implode(' · ', $partes) : 'Quadra Urbana';
+
                 $results[] = [
                     'id'        => $quadra->id,
                     'tipo'      => 'quadra',
                     'titulo'    => 'Quadra ' . $quadra->name,
-                    'subtitulo' => 'Quadra Urbana',
+                    'subtitulo' => $subtitulo,
                     'coords'    => $coords
                 ];
             }
