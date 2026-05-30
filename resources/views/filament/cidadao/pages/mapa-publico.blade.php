@@ -53,8 +53,7 @@
                     x-ref="inputWrapper">
                     <x-heroicon-o-magnifying-glass class="w-5 h-5 text-gray-400 mr-2" />
                     <input type="text" x-model="termo" @input.debounce.500ms="buscar(); posicionarDropdown()"
-                        @keydown.enter="buscar()" x-ref="inputField"
-                        placeholder="Buscar lote, edifício, logradouro, quadra, bairro, setor, distrito..."
+                        @keydown.enter="buscar()" x-ref="inputField" placeholder="Pesquisar..."
                         class="w-full bg-transparent border-none focus:ring-0 text-sm text-gray-700 dark:text-gray-200 outline-none">
                     <div x-show="loading" style="display: none;" class="absolute right-3">
                         <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
@@ -152,8 +151,7 @@
                         <x-heroicon-o-chevron-down class="w-3 h-3 transition-transform"
                             x-bind:class="open ? 'rotate-180' : ''" />
                     </button>
-                    <div x-show="open"
-                        style="display: none; background-color: white; border: 1px solid #e5e7eb;"
+                    <div x-show="open" style="display: none; background-color: white; border: 1px solid #e5e7eb;"
                         x-transition
                         class="absolute right-0 mt-2 w-64 dark:bg-gray-800 rounded-xl shadow-2xl z-[1001] overflow-hidden">
                         <div class="p-2">
@@ -778,7 +776,8 @@
                     }
                     this.loading = true;
                     this.posicionarDropdown();
-                    fetch(`/api/search-lote?tenant_id=${window.mapConfig.tenantId}&termo=${encodeURIComponent(this.termo)}&publico=1`)
+                    fetch(
+                            `/api/search-lote?tenant_id=${window.mapConfig.tenantId}&termo=${encodeURIComponent(this.termo)}&publico=1`)
                         .then(res => res.json()).then(data => {
                             this.resultados = data;
                         })

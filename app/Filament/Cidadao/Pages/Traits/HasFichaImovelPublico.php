@@ -274,7 +274,9 @@ trait HasFichaImovelPublico
                     'dataExtenso' => now()->translatedFormat('d \d\e F \d\e Y'),
                     'tenantNome' => \Filament\Facades\Filament::getTenant()->name ?? 'Município',
                 ]);
-                return response()->streamDownload(function () use ($pdf) { echo $pdf->output(); }, 'memorial_lote_' . ($lote->numero_lote ?? $lote->id) . '.pdf');
+                return response()->streamDownload(function () use ($pdf) {
+                    echo $pdf->output();
+                }, 'memorial_lote_' . ($lote->numero_lote ?? $lote->id) . '.pdf');
             });
     }
 
@@ -286,34 +288,16 @@ trait HasFichaImovelPublico
         return Action::make('exportarCroqui')
             ->modalHeading('Exportar Lote / Croqui')
             ->modalDescription(fn() => 'Selecione o formato de exportação desejado para o Lote ' . $this->loteAtivoNome)
-            ->modalSubmitAction(false) 
+            ->modalSubmitAction(false)
             ->modalCancelActionLabel('Cancelar')
             ->modalWidth('3xl')
             ->extraModalFooterActions([
                 Action::make('export_pdf')->label('Gerar PDF')->color('danger')->icon('heroicon-o-document')
                     ->extraAttributes(['onclick' => "capturarMapaEImprimirCroqui({$this->loteAtivoId})", 'x-on:click' => 'close()'])
-                    ->action(function() {}), 
-                    
-                Action::make('export_dwg')->label('Gerar CAD (DXF)')->color('info')->icon('heroicon-o-swatch')
-                    ->action(function() {
-                        $lote = \App\Models\Lote::find($this->loteAtivoId);
-                        $geoJsonQuery = \Illuminate\Support\Facades\DB::selectOne("SELECT ST_AsGeoJSON(geo) as geojson FROM lotes WHERE id = ?", [$lote->id]);
-                        $featureCollection = ['type' => 'FeatureCollection', 'features' => [['type' => 'Feature', 'properties' => ['Layer' => 'Lote_' . ($lote->numero_lote ?? $lote->id)], 'geometry' => json_decode($geoJsonQuery->geojson)]]];
-                        $jsonContent = json_encode($featureCollection);
-                        try {
-                            $tempDir = storage_path('app/temp_dxf_' . uniqid());
-                            if (!is_dir($tempDir)) mkdir($tempDir);
-                            $geoJsonPath = $tempDir . '/lote.geojson';
-                            file_put_contents($geoJsonPath, $jsonContent);
-                            $dxfPath = $tempDir . '/Lote_' . ($lote->numero_lote ?? $lote->id) . '.dxf';
-                            $process = \Illuminate\Support\Facades\Process::run("ogr2ogr -f \"DXF\" {$dxfPath} {$geoJsonPath}");
-                            if ($process->successful() && file_exists($dxfPath)) return response()->download($dxfPath)->deleteFileAfterSend(true);
-                        } catch (\Exception $e) {}
-                        Notification::make()->title('Aviso de Ambiente')->body('O conversor GDAL (ogr2ogr) não foi detectado no seu servidor local. A exportação CAD funcionará nativamente quando o sistema estiver no servidor Linux de produção.')->danger()->send();
-                    }),
-                    
-                Action::make('export_shp')->label('Gerar Shapefile / GeoJSON')->color('success')->icon('heroicon-o-map')
-                    ->action(function() {
+                    ->action(function () {}),
+
+                Action::make('export_shp')->label('Gerar Shapefile')->color('success')->icon('heroicon-o-map')
+                    ->action(function () {
                         $lote = \App\Models\Lote::find($this->loteAtivoId);
                         $geoJsonQuery = \Illuminate\Support\Facades\DB::selectOne("SELECT ST_AsGeoJSON(geo) as geojson FROM lotes WHERE id = ?", [$lote->id]);
                         $featureCollection = ['type' => 'FeatureCollection', 'features' => [['type' => 'Feature', 'properties' => ['id' => $lote->id, 'numero' => $lote->numero_lote, 'area_m2' => $lote->area_geo, 'testada' => $lote->main_facade_length], 'geometry' => json_decode($geoJsonQuery->geojson)]]];
@@ -336,9 +320,12 @@ trait HasFichaImovelPublico
                                 $zip->close();
                                 return response()->download($zipPath)->deleteFileAfterSend(true);
                             }
-                        } catch (\Exception $e) {}
+                        } catch (\Exception $e) {
+                        }
                         Notification::make()->title('Exportado como GeoJSON')->body('O conversor GDAL (ogr2ogr) não foi detectado no seu ambiente. O arquivo foi exportado no formato universal GeoJSON, compatível nativamente com QGIS e ArcGIS.')->warning()->send();
-                        return response()->streamDownload(function () use ($jsonContent) { echo $jsonContent; }, 'Lote_' . ($lote->numero_lote ?? $lote->id) . '.geojson');
+                        return response()->streamDownload(function () use ($jsonContent) {
+                            echo $jsonContent;
+                        }, 'Lote_' . ($lote->numero_lote ?? $lote->id) . '.geojson');
                     }),
             ]);
     }
@@ -380,16 +367,16 @@ trait HasFichaImovelPublico
                                 const centroDoLote = new google.maps.LatLng({{ $lat }}, {{ $lng }});
                                 svService.getPanorama({ location: centroDoLote, radius: 50 }, (data, status) => {
                                     if (status === 'OK') {
-                                        panoDiv.style.opacity = '1'; 
+                                        panoDiv.style.opacity = '1';
                                         const panorama = new google.maps.StreetViewPanorama(panoDiv, {
                                             position: data.location.latLng, zoom: 0, panControl: true, zoomControl: true, linksControl: true, clickToGo: true
                                         });
                                         const anguloParaOLote = google.maps.geometry.spherical.computeHeading(data.location.latLng, centroDoLote);
-                                        panorama.setPov({ heading: anguloParaOLote, pitch: 0 }); 
+                                        panorama.setPov({ heading: anguloParaOLote, pitch: 0 });
                                     }
                                 });
                             }
-                        }" 
+                        }"
                         wire:ignore style="height: 500px; width: 100%; position: relative; border-radius: 0.75rem; overflow: hidden; border: 1px solid #e5e7eb; background-color: #f3f4f6;" class="dark:border-gray-600 dark:bg-gray-800">
                         <div id="street-view-modal-pano" style="position: absolute; inset: 0; width: 100%; height: 100%; z-index: 10; opacity: 0; transition: opacity 0.5s;"></div>
                         <div id="street-view-error" style="position: absolute; inset: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 0;">
