@@ -6,6 +6,7 @@ use App\Models\Lote;
 use App\Models\Quadra;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Planta de Quadra — TR Tangará item Intranet #16.
@@ -47,6 +48,9 @@ class PlantaQuadraPdfService
         $dataHora = now()->format('d/m/Y H:i:s');
         $fileName = 'Planta-Quadra-' . preg_replace('/[^\w\-]+/', '_', (string) $quadra->name) . '.pdf';
 
+        // Zona UTM SIRGAS 2000 calculada a partir do centróide da quadra
+        $sirgasUtmZone = $this->resolveSirgasUtmZone($quadra->id);
+
         $pdf = Pdf::loadView('pdf.planta-quadra', compact(
             'quadra',
             'lotes',
@@ -60,6 +64,7 @@ class PlantaQuadraPdfService
             'areaTotalConstr',
             'totalUnidades',
             'totalEdificacoes',
+            'sirgasUtmZone',
         ));
 
         // A3 paisagem dá espaço de sobra para croqui + tabelas no mesmo documento.
@@ -68,5 +73,27 @@ class PlantaQuadraPdfService
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
         }, $fileName);
+    }
+
+    /**
+     * Calcula a zona UTM SIRGAS 2000 (ex.: "22S") a partir do centróide da quadra.
+     * Retorna null se a quadra não tiver geometria.
+     */
+    private function resolveSirgasUtmZone(int $quadraId): ?string
+    {
+        $row = DB::selectOne(
+            'SELECT ST_X(ST_Centroid(geo)) AS lon, ST_Y(ST_Centroid(geo)) AS lat
+             FROM quadras WHERE id = ? AND geo IS NOT NULL LIMIT 1',
+            [$quadraId]
+        );
+
+        if (!$row || $row->lon === null || $row->lat === null) {
+            return null;
+        }
+
+        $zone       = (int) floor(((float) $row->lon + 180) / 6) + 1;
+        $hemisferio = ((float) $row->lat) >= 0 ? 'N' : 'S';
+
+        return $zone . $hemisferio;
     }
 }

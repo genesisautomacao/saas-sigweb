@@ -30,14 +30,19 @@
         {{-- O MAPA --}}
         <div id="sigweb-map" class="absolute inset-0 z-0 w-full h-full"></div>
 
-        {{-- #12 — COORDENADA DO CURSOR EM TEMPO REAL --}}
+        {{-- #12 — COORDENADA DO CURSOR EM TEMPO REAL (UTM SIRGAS 2000 + Lat/Lon) --}}
+        {{-- Escondido enquanto a ficha do imóvel estiver aberta para não atrapalhar os botões da ficha. --}}
         <div id="coord-display"
+            x-data="{ fichaAberta: @entangle('showFicha') }"
+            x-show="!fichaAberta"
             style="position:absolute;bottom:8px;left:16px;z-index:500;
                    background:rgba(17,24,39,.75);backdrop-filter:blur(4px);
-                   color:#f9fafb;font:11px monospace;padding:3px 10px;
+                   color:#f9fafb;font:11px monospace;padding:4px 10px;
                    border-radius:8px;pointer-events:none;
-                   border:1px solid rgba(255,255,255,.1);letter-spacing:.03em;">
-            Lat: —&nbsp;&nbsp;Lon: —
+                   border:1px solid rgba(255,255,255,.1);letter-spacing:.03em;
+                   display:flex;flex-direction:column;gap:1px;">
+            <span id="coord-utm">E: —&nbsp;&nbsp;N: —&nbsp;&nbsp;EPSG: —</span>
+            <span id="coord-latlon" style="opacity:.65;font-size:10px;">Lat: —&nbsp;&nbsp;Lon: —</span>
         </div>
 
         {{-- TOOLTIP DE MEDIÇÃO (Escondido) --}}
@@ -1874,6 +1879,9 @@
 
     {{-- MOTOR MATEMÁTICO ESPACIAL (POSTGIS DE BOLSO) --}}
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+    {{-- PROJ4 — transformações de coordenadas (usado pelo card de coords UTM SIRGAS 2000) --}}
+    <script src="https://cdn.jsdelivr.net/npm/proj4@2.10.0/dist/proj4.min.js"></script>
 
     {{-- SCRIPTS (Apenas o Alpine.js de Busca de UI ficou aqui) --}}
     <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>

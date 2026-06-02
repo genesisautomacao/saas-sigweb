@@ -9,6 +9,32 @@ document.addEventListener("DOMContentLoaded", function () {
     const config = window.mapConfig || {};
     let zonasAtivas = [];
 
+    // ── EPSG SIRGAS 2000 UTM (zonas brasileiras) ────────────────────
+    // Norte: 18N–22N → EPSG 31972–31976
+    // Sul:   17S–25S → EPSG 31977–31985
+    if (typeof proj4 !== "undefined") {
+        for (let z = 18; z <= 22; z++) {
+            proj4.defs(
+                `EPSG:${31972 + (z - 18)}`,
+                `+proj=utm +zone=${z} +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs`,
+            );
+        }
+        for (let z = 17; z <= 25; z++) {
+            proj4.defs(
+                `EPSG:${31977 + (z - 17)}`,
+                `+proj=utm +zone=${z} +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs`,
+            );
+        }
+    }
+
+    function epsgFromLonLat(lon, lat) {
+        const zone = Math.floor((lon + 180) / 6) + 1;
+        if (lat >= 0) {
+            return zone >= 18 && zone <= 22 ? 31972 + (zone - 18) : null;
+        }
+        return zone >= 17 && zone <= 25 ? 31977 + (zone - 17) : null;
+    }
+
     // VARIÁVEIS DE ESTADO SOCIAL (Filtros do Mapa de Calor)
     let filtroRiscoAtivo = false;
     let filtroBeneficioAtivo = false;
@@ -899,20 +925,31 @@ document.addEventListener("DOMContentLoaded", function () {
         controls: [],
     });
 
-    // ── #12 — COORDENADA DO CURSOR EM TEMPO REAL ────────────────────
-    const coordDisplay = document.getElementById("coord-display");
-    if (coordDisplay) {
+    // ── #12 — COORDENADA DO CURSOR EM TEMPO REAL (UTM SIRGAS 2000 + Lat/Lon) ─
+    const coordUtm = document.getElementById("coord-utm");
+    const coordLatLon = document.getElementById("coord-latlon");
+    const coordFmt = new Intl.NumberFormat("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+
+    if (coordUtm && coordLatLon) {
         map.on("pointermove", function (evt) {
             if (evt.dragging) return;
-            const lonLat = ol.proj.toLonLat(evt.coordinate);
-            coordDisplay.textContent =
-                "Lat: " +
-                lonLat[1].toFixed(6) +
-                "  Lon: " +
-                lonLat[0].toFixed(6);
+            const [lon, lat] = ol.proj.toLonLat(evt.coordinate);
+            coordLatLon.textContent = `Lat: ${lat.toFixed(6)}  Lon: ${lon.toFixed(6)}`;
+
+            const epsg = epsgFromLonLat(lon, lat);
+            if (epsg !== null && typeof proj4 !== "undefined") {
+                const [E, N] = proj4("EPSG:4326", `EPSG:${epsg}`, [lon, lat]);
+                coordUtm.textContent = `E: ${coordFmt.format(E)} m   N: ${coordFmt.format(N)} m   EPSG:${epsg}`;
+            } else {
+                coordUtm.textContent = "E: —  N: —  EPSG: —";
+            }
         });
         map.getTargetElement().addEventListener("mouseleave", function () {
-            coordDisplay.textContent = "Lat: —  Lon: —";
+            coordUtm.textContent = "E: —  N: —  EPSG: —";
+            coordLatLon.textContent = "Lat: —  Lon: —";
         });
     }
 
