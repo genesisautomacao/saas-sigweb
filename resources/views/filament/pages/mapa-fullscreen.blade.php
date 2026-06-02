@@ -41,8 +41,8 @@
                    border-radius:8px;pointer-events:none;
                    border:1px solid rgba(255,255,255,.1);letter-spacing:.03em;
                    display:flex;flex-direction:column;gap:1px;">
-            <span id="coord-utm">E: —&nbsp;&nbsp;N: —&nbsp;&nbsp;EPSG: —</span>
-            <span id="coord-latlon" style="opacity:.65;font-size:10px;">Lat: —&nbsp;&nbsp;Lon: —</span>
+            <div id="coord-utm">E: —&nbsp;&nbsp;N: —&nbsp;&nbsp;EPSG: —</div>
+            <div id="coord-latlon" style="opacity:.65;font-size:10px;">Lat: —&nbsp;&nbsp;Lon: —</div>
         </div>
 
         {{-- TOOLTIP DE MEDIÇÃO (Escondido) --}}
