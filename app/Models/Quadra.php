@@ -31,6 +31,7 @@ class Quadra extends Model
         'code',
         'name',
         'setor_codigo',
+        'area_geo',
         'geo',
     ];
 

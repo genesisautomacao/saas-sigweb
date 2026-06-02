@@ -19,7 +19,7 @@ class Logradouro extends Model
         return LogOptions::defaults()->logOnly(['name'])->logOnlyDirty()->dontSubmitEmptyLogs();
     }
 
-    protected $fillable = ['tenant_id', 'sequential_id', 'code', 'name', 'geo'];
+    protected $fillable = ['tenant_id', 'sequential_id', 'code', 'name', 'extensao_geo', 'geo'];
     protected $hidden = ['geo'];
     protected $appends = ['geo_json'];
 

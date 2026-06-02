@@ -39,6 +39,14 @@ class PerimetroUrbanoResource extends Resource
                     ->helperText('Use para classificar o registro como Distrito, Limite Municipal, Perímetro Urbano etc.')
                     ->maxLength(255),
 
+                Forms\Components\TextInput::make('area_geo')
+                    ->label('Área (m²)')
+                    ->helperText('Calculada automaticamente da geometria.')
+                    ->disabled()
+                    ->dehydrated(false)
+                    ->numeric()
+                    ->suffix('m²'),
+
             ])->columns(2),
 
             Forms\Components\Section::make('Dados Espaciais')->schema([
@@ -58,6 +66,12 @@ class PerimetroUrbanoResource extends Resource
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
                 Tables\Columns\TextColumn::make('name')->label('Nome')->searchable()->weight('bold'),
                 Tables\Columns\TextColumn::make('distrito')->label('Distrito')->searchable(),
+                Tables\Columns\TextColumn::make('area_geo')
+                    ->label('Área (m²)')
+                    ->numeric(decimalPlaces: 2, decimalSeparator: ',', thousandsSeparator: '.')
+                    ->suffix(' m²')
+                    ->sortable()
+                    ->toggleable(),
             ])
             ->actions([
                 Tables\Actions\Action::make('ver_no_mapa')

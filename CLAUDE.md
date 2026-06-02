@@ -277,6 +277,35 @@ php artisan tributario:importar --tenant=antonio-carlos --file=dados.json
 
 O JSON pode ser array raiz `[{...}]` ou `{"imoveis": [{...}]}`. Cada item precisa do campo `inscricao_imobiliaria`. Todo o restante do objeto vai para `dados_tributarios` como JSON livre. Faz upsert — não duplica se rodar mais de uma vez.
 
+### Metadados geométricos cacheados (`area_geo` / `extensao_geo`)
+
+Seis entidades têm coluna **read-only** populada via PostGIS, atualizada automaticamente após criação ou edição de geometria:
+
+| Entidade | Coluna | Função PostGIS |
+|---|---|---|
+| `perimetros_urbanos` | `area_geo` | `ST_Area(geo::geography)` |
+| `zonas` | `area_geo` | `ST_Area(geo::geography)` |
+| `bairros` | `area_geo` | `ST_Area(geo::geography)` |
+| `loteamentos` | `area_geo` | `ST_Area(geo::geography)` |
+| `quadras` | `area_geo` | `ST_Area(geo::geography)` |
+| `logradouros` | `extensao_geo` | `ST_Length(geo::geography)` |
+
+Mostradas read-only no Filament Resource (Form `disabled()->dehydrated(false)` + Table com `numeric(2, ',', '.')` e sufixo `m²`/`m`). Recalculadas nas traits `Has*Actions` após `criar*Action` e nos listeners `salvarNovaGeometria*` do `MapaFullscreen` — todos os UPDATEs estão dentro de try-catch para tolerar ambientes onde a coluna ainda não exista.
+
+**Backfill / recálculo manual:**
+```bash
+# Recalcula apenas onde está NULL (idempotente, todos os tenants, todas as 6 entidades)
+php artisan gis:recalcular-metadata
+
+# Filtra por tenant ou entidade
+php artisan gis:recalcular-metadata --tenant=tangara --entidade=bairros
+
+# Sobrescreve todos os valores existentes (use após mudança de SRID, p. ex.)
+php artisan gis:recalcular-metadata --force
+```
+
+A `Planta de Quadra` (`pdf.planta-quadra`) exibe a área da quadra (`$quadra->area_geo`) tanto no bloco de identificação quanto como card destacado ao lado das áreas dos lotes e das edificações.
+
 ---
 
 ### Páginas WEB — Administração (novas)

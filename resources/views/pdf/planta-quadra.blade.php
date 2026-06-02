@@ -97,6 +97,9 @@
                 <div class="row"><strong>Loteamento:</strong> {{ $quadra->loteamento?->name ?? '—' }}</div>
                 <div class="row"><strong>Distrito:</strong> {{ $quadra->perimetro?->name ?? '—' }}</div>
                 <div class="row"><strong>Cód. Setor:</strong> {{ $quadra->setor_codigo ?? '—' }}</div>
+                <div class="row"><strong>Área Total da Quadra:</strong>
+                    {{ $quadra->area_geo ? number_format($quadra->area_geo, 2, ',', '.') . ' m²' : '—' }}
+                </div>
             </div>
 
             <div class="summary">
@@ -119,11 +122,17 @@
             </div>
 
             <div class="summary" style="margin-top: 4px;">
-                <div class="cell" style="width: 50%; background: #f0fdf4; border-color: #bbf7d0;">
+                <div class="cell" style="width: 33.33%; background: #eff6ff; border-color: #bfdbfe;">
+                    <div class="label" style="color: #1e40af;">Área da quadra</div>
+                    <div class="value" style="color: #1e3a8a;">
+                        {{ $quadra->area_geo ? number_format($quadra->area_geo, 2, ',', '.') . ' m²' : '—' }}
+                    </div>
+                </div>
+                <div class="cell" style="width: 33.33%; background: #f0fdf4; border-color: #bbf7d0;">
                     <div class="label" style="color: #166534;">Área total dos lotes</div>
                     <div class="value" style="color: #14532d;">{{ number_format($areaTotalLotes, 2, ',', '.') }} m²</div>
                 </div>
-                <div class="cell" style="width: 50%; background: #fef2f2; border-color: #fecaca;">
+                <div class="cell" style="width: 33.33%; background: #fef2f2; border-color: #fecaca;">
                     <div class="label" style="color: #991b1b;">Área construída</div>
                     <div class="value" style="color: #7f1d1d;">{{ number_format($areaTotalConstr, 2, ',', '.') }} m²</div>
                 </div>

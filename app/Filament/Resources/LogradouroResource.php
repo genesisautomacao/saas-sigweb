@@ -28,14 +28,22 @@ class LogradouroResource extends Resource
                             ->label('Nome do Logradouro')
                             ->required()
                             ->maxLength(255),
-                        
+
+                        Forms\Components\TextInput::make('extensao_geo')
+                            ->label('Extensão (m)')
+                            ->helperText('Calculada automaticamente da geometria.')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->numeric()
+                            ->suffix('m'),
+
                         // O json de importação / ajuste topográfico
                         Forms\Components\Textarea::make('geo_json_input')
                             ->label('Coordenadas da Rua (Ou GeoJSON LineString)')
                             ->rows(10)
                             ->columnSpanFull()
                             ->helperText('O sistema desenha automaticamente no mapa, mas você pode colar um GeoJSON completo OU uma lista simples de coordenadas do traçado (ex: "-50.404263 -26.972014, -50.401214 -26.974058...")'),
-                    ])
+                    ])->columns(2)
             ]);
     }
 
@@ -45,6 +53,12 @@ class LogradouroResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
                 Tables\Columns\TextColumn::make('name')->label('Nome do Logradouro')->searchable()->weight('bold'),
+                Tables\Columns\TextColumn::make('extensao_geo')
+                    ->label('Extensão (m)')
+                    ->numeric(decimalPlaces: 2, decimalSeparator: ',', thousandsSeparator: '.')
+                    ->suffix(' m')
+                    ->sortable()
+                    ->toggleable(),
             ])
             ->actions([
                 Tables\Actions\Action::make('ver_no_mapa')

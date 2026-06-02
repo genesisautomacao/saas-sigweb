@@ -50,6 +50,14 @@ class QuadraResource extends Resource
                     ->relationship('loteamento', 'name')
                     ->searchable()
                     ->preload(),
+
+                Forms\Components\TextInput::make('area_geo')
+                    ->label('Área (m²)')
+                    ->helperText('Calculada automaticamente da geometria.')
+                    ->disabled()
+                    ->dehydrated(false)
+                    ->numeric()
+                    ->suffix('m²'),
             ])->columns(3),
 
             Forms\Components\Section::make('Dados Espaciais')->schema([
@@ -71,6 +79,12 @@ class QuadraResource extends Resource
                 Tables\Columns\TextColumn::make('setor_codigo')->label('Setor')->searchable()->default('—'),
                 Tables\Columns\TextColumn::make('bairro.name')->label('Bairro')->searchable(),
                 Tables\Columns\TextColumn::make('loteamento.name')->label('Loteamento')->searchable(),
+                Tables\Columns\TextColumn::make('area_geo')
+                    ->label('Área (m²)')
+                    ->numeric(decimalPlaces: 2, decimalSeparator: ',', thousandsSeparator: '.')
+                    ->suffix(' m²')
+                    ->sortable()
+                    ->toggleable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('bairro_id')

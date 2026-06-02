@@ -2,15 +2,17 @@
 
 namespace App\Filament\Pages\Traits;
 
-use App\Models\Quadra;
 use App\Models\Bairro;
 use App\Models\Loteamento;
+use App\Models\Quadra;
 use Filament\Actions\Action;
-use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 
 trait HasQuadraActions
 {
@@ -21,6 +23,9 @@ trait HasQuadraActions
     public ?int $quadraLoteamentoPreSelecionadoId = null;
     public ?int $quadraPerimetroPreSelecionadoId = null;
 
+    // Pré-cálculo de área exibido no modal de criação (preenchido em interceptarDesenho)
+    public ?float $quadraAreaCalculada = null;
+
     public function criarQuadraAction(): Action
     {
         return Action::make('criarQuadra')
@@ -28,6 +33,14 @@ trait HasQuadraActions
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Quadra')
             ->form([
+                Placeholder::make('area_calculada')
+                    ->label('Área calculada')
+                    ->content(fn (): HtmlString => new HtmlString(
+                        $this->quadraAreaCalculada !== null
+                            ? '<strong style="font-size:14px;color:#0369a1;">' . number_format($this->quadraAreaCalculada, 2, ',', '.') . ' m²</strong>'
+                            : '<em style="color:#9ca3af;">Sem geometria — desenhe a área no mapa primeiro.</em>'
+                    )),
+
                 TextInput::make('name')
                     ->label('Identificação da Quadra (Ex: A, 10, etc)')
                     ->required()
@@ -79,6 +92,7 @@ trait HasQuadraActions
                 $data['code'] = (string) Str::uuid();
                 // Atribui o perímetro de forma invisível para o usuário
                 $data['perimetro_id'] = $this->quadraPerimetroPreSelecionadoId;
+                $data['area_geo'] = $this->quadraAreaCalculada;
 
                 $registro = Quadra::create($data);
 
@@ -95,6 +109,12 @@ trait HasQuadraActions
                     'geo' => $this->geometriaRascunho
                 ]);
                 $this->dispatch('limpar-rascunho-mapa');
+
+                // Limpa as variáveis de pré-detecção pra próxima criação não herdar dados
+                $this->quadraBairroPreSelecionadoId = null;
+                $this->quadraLoteamentoPreSelecionadoId = null;
+                $this->quadraPerimetroPreSelecionadoId = null;
+                $this->quadraAreaCalculada = null;
             });
     }
 
@@ -115,6 +135,18 @@ trait HasQuadraActions
                 ];
             })
             ->form([
+                Placeholder::make('area_atual')
+                    ->label('Área atual')
+                    ->content(function (): HtmlString {
+                        $reg = Quadra::find($this->quadraAtivaId);
+                        $valor = $reg?->area_geo;
+                        return new HtmlString(
+                            $valor !== null
+                                ? '<strong style="font-size:14px;color:#0369a1;">' . number_format((float) $valor, 2, ',', '.') . ' m²</strong>'
+                                : '<em style="color:#9ca3af;">Sem geometria registrada.</em>'
+                        );
+                    }),
+
                 TextInput::make('name')->label('Identificação da Quadra')->required()->maxLength(255),
                 TextInput::make('setor_codigo')->label('Código do Setor')->maxLength(20)->nullable(),
                 Select::make('bairro_id')

@@ -22,6 +22,7 @@ class PerimetroUrbano extends Model
         'name',
         'distrito',
         'fill_color',
+        'area_geo',
         'geo'
     ];
 

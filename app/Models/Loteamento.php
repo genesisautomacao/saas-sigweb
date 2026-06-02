@@ -21,6 +21,7 @@ class Loteamento extends Model
         'code',
         'name',
         'setor',
+        'area_geo',
         'geo',
     ];
 

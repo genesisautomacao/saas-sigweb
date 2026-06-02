@@ -2,18 +2,22 @@
 
 namespace App\Filament\Pages\Traits;
 
-use App\Models\SetorFiscal;
 use App\Models\PgvParametro;
+use App\Models\SetorFiscal;
 use Filament\Actions\Action;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\HtmlString;
 
 trait HasSetorFiscalActions
 {
+    // Pré-cálculo de área exibido no modal de criação (preenchido em interceptarDesenho)
+    public ?float $setorFiscalAreaCalculada = null;
+
     public function criarSetorFiscal(): Action
     {
         return Action::make('criarSetorFiscal')
@@ -22,18 +26,26 @@ trait HasSetorFiscalActions
             ->modalSubmitActionLabel('Salvar Setor')
             ->modalWidth('2xl')
             ->form([
+                Placeholder::make('area_calculada')
+                    ->label('Área calculada')
+                    ->content(fn (): HtmlString => new HtmlString(
+                        $this->setorFiscalAreaCalculada !== null
+                            ? '<strong style="font-size:14px;color:#0369a1;">' . number_format($this->setorFiscalAreaCalculada, 2, ',', '.') . ' m²</strong>'
+                            : '<em style="color:#9ca3af;">Sem geometria — desenhe a área no mapa primeiro.</em>'
+                    )),
+
                 TextInput::make('nome')
                     ->label('Nome do Setor Fiscal')
                     ->required()
                     ->maxLength(255),
-                    
+
                 Select::make('pgv_parametro_id')
                     ->label('Regra de Valor (Parâmetro Base)')
                     ->options(fn () => PgvParametro::where('tenant_id', $this->tenantId)->pluck('nome_padrao', 'id'))
                     ->required()
                     ->searchable()
                     ->preload(),
-                    
+
                 Textarea::make('descricao')
                     ->label('Descrição')
                     ->columnSpanFull(),
@@ -51,6 +63,7 @@ trait HasSetorFiscalActions
                     'pgv_parametro_id' => $data['pgv_parametro_id'],
                     'descricao' => $data['descricao'],
                     'geo' => $this->geometriaRascunho,
+                    'area_geo' => $this->setorFiscalAreaCalculada,
                 ]);
 
                 // Atualiza a área oficial calculada pelo PostGIS
@@ -60,13 +73,15 @@ trait HasSetorFiscalActions
 
                 $this->geometriaRascunho = null;
                 $this->dispatch('limpar-rascunho-mapa');
-                
+
                 // Manda o JS desenhar o polígono laranja instantaneamente
                 $this->dispatch('adicionar-setor_fiscal-mapa', [
                     'id' => $setor->id,
                     'name' => $setor->nome,
                     'geo' => $setor->geo_json,
                 ]);
+
+                $this->setorFiscalAreaCalculada = null;
             });
     }
 
@@ -77,11 +92,23 @@ trait HasSetorFiscalActions
             ->modalSubmitActionLabel('Salvar Alterações')
             ->color('primary')
             ->form([
+                Placeholder::make('area_atual')
+                    ->label('Área atual')
+                    ->content(function (): HtmlString {
+                        $reg = SetorFiscal::find($this->setorFiscalAtivoId);
+                        $valor = $reg?->area_geo;
+                        return new HtmlString(
+                            $valor !== null
+                                ? '<strong style="font-size:14px;color:#0369a1;">' . number_format((float) $valor, 2, ',', '.') . ' m²</strong>'
+                                : '<em style="color:#9ca3af;">Sem geometria registrada.</em>'
+                        );
+                    }),
+
                 TextInput::make('nome')
                     ->label('Nome do Setor')
                     ->required()
                     ->default(fn () => SetorFiscal::find($this->setorFiscalAtivoId)?->nome),
-                    
+
                 Select::make('pgv_parametro_id')
                     ->label('Regra de Valor Base')
                     ->options(fn () => PgvParametro::where('tenant_id', $this->tenantId)->pluck('nome_padrao', 'id'))
@@ -112,7 +139,7 @@ trait HasSetorFiscalActions
                         $this->dispatch('iniciar-edicao-geometria-setor_fiscal', ['id' => $this->setorFiscalAtivoId]);
                         $this->dispatch('fechar-modal-filament'); // <-- CORREÇÃO AQUI
                     }),
-                    
+
                 Action::make('excluir')
                     ->label('Excluir Setor')
                     ->color('danger')

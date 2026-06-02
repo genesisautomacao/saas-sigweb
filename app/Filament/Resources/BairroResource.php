@@ -37,6 +37,14 @@ class BairroResource extends Resource
                 Forms\Components\TextInput::make('setor')
                     ->label('Setor (Opcional)')
                     ->maxLength(255),
+
+                Forms\Components\TextInput::make('area_geo')
+                    ->label('Área (m²)')
+                    ->helperText('Calculada automaticamente da geometria.')
+                    ->disabled()
+                    ->dehydrated(false)
+                    ->numeric()
+                    ->suffix('m²'),
             ])->columns(2),
 
             Forms\Components\Section::make('Dados Espaciais')->schema([
@@ -56,6 +64,12 @@ class BairroResource extends Resource
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
                 Tables\Columns\TextColumn::make('name')->label('Nome')->searchable()->weight('bold'),
                 Tables\Columns\TextColumn::make('setor')->label('Setor')->searchable(),
+                Tables\Columns\TextColumn::make('area_geo')
+                    ->label('Área (m²)')
+                    ->numeric(decimalPlaces: 2, decimalSeparator: ',', thousandsSeparator: '.')
+                    ->suffix(' m²')
+                    ->sortable()
+                    ->toggleable(),
             ])
             ->actions([
                 Tables\Actions\Action::make('ver_no_mapa')

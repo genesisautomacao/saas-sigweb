@@ -269,6 +269,12 @@
                                             Distrito / Limite (Polígono)
                                         </button>
 
+                                        <button type="button" onclick="enableDrawing('setor_fiscal')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-currency-dollar class="w-4 h-4 text-amber-500" /> Setor
+                                        </button>
+
                                         <button @click="open = false; enableDrawing('zona')"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-globe-americas class="w-4 h-4 text-purple-500" />
@@ -299,6 +305,7 @@
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-home class="w-4 h-4 text-amber-600" /> Edificação (Polígono)
                                         </button>
+
                                         <button type="button" onclick="enableDrawing('logradouro')"
                                             @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-slate-100 hover:text-slate-700 flex items-center gap-3 transition-colors">
@@ -311,18 +318,6 @@
                                             Meio-fio / Calçada (Linha)
                                         </button>
 
-                                        <button @click="open = false; enableDrawing('ponto_panoramico')"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-camera class="w-4 h-4 text-blue-500" />
-                                            Ponto 360º
-                                        </button>
-                                        <button type="button"
-                                            @click="openDraw = false; window.ativarFerramentaToponimiia(true)"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-violet-50 hover:text-violet-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-chat-bubble-bottom-center-text
-                                                class="w-4 h-4 text-violet-500" />
-                                            Texto / Toponímia
-                                        </button>
                                     </div>
                                 </div>
 
@@ -332,7 +327,7 @@
                                         @click.stop.prevent="activeTabDraw = activeTabDraw === 'infra' ? '' : 'infra'"
                                         class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
                                         <span class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                                            <x-heroicon-o-light-bulb class="w-4 h-4" /> Infra. & Fiscal
+                                            <x-heroicon-o-light-bulb class="w-4 h-4" /> Infra. e outros
                                         </span>
                                         <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
                                             x-bind:class="activeTabDraw === 'infra' ? 'rotate-180' : ''" />
@@ -356,13 +351,20 @@
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-sparkles class="w-4 h-4 text-emerald-500" /> Árvore
                                         </button>
-                                        <button type="button" onclick="enableDrawing('setor_fiscal')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-currency-dollar class="w-4 h-4 text-amber-500" /> Setor
-                                            Fiscal
-                                            (PGV)
+
+                                        <button @click="open = false; enableDrawing('ponto_panoramico')"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-camera class="w-4 h-4 text-blue-500" />
+                                            Ponto 360º
                                         </button>
+                                        <button type="button"
+                                            @click="openDraw = false; window.ativarFerramentaToponimiia(true)"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-violet-50 hover:text-violet-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-chat-bubble-bottom-center-text
+                                                class="w-4 h-4 text-violet-500" />
+                                            Texto / Toponímia
+                                        </button>
+
                                     </div>
                                 </div>
 
@@ -588,7 +590,7 @@
                                             'loteamentos' => 'Loteamentos',
                                             'zonas' => 'Zonas',
                                             'perimetros_urbanos' => 'Distritos / Limites',
-                                            'setores_fiscais' => 'Setores Fiscais',
+                                            'setores_fiscais' => 'Setores',
                                             'arvores' => 'Árvores',
                                             'postes' => 'Postes',
                                             'cemiterios' => 'Cemitérios',
@@ -968,7 +970,7 @@
                                 <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                     <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
                                     </div>
-                                    <span class="layer-text truncate">Setores Fiscais</span>
+                                    <span class="layer-text truncate">Setores</span>
                                 </span>
                             </label>
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">

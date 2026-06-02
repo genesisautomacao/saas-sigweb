@@ -47,7 +47,7 @@ class ZonaResource extends Resource
                 // CORRIGIDO: Forçando o output para RGB
                 Forms\Components\ColorPicker::make('rgb')
                     ->label('Cor de Exibição no Mapa')
-                    ->rgb() 
+                    ->rgb()
                     ->formatStateUsing(function ($state) {
                         if ($state && !str_contains($state, 'rgb') && !str_contains($state, '#')) {
                             // Limpa parênteses se houver e formata
@@ -57,6 +57,14 @@ class ZonaResource extends Resource
                         return $state;
                     })
                     ->required(),
+
+                Forms\Components\TextInput::make('area_geo')
+                    ->label('Área (m²)')
+                    ->helperText('Calculada automaticamente da geometria.')
+                    ->disabled()
+                    ->dehydrated(false)
+                    ->numeric()
+                    ->suffix('m²'),
             ])->columns(4), // Mudei para 4 colunas para caber o perímetro bonito
 
             Forms\Components\Section::make('Limites Geográficos')->schema([
@@ -82,13 +90,13 @@ class ZonaResource extends Resource
                     ->label('Cor no Mapa')
                     ->formatStateUsing(function ($state) {
                         if (empty($state)) return '-';
-                        
+
                         $corCSS = $state;
                         if (!str_contains($corCSS, 'rgb') && !str_contains($corCSS, '#')) {
                             $clean = str_replace(['(', ')'], '', $corCSS);
                             $corCSS = "rgb({$clean})";
                         }
-                        
+
                         return new \Illuminate\Support\HtmlString("
                             <div class='flex items-center gap-2'>
                                 <div style='background-color: {$corCSS};' class='w-6 h-6 rounded-full border border-gray-300 shadow-sm'></div>
@@ -97,6 +105,12 @@ class ZonaResource extends Resource
                         ");
                     })
                     ->html(),
+                Tables\Columns\TextColumn::make('area_geo')
+                    ->label('Área (m²)')
+                    ->numeric(decimalPlaces: 2, decimalSeparator: ',', thousandsSeparator: '.')
+                    ->suffix(' m²')
+                    ->sortable()
+                    ->toggleable(),
             ])
             ->actions([
                 Tables\Actions\Action::make('ver_no_mapa')

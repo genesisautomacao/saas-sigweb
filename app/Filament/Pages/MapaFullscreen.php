@@ -267,7 +267,11 @@ class MapaFullscreen extends Page
             // 🛑 MÁGICA: Monta a ação da Edificação aqui e encerra
             $this->mountAction('criarEdificacao');
         } elseif ($entityType === 'logradouro') {
-            // 🛑 MÁGICA: Monta a ação do Logradouro aqui e encerra
+            // Pré-calcula a extensão da LineString para exibir no Placeholder do modal de criação
+            $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $ext = DB::selectOne("SELECT ST_Length({$lineWKT}::geography) AS metros");
+            $this->logradouroExtensaoCalculada = $ext?->metros ? round((float) $ext->metros, 2) : null;
+
             $this->mountAction('criarLogradouro');
         } elseif ($entityType === 'poste') {
             // 🛑 MÁGICA: Monta a ação do Poste aqui e encerra
@@ -357,6 +361,10 @@ class MapaFullscreen extends Page
                 $this->dispatch('limpar-rascunho-mapa');
                 return;
             }
+
+            // Pré-calcula a área do polígono para o Placeholder do modal de criação
+            $area = DB::selectOne("SELECT ST_Area($polyWKT::geography) AS metros");
+            $this->setorFiscalAreaCalculada = $area?->metros ? round((float) $area->metros, 2) : null;
 
             $this->mountAction('criarSetorFiscal');
         } elseif ($entityType === 'rural_localidade') {
@@ -490,11 +498,17 @@ class MapaFullscreen extends Page
             $this->mountAction('criarRuralPontoInteresse');
         } elseif ($entityType === 'bairro') {
 
-            // Simples e direto: desenhou, abriu a modal de criar!
+            // Pré-calcula a área do polígono para o Placeholder do modal de criação
+            $area = DB::selectOne("SELECT ST_Area($polyWKT::geography) AS metros");
+            $this->bairroAreaCalculada = $area?->metros ? round((float) $area->metros, 2) : null;
+
             $this->mountAction('criarBairro');
         } elseif ($entityType === 'perimetro_urbano') {
 
             // Distrito / Limite — polígono livre, sem cruzamento topológico obrigatório
+            $area = DB::selectOne("SELECT ST_Area($polyWKT::geography) AS metros");
+            $this->perimetroUrbanoAreaCalculada = $area?->metros ? round((float) $area->metros, 2) : null;
+
             $this->mountAction('criarPerimetroUrbano');
         } elseif ($entityType === 'meio_fio') {
 
@@ -516,6 +530,9 @@ class MapaFullscreen extends Page
 
             $this->mountAction('criarMeioFio');
         } elseif ($entityType === 'loteamento') {
+
+            $area = DB::selectOne("SELECT ST_Area($polyWKT::geography) AS metros");
+            $this->loteamentoAreaCalculada = $area?->metros ? round((float) $area->metros, 2) : null;
 
             $this->mountAction('criarLoteamento');
         } elseif ($entityType === 'quadra') {
@@ -554,8 +571,16 @@ class MapaFullscreen extends Page
             $this->quadraLoteamentoPreSelecionadoId = $loteamento ? $loteamento->id : null;
             $this->quadraPerimetroPreSelecionadoId = $perimetro ? $perimetro->id : null;
 
+            // Pré-calcula a área do polígono para o Placeholder do modal de criação
+            $area = DB::selectOne("SELECT ST_Area($polyWKT::geography) AS metros");
+            $this->quadraAreaCalculada = $area?->metros ? round((float) $area->metros, 2) : null;
+
             $this->mountAction('criarQuadra');
         } elseif ($entityType === 'zona') {
+
+            $area = DB::selectOne("SELECT ST_Area($polyWKT::geography) AS metros");
+            $this->zonaAreaCalculada = $area?->metros ? round((float) $area->metros, 2) : null;
+
             $this->mountAction('criarZona');
         } elseif ($entityType === 'ponto_panoramico') {
             $this->mountAction('criarPontoPanoramico');
@@ -653,7 +678,12 @@ class MapaFullscreen extends Page
         $logradouro = \App\Models\Logradouro::query()->find($id);
         if ($logradouro) {
             $logradouro->update(['geo' => $geoJson]);
-            // Opcional: DB::statement("UPDATE logradouros SET length_geo = ST_Length(geo::geography) WHERE id = ?", [$logradouro->id]);
+
+            // Recalcula extensão (m) via PostGIS — falha silenciosa caso a coluna não exista.
+            try {
+                DB::statement('UPDATE logradouros SET extensao_geo = ST_Length(geo::geography) WHERE id = ?', [$logradouro->id]);
+            } catch (\Throwable $e) {
+            }
 
             \Filament\Notifications\Notification::make()->title('Geometria da Rua Atualizada!')->success()->send();
         }
@@ -1747,6 +1777,12 @@ class MapaFullscreen extends Page
         $reg = \App\Models\PerimetroUrbano::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
+
+            // Recalcula área (m²) via PostGIS — falha silenciosa caso a coluna não exista.
+            try {
+                DB::statement('UPDATE perimetros_urbanos SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$reg->id]);
+            } catch (\Throwable $e) {
+            }
 
             \Filament\Notifications\Notification::make()->title('Limites do Distrito atualizados!')->success()->send();
         }

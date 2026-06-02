@@ -24,6 +24,7 @@ class Zona extends Model
         'sigla',
         'name',
         'rgb',
+        'area_geo',
         'geo',
     ];
 

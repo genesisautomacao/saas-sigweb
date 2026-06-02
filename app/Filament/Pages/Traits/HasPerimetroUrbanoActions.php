@@ -4,13 +4,19 @@ namespace App\Filament\Pages\Traits;
 
 use App\Models\PerimetroUrbano;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 trait HasPerimetroUrbanoActions
 {
     public ?int $perimetroUrbanoAtivoId = null;
+
+    // Pré-cálculo de área exibido no modal de criação (preenchido em interceptarDesenho)
+    public ?float $perimetroUrbanoAreaCalculada = null;
 
     public function criarPerimetroUrbanoAction(): Action
     {
@@ -19,13 +25,21 @@ trait HasPerimetroUrbanoActions
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Distrito')
             ->form([
+                Placeholder::make('area_calculada')
+                    ->label('Área calculada')
+                    ->content(fn (): HtmlString => new HtmlString(
+                        $this->perimetroUrbanoAreaCalculada !== null
+                            ? '<strong style="font-size:14px;color:#0369a1;">' . number_format($this->perimetroUrbanoAreaCalculada, 2, ',', '.') . ' m²</strong>'
+                            : '<em style="color:#9ca3af;">Sem geometria — desenhe a área no mapa primeiro.</em>'
+                    )),
+
                 TextInput::make('name')
                     ->label('Nome')
                     ->required()
                     ->maxLength(255),
 
                 TextInput::make('distrito')
-                    ->label('Classificação (opcional)')
+                    ->label('Distrito (opcional)')
                     ->helperText('Ex: Distrito, Limite Municipal, Perímetro Urbano...')
                     ->maxLength(255),
             ])
@@ -33,8 +47,16 @@ trait HasPerimetroUrbanoActions
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo']       = $this->geometriaRascunho;
                 $data['code']      = (string) Str::uuid();
+                $data['area_geo']  = $this->perimetroUrbanoAreaCalculada;
 
                 $registro = PerimetroUrbano::create($data);
+
+                // Cacheia área (m²) calculada via PostGIS — falha silenciosa caso a coluna
+                // ainda não exista em ambientes legados.
+                try {
+                    DB::statement('UPDATE perimetros_urbanos SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$registro->id]);
+                } catch (\Throwable $e) {
+                }
 
                 Notification::make()->title('Distrito / Limite criado!')->success()->send();
 
@@ -44,6 +66,8 @@ trait HasPerimetroUrbanoActions
                     'geo'  => $this->geometriaRascunho,
                 ]);
                 $this->dispatch('limpar-rascunho-mapa');
+
+                $this->perimetroUrbanoAreaCalculada = null;
             });
     }
 
@@ -51,7 +75,7 @@ trait HasPerimetroUrbanoActions
     {
         return Action::make('opcoesPerimetroUrbano')
             ->hiddenLabel()
-            ->modalHeading(fn () => 'Editar Distrito: ' . PerimetroUrbano::find($this->perimetroUrbanoAtivoId)?->name)
+            ->modalHeading(fn() => 'Editar Distrito: ' . PerimetroUrbano::find($this->perimetroUrbanoAtivoId)?->name)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Alterações')
             ->fillForm(function (): array {
@@ -62,8 +86,20 @@ trait HasPerimetroUrbanoActions
                 ];
             })
             ->form([
+                Placeholder::make('area_atual')
+                    ->label('Área atual')
+                    ->content(function (): HtmlString {
+                        $reg = PerimetroUrbano::find($this->perimetroUrbanoAtivoId);
+                        $valor = $reg?->area_geo;
+                        return new HtmlString(
+                            $valor !== null
+                                ? '<strong style="font-size:14px;color:#0369a1;">' . number_format((float) $valor, 2, ',', '.') . ' m²</strong>'
+                                : '<em style="color:#9ca3af;">Sem geometria registrada.</em>'
+                        );
+                    }),
+
                 TextInput::make('name')->label('Nome')->required()->maxLength(255),
-                TextInput::make('distrito')->label('Classificação (opcional)')->maxLength(255),
+                TextInput::make('distrito')->label('Distrito (opcional)')->maxLength(255),
             ])
             ->action(function (array $data) {
                 $reg = PerimetroUrbano::find($this->perimetroUrbanoAtivoId);
