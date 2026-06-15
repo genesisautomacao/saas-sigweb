@@ -15,6 +15,13 @@ use Illuminate\Support\Facades\Auth;
 
 class ProcessoDigitalResource extends Resource
 {
+    // No painel Cidadão, qualquer usuário autenticado pode ver e criar seus
+    // próprios processos. A trava real está no modifyQueryUsing (requerente_id).
+    public static function canViewAny(): bool { return Auth::check(); }
+    public static function canCreate(): bool { return Auth::check(); }
+    public static function canView($record): bool { return Auth::id() === $record->requerente_id; }
+    public static function canEdit($record): bool { return Auth::id() === $record->requerente_id; }
+    public static function canDelete($record): bool { return false; }
     protected static ?string $model = ProcessoDigital::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-folder-open';
