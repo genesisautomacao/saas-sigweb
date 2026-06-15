@@ -359,5 +359,10 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(ZoneamentoRegra::class);
     }
 
+    public function areaReurbs(): HasMany
+    {
+        return $this->hasMany(AreaReurb::class);
+    }
+
 
 }

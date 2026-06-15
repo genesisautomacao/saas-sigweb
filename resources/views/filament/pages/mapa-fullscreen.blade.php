@@ -32,9 +32,7 @@
 
         {{-- #12 — COORDENADA DO CURSOR EM TEMPO REAL (UTM SIRGAS 2000 + Lat/Lon) --}}
         {{-- Escondido enquanto a ficha do imóvel estiver aberta para não atrapalhar os botões da ficha. --}}
-        <div id="coord-display"
-            x-data="{ fichaAberta: @entangle('showFicha') }"
-            x-show="!fichaAberta"
+        <div id="coord-display" x-data="{ fichaAberta: @entangle('showFicha') }" x-show="!fichaAberta"
             style="position:absolute;bottom:8px;left:16px;z-index:500;
                    background:rgba(17,24,39,.75);backdrop-filter:blur(4px);
                    color:#f9fafb;font:11px monospace;padding:4px 10px;
@@ -350,6 +348,12 @@
                                                 </path>
                                             </svg>
                                             Poste / Ponto de Luz
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('area_reurb')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-home-modern class="w-4 h-4 text-amber-500" />
+                                            Área de Regularização (REURB)
                                         </button>
                                         <button type="button" onclick="enableDrawing('arvore')"
                                             @click="openDraw = false"
@@ -1146,6 +1150,74 @@
                             </div>
                         </div>
 
+                        {{-- Sub-linha: Processos Digitais (recolore lotes pela etapa atual do processo em andamento) --}}
+                        <div data-permission-group="layer:lotes" x-data="{ processosOn: false, legenda: [], aberta: false }" x-init="window.addEventListener('sigweb-processos-legenda', function(e) {
+                            legenda = e.detail.items;
+                            aberta = false
+                        })"
+                            class="ml-7 mt-1">
+                            <label
+                                class="flex items-center gap-2 cursor-pointer text-xs text-gray-600 dark:text-gray-300">
+                                <input type="checkbox" x-model="processosOn"
+                                    @change="window.dispatchEvent(new CustomEvent('sigweb-toggle-processos-color',{detail:{enabled:processosOn}}))"
+                                    class="rounded border-gray-300 w-3 h-3">
+                                <span class="flex items-center gap-1">
+                                    <x-heroicon-o-document-check class="w-3 h-3" />
+                                    Processos Digitais
+                                </span>
+                            </label>
+
+                            {{-- Estado colapsado: dots de cor + "N etapas" (clica para expandir) --}}
+                            <div x-show="processosOn && legenda.length > 0 && !aberta" x-transition
+                                @click="aberta = true"
+                                class="mt-1 flex items-center gap-1.5 cursor-pointer select-none text-[10px] text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+                                <span class="flex items-center gap-1 flex-shrink-0">
+                                    <template x-for="item in legenda" :key="item.cor">
+                                        <span
+                                            :style="'display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
+                                            item.cor"
+                                            :title="item.nome"></span>
+                                    </template>
+                                </span>
+                                <span class="whitespace-nowrap flex-shrink-0 flex items-center gap-0.5">
+                                    <span
+                                        x-text="legenda.length + (legenda.length === 1 ? ' etapa' : ' etapas')"></span>
+                                    <x-heroicon-o-chevron-down class="w-2.5 h-2.5 opacity-60" />
+                                </span>
+                            </div>
+
+                            {{-- Estado expandido: lista completa + botão recolher --}}
+                            <div x-show="processosOn && legenda.length > 0 && aberta" x-transition
+                                class="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
+                                <div class="flex flex-wrap gap-x-3 gap-y-1">
+                                    <template x-for="item in legenda" :key="item.cor">
+                                        <span class="inline-flex items-center gap-1">
+                                            <span
+                                                :style="'display:inline-block;width:10px;height:10px;border-radius:2px;background:' +
+                                                item.cor"></span>
+                                            <span x-text="item.nome"></span>
+                                        </span>
+                                    </template>
+                                    <span class="inline-flex items-center gap-1">
+                                        <span
+                                            style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#d1d5db"></span>
+                                        Sem processo
+                                    </span>
+                                </div>
+                                <button type="button" @click="aberta = false"
+                                    class="mt-0.5 flex items-center gap-0.5 text-[9px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                                    <x-heroicon-o-chevron-up class="w-2.5 h-2.5" />
+                                    recolher
+                                </button>
+                            </div>
+
+                            {{-- Sem processo em andamento --}}
+                            <div x-show="processosOn && legenda.length === 0" x-transition
+                                class="mt-1 text-[10px] text-gray-400 italic">
+                                Nenhum processo em andamento.
+                            </div>
+                        </div>
+
                         <div class="flex items-center justify-between w-full mt-2">
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                 <input type="checkbox" data-layer="logradouros"
@@ -1325,6 +1397,38 @@
                             </span>
                         </label>
 
+                        {{-- Áreas REURB --}}
+                        <div data-permission-group="layer:areas_reurb" x-data="{ on: false }">
+
+                            <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                                <input type="checkbox" data-layer="areas_reurb" x-model="on"
+                                    class="layer-toggle rounded border-gray-300 text-amber-500 focus:ring-amber-400 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-3 bg-amber-500 rounded-sm flex-shrink-0 opacity-80"></div>
+                                    <span class="layer-text truncate">Áreas REURB</span>
+                                </span>
+                            </label>
+
+                            <div x-show="on" x-transition
+                                class="ml-7 mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-500 dark:text-gray-400">
+                                <span class="inline-flex items-center gap-1">
+                                    <span
+                                        style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f59e0b"></span>
+                                    Reurb-S
+                                </span>
+                                <span class="inline-flex items-center gap-1">
+                                    <span
+                                        style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#8b5cf6"></span>
+                                    Reurb-E
+                                </span>
+                                <span class="inline-flex items-center gap-1">
+                                    <span
+                                        style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#6b7280"></span>
+                                    Sem Classif.
+                                </span>
+                            </div>
+                        </div>
+
                         {{-- CAMADA: IMAGENS 360º --}}
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
                             <input type="checkbox" data-layer="pontos_panoramicos"
@@ -1476,7 +1580,8 @@
                                 <input type="checkbox" data-layer="toponimias"
                                     class="layer-toggle rounded border-gray-300 text-violet-600 focus:ring-violet-500 w-4 h-4 flex-shrink-0">
                                 <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                    <div class="w-3 h-3 bg-violet-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
+                                    <div
+                                        class="w-3 h-3 bg-violet-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
                                     </div>
                                     <span class="layer-text truncate">Toponímias / Textos</span>
                                 </span>
@@ -1537,8 +1642,9 @@
         <div x-data="{ openCad: false, ferramentaCadAtiva: null, ortogonalAtiva: false }"
             @toggle-cad-avancado.window="openCad = !openCad; if(!openCad) ferramentaCadAtiva = null;"
             @fechar-submenus-cad.window="ferramentaCadAtiva = null" x-show="openCad"
-            x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-10"
-            x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-200"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-10" x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-200"
             x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-10"
             style="display: none; position: fixed !important; bottom: 15px !important; left: 50% !important; transform: translateX(-50%) !important; z-index: 9998 !important;"
             class="bg-white dark:bg-gray-900/80 backdrop-blur-md shadow-lg rounded-2xl border border-gray-200 dark:border-gray-700 px-3 py-1.5 flex items-center gap-2 pointer-events-auto transition-all">
@@ -1726,6 +1832,64 @@
                         </div>
                     </div>
 
+                    {{-- COMPARATIVO CADASTRAL (aparece somente quando há dados tributários) --}}
+                    @if ($loteAreaCadastrada > 0)
+                        @php
+                            $deltaLote =
+                                $loteAreaGeo > 0
+                                    ? (($loteAreaGeo - $loteAreaCadastrada) / $loteAreaCadastrada) * 100
+                                    : 0;
+                            $corDeltaLote =
+                                abs($deltaLote) > 5
+                                    ? 'text-red-600 dark:text-red-400'
+                                    : 'text-green-600 dark:text-green-400';
+                            $iconeDeltaLote =
+                                abs($deltaLote) > 5 ? 'heroicon-o-exclamation-triangle' : 'heroicon-o-check-circle';
+                        @endphp
+                        <div class="mt-3 pt-3 border-t border-dashed border-gray-300 dark:border-gray-600">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold mb-2 flex items-center gap-1">
+                                <x-heroicon-o-scale class="w-3 h-3" /> Comparativo Cadastral
+                            </p>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                <span class="text-gray-500 dark:text-gray-400">Área Cadastro:</span>
+                                <span class="font-bold text-gray-700 dark:text-gray-300">
+                                    {{ number_format($loteAreaCadastrada, 2, ',', '.') }} m²
+                                </span>
+                                <span class="text-gray-500 dark:text-gray-400">Δ Lote:</span>
+                                <span class="font-bold flex items-center gap-1 {{ $corDeltaLote }}">
+                                    <x-dynamic-component :component="$iconeDeltaLote" class="w-3 h-3 flex-shrink-0" />
+                                    {{ ($deltaLote >= 0 ? '+' : '') . number_format($deltaLote, 1, ',', '.') }}%
+                                </span>
+                                @if ($loteEdifCadastrada > 0)
+                                    @php
+                                        $deltaEdif =
+                                            $loteAreaConstruida > 0
+                                                ? (($loteAreaConstruida - $loteEdifCadastrada) / $loteEdifCadastrada) *
+                                                    100
+                                                : -100;
+                                        $corDeltaEdif =
+                                            abs($deltaEdif) > 5
+                                                ? 'text-red-600 dark:text-red-400'
+                                                : 'text-green-600 dark:text-green-400';
+                                        $iconeDeltaEdif =
+                                            abs($deltaEdif) > 5
+                                                ? 'heroicon-o-exclamation-triangle'
+                                                : 'heroicon-o-check-circle';
+                                    @endphp
+                                    <span class="text-gray-500 dark:text-gray-400">Edif. Cadastro:</span>
+                                    <span class="font-bold text-gray-700 dark:text-gray-300">
+                                        {{ number_format($loteEdifCadastrada, 2, ',', '.') }} m²
+                                    </span>
+                                    <span class="text-gray-500 dark:text-gray-400">Δ Edificação:</span>
+                                    <span class="font-bold flex items-center gap-1 {{ $corDeltaEdif }}">
+                                        <x-dynamic-component :component="$iconeDeltaEdif" class="w-3 h-3 flex-shrink-0" />
+                                        {{ ($deltaEdif >= 0 ? '+' : '') . number_format($deltaEdif, 1, ',', '.') }}%
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+
                     @if ($loteOcupacao || $loteSituacaoQuadra)
                         @php
                             $ocupacaoLabel = ['baldio' => 'Baldio', 'construido' => 'Construído'];
@@ -1830,6 +1994,22 @@
                         </span>
                         <x-heroicon-o-document-text class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
                     </button>
+
+                    {{-- BOTÃO DE PROCESSOS EM ABERTO (visível apenas quando há processo vinculado ao lote) --}}
+                    @if (count($loteProcessosAbertos) > 0)
+                        <button wire:click="mountAction('verProcessosLote')"
+                            class="w-full text-left px-4 py-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-700 rounded-xl hover:border-indigo-500 hover:shadow-md transition-all group flex items-center justify-between">
+                            <span
+                                class="text-sm font-medium text-indigo-700 dark:text-indigo-300 group-hover:text-indigo-600 flex items-center gap-2">
+                                <x-heroicon-o-document-check class="w-4 h-4 flex-shrink-0" />
+                                Processos digitais
+                                <span
+                                    class="inline-flex items-center justify-center w-5 h-5 text-xs font-bold bg-indigo-600 text-white rounded-full">{{ count($loteProcessosAbertos) }}</span>
+                            </span>
+                            <x-heroicon-o-arrow-right
+                                class="w-4 h-4 text-indigo-400 group-hover:text-indigo-500 flex-shrink-0" />
+                        </button>
+                    @endif
 
                     {{-- 👈 BOTÃO: GERENCIAR AS 3 FOTOS DO LOTE (frontal + 2 laterais) --}}
                     <button type="button" wire:click="mountAction('gerenciarFotosLote')"

@@ -32,4 +32,5 @@ class Jazigo extends Model
     public function quadraCemiterio() { return $this->belongsTo(QuadraCemiterio::class, 'quadra_cemiterio_id'); }
     public function proprietario() { return $this->belongsTo(Pessoa::class, 'proprietario_id'); }
     public function documentos() { return $this->morphMany(Documento::class, 'documentable'); }
+    public function falecidos() { return $this->hasMany(JazigoFalecido::class); }
 }

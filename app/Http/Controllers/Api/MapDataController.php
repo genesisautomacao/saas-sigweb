@@ -22,6 +22,8 @@ use App\Models\RuralHidrografia;
 use App\Models\RuralPonte;
 use App\Models\RuralPontoInteresse;
 use App\Models\PontoPanoramico;
+use App\Models\AreaReurb;
+use Illuminate\Support\Facades\DB;
 
 class MapDataController extends Controller
 {
@@ -89,6 +91,29 @@ class MapDataController extends Controller
                 $data = $buildFeatureCollection(Bairro::where('tenant_id', $tenantId)->get(), 'bairros');
                 break;
 
+            case 'areas_reurb':
+                $areas = AreaReurb::where('tenant_id', $tenantId)->get();
+                $features = [];
+                foreach ($areas as $area) {
+                    if ($area->geo_json) {
+                        $features[] = [
+                            'type' => 'Feature',
+                            'properties' => [
+                                'id' => $area->id,
+                                'name' => $area->nome,
+                                'tipo_reurb' => $area->tipo_reurb,
+                                'status' => $area->status,
+                                'sequential_id' => $area->sequential_id,
+                                'area_geo' => $area->area_geo,
+                                'layer' => 'areas_reurb',
+                            ],
+                            'geometry' => $area->geo_json,
+                        ];
+                    }
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
             case 'loteamentos':
                 $itens = \App\Models\Loteamento::where('tenant_id', $tenantId)->get();
                 $data = $buildFeatureCollection($itens, 'loteamentos');
@@ -135,10 +160,28 @@ class MapDataController extends Controller
                     ])
                     ->get();
 
+                // Processos digitais em andamento por lote — para coloração temática no mapa
+                $processosPorLote = DB::table('processos_digitais')
+                    ->join('bpmn_etapas', 'bpmn_etapas.id', '=', 'processos_digitais.etapa_atual_id')
+                    ->where('processos_digitais.tenant_id', $tenantId)
+                    ->where('processos_digitais.status', 'em_andamento')
+                    ->whereNull('processos_digitais.deleted_at')
+                    ->whereNotNull('processos_digitais.lote_id')
+                    ->select(
+                        'processos_digitais.lote_id',
+                        'bpmn_etapas.cor_mapa as processo_etapa_cor',
+                        'bpmn_etapas.nome as processo_etapa_nome',
+                        'processos_digitais.codigo_processo'
+                    )
+                    ->orderBy('processos_digitais.id')
+                    ->get()
+                    ->keyBy('lote_id');
+
                 // Customizamos o construtor do GeoJSON só para os lotes para injetar essas variáveis
                 $features = [];
                 foreach ($lotes as $lote) {
                     if (!empty($lote->geo_json) && !empty($lote->geo_json->coordinates)) {
+                        $proc = $processosPorLote[$lote->id] ?? null;
                         $features[] = [
                             'type' => 'Feature',
                             'properties' => [
@@ -154,6 +197,10 @@ class MapDataController extends Controller
                                 'social_beneficio' => (bool) $lote->tem_beneficio,
                                 'social_pcd' => (bool) $lote->tem_pcd,
                                 'status_cadastro' => $lote->status_cadastro ?? 'nao_visitado',
+                                // 👇 PROCESSOS DIGITAIS — etapa atual com cor definida no BpmnFluxo
+                                'processo_etapa_cor' => $proc?->processo_etapa_cor,
+                                'processo_etapa_nome' => $proc?->processo_etapa_nome,
+                                'codigo_processo' => $proc?->codigo_processo,
                             ],
                             'geometry' => $lote->geo_json
                         ];

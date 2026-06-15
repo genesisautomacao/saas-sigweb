@@ -92,6 +92,13 @@ class ImportarDadosTributarios extends Command
                         $unidade->codigo_imovel_tributario = $imovel['codigo_imovel_tributario'];
                     }
                     $unidade->save();
+
+                    // Propaga area_cadastrada para o lote pai (usado no comparativo cartográfico)
+                    if ($unidade->lote_id && isset($imovel['area_geo'])) {
+                        DB::table('lotes')
+                            ->where('id', $unidade->lote_id)
+                            ->update(['area_cadastrada' => (float) $imovel['area_geo']]);
+                    }
                 }
 
                 $atualizados++;

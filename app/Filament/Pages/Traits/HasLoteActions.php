@@ -1429,4 +1429,72 @@ trait HasLoteActions
                 return new \Illuminate\Support\HtmlString(\Illuminate\Support\Facades\Blade::render($bladeView, ['lat' => $lat, 'lng' => $lng]));
             });
     }
+
+    public function verProcessosLoteAction(): Action
+    {
+        return Action::make('verProcessosLote')
+            ->modalHeading(fn() => 'Processos em Aberto — Lote ' . $this->loteAtivoNome)
+            ->modalWidth('4xl')
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Fechar')
+            ->modalContent(function () {
+                $processos = $this->loteProcessosAbertos;
+
+                $bladeView = <<<'BLADE'
+                    @if(empty($processos))
+                        <div class="text-center py-8 text-gray-500 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+                            <x-heroicon-o-document-check class="w-10 h-10 mx-auto text-gray-400 mb-2 opacity-50" />
+                            Nenhum processo em aberto para este lote.
+                        </div>
+                    @else
+                        <div class="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+                            <table class="w-full text-sm text-left text-gray-600 dark:text-gray-300">
+                                <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700">
+                                    <tr>
+                                        <th class="px-4 py-3">Protocolo</th>
+                                        <th class="px-4 py-3">Serviço</th>
+                                        <th class="px-4 py-3">Fase Atual</th>
+                                        <th class="px-4 py-3">Estado</th>
+                                        <th class="px-4 py-3">Aberto em</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                    @foreach($processos as $p)
+                                        @php
+                                            $corStatus = match($p['status']) {
+                                                'em_andamento'      => 'primary',
+                                                'rascunho'          => 'gray',
+                                                'pendente_correcao' => 'danger',
+                                                default             => 'gray',
+                                            };
+                                            $labelStatus = match($p['status']) {
+                                                'em_andamento'      => 'Em Andamento',
+                                                'rascunho'          => 'Rascunho',
+                                                'pendente_correcao' => 'Pend. Correção',
+                                                default             => $p['status'],
+                                            };
+                                        @endphp
+                                        <tr class="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                            <td class="px-4 py-3 font-mono font-bold text-xs text-indigo-700 dark:text-indigo-400">
+                                                {{ $p['codigo_processo'] }}
+                                            </td>
+                                            <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{{ $p['fluxo_nome'] }}</td>
+                                            <td class="px-4 py-3">
+                                                <x-filament::badge color="warning">{{ $p['etapa_nome'] }}</x-filament::badge>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <x-filament::badge :color="$corStatus">{{ $labelStatus }}</x-filament::badge>
+                                            </td>
+                                            <td class="px-4 py-3 text-xs text-gray-500">{{ $p['created_at'] }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                BLADE;
+
+                return new HtmlString(Blade::render($bladeView, ['processos' => $processos]));
+            });
+    }
 }

@@ -45,9 +45,19 @@ class LoteResource extends Resource
                             ->suffix('m'),
 
                         Forms\Components\TextInput::make('area_geo')
-                            ->label('Área do Lote (m²)')
+                            ->label('Área Geo / PostGIS (m²)')
                             ->numeric()
-                            ->suffix('m²'),
+                            ->suffix('m²')
+                            ->disabled()
+                            ->dehydrated(false),
+
+                        Forms\Components\TextInput::make('area_cadastrada')
+                            ->label('Área Cadastral / Tributário (m²)')
+                            ->numeric()
+                            ->suffix('m²')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->helperText('Preenchida automaticamente via tributario:importar'),
 
                         Forms\Components\Select::make('quadra_id')
                             ->label('Quadra Pertencente')
@@ -222,10 +232,26 @@ class LoteResource extends Resource
                     ->badge(),
 
                 Tables\Columns\TextColumn::make('area_geo')
-                    ->label('Área do Terreno')
+                    ->label('Área Geo (m²)')
                     ->numeric(decimalPlaces: 2, decimalSeparator: ',', thousandsSeparator: '.')
                     ->suffix(' m²')
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('delta_area')
+                    ->label('Δ Área (%)')
+                    ->getStateUsing(function (Lote $record): ?string {
+                        if (!$record->area_cadastrada || !$record->area_geo) return null;
+                        $delta = (($record->area_geo - $record->area_cadastrada) / $record->area_cadastrada) * 100;
+                        return ($delta >= 0 ? '+' : '') . number_format($delta, 1, ',', '.') . '%';
+                    })
+                    ->badge()
+                    ->color(function (Lote $record): string {
+                        if (!$record->area_cadastrada || !$record->area_geo) return 'gray';
+                        $delta = abs(($record->area_geo - $record->area_cadastrada) / $record->area_cadastrada * 100);
+                        return $delta > 5 ? 'danger' : 'success';
+                    })
+                    ->default('—')
+                    ->toggleable(),
 
                 Tables\Columns\BadgeColumn::make('ocupacao')
                     ->label('Ocupação')
@@ -274,6 +300,29 @@ class LoteResource extends Resource
                         'inconformidade' => 'Inconformidade',
                     ])
                     ->multiple(),
+
+                Tables\Filters\Filter::make('divergencia_area')
+                    ->label('Divergência de Área')
+                    ->form([
+                        Forms\Components\TextInput::make('percentual')
+                            ->label('Divergência mínima (%)')
+                            ->numeric()
+                            ->default(5)
+                            ->suffix('%'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        $pct = isset($data['percentual']) ? (float) $data['percentual'] / 100 : null;
+                        if ($pct === null) return $query;
+                        return $query
+                            ->whereNotNull('area_cadastrada')
+                            ->where('area_cadastrada', '>', 0)
+                            ->whereNotNull('area_geo')
+                            ->whereRaw('ABS(area_geo - area_cadastrada) / area_cadastrada > ?', [$pct]);
+                    })
+                    ->indicateUsing(function (array $data): ?string {
+                        if (!isset($data['percentual'])) return null;
+                        return 'Divergência > ' . $data['percentual'] . '%';
+                    }),
             ])
             ->actions([
                 Tables\Actions\Action::make('ver_no_mapa')

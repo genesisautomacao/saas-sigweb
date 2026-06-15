@@ -438,3 +438,61 @@ A PoC exige "acesso direto aos dados do BDG/CTM-Geo da Prefeitura via internet".
 3. **Conexão direta ao banco da Prefeitura** — Configurar segunda conexão em `config/database.php` + job de sincronização periódico (`spatie/laravel-schedule-monitor` opcional). Esforço: 2-3 semanas.
 
 **Ação:** o time comercial precisa confirmar com a Prefeitura o formato de entrega antes da implementação. **Não bloqueia a PoC** se a base de demonstração for entregue como arquivo.
+
+---
+
+## PoC Bom Princípio/RS — Conformidade e Backlog (Auditoria 2026-06-13)
+
+> Auditoria contra os requisitos §§ 19.2.1.2, 19.2.1.3, 19.3.1, 19.4.1 e 19.5 do edital.
+> Plano detalhado em `C:\Users\jesse\.claude\plans\preciso-que-fa-a-uma-fancy-naur.md`.
+
+### Contexto importante
+
+- **`IntegraPrefeituraService`** (`app/Services/ApiTools/IntegraPrefeituraService.php`) — integração com o sistema tributário genérico da prefeitura (já existente e operacional, independente do GOVBR).
+- **GOVBR** — sistema de Arrecadação específico usado por Bom Princípio/RS. É um sistema externo distinto, sem integração atual no SIGWEB. Requer nova implementação + credenciais fornecidas pela prefeitura.
+
+### Resultado Global
+
+| Status | Qtd | % |
+|---|---|---|
+| ✅ Atendido | 24/37 | 65% |
+| ⚠️ Parcial | 10/37 | 27% |
+| ❌ Não atendido | 3/37 | 8% |
+
+> Com parciais contando como ✅: **34/37 = 92%**. Único bloqueador técnico real: GOVBR (depende de credenciais + API da prefeitura).
+
+### Itens ✅ já demonstráveis (não precisam de código)
+
+- § 19.2.1.3a/b/c — CTM app (foto fachada, trena via `dados_vistoria`, `MonitoramentoCampoPage`, `LoteNearestController`)
+- § 19.4.1c/d/e/f/h/i/j/k/l — Georreferenciamento, unificação/subdivisão, WMS externo, busca multicampo, perfis, impressão quadra/lote, cores de status, viabilidade
+- § 19.5.1a/b/c/d/e/f/g/k/n — Todos os módulos principais (imobiliário, viabilidade, iluminação, arborização, patrimônio, social, numeração predial, processo digital, CTM)
+
+### Backlog de Implementação (P1–P8)
+
+| ID | Requisito | O que fazer | Arquivos chave | Esforço |
+|---|---|---|---|---|
+| **P1** | GOVBR (19.3.1) ⚠️ CRÍTICO | Criar nova integração com a API de Arrecadação do GOVBR (sistema distinto do `IntegraPrefeituraService`). **Alternativa PoC:** importar dump JSON/CSV exportado do GOVBR via `tributario:importar`, demonstrando que os dados tributários chegam ao SIGWEB. Requer credenciais + documentação da API GOVBR fornecidas pela prefeitura | Novo `GovbrService.php`, `.env` com `GOVBR_API_URL` + `GOVBR_API_TOKEN` | 8–16h (bloqueado por API GOVBR) |
+| **P2** | Comparativo áreas (19.2.1.2a) | Campo `area_cadastrada` na tabela `lotes`; popular via `tributario:importar`; coluna `Δ área (%)` com badge vermelho no `LoteResource`; filtro "divergência > X%" | `LoteResource.php`, `Lote.php`, migration, `ImportarDadosTributarios.php` | 4–6h |
+| **P3** | Geo em chamados mobile (19.5.1i/m) | Coluna `geo` POINT em `solicitacoes_manutencao`; receber lat/lon no push; camada `solicitacoes` no mapa | `SolicitacaoManutencaoSyncController.php`, `MapDataController.php`, migration | 4–6h |
+| **P4** | Coloração REURB no mapa (19.5.1l) | Campo `etapa_reurb` no `Lote`; toggle "Colorir REURB" análogo a `toggleLotesStatusColor()`; payload na camada lotes | `mapa-engine.js`, `mapa-fullscreen.blade.php`, `MapDataController.php`, `LoteResource.php`, migration | 5–8h |
+| **P5** | Falecido no Cemitério (19.5.1h) | Pivot `jazigo_falecidos` (`jazigo_id`, `pessoa_id FK pessoas`, `data_obito`, `data_sepultamento`, `numero_certidao_obito`); `FalecidosRelationManager` em `JazigoResource` | `JazigoResource.php`, novo `FalecidosRelationManager.php`, migration | 4–6h |
+| **P6** | Aprovação de Projeto BPMN (19.5.1j) | Seeder com `BpmnFluxo` padrão "Aprovação de Projeto de Construção/Reforma" (protocolo → análise → vistoria → aprovação → alvará) | `BpmnFluxoAprovacaoProjetoSeeder.php`, `ProcessoDigitalResource.php` | 3–4h |
+| **P7** | Base cartográfica (19.4.1a) | Criar tenant `bom-principio`, importar Shapefiles via `ogr2ogr`, executar `gis:recalcular-metadata --tenant=bom-principio` | Scripts SQL/bash de importação — não é código do sistema | 8–24h |
+| **P8** | Capacitação (19.5.2e) | Manual de uso SIGWEB focado em CTM/imobiliário — entregável documental | N/A | 8–16h |
+
+### Itens ⚠️ parciais relevantes para demonstração
+
+- **§ 19.2.1.2a** — `area_geo` existe via PostGIS; falta comparativo automatizado com área tributária (→ P2)
+- **§ 19.4.1g** — `ST_MakeValid()` automático; falta relatório de QA topológica (sobreposição/gaps)
+- **§ 19.5.1h** — `JazigoResource` existe; falta `FalecidosRelationManager` (→ P5)
+- **§ 19.5.1i/m** — sync de chamados existe; falta ponto GPS de abertura (→ P3)
+- **§ 19.5.1j** — motor BPMN pronto; falta fluxo pré-configurado de aprovação de projeto (→ P6)
+- **§ 19.5.1l** — BPMN suporta REURB; falta coloração de lotes por etapa no mapa (→ P4)
+
+### Nota GOVBR — Estratégia para PoC
+
+GOVBR é o sistema de Arrecadação específico de Bom Princípio/RS. Para a demonstração sem API disponível:
+1. Solicitar dump JSON/CSV exportado do GOVBR pela própria prefeitura
+2. Executar `php artisan tributario:importar --tenant=bom-principio --file=govbr-dump.json`
+3. Mostrar que os dados tributários (proprietário, valor, inscrição) estão integrados ao SIGWEB
+4. Argumentar contratualmente que a arquitetura está pronta para integração em tempo real assim que as credenciais e documentação da API GOVBR forem fornecidas

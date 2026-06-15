@@ -24,7 +24,7 @@ class Lote extends Model
 
     protected $fillable = [
         'tenant_id', 'sequential_id', 'quadra_id', 'zona_id', 'code',
-        'numero_lote', 'area_geo', 'main_facade_length',
+        'numero_lote', 'area_geo', 'area_cadastrada', 'main_facade_length',
         'foto_frontal', 'foto_lateral_esq', 'foto_lateral_dir',
         'observacao', 'status_cadastro', 'ocupacao', 'situacao_quadra',
         'inconformidade_descricao', 'dados_vistoria',

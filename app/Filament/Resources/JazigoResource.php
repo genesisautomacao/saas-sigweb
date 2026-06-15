@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\JazigoResource\Pages;
+use App\Filament\Resources\JazigoResource\RelationManagers\FalecidosRelationManager;
 use App\Models\Jazigo;
 use App\Models\QuadraCemiterio;
 use App\Models\Pessoa;
@@ -123,6 +124,13 @@ class JazigoResource extends Resource
                     ->searchable()
                     ->default('Nenhum'),
 
+                Tables\Columns\TextColumn::make('falecidos_count')
+                    ->label('Falecidos')
+                    ->counts('falecidos')
+                    ->badge()
+                    ->color(fn(int $state): string => $state > 0 ? 'danger' : 'gray')
+                    ->default(0),
+
                 Tables\Columns\TextColumn::make('area_geo')
                     ->label('Área')
                     ->numeric(decimalPlaces: 2, decimalSeparator: ',', thousandsSeparator: '.')
@@ -160,6 +168,13 @@ class JazigoResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            FalecidosRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

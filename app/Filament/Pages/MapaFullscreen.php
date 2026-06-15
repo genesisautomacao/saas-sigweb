@@ -29,12 +29,14 @@ use App\Filament\Pages\Traits\HasZonaActions;
 use App\Filament\Pages\Traits\HasPontoPanoramicoActions;
 use App\Filament\Pages\Traits\HasPerimetroUrbanoActions;
 use App\Filament\Pages\Traits\HasMeioFioActions;
+use App\Filament\Pages\Traits\HasAreaReurbActions;
 
 use App\Models\Lote;
 use App\Models\Edificacao;
 use App\Models\Zona;
 use App\Models\Quadra;
 use App\Models\Poste;
+use App\Models\AreaReurb;
 use App\Models\Arvore;
 use App\Models\Cemiterio;
 use App\Models\QuadraCemiterio;
@@ -74,6 +76,7 @@ class MapaFullscreen extends Page
     use HasPontoPanoramicoActions;
     use HasPerimetroUrbanoActions;
     use HasMeioFioActions;
+    use HasAreaReurbActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';
@@ -98,6 +101,8 @@ class MapaFullscreen extends Page
     public bool $showFicha = false;
     public float $loteAreaGeo = 0.0;
     public float $loteAreaConstruida = 0.0;
+    public float $loteAreaCadastrada = 0.0;
+    public float $loteEdifCadastrada = 0.0;
     public float $loteFacePrincipal = 0.0;
 
     // Dados de vistoria de campo (Antônio Carlos PoC)
@@ -106,6 +111,7 @@ class MapaFullscreen extends Page
     public ?string $loteSituacaoQuadra = null;
     public ?string $loteColetadoPor = null;
     public ?string $loteColetadoEm = null;
+    public array $loteProcessosAbertos = [];
 
     /* desmembramento */
     public ?int $loteParaDesmembrarId = null;
@@ -189,6 +195,12 @@ class MapaFullscreen extends Page
         $this->loteAreaConstruida = (float) Edificacao::query()->where('lote_id', $loteId)->sum('area_geo');
         $this->loteSequentialId = $lote ? $lote->sequential_id : 'S/N';
 
+        // Dados cadastrais da prefeitura (via dados_tributarios da primeira unidade)
+        $unidade = \App\Models\UnidadeImobiliaria::query()->where('lote_id', $loteId)->first();
+        $dadosTrib = is_array($unidade?->dados_tributarios) ? $unidade->dados_tributarios : [];
+        $this->loteAreaCadastrada = (float) ($dadosTrib['area_geo'] ?? 0);
+        $this->loteEdifCadastrada = (float) ($dadosTrib['area_edificacao'] ?? $dadosTrib['area_total_edificacao'] ?? 0);
+
         // Dados de vistoria de campo
         $this->loteStatusCadastro = $lote?->status_cadastro;
         $this->loteOcupacao       = $lote?->ocupacao;
@@ -197,6 +209,22 @@ class MapaFullscreen extends Page
             ? \App\Models\User::query()->find($lote->coletado_por_id)?->name
             : null;
         $this->loteColetadoEm     = $lote?->coletado_em?->format('d/m/Y H:i');
+
+        // Processos digitais em aberto vinculados a este lote
+        $this->loteProcessosAbertos = \App\Models\ProcessoDigital::query()
+            ->with(['fluxo:id,nome', 'etapaAtual:id,nome'])
+            ->where('lote_id', $loteId)
+            ->whereIn('status', ['em_andamento', 'rascunho', 'pendente_correcao'])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn($p) => [
+                'codigo_processo' => $p->codigo_processo ?? '—',
+                'fluxo_nome'      => $p->fluxo?->nome ?? '—',
+                'etapa_nome'      => $p->etapaAtual?->nome ?? 'Aguardando Triagem',
+                'status'          => $p->status,
+                'created_at'      => $p->created_at?->format('d/m/Y H:i'),
+            ])
+            ->toArray();
 
         $this->showFicha = true;
     }
@@ -584,6 +612,8 @@ class MapaFullscreen extends Page
             $this->mountAction('criarZona');
         } elseif ($entityType === 'ponto_panoramico') {
             $this->mountAction('criarPontoPanoramico');
+        } elseif ($entityType === 'area_reurb') {
+            $this->mountAction('criarAreaReurb');
         }
     }
 
@@ -708,6 +738,29 @@ class MapaFullscreen extends Page
     {
         $this->posteAtivoId = $id;
         $this->mountAction('opcoesPoste');
+    }
+
+    #[On('abrirOpcoesAreaReurb')]
+    public function abrirOpcoesAreaReurb($id)
+    {
+        $this->areaReurbAtivaId = $id;
+        $this->mountAction('opcoesAreaReurb');
+    }
+
+    #[On('salvarNovaGeometriaAreaReurb')]
+    public function salvarNovaGeometriaAreaReurb($id, $geoJson)
+    {
+        $area = AreaReurb::query()->find($id);
+        if ($area) {
+            $area->update(['geo' => $geoJson]);
+            try {
+                DB::statement(
+                    "UPDATE areas_reurb SET area_geo = ST_Area(geo::geography) WHERE id = ?",
+                    [$area->id]
+                );
+            } catch (\Throwable) {}
+            Notification::make()->title('Polígono REURB Atualizado!')->success()->send();
+        }
     }
 
     #[On('salvarNovaGeometriaArvore')]

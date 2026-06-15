@@ -200,6 +200,37 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
+        areas_reurb: {
+            z: 32,
+            minZoom: 0,
+            style: function (feature, resolution) {
+                const tipo = feature.get("tipo_reurb") || "Sem Classificação";
+                const zoom = view.getZoomForResolution(resolution);
+                const colorMap = {
+                    "Reurb-S": { stroke: "#f59e0b", fill: "rgba(245,158,11,0.18)" },
+                    "Reurb-E": { stroke: "#8b5cf6", fill: "rgba(139,92,246,0.18)" },
+                    "Sem Classificação": { stroke: "#6b7280", fill: "rgba(107,114,128,0.12)" },
+                };
+                const colors = colorMap[tipo] || colorMap["Sem Classificação"];
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: colors.stroke, width: 2, lineDash: [8, 4] }),
+                    fill: new ol.style.Fill({ color: colors.fill }),
+                });
+                if (zoom >= 14) {
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name") || "",
+                            font: "bold 11px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: "#374151" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
+
         loteamentos: {
             z: 35, // Fica acima dos Bairros (30) e abaixo das Quadras (40)
             minZoom: 13,
@@ -2601,6 +2632,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "cemiterios",
                 "setores_fiscais",
                 "zonas", // Polígonos Grandes
+                "areas_reurb",
                 "bairros",
                 "loteamentos",
                 "rural-localidades",
@@ -2690,6 +2722,9 @@ document.addEventListener("DOMContentLoaded", function () {
                     case "zonas":
                         Livewire.dispatch("abrirOpcoesZona", { id: id });
                         break; // 👈 ADICIONE ESTA LINHA
+                    case "areas_reurb":
+                        Livewire.dispatch("abrirOpcoesAreaReurb", { id: id });
+                        break;
                     case "bairros":
                         Livewire.dispatch("abrirOpcoesBairro", { id: id });
                         break;
@@ -3473,6 +3508,11 @@ document.addEventListener("DOMContentLoaded", function () {
             layer: "rural-pontos-interesse",
             cor: "#14b8a6",
         },
+        {
+            evento: "iniciar-edicao-geometria-area-reurb",
+            layer: "areas_reurb",
+            cor: "#f59e0b",
+        },
     ];
 
     // 🔄 REGISTRA TODOS OS OUVINTES DE UMA VEZ SÓ
@@ -3533,6 +3573,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     logradouros_cemiterio: "logradouro_cemiterio",
                     jazigos: "jazigo",
                     setores_fiscais: "setor_fiscal",
+                    areas_reurb: "area_reurb",
                     "rural-localidades": "rural_localidade",
                     "rural-propriedades": "rural_propriedade",
                     "rural-estradas": "rural_estrada",
@@ -3663,6 +3704,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             else if (layerName === "rural-pontos-interesse")
                 Livewire.dispatch("salvarNovaGeometriaRuralPontoInteresse", {
+                    id: id,
+                    geoJson: geoJson,
+                });
+            else if (layerName === "areas_reurb")
+                Livewire.dispatch("salvarNovaGeometriaAreaReurb", {
                     id: id,
                     geoJson: geoJson,
                 });
@@ -4142,6 +4188,7 @@ document.addEventListener("DOMContentLoaded", function () {
         { layer: "quadras", singular: "quadra" },
 
         { layer: "pontos_panoramicos", singular: "ponto_panoramico" },
+        { layer: "areas_reurb", singular: "area_reurb" },
     ];
 
     entidadesSurgical.forEach((entidade) => {
@@ -6457,6 +6504,58 @@ document.addEventListener("DOMContentLoaded", function () {
 
     window.addEventListener("sigweb-toggle-status-color", function (e) {
         window.toggleLotesStatusColor(e.detail.enabled);
+    });
+
+    // =========================================================================
+    // PROCESSOS DIGITAIS — colore lotes pela etapa atual (cor_mapa de BpmnEtapa)
+    // Lotes sem processo ativo ficam esmaecidos; legenda dinâmica via CustomEvent
+    // =========================================================================
+    window.sigwebProcessosBaseStyle = null;
+
+    window.toggleProcessosColor = function (enabled) {
+        const layerName = "lotes";
+        const layer = window.loadedLayers[layerName];
+        if (!layer) return;
+
+        if (!window.sigwebProcessosBaseStyle) {
+            window.sigwebProcessosBaseStyle = layer.getStyleFunction();
+        }
+
+        if (enabled) {
+            const legendItems = {};
+            layer.getSource().getFeatures().forEach(function (feature) {
+                const cor = feature.get("processo_etapa_cor");
+                const nome = feature.get("processo_etapa_nome");
+                if (cor && nome) legendItems[cor] = nome;
+            });
+            window.dispatchEvent(new CustomEvent("sigweb-processos-legenda", {
+                detail: { items: Object.entries(legendItems).map(([cor, nome]) => ({ cor, nome })) }
+            }));
+
+            layer.setStyle(function (feature) {
+                const cor = feature.get("processo_etapa_cor");
+                if (!cor) {
+                    return new ol.style.Style({
+                        fill: new ol.style.Fill({ color: "rgba(200,200,200,0.10)" }),
+                        stroke: new ol.style.Stroke({ color: "#d1d5db", width: 1 }),
+                    });
+                }
+                const r = parseInt(cor.slice(1, 3), 16);
+                const g = parseInt(cor.slice(3, 5), 16);
+                const b = parseInt(cor.slice(5, 7), 16);
+                return new ol.style.Style({
+                    fill: new ol.style.Fill({ color: "rgba(" + r + "," + g + "," + b + ",0.45)" }),
+                    stroke: new ol.style.Stroke({ color: cor, width: 2.5 }),
+                });
+            });
+        } else {
+            layer.setStyle(window.sigwebProcessosBaseStyle);
+            window.dispatchEvent(new CustomEvent("sigweb-processos-legenda", { detail: { items: [] } }));
+        }
+    };
+
+    window.addEventListener("sigweb-toggle-processos-color", function (e) {
+        window.toggleProcessosColor(e.detail.enabled);
     });
 
     // =========================================================================
