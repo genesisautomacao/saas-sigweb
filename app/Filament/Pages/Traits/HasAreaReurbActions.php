@@ -17,7 +17,7 @@ trait HasAreaReurbActions
             ->model(AreaReurb::class)
             ->modalHeading('Cadastrar Área de Regularização (REURB)')
             ->modalSubmitActionLabel('Salvar Área')
-            ->modalWidth('2xl')
+            ->modalWidth('3xl')
             ->form($this->getAreaReurbFormSchema())
             ->action(function (array $data) {
                 $area = AreaReurb::create([
@@ -34,7 +34,8 @@ trait HasAreaReurbActions
                         "UPDATE areas_reurb SET area_geo = ST_Area(geo::geography) WHERE id = ?",
                         [$area->id]
                     );
-                } catch (\Throwable) {}
+                } catch (\Throwable) {
+                }
 
                 Notification::make()->title('Área REURB Criada!')->success()->send();
 
@@ -106,7 +107,7 @@ trait HasAreaReurbActions
                 $area = AreaReurb::find($this->areaReurbAtivaId);
                 return 'Editar Área REURB' . ($area ? ' — ' . $area->nome : '');
             })
-            ->modalWidth('2xl')
+            ->modalWidth('3xl')
             ->modalSubmitActionLabel('Salvar Alterações')
             ->fillForm(function (): array {
                 $area = AreaReurb::find($this->areaReurbAtivaId);

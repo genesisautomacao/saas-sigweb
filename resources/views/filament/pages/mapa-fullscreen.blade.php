@@ -338,6 +338,12 @@
 
                                     <div x-show="activeTabDraw === 'infra'" x-collapse
                                         class="py-1 bg-gray-50/30 dark:bg-gray-900/20">
+                                        <button type="button" onclick="enableDrawing('patrimonio_publico')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-building-library class="w-4 h-4 text-indigo-500" />
+                                            Patrimônio Público
+                                        </button>
                                         <button type="button" onclick="enableDrawing('poste')"
                                             @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-yellow-50 hover:text-yellow-600 flex items-center gap-3 transition-colors">
@@ -1378,6 +1384,15 @@
                     </button>
                     <div x-show="activeTab === 'infra'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
+
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" data-layer="patrimonio_publicos"
+                                class="layer-toggle rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-indigo-500 rounded-sm flex-shrink-0 opacity-80"></div>
+                                <span class="layer-text truncate">Patrimônio Público</span>
+                            </span>
+                        </label>
 
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
                             <input type="checkbox" data-layer="arvores"

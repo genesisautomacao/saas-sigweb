@@ -91,6 +91,31 @@ class MapDataController extends Controller
                 $data = $buildFeatureCollection(Bairro::where('tenant_id', $tenantId)->get(), 'bairros');
                 break;
 
+            case 'patrimonio_publicos':
+                $items = \App\Models\PatrimonioPublico::where('tenant_id', $tenantId)
+                    ->with('tipo')
+                    ->select('id', 'sequential_id', 'name', 'geo', 'tipo_patrimonio_id', 'address')
+                    ->get();
+                $features = [];
+                foreach ($items as $item) {
+                    if (!empty($item->geo_json) && !empty($item->geo_json->coordinates)) {
+                        $features[] = [
+                            'type' => 'Feature',
+                            'properties' => [
+                                'id'            => $item->id,
+                                'name'          => $item->name,
+                                'sequential_id' => $item->sequential_id,
+                                'tipo'          => $item->tipo?->name,
+                                'address'       => $item->address,
+                                'layer'         => 'patrimonio_publicos',
+                            ],
+                            'geometry' => $item->geo_json,
+                        ];
+                    }
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
             case 'areas_reurb':
                 $areas = AreaReurb::where('tenant_id', $tenantId)->get();
                 $features = [];

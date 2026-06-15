@@ -30,6 +30,7 @@ use App\Filament\Pages\Traits\HasPontoPanoramicoActions;
 use App\Filament\Pages\Traits\HasPerimetroUrbanoActions;
 use App\Filament\Pages\Traits\HasMeioFioActions;
 use App\Filament\Pages\Traits\HasAreaReurbActions;
+use App\Filament\Pages\Traits\HasPatrimonioPublicoActions;
 
 use App\Models\Lote;
 use App\Models\Edificacao;
@@ -37,6 +38,7 @@ use App\Models\Zona;
 use App\Models\Quadra;
 use App\Models\Poste;
 use App\Models\AreaReurb;
+use App\Models\PatrimonioPublico;
 use App\Models\Arvore;
 use App\Models\Cemiterio;
 use App\Models\QuadraCemiterio;
@@ -77,6 +79,7 @@ class MapaFullscreen extends Page
     use HasPerimetroUrbanoActions;
     use HasMeioFioActions;
     use HasAreaReurbActions;
+    use HasPatrimonioPublicoActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';
@@ -614,6 +617,8 @@ class MapaFullscreen extends Page
             $this->mountAction('criarPontoPanoramico');
         } elseif ($entityType === 'area_reurb') {
             $this->mountAction('criarAreaReurb');
+        } elseif ($entityType === 'patrimonio_publico') {
+            $this->mountAction('criarPatrimonioPublico');
         }
     }
 
@@ -738,6 +743,23 @@ class MapaFullscreen extends Page
     {
         $this->posteAtivoId = $id;
         $this->mountAction('opcoesPoste');
+    }
+
+    #[On('abrirOpcoesPatrimonioPublico')]
+    public function abrirOpcoesPatrimonioPublico($id)
+    {
+        $this->patrimonioPublicoAtivoId = $id;
+        $this->mountAction('opcoesPatrimonioPublico');
+    }
+
+    #[On('salvarNovaGeometriaPatrimonioPublico')]
+    public function salvarNovaGeometriaPatrimonioPublico($id, $geoJson)
+    {
+        $p = PatrimonioPublico::query()->find($id);
+        if ($p) {
+            $p->update(['geo' => $geoJson]);
+            Notification::make()->title('Geometria do Patrimônio Atualizada!')->success()->send();
+        }
     }
 
     #[On('abrirOpcoesAreaReurb')]

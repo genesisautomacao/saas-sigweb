@@ -377,6 +377,28 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
+        patrimonio_publicos: {
+            z: 102,
+            minZoom: 13,
+            style: function (feature) {
+                const color = "#6366f1"; // indigo-500
+                const geomType = feature.getGeometry().getType();
+                if (geomType === "Point" || geomType === "MultiPoint") {
+                    return new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: 7,
+                            fill: new ol.style.Fill({ color }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 2 }),
+                        }),
+                    });
+                }
+                return new ol.style.Style({
+                    fill: new ol.style.Fill({ color: color + "33" }),
+                    stroke: new ol.style.Stroke({ color, width: 2.5, lineDash: [6, 3] }),
+                });
+            },
+        },
+
         arvores: {
             z: 101,
             minZoom: 15,
@@ -2613,6 +2635,7 @@ document.addEventListener("DOMContentLoaded", function () {
             // 🛑 HIERARQUIA INTELIGENTE DE CLIQUES: Quem estiver mais no topo da lista "rouba" o clique!
             const clickPriority = [
                 "edificacao_ativa", // Modo edição ganha de tudo
+                "patrimonio_publicos",
                 "postes",
                 "arvores",
                 "toponimias",
@@ -2661,6 +2684,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 switch (clickedLayer) {
                     case "edificacao_ativa":
                         Livewire.dispatch("abrirOpcoesEdificacao", { id: id });
+                        break;
+                    case "patrimonio_publicos":
+                        Livewire.dispatch("abrirOpcoesPatrimonioPublico", { id: id });
                         break;
                     case "postes":
                         Livewire.dispatch("abrirOpcoesPoste", { id: id });
@@ -3513,6 +3539,11 @@ document.addEventListener("DOMContentLoaded", function () {
             layer: "areas_reurb",
             cor: "#f59e0b",
         },
+        {
+            evento: "iniciar-edicao-geometria-patrimonio_publico",
+            layer: "patrimonio_publicos",
+            cor: "#6366f1",
+        },
     ];
 
     // 🔄 REGISTRA TODOS OS OUVINTES DE UMA VEZ SÓ
@@ -3574,6 +3605,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     jazigos: "jazigo",
                     setores_fiscais: "setor_fiscal",
                     areas_reurb: "area_reurb",
+                    patrimonio_publicos: "patrimonio_publico",
                     "rural-localidades": "rural_localidade",
                     "rural-propriedades": "rural_propriedade",
                     "rural-estradas": "rural_estrada",
@@ -3709,6 +3741,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             else if (layerName === "areas_reurb")
                 Livewire.dispatch("salvarNovaGeometriaAreaReurb", {
+                    id: id,
+                    geoJson: geoJson,
+                });
+            else if (layerName === "patrimonio_publicos")
+                Livewire.dispatch("salvarNovaGeometriaPatrimonioPublico", {
                     id: id,
                     geoJson: geoJson,
                 });
@@ -4189,6 +4226,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         { layer: "pontos_panoramicos", singular: "ponto_panoramico" },
         { layer: "areas_reurb", singular: "area_reurb" },
+        { layer: "patrimonio_publicos", singular: "patrimonio_publico" },
     ];
 
     entidadesSurgical.forEach((entidade) => {
