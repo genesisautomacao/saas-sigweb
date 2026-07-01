@@ -14,6 +14,7 @@ class MovimentacaoItem extends Model
     protected $fillable = [
         'movimentacao_id',
         'produto_id',
+        'lote_estoque_id',
         'quantity',
         'unitary_value',
     ];
@@ -31,5 +32,10 @@ class MovimentacaoItem extends Model
     public function produto()
     {
         return $this->belongsTo(Produto::class);
+    }
+
+    public function loteEstoque()
+    {
+        return $this->belongsTo(LoteEstoque::class);
     }
 }

@@ -248,6 +248,51 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(EstoqueMovimentacao::class);
     }
 
+    public function estabelecimentos(): HasMany
+    {
+        return $this->hasMany(Estabelecimento::class);
+    }
+
+    public function fabricantes(): HasMany
+    {
+        return $this->hasMany(Fabricante::class);
+    }
+
+    public function fornecedores(): HasMany
+    {
+        return $this->hasMany(Fornecedor::class);
+    }
+
+    public function unidadeMedidas(): HasMany
+    {
+        return $this->hasMany(UnidadeMedida::class);
+    }
+
+    public function embalagens(): HasMany
+    {
+        return $this->hasMany(Embalagem::class);
+    }
+
+    public function familiaProdutos(): HasMany
+    {
+        return $this->hasMany(FamiliaProduto::class);
+    }
+
+    public function tipoEstoques(): HasMany
+    {
+        return $this->hasMany(TipoEstoque::class);
+    }
+
+    public function operacaoInternas(): HasMany
+    {
+        return $this->hasMany(OperacaoInterna::class);
+    }
+
+    public function loteEstoques(): HasMany
+    {
+        return $this->hasMany(LoteEstoque::class);
+    }
+
     // Módulo de Manutenção e Serviços
     public function solicitacaoManutencaos(): HasMany
     {

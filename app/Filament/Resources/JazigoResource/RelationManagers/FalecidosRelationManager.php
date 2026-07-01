@@ -40,6 +40,32 @@ class FalecidosRelationManager extends RelationManager
                     ->columnSpanFull(),
             ]),
 
+            Forms\Components\Section::make('Documentos Anexados')
+                ->schema([
+                    Forms\Components\Repeater::make('documentos')
+                        ->relationship('documentos')
+                        ->schema([
+                            Forms\Components\TextInput::make('name')
+                                ->label('Nome do Documento')
+                                ->required()
+                                ->maxLength(255),
+                            Forms\Components\FileUpload::make('path')
+                                ->label('Arquivo')
+                                ->directory('documentos/falecidos')
+                                ->preserveFilenames()
+                                ->maxSize(10240)
+                                ->openable()
+                                ->downloadable()
+                                ->required()
+                                ->columnSpanFull(),
+                        ])
+                        ->defaultItems(0)
+                        ->addActionLabel('Anexar Documento')
+                        ->columnSpanFull(),
+                ])
+                ->collapsible()
+                ->collapsed(),
+
             Forms\Components\Section::make('Dados do Óbito')->schema([
                 Forms\Components\DatePicker::make('data_obito')
                     ->label('Data do Óbito')

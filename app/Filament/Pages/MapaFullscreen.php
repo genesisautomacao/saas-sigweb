@@ -29,8 +29,10 @@ use App\Filament\Pages\Traits\HasZonaActions;
 use App\Filament\Pages\Traits\HasPontoPanoramicoActions;
 use App\Filament\Pages\Traits\HasPerimetroUrbanoActions;
 use App\Filament\Pages\Traits\HasMeioFioActions;
+use App\Filament\Pages\Traits\HasSecaoLogradouroActions;
 use App\Filament\Pages\Traits\HasAreaReurbActions;
 use App\Filament\Pages\Traits\HasPatrimonioPublicoActions;
+use App\Filament\Pages\Traits\HasTestadaActions;
 
 use App\Models\Lote;
 use App\Models\Edificacao;
@@ -78,8 +80,10 @@ class MapaFullscreen extends Page
     use HasPontoPanoramicoActions;
     use HasPerimetroUrbanoActions;
     use HasMeioFioActions;
+    use HasSecaoLogradouroActions;
     use HasAreaReurbActions;
     use HasPatrimonioPublicoActions;
+    use HasTestadaActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';
@@ -132,6 +136,11 @@ class MapaFullscreen extends Page
     public ?int $zonaRascunhoId = null;
     public bool $mostrarEdificacoesLoteAtivo = false;
     public ?int $edificacaoAtivaId = null;
+
+    // Propriedades de Testadas
+    public bool $mostrarTestadasLoteAtivo = false;
+    public ?int $testadaAtivaId = null;
+    public ?float $testadaExtensaoCalculada = null;
     public array $zonasTipos = [];
     public ?int $cemiterioAtivoId = null;
 
@@ -142,6 +151,10 @@ class MapaFullscreen extends Page
     public ?string $numDrawnLine = null;
     public bool $previewNumeracaoAtivo = false;
     public array $resultadosNumeracao = [];
+    // Config persistida para permitir recálculo (inverter lados / ajustes manuais)
+    public string $numLadoPar = 'right';
+    public int $numInicialPar = 2;
+    public int $numInicialImpar = 1;
 
     /* altimetria */
     public array $altimetriaData = [];
@@ -187,6 +200,8 @@ class MapaFullscreen extends Page
         if ($this->loteAtivoId !== null && $this->loteAtivoId != $loteId) {
             $this->mostrarEdificacoesLoteAtivo = false;
             $this->dispatch('esconder-edificacoes-lote');
+            $this->mostrarTestadasLoteAtivo = false;
+            $this->dispatch('esconder-testadas-lote');
         }
 
         $this->loteAtivoId = $loteId;
@@ -560,6 +575,34 @@ class MapaFullscreen extends Page
             $this->meioFioExtensaoCalculada = $ext?->metros ? round((float) $ext->metros, 2) : null;
 
             $this->mountAction('criarMeioFio');
+        } elseif ($entityType === 'secao_logradouro') {
+
+            $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+
+            // Se vier do contexto de um logradouro (botão "Nova Seção" no modal),
+            // usa o pré-selecionado. Só faz KNN se não houver pré-seleção.
+            if (!$this->secaoLogradouroLogradouroPreSelecionadoId) {
+                $logradouro = DB::selectOne(
+                    "SELECT id FROM logradouros
+                     WHERE tenant_id = ? AND geo IS NOT NULL AND deleted_at IS NULL
+                     ORDER BY geo::geometry <-> {$lineWKT}::geometry
+                     LIMIT 1",
+                    [$this->tenantId]
+                );
+                $this->secaoLogradouroLogradouroPreSelecionadoId = $logradouro?->id;
+            }
+
+            $ext = DB::selectOne("SELECT ST_Length({$lineWKT}::geography) AS metros");
+            $this->secaoLogradouroExtensaoCalculada = $ext?->metros ? round((float) $ext->metros, 2) : null;
+
+            $this->mountAction('criarSecaoLogradouro');
+        } elseif ($entityType === 'testada') {
+
+            $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $ext = DB::selectOne("SELECT ST_Length({$lineWKT}::geography) AS metros");
+            $this->testadaExtensaoCalculada = $ext?->metros ? round((float) $ext->metros, 2) : null;
+
+            $this->mountAction('criarTestada');
         } elseif ($entityType === 'loteamento') {
 
             $area = DB::selectOne("SELECT ST_Area($polyWKT::geography) AS metros");
@@ -939,30 +982,41 @@ class MapaFullscreen extends Page
         return \Filament\Actions\Action::make('configurarNumeracaoAction')
             ->hiddenLabel()
             ->modalHeading('Gerador de Numeração Predial')
-            ->modalDescription(fn() => 'Configurando a métrica para: ' . $this->numLogradouroNome)
+            ->modalDescription(fn() => 'Configurando a métrica para: ' . $this->numLogradouroNome
+                . '. O ponto de partida é o 1º ponto do trajeto que você desenhou no mapa.')
             ->modalSubmitActionLabel('Calcular Prévia no Mapa')
             ->modalIcon('heroicon-o-hashtag')
             ->form([
                 \Filament\Forms\Components\Select::make('lado_par')
                     ->label('Qual lado da rua será a numeração PAR?')
                     ->options([
-                        'right' => 'Lado Direito (Olhando do Marco Zero para o fim da rua)',
-                        'left' => 'Lado Esquerdo (Olhando do Marco Zero para o fim da rua)',
+                        'right' => 'Lado Direito (olhando do ponto de partida para o fim da rua)',
+                        'left' => 'Lado Esquerdo (olhando do ponto de partida para o fim da rua)',
                     ])
-                    ->default('right')
+                    ->default($this->numLadoPar)
                     ->required(),
 
-                \Filament\Forms\Components\TextInput::make('numero_inicial')
-                    ->label('Número Inicial / Constante')
-                    ->helperText('Se a rua começar do zero, deixe 0. Se for um trecho final, coloque a metragem inicial (Ex: 1500).')
-                    ->numeric()
-                    ->default(0)
-                    ->required(),
+                \Filament\Forms\Components\Grid::make(2)->schema([
+                    \Filament\Forms\Components\TextInput::make('numero_inicial_par')
+                        ->label('Número inicial — lado PAR')
+                        ->helperText('Ex.: 2. Some a metragem inicial se for um trecho já iniciado.')
+                        ->numeric()
+                        ->default($this->numInicialPar)
+                        ->required(),
+
+                    \Filament\Forms\Components\TextInput::make('numero_inicial_impar')
+                        ->label('Número inicial — lado ÍMPAR')
+                        ->helperText('Ex.: 1. Some a metragem inicial se for um trecho já iniciado.')
+                        ->numeric()
+                        ->default($this->numInicialImpar)
+                        ->required(),
+                ]),
             ])
             ->action(function (array $data) {
 
-                $ladoPar = $data['lado_par'];
-                $numInicial = (int) $data['numero_inicial'];
+                $this->numLadoPar = $data['lado_par'];
+                $this->numInicialPar = (int) $data['numero_inicial_par'];
+                $this->numInicialImpar = (int) $data['numero_inicial_impar'];
 
                 // 🛑 A MÁGICA: USA O TRAJETO DESENHADO PELO USUÁRIO!
                 $lotes = DB::select("
@@ -971,6 +1025,7 @@ class MapaFullscreen extends Page
                     )
                     SELECT
                         l.id, l.numero_lote as lote_nome,
+                        COALESCE(l.numero_logradouro, l.numero_lote) as numero_atual,
                         ST_AsGeoJSON(ST_Centroid(l.geo)) as centroid_geo,
 
                         -- Distância percorrida fiel à linha desenhada até o lote
@@ -1005,8 +1060,7 @@ class MapaFullscreen extends Page
                 $this->resultadosNumeracao = [];
 
                 foreach ($lotes as $l) {
-                    $dist = round($l->distancia_metros);
-                    $numTarget = $numInicial + $dist;
+                    $dist = (int) round($l->distancia_metros);
 
                     // Produto Vetorial usando o início da linha desenhada como referência
                     $vx_street = $l->rua_cx - $l->start_x;
@@ -1018,47 +1072,227 @@ class MapaFullscreen extends Page
                     $isLeft = $crossProduct > 0;
                     $isRight = $crossProduct <= 0;
 
-                    $isLadoParCalculado = ($ladoPar === 'right' && $isRight) || ($ladoPar === 'left' && $isLeft);
-
-                    if ($isLadoParCalculado && $numTarget % 2 !== 0) {
-                        $numTarget += 1;
-                    } elseif (!$isLadoParCalculado && $numTarget % 2 === 0) {
-                        $numTarget += 1;
-                    }
+                    $isPar = ($this->numLadoPar === 'right' && $isRight) || ($this->numLadoPar === 'left' && $isLeft);
 
                     $this->resultadosNumeracao[] = [
-                        'lote_id' => $l->id,
-                        'numero_atual' => $l->lote_nome ?: 'S/N',
-                        'novo_numero' => $numTarget,
-                        'distancia' => $dist,
-                        'geo' => json_decode($l->centroid_geo)
+                        'lote_id'      => $l->id,
+                        'numero_atual' => $l->numero_atual ?: 'S/N',
+                        'novo_numero'  => 0,
+                        'distancia'    => $dist,
+                        'is_par'       => $isPar,
+                        'excluido'     => false,
+                        'manual'       => false,
+                        'geo'          => json_decode($l->centroid_geo, true),
                     ];
                 }
 
+                $this->recomputarNumeros();
                 $this->previewNumeracaoAtivo = true;
 
-                // Manda pro JS desenhar na tela!
+                // Manda pro JS desenhar na tela (par/ímpar em cores diferentes)!
                 $this->dispatch('mostrar-preview-numeracao', dados: $this->resultadosNumeracao);
 
-                Notification::make()->title('Prévia Gerada!')->body('Revise os números no mapa.')->success()->send();
+                Notification::make()->title('Prévia Gerada!')
+                    ->body('Verde = par, Azul = ímpar. Clique numa parcela para incluir/excluir.')
+                    ->success()->send();
             });
     }
 
-    public function confirmarNumeracaoAction()
+    /**
+     * Recalcula o número de cada parcela a partir da distância percorrida,
+     * do lado (par/ímpar) e dos números iniciais configurados.
+     * Preserva ajustes manuais (item 107) e ignora parcelas excluídas (itens 101/102).
+     */
+    private function recomputarNumeros(): void
     {
-        /*  foreach ($this->resultadosNumeracao as $res) {
-             Lote::query()->where('id', $res['lote_id'])->update([
-                 'numero_lote' => (string) $res['novo_numero']
-             ]);
-         } */
+        foreach ($this->resultadosNumeracao as $i => $res) {
+            if (!empty($res['manual'])) {
+                continue; // respeita override manual do usuário
+            }
+            $base = $res['is_par'] ? $this->numInicialPar : $this->numInicialImpar;
+            $num  = $base + (int) $res['distancia'];
 
-        Notification::make()->title('Método em análise!')->success()->send();
+            // Garante a paridade correta do lado
+            if ($res['is_par'] && $num % 2 !== 0) {
+                $num += 1;
+            } elseif (!$res['is_par'] && $num % 2 === 0) {
+                $num += 1;
+            }
+
+            $this->resultadosNumeracao[$i]['novo_numero'] = $num;
+        }
+    }
+
+    /**
+     * Item PoC 103 — inverte os lados par e ímpar sem redesenhar o trajeto.
+     */
+    public function inverterLadosNumeracao(): void
+    {
+        $this->numLadoPar = $this->numLadoPar === 'right' ? 'left' : 'right';
+
+        foreach ($this->resultadosNumeracao as $i => $res) {
+            $this->resultadosNumeracao[$i]['is_par'] = !$res['is_par'];
+            $this->resultadosNumeracao[$i]['manual'] = false; // recalcula do zero
+        }
+
+        $this->recomputarNumeros();
+        $this->dispatch('mostrar-preview-numeracao', dados: $this->resultadosNumeracao);
+
+        Notification::make()->title('Lados invertidos!')
+            ->body('O que era par virou ímpar e vice-versa.')->success()->send();
+    }
+
+    /**
+     * Itens PoC 101/102 — exclui / reinclui uma parcela do processo direto do mapa.
+     */
+    #[On('toggleParcelaNumeracao')]
+    public function toggleParcelaNumeracao($loteId): void
+    {
+        foreach ($this->resultadosNumeracao as $i => $res) {
+            if ($res['lote_id'] === $loteId) {
+                $this->resultadosNumeracao[$i]['excluido'] = !($res['excluido'] ?? false);
+                break;
+            }
+        }
+        $this->dispatch('mostrar-preview-numeracao', dados: $this->resultadosNumeracao);
+    }
+
+    /**
+     * Item PoC 107 — lista as parcelas com o número gerado editável e a faixa
+     * sugerida, permitindo ao usuário escolher manualmente quando necessário.
+     */
+    public function revisarNumeracaoAction(): \Filament\Actions\Action
+    {
+        return \Filament\Actions\Action::make('revisarNumeracaoAction')
+            ->hiddenLabel()
+            ->modalHeading('Revisão por Parcela')
+            ->modalDescription('Ajuste manualmente o número de qualquer parcela. A faixa sugerida mostra os números disponíveis conforme a distância no trajeto.')
+            ->modalSubmitActionLabel('Aplicar ajustes no mapa')
+            ->modalWidth('3xl')
+            ->fillForm(fn() => [
+                'itens' => collect($this->resultadosNumeracao)
+                    ->reject(fn($r) => $r['excluido'] ?? false)
+                    ->map(fn($r) => [
+                        'lote_id'      => $r['lote_id'],
+                        'numero_atual' => $r['numero_atual'],
+                        'lado'         => $r['is_par'] ? 'Par' : 'Ímpar',
+                        'faixa'        => $this->faixaSugerida($r),
+                        'novo_numero'  => $r['novo_numero'],
+                    ])->values()->all(),
+            ])
+            ->form([
+                \Filament\Forms\Components\Repeater::make('itens')
+                    ->hiddenLabel()
+                    ->addable(false)->deletable(false)->reorderable(false)
+                    ->schema([
+                        \Filament\Forms\Components\Hidden::make('lote_id'),
+                        \Filament\Forms\Components\TextInput::make('numero_atual')->label('Nº atual')->disabled(),
+                        \Filament\Forms\Components\TextInput::make('lado')->label('Lado')->disabled(),
+                        \Filament\Forms\Components\TextInput::make('faixa')->label('Faixa sugerida')->disabled(),
+                        \Filament\Forms\Components\TextInput::make('novo_numero')->label('Nº gerado')->numeric()->required(),
+                    ])
+                    ->columns(4)
+                    ->columnSpanFull(),
+            ])
+            ->action(function (array $data) {
+                foreach ($data['itens'] as $item) {
+                    foreach ($this->resultadosNumeracao as $i => $res) {
+                        if ($res['lote_id'] === $item['lote_id']) {
+                            if ((int) $res['novo_numero'] !== (int) $item['novo_numero']) {
+                                $this->resultadosNumeracao[$i]['novo_numero'] = (int) $item['novo_numero'];
+                                $this->resultadosNumeracao[$i]['manual'] = true;
+                            }
+                            break;
+                        }
+                    }
+                }
+                $this->dispatch('mostrar-preview-numeracao', dados: $this->resultadosNumeracao);
+                Notification::make()->title('Ajustes aplicados ao mapa!')->success()->send();
+            });
+    }
+
+    /**
+     * Faixa de numeração disponível sugerida para uma parcela (item 107).
+     * Baseada na distância percorrida, mantendo a paridade do lado.
+     */
+    private function faixaSugerida(array $r): string
+    {
+        $n  = (int) $r['novo_numero'];
+        $lo = max($r['is_par'] ? 2 : 1, $n - 8);
+        $hi = $n + 8;
+        return $lo . ' – ' . $hi;
+    }
+
+    /**
+     * Item PoC 108 — salva a numeração definida no cadastro do lote:
+     *   • o número atual (numero_logradouro) é preservado em numero_predial_antigo;
+     *   • o novo número gerado passa a ser o numero_logradouro corrente.
+     * Isso viabiliza o comparativo de divergências (item 109).
+     */
+    public function confirmarNumeracaoAction(): void
+    {
+        $count = 0;
+        foreach ($this->resultadosNumeracao as $res) {
+            if ($res['excluido'] ?? false) {
+                continue; // parcela retirada do processo não recebe número
+            }
+            DB::table('lotes')
+                ->where('id', $res['lote_id'])
+                ->update([
+                    'numero_predial_antigo' => DB::raw('numero_logradouro'),
+                    'numero_logradouro'     => (string) $res['novo_numero'],
+                ]);
+            $count++;
+        }
+
+        Notification::make()->title('Numeração salva!')
+            ->body("{$count} parcela(s) atualizada(s). Nº anterior guardado; use \"Divergências\" para comparar.")
+            ->success()->send();
 
         $this->cancelarNumeracaoAction();
         $this->dispatch('atualizar-camada-lotes');
     }
 
-    public function cancelarNumeracaoAction()
+    /**
+     * Item PoC 109 — destaca no mapa as parcelas cujo número gerado
+     * (numero_logradouro) diverge do número anterior (numero_predial_antigo).
+     */
+    public function verDivergenciasNumeracao(): void
+    {
+        $rows = DB::select("
+            SELECT
+                l.id,
+                l.numero_logradouro     AS gerado,
+                l.numero_predial_antigo AS atual,
+                ST_AsGeoJSON(l.geo, 6)  AS geo_json
+            FROM lotes l
+            WHERE l.tenant_id = ?
+              AND l.numero_predial_antigo IS NOT NULL
+              AND COALESCE(l.numero_logradouro, '') <> COALESCE(l.numero_predial_antigo, '')
+        ", [$this->tenantId]);
+
+        if (empty($rows)) {
+            Notification::make()->title('Nenhuma divergência')
+                ->body('Todos os números gerados coincidem com o número anterior.')
+                ->success()->send();
+            return;
+        }
+
+        $dados = array_map(fn($r) => [
+            'lote_id' => $r->id,
+            'atual'   => $r->atual ?: 'S/N',
+            'gerado'  => $r->gerado,
+            'geo'     => json_decode($r->geo_json, true),
+        ], $rows);
+
+        $this->dispatch('mostrar-divergencias-numeracao', dados: $dados);
+
+        Notification::make()->title(count($dados) . ' divergência(s) encontrada(s)')
+            ->body('As parcelas em vermelho têm número gerado diferente do cadastro atual.')
+            ->warning()->send();
+    }
+
+    public function cancelarNumeracaoAction(): void
     {
         $this->previewNumeracaoAtivo = false;
         $this->resultadosNumeracao = [];
@@ -1886,6 +2120,68 @@ class MapaFullscreen extends Page
 
             \Filament\Notifications\Notification::make()->title('Geometria do meio-fio atualizada!')->success()->send();
         }
+    }
+
+    // --- MÓDULO SEÇÕES DE LOGRADOURO ---
+    #[On('abrirOpcoesSecaoLogradouro')]
+    public function abrirOpcoesSecaoLogradouro($id)
+    {
+        $this->secaoLogradouroAtivoId = $id;
+        $this->mountAction('opcoesSecaoLogradouro');
+    }
+
+    #[On('salvarNovaGeometriaSecaoLogradouro')]
+    public function salvarNovaGeometriaSecaoLogradouro($id, $geoJson)
+    {
+        $reg = \App\Models\SecaoLogradouro::query()->find($id);
+        if ($reg) {
+            $reg->update(['geo' => $geoJson]);
+
+            // Recalcula extensão
+            try {
+                DB::statement('UPDATE secoes_logradouro SET extensao_geo = ST_Length(geo::geography) WHERE id = ?', [$reg->id]);
+            } catch (\Exception $e) {
+            }
+
+            \Filament\Notifications\Notification::make()->title('Geometria da seção atualizada!')->success()->send();
+        }
+    }
+
+    // --- TESTADAS DO LOTE ---
+    #[On('abrirOpcoesTestada')]
+    public function abrirOpcoesTestada(int $id): void
+    {
+        $this->testadaAtivaId = $id;
+        $this->mountAction('opcoesTestada');
+    }
+
+    #[On('salvarNovaGeometriaTestada')]
+    public function salvarNovaGeometriaTestada(int $id, array $geoJson): void
+    {
+        $testada = \App\Models\LoteTestada::find($id);
+        if ($testada) {
+            $testada->update(['geo' => $geoJson]);
+            try {
+                DB::statement(
+                    'UPDATE lote_testadas SET comprimento = ST_Length(geo::geography) WHERE id = ?',
+                    [$id]
+                );
+                $testada->refresh();
+
+                if ($testada->tipo === 'principal' && $testada->comprimento) {
+                    DB::statement(
+                        'UPDATE lotes SET main_facade_length = ? WHERE id = ?',
+                        [(float) $testada->comprimento, $testada->lote_id]
+                    );
+                    $this->loteFacePrincipal = (float) $testada->comprimento;
+                }
+            } catch (\Throwable $e) {
+            }
+            \Filament\Notifications\Notification::make()->title('Geometria da testada atualizada!')->success()->send();
+        }
+
+        $this->mostrarTestadasLoteAtivo = false;
+        $this->toggleTestadasLote();
     }
 
     // --- MÓDULO LOTEAMENTOS ---

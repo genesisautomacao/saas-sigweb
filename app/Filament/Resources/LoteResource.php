@@ -6,12 +6,13 @@ use App\Filament\Resources\LoteResource\Pages;
 use App\Models\Lote;
 use App\Models\Quadra;
 use App\Models\Zona;
+use App\Services\Irregularidade\NotificacaoIrregularidadeService;
+use App\Traits\HasTenantModule;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use App\Traits\HasTenantModule;
 
 class LoteResource extends Resource
 {
@@ -90,6 +91,35 @@ class LoteResource extends Resource
                             ->placeholder('Selecione...')
                             ->nullable(),
 
+                    ])->columns(3),
+
+                Forms\Components\Section::make('Endereço (Numeração Predial)')
+                    ->description('Herdado do cadastro tributário (dados_tributarios) e atualizado pelo gerador de numeração predial no mapa.')
+                    ->collapsible()
+                    ->schema([
+                        Forms\Components\TextInput::make('tipo_logradouro')
+                            ->label('Tipo de Logradouro')
+                            ->placeholder('Rua, Avenida...')
+                            ->maxLength(255),
+
+                        Forms\Components\TextInput::make('logradouro')
+                            ->label('Logradouro')
+                            ->maxLength(255),
+
+                        Forms\Components\TextInput::make('numero_logradouro')
+                            ->label('Número Predial (atual)')
+                            ->helperText('Definido pelo gerador de numeração predial.')
+                            ->maxLength(255),
+
+                        Forms\Components\TextInput::make('cep')
+                            ->label('CEP')
+                            ->maxLength(255),
+
+                        Forms\Components\TextInput::make('numero_predial_antigo')
+                            ->label('Número Predial Anterior')
+                            ->helperText('Preenchido automaticamente ao salvar uma nova numeração.')
+                            ->disabled()
+                            ->dehydrated(false),
                     ])->columns(3),
 
                 Forms\Components\Section::make('Dados de Vistoria de Campo')
@@ -222,6 +252,24 @@ class LoteResource extends Resource
                     ->searchable() // <-- A MÁGICA DA PESQUISA ESTÁ AQUI!
                     ->default('Nenhum'),
 
+                Tables\Columns\TextColumn::make('logradouro')
+                    ->label('Logradouro')
+                    ->formatStateUsing(fn(?string $state, Lote $record) => trim(($record->tipo_logradouro ? $record->tipo_logradouro . ' ' : '') . ($state ?? '')) ?: '—')
+                    ->searchable(['tipo_logradouro', 'logradouro'])
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('numero_logradouro')
+                    ->label('Nº Predial')
+                    ->searchable()
+                    ->default('—')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('cep')
+                    ->label('CEP')
+                    ->searchable()
+                    ->default('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 Tables\Columns\TextColumn::make('quadra.name')
                     ->label('Quadra')
                     ->sortable(),
@@ -340,6 +388,14 @@ class LoteResource extends Resource
                     })
                     ->visible(fn(Lote $record) => $record->geo_json !== null),
 
+                Tables\Actions\Action::make('emitir_notificacao')
+                    ->label('Notificação')
+                    ->icon('heroicon-o-document-text')
+                    ->color('danger')
+                    ->tooltip('Emitir Notificação de Irregularidade')
+                    ->visible(fn (Lote $record) => !empty($record->inconformidade_descricao))
+                    ->action(fn (Lote $record) => app(NotificacaoIrregularidadeService::class)->generatePdf($record)),
+
                 Tables\Actions\EditAction::make(),
             ]);
     }
@@ -349,6 +405,7 @@ class LoteResource extends Resource
         return [
             LoteResource\RelationManagers\UnidadesImobiliariasRelationManager::class,
             LoteResource\RelationManagers\EdificacoesRelationManager::class,
+            LoteResource\RelationManagers\TestadasRelationManager::class,
         ];
     }
 

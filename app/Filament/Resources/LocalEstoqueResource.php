@@ -22,7 +22,7 @@ class LocalEstoqueResource extends Resource
     protected static ?string $navigationGroup = 'Estoque e Almoxarifado';
     protected static ?string $modelLabel = 'Local de Estoque';
     protected static ?string $pluralModelLabel = 'Locais de Estoque';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
@@ -33,6 +33,11 @@ class LocalEstoqueResource extends Resource
                     ->placeholder('Ex: Almoxarifado Central, Caminhão 01...')
                     ->required()
                     ->maxLength(255),
+                Forms\Components\Select::make('estabelecimento_id')
+                    ->label('Estabelecimento')
+                    ->options(fn() => \App\Models\Estabelecimento::pluck('name', 'id'))
+                    ->searchable()
+                    ->nullable(),
                 Forms\Components\Textarea::make('description')
                     ->label('Descrição / Observações')
                     ->maxLength(65535)
@@ -52,6 +57,10 @@ class LocalEstoqueResource extends Resource
                     ->label('Nome do Local')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('estabelecimento.name')
+                    ->label('Estabelecimento')
+                    ->default('—')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('description')
                     ->label('Descrição')
                     ->limit(50)

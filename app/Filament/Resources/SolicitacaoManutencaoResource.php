@@ -120,6 +120,7 @@ class SolicitacaoManutencaoResource extends Resource
                                 'pendente' => 'Pendente (Aguardando Triagem)',
                                 'analise' => 'Em Análise',
                                 'aprovada_os' => 'Aprovado (OS Gerada)',
+                                'concluida' => 'Concluída (Serviço Executado)',
                                 'rejeitada' => 'Rejeitada / Improcedente',
                             ])
                             ->default('pendente')
@@ -197,7 +198,9 @@ class SolicitacaoManutencaoResource extends Resource
                         'pendente' => 'danger',
                         'analise' => 'warning',
                         'aprovada_os' => 'success',
+                        'concluida' => 'info',
                         'rejeitada' => 'gray',
+                        default => 'gray',
                     })
                     ->formatStateUsing(fn(string $state): string => strtoupper($state)),
 
@@ -212,6 +215,7 @@ class SolicitacaoManutencaoResource extends Resource
                         'pendente' => 'Pendente',
                         'analise' => 'Em Análise',
                         'aprovada_os' => 'Aprovado (OS Gerada)',
+                        'concluida' => 'Concluída',
                         'rejeitada' => 'Rejeitada',
                     ]),
                 Tables\Filters\SelectFilter::make('prioridade')
@@ -225,13 +229,26 @@ class SolicitacaoManutencaoResource extends Resource
            ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\EditAction::make(),
-                    
+
+                    Tables\Actions\Action::make('ver_no_mapa')
+                        ->label('Ver no Mapa')
+                        ->icon('heroicon-o-map-pin')
+                        ->color('success')
+                        ->visible(fn ($record) => $record->asset !== null)
+                        ->url(function ($record) {
+                            if (!$record->asset) return null;
+                            $tenant = \Filament\Facades\Filament::getTenant();
+                            $layer = str_contains($record->asset_type, 'Poste') ? 'postes' : 'arvores';
+                            return url('/app/' . $tenant->slug . '/mapa-interativo?layer=' . $layer . '&id=' . $record->asset_id);
+                        })
+                        ->openUrlInNewTab(),
+
                    // 🛑 BOTÃO 1: GERAR OS (Só aparece se NÃO tiver virado OS ainda)
                     Tables\Actions\Action::make('gerar_os')
                         ->label('Gerar Ordem de Serviço')
                         ->icon('heroicon-o-wrench-screwdriver')
                         ->color('success')
-                        ->visible(fn ($record) => $record->status !== 'aprovada_os')
+                        ->visible(fn ($record) => !in_array($record->status, ['aprovada_os', 'concluida']))
                         ->url(fn ($record) => OrdemServicoResource::getUrl('create', ['solicitacao_id' => $record->id])),
 
                     // 🟢 BOTÃO 2: VER OS GERADA (Só aparece quando JÁ TEM OS)
@@ -239,7 +256,7 @@ class SolicitacaoManutencaoResource extends Resource
                         ->label('Ver Ordem Gerada')
                         ->icon('heroicon-o-eye')
                         ->color('info')
-                        ->visible(fn ($record) => $record->status === 'aprovada_os')
+                        ->visible(fn ($record) => in_array($record->status, ['aprovada_os', 'concluida']))
                         ->url(function ($record) {
                             // Busca a primeira OS que tenha nascido dessa solicitação
                             $os = \App\Models\OrdemServico::where('solicitacao_id', $record->id)->first();

@@ -128,6 +128,36 @@ class ViabilidadePdfService
         }, $fileName);
     }
 
+    /**
+     * Reimprime PDF de uma emissão existente usando o protocolo/hash originais.
+     * Não cria nova emissão no banco.
+     */
+    public function reimprimirPdf(ViabilidadeEmissao $emissao)
+    {
+        $tenant      = Filament::getTenant();
+        $dataHora    = now()->format('d/m/Y H:i:s');
+        $dadosAnalise = $emissao->dados_snapshot ?? [];
+        $protocolo   = $emissao->protocolo;
+        $urlValidacao = url("/v/{$protocolo}");
+        $mapImage    = null; // sem contexto de mapa no servidor
+
+        $view = match ($emissao->tipo) {
+            'parcelamento' => 'pdf.viabilidade-parcelamento',
+            'unificacao'   => 'pdf.viabilidade-unificacao',
+            default        => 'pdf.viabilidade-template',
+        };
+
+        $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote'] ?? 'S-N');
+        $fileName = 'reimpr-' . $protocolo . '-' . $numeroLoteSeguro . '.pdf';
+
+        $pdf = Pdf::loadView($view, compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImage', 'urlValidacao'));
+        $pdf->setPaper('a4', 'portrait');
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, $fileName);
+    }
+
     public function generateUnificacaoPdf(array $dadosAnalise, ?string $mapImageBase64 = null)
     {
         $tenant = Filament::getTenant();

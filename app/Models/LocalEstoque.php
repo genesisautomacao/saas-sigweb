@@ -18,11 +18,17 @@ class LocalEstoque extends Model
         'tenant_id',
         'sequential_id',
         'name',
+        'estabelecimento_id',
         'description',
     ];
 
     public function estoques()
     {
         return $this->hasMany(Estoque::class, 'local_estoque_id');
+    }
+
+    public function estabelecimento()
+    {
+        return $this->belongsTo(Estabelecimento::class);
     }
 }

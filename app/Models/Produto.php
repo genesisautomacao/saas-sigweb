@@ -22,6 +22,9 @@ class Produto extends Model
         'description',
         'unit',
         'marca_id',
+        'familia_produto_id',
+        'unidade_medida_id',
+        'embalagem_id',
         'min_stock',
         'is_active',
     ];
@@ -36,8 +39,28 @@ class Produto extends Model
         return $this->belongsTo(Marca::class);
     }
 
+    public function familia()
+    {
+        return $this->belongsTo(FamiliaProduto::class, 'familia_produto_id');
+    }
+
+    public function unidadeMedida()
+    {
+        return $this->belongsTo(UnidadeMedida::class);
+    }
+
+    public function embalagem()
+    {
+        return $this->belongsTo(Embalagem::class);
+    }
+
     public function estoques()
     {
         return $this->hasMany(Estoque::class);
+    }
+
+    public function lotes()
+    {
+        return $this->hasMany(LoteEstoque::class);
     }
 }

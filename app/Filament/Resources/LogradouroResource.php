@@ -95,6 +95,13 @@ class LogradouroResource extends Resource
             ]);
     }
 
+    public static function getRelations(): array
+    {
+        return [
+            \App\Filament\Resources\LogradouroResource\RelationManagers\SecoesRelationManager::class,
+        ];
+    }
+
     public static function getPages(): array
     {
         return [

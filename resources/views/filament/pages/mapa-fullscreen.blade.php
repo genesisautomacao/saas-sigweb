@@ -861,7 +861,7 @@
         {{-- BARRA FLUTUANTE DE REVISÃO DA NUMERAÇÃO PREDIAL (Padrão Pílula) --}}
         <div x-data="{ previewAtivo: @entangle('previewNumeracaoAtivo') }" x-show="previewAtivo"
             style="display: none; position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 9999;"
-            class="bg-white dark:bg-gray-800 shadow-2xl rounded-full border-2 border-blue-500 px-6 py-3 flex items-center gap-4 animate-bounce-short">
+            class="bg-white dark:bg-gray-800 shadow-2xl rounded-full border-2 border-blue-500 px-5 py-3 flex items-center gap-3 animate-bounce-short flex-wrap justify-center max-w-[95vw]">
 
             <span class="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
                 <span class="relative flex h-3 w-3">
@@ -869,21 +869,43 @@
                         class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
                 </span>
-                Revisão de Numeração Predial
+                Numeração Predial
             </span>
+
+            {{-- Legenda de cores (item PoC 100) --}}
+            <div class="flex items-center gap-3 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-green-600"></span>Par</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-blue-600"></span>Ímpar</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-gray-400"></span>Excluído</span>
+            </div>
 
             <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
 
-            <button wire:click="confirmarNumeracaoAction"
-                class="text-sm font-black text-blue-600 hover:text-blue-700 uppercase transition-colors">
-                Salvar
+            <button wire:click="inverterLadosNumeracao" title="Trocar o lado par pelo ímpar (item 103)"
+                class="text-sm font-black text-indigo-600 hover:text-indigo-700 uppercase transition-colors flex items-center gap-1">
+                <x-heroicon-o-arrows-right-left class="w-4 h-4" /> Inverter
+            </button>
+
+            <button wire:click="mountAction('revisarNumeracaoAction')" title="Editar número por parcela e ver faixa disponível (item 107)"
+                class="text-sm font-black text-slate-600 hover:text-slate-800 uppercase transition-colors flex items-center gap-1">
+                <x-heroicon-o-list-bullet class="w-4 h-4" /> Revisar
             </button>
 
             <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
 
+            <button wire:click="confirmarNumeracaoAction" title="Salvar a numeração para comparação posterior (item 108)"
+                class="text-sm font-black text-blue-600 hover:text-blue-700 uppercase transition-colors">
+                Salvar
+            </button>
+
+            <button wire:click="verDivergenciasNumeracao" title="Mostrar parcelas com número atual diferente do gerado (item 109)"
+                class="text-sm font-black text-rose-600 hover:text-rose-700 uppercase transition-colors flex items-center gap-1">
+                <x-heroicon-o-exclamation-triangle class="w-4 h-4" /> Divergências
+            </button>
+
             <button onclick="capturarMapaNumeracao()" id="btn-print-num"
                 class="text-sm font-black text-amber-600 hover:text-amber-700 uppercase transition-colors flex items-center gap-1">
-                <x-heroicon-o-printer class="w-4 h-4" /> Relatório PDF
+                <x-heroicon-o-printer class="w-4 h-4" /> PDF
             </button>
 
             <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
@@ -1121,6 +1143,7 @@
                                     style="font-size:10px;max-width:80px;padding:1px 2px;">
                                     <option value="__default__">Padrão</option>
                                     <option value="numero_lote">Nº Lote</option>
+                                    <option value="numero_logradouro">Nº Predial</option>
                                     <option value="area_geo">Área m²</option>
                                     <option value="sequential_id">Seq. ID</option>
                                 </select>
@@ -1261,6 +1284,18 @@
                                 <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                     <div class="w-3 h-1 bg-amber-700 rounded flex-shrink-0"></div>
                                     <span class="layer-text truncate">Meio-fio / Calçada</span>
+                                </span>
+                            </label>
+                        </div>
+
+                        {{-- Seções de Logradouro --}}
+                        <div class="flex items-center justify-between w-full mt-2">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="secoes_logradouro"
+                                    class="layer-toggle rounded border-gray-300 text-violet-700 focus:ring-violet-700 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-1 bg-violet-700 rounded flex-shrink-0"></div>
+                                    <span class="layer-text truncate">Seções de Logradouro</span>
                                 </span>
                             </label>
                         </div>
@@ -1692,7 +1727,7 @@
                         <span class="text-[9px] font-bold">Buffer</span>
                     </button>
 
-                    {{-- O Campinho de Metros (Aparece apenas quando o Buffer é clicado) --}}
+                    {{-- O Campinho de Metros --}}
                     <div x-show="ferramentaCadAtiva === 'buffer'" style="display: none;"
                         class="flex items-center gap-1 animate-fade-in-right">
                         <input type="text" id="input-cad-buffer" value="5.5"
@@ -1748,9 +1783,23 @@
                     :class="ferramentaCadAtiva === 'cotar' ?
                         'bg-orange-50 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-700' :
                         'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
-                    class="w-14 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
+                    class="w-14 h-11 me-4 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
                     <x-heroicon-o-arrows-right-left class="w-4 h-4" />
                     <span class="text-[9px] font-bold">Cotar</span>
+                </button>
+
+                {{-- 7. ESPELHAR --}}
+                <button
+                    @click="ferramentaCadAtiva = (ferramentaCadAtiva === 'espelhar' ? null : 'espelhar'); window.setFerramentaCAD(ferramentaCadAtiva);"
+                    :class="ferramentaCadAtiva === 'espelhar' ?
+                        'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700' :
+                        'hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent text-gray-500 dark:text-gray-400'"
+                    class="w-14 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all">
+                    {{-- Ícone de espelho: duas setas opostas + linha central --}}
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25 3 12l4.5 3.75M16.5 8.25 21 12l-4.5 3.75M12 3v18"/>
+                    </svg>
+                    <span class="text-[9px] font-bold">Espelhar</span>
                 </button>
 
             </div>
@@ -1977,6 +2026,31 @@
                         </button>
                         <button onclick="enableDrawing('edificacao')" title="Desenhar Nova Edificação"
                             class="flex-shrink-0 flex items-center justify-center w-[50px] h-[50px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-600 transition-all">
+                            <x-heroicon-o-plus class="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    {{-- VER TESTADAS --}}
+                    <div class="flex items-center gap-2 w-full">
+                        <button wire:click="toggleTestadasLote"
+                            style="{{ $mostrarTestadasLoteAtivo ? 'background-color: #f0fdf4; border-color: #16a34a;' : '' }}"
+                            class="flex-1 flex items-center justify-between px-4 py-3 border rounded-xl transition-all group bg-white border-gray-200 hover:border-green-600 dark:bg-gray-800 dark:border-gray-700">
+                            <span
+                                class="text-sm font-medium flex items-center gap-2 {{ $mostrarTestadasLoteAtivo ? 'text-green-700 dark:text-green-400' : 'text-gray-700 dark:text-gray-200 group-hover:text-green-700' }}">
+                                <x-heroicon-o-arrows-right-left class="w-4 h-4" />
+                                {{ $mostrarTestadasLoteAtivo ? 'Ocultar Testadas' : 'Ver Testadas' }}
+                            </span>
+                            <div class="relative inline-flex items-center cursor-pointer">
+                                <div class="w-9 h-5 rounded-full transition-colors"
+                                    style="{{ $mostrarTestadasLoteAtivo ? 'background-color: #16a34a;' : 'background-color: #e5e7eb;' }}">
+                                </div>
+                                <div class="absolute left-[2px] top-[2px] bg-white border border-gray-300 rounded-full h-4 w-4 transition-transform"
+                                    style="{{ $mostrarTestadasLoteAtivo ? 'transform: translateX(100%); border-color: white;' : '' }}">
+                                </div>
+                            </div>
+                        </button>
+                        <button onclick="enableDrawing('testada')" title="Desenhar Nova Testada"
+                            class="flex-shrink-0 flex items-center justify-center w-[50px] h-[50px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-green-50 hover:border-green-600 hover:text-green-700 transition-all">
                             <x-heroicon-o-plus class="w-5 h-5" />
                         </button>
                     </div>

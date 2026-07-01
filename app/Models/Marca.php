@@ -18,10 +18,16 @@ class Marca extends Model
         'tenant_id',
         'sequential_id',
         'name',
+        'fabricante_id',
     ];
 
     public function produtos()
     {
         return $this->hasMany(Produto::class);
+    }
+
+    public function fabricante()
+    {
+        return $this->belongsTo(Fabricante::class);
     }
 }

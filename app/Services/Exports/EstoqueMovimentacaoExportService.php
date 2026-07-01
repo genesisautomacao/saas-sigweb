@@ -72,4 +72,36 @@ class EstoqueMovimentacaoExportService
             echo $pdf->stream();
         }, $fileName);
     }
+
+    public function exportToXml(Collection $movimentacoes)
+    {
+        $fileName = 'movimentacoes-' . now()->format('Y-m-d-His') . '.xml';
+        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><movimentacoes/>');
+
+        foreach ($movimentacoes as $mov) {
+            $item = $xml->addChild('movimentacao');
+            $item->addAttribute('id', (string) $mov->sequential_id);
+            $item->addChild('tipo', htmlspecialchars(ucfirst($mov->type)));
+            $item->addChild('operacao_interna', htmlspecialchars($mov->operacaoInterna->name ?? ''));
+            $item->addChild('origem', htmlspecialchars($mov->origem?->name ?? ''));
+            $item->addChild('destino', htmlspecialchars($mov->destino?->name ?? ''));
+            $item->addChild('tipo_estoque_origem', htmlspecialchars($mov->tipoEstoqueOrigem->name ?? ''));
+            $item->addChild('tipo_estoque_destino', htmlspecialchars($mov->tipoEstoqueDestino->name ?? ''));
+            $item->addChild('operador', htmlspecialchars($mov->user?->name ?? 'Sistema'));
+            $item->addChild('data', htmlspecialchars($mov->created_at?->format('d/m/Y H:i') ?? ''));
+            $item->addChild('observacao', htmlspecialchars($mov->observacao ?? ''));
+
+            $itens = $item->addChild('itens');
+            foreach ($mov->itens as $mi) {
+                $node = $itens->addChild('item');
+                $node->addChild('produto', htmlspecialchars($mi->produto->name ?? ''));
+                $node->addChild('lote', htmlspecialchars($mi->loteEstoque->numero_lote ?? ''));
+                $node->addChild('quantidade', (string) $mi->quantity);
+            }
+        }
+
+        return response()->streamDownload(function () use ($xml) {
+            echo $xml->asXML();
+        }, $fileName, ['Content-Type' => 'application/xml']);
+    }
 }

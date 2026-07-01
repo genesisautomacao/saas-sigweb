@@ -22,7 +22,7 @@ class ProdutoResource extends Resource
     protected static ?string $navigationGroup = 'Estoque e Almoxarifado';
     protected static ?string $modelLabel = 'Produto / Material';
     protected static ?string $pluralModelLabel = 'Produtos e Materiais';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 10;
 
     public static function form(Form $form): Form
     {
@@ -51,6 +51,12 @@ class ProdutoResource extends Resource
                                     ->label('Nome da Marca')
                                     ->required(),
                             ]),
+
+                        Forms\Components\Select::make('familia_produto_id')
+                            ->label('Família de Produto')
+                            ->options(fn() => \App\Models\FamiliaProduto::pluck('name', 'id'))
+                            ->searchable()
+                            ->nullable(),
                     ])->columns(4),
 
                 Forms\Components\Section::make('Controle e Medidas')
@@ -67,6 +73,18 @@ class ProdutoResource extends Resource
                             ])
                             ->required()
                             ->searchable(),
+
+                        Forms\Components\Select::make('unidade_medida_id')
+                            ->label('Unid. de Medida de Apresentação')
+                            ->options(fn() => \App\Models\UnidadeMedida::pluck('name', 'id'))
+                            ->searchable()
+                            ->nullable(),
+
+                        Forms\Components\Select::make('embalagem_id')
+                            ->label('Embalagem')
+                            ->options(fn() => \App\Models\Embalagem::pluck('name', 'id'))
+                            ->searchable()
+                            ->nullable(),
 
                         Forms\Components\TextInput::make('min_stock')
                             ->label('Estoque Mínimo de Alerta')
@@ -114,6 +132,11 @@ class ProdutoResource extends Resource
                     ->sortable()
                     ->searchable(),
 
+                Tables\Columns\TextColumn::make('familia.name')
+                    ->label('Família')
+                    ->default('—')
+                    ->toggleable(),
+
                 Tables\Columns\TextColumn::make('unit')
                     ->label('Unidade')
                     ->badge()
@@ -127,6 +150,9 @@ class ProdutoResource extends Resource
                 Tables\Filters\SelectFilter::make('marca_id')
                     ->relationship('marca', 'name')
                     ->label('Filtrar por Marca'),
+                Tables\Filters\SelectFilter::make('familia_produto_id')
+                    ->relationship('familia', 'name')
+                    ->label('Filtrar por Família'),
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Status de Atividade'),
             ])

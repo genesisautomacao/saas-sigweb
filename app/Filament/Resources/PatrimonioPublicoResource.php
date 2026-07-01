@@ -3,13 +3,14 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\PatrimonioPublicoResource\Pages;
+use App\Filament\Resources\PatrimonioPublicoResource\RelationManagers\DocumentosRelationManager;
 use App\Models\PatrimonioPublico;
+use App\Traits\HasTenantModule;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use App\Traits\HasTenantModule;
 
 class PatrimonioPublicoResource extends Resource
 {
@@ -106,6 +107,13 @@ class PatrimonioPublicoResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            DocumentosRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

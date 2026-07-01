@@ -29,4 +29,22 @@ class BairroExportService
         $pdf = Pdf::loadView('pdf.default-report', ['data' => $data, 'headings' => $headings, 'title' => 'Relatório de Bairros'])->setPaper('a4', 'portrait');
         return response()->streamDownload(fn() => print($pdf->output()), $fileName);
     }
+
+    public function exportToXml(Collection $records)
+    {
+        $fileName = 'bairros-' . now()->format('Y-m-d-His') . '.xml';
+        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><bairros/>');
+
+        foreach ($records as $r) {
+            $item = $xml->addChild('bairro');
+            $item->addAttribute('id', (string) $r->sequential_id);
+            $item->addChild('codigo', htmlspecialchars($r->code ?? ''));
+            $item->addChild('nome', htmlspecialchars($r->name ?? ''));
+            $item->addChild('setor', htmlspecialchars($r->setor ?? ''));
+        }
+
+        return response()->streamDownload(function () use ($xml) {
+            echo $xml->asXML();
+        }, $fileName, ['Content-Type' => 'application/xml']);
+    }
 }

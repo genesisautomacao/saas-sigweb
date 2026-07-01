@@ -18,6 +18,8 @@ class Estoque extends Model
         'sequential_id',
         'produto_id',
         'local_estoque_id',
+        'tipo_estoque_id',
+        'lote_estoque_id',
         'quantity',
     ];
 
@@ -33,5 +35,15 @@ class Estoque extends Model
     public function localEstoque()
     {
         return $this->belongsTo(LocalEstoque::class, 'local_estoque_id');
+    }
+
+    public function tipoEstoque()
+    {
+        return $this->belongsTo(TipoEstoque::class);
+    }
+
+    public function loteEstoque()
+    {
+        return $this->belongsTo(LoteEstoque::class);
     }
 }

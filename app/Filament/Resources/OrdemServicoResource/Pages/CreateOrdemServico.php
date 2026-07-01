@@ -3,28 +3,29 @@
 namespace App\Filament\Resources\OrdemServicoResource\Pages;
 
 use App\Filament\Resources\OrdemServicoResource;
+use App\Models\SolicitacaoManutencao;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateOrdemServico extends CreateRecord
 {
     protected static string $resource = OrdemServicoResource::class;
 
-    protected function mutateFormDataBeforeFill(array $data): array
+    public function mount(): void
     {
-        if (request()->filled('solicitacao_id')) {
-            $solicitacao = \App\Models\SolicitacaoManutencao::find(request()->query('solicitacao_id'));
-            
-            if ($solicitacao) {
-                $data['solicitacao_id'] = $solicitacao->id;
-                $data['descricao_servico'] = "Ref. Chamado #{$solicitacao->sequential_id}: " . $solicitacao->observacao;
-                $data['prioridade'] = $solicitacao->prioridade;
-                
-                // 🛑 ESTAS DUAS LINHAS ESTAVAM FALTANDO NO SEU ARQUIVO:
-                // São elas que preenchem o Artefato (Poste/Árvore) na tela nova!
-                $data['asset_type'] = $solicitacao->asset_type;
-                $data['asset_id'] = $solicitacao->asset_id;
-            }
-        }
-        return $data;
+        parent::mount();
+
+        $solicitacaoId = request()->query('solicitacao_id');
+        if (!$solicitacaoId) return;
+
+        $sol = SolicitacaoManutencao::find($solicitacaoId);
+        if (!$sol) return;
+
+        $this->form->fill([
+            'solicitacao_id'    => $sol->id,
+            'asset_type'        => $sol->asset_type,
+            'asset_id'          => $sol->asset_id,
+            'prioridade'        => $sol->prioridade,
+            'descricao_servico' => "Ref. Chamado #{$sol->sequential_id}: {$sol->observacao}",
+        ]);
     }
 }

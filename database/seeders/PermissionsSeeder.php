@@ -89,6 +89,17 @@ class PermissionsSeeder extends Seeder
             'edit_movimentacoes',
             'delete_movimentacoes',
 
+            /* Módulo de Estoque — Cadastros Auxiliares (permissão única "gerenciar" por entidade) */
+            'gerenciar_estabelecimentos',
+            'gerenciar_fabricantes',
+            'gerenciar_fornecedores',
+            'gerenciar_unidade_medidas',
+            'gerenciar_embalagens',
+            'gerenciar_familia_produtos',
+            'gerenciar_tipo_estoques',
+            'gerenciar_operacao_internas',
+            'gerenciar_lote_estoques',
+
             /* Módulo de Manutenção e Serviços */
             'view_solicitacoes',
             'create_solicitacoes',
@@ -220,6 +231,7 @@ class PermissionsSeeder extends Seeder
             'ver_camada_lotes',
             'ver_camada_logradouros',
             'ver_camada_meio_fios',
+            'ver_camada_secoes_logradouro',
             'ver_camada_postes',
             'ver_camada_arvores',
             'ver_camada_zonas',

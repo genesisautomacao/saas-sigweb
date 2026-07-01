@@ -111,14 +111,14 @@ class OrdemServicoResource extends Resource
 
                             Forms\Components\Repeater::make('materiais')
                                 ->relationship('materiais') // Salva na tabela os_materiais
+                                ->defaultItems(0)
                                 ->schema([
                                     Forms\Components\Select::make('produto_id')
                                         ->label('Produto / Material')
                                         ->relationship('produto', 'name')
                                         ->searchable()
                                         ->preload()
-                                        ->required()
-                                        ->live() // 🟢 OBRIGATÓRIO PARA A TRAVA
+                                        ->live()
                                         ->columnSpan(2),
 
                                     Forms\Components\Select::make('local_estoque_id')
@@ -126,14 +126,12 @@ class OrdemServicoResource extends Resource
                                         ->relationship('localEstoque', 'name')
                                         ->searchable()
                                         ->preload()
-                                        ->required()
-                                        ->live() // 🟢 OBRIGATÓRIO PARA A TRAVA
+                                        ->live()
                                         ->columnSpan(2),
 
                                     Forms\Components\TextInput::make('quantidade')
                                         ->label('Qtd')
                                         ->numeric()
-                                        ->required()
                                         ->columnSpan(1)
                                         // 🟢 TRAVA DE ESTOQUE NEGATIVO 🟢
                                         ->rules([
@@ -272,6 +270,20 @@ class OrdemServicoResource extends Resource
             ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\EditAction::make(),
+
+                    Tables\Actions\Action::make('ver_no_mapa')
+                        ->label('Ver no Mapa')
+                        ->icon('heroicon-o-map-pin')
+                        ->color('success')
+                        ->visible(fn ($record) => $record->asset !== null)
+                        ->url(function ($record) {
+                            if (!$record->asset) return null;
+                            $tenant = \Filament\Facades\Filament::getTenant();
+                            $layer = str_contains($record->asset_type, 'Poste') ? 'postes' : 'arvores';
+                            return url('/app/' . $tenant->slug . '/mapa-interativo?layer=' . $layer . '&id=' . $record->asset_id);
+                        })
+                        ->openUrlInNewTab(),
+
                     Tables\Actions\DeleteAction::make(),
 
                     // 🛑 O BOTÃO DE IMPRIMIR OS APONTANDO PRA VIEW CERTA
@@ -280,14 +292,34 @@ class OrdemServicoResource extends Resource
                         ->icon('heroicon-o-printer')
                         ->color('info')
                         ->action(function (\App\Models\OrdemServico $record) {
+                            // Tenta gerar mini-mapa a partir das coordenadas do asset
+                            $mapImageBase64 = null;
+                            if ($record->asset_id && $record->asset_type) {
+                                try {
+                                    $table  = str_contains($record->asset_type, 'Poste') ? 'postes' : 'arvores';
+                                    $coords = \Illuminate\Support\Facades\DB::selectOne(
+                                        "SELECT ST_X(geo::geometry) AS lon, ST_Y(geo::geometry) AS lat FROM {$table} WHERE id = ?",
+                                        [$record->asset_id]
+                                    );
+                                    if ($coords && $coords->lat && $coords->lon) {
+                                        $mapImageBase64 = \App\Services\Gis\StaticMapService::generate(
+                                            (float) $coords->lat,
+                                            (float) $coords->lon,
+                                            17
+                                        );
+                                    }
+                                } catch (\Throwable $e) {
+                                    // Coordenadas indisponíveis — PDF sai sem mapa
+                                }
+                            }
 
-                            // Passamos o Record direto para a view nova!
                             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.ordem-servico-pdf-template', [
-                                'title' => 'Ordem de Serviço',
-                                'ordemServico' => $record
+                                'title'          => 'Ordem de Serviço',
+                                'ordemServico'   => $record,
+                                'mapImageBase64' => $mapImageBase64,
                             ]);
 
-                            return response()->streamDownload(fn() => print ($pdf->stream()), "OS-{$record->sequential_id}.pdf");
+                            return response()->streamDownload(fn() => print($pdf->stream()), "OS-{$record->sequential_id}.pdf");
                         }),
 
                 ])->tooltip('Ações'),

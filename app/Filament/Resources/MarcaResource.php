@@ -22,7 +22,7 @@ class MarcaResource extends Resource
     protected static ?string $navigationGroup = 'Estoque e Almoxarifado';
     protected static ?string $modelLabel = 'Marca';
     protected static ?string $pluralModelLabel = 'Marcas';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 5;
 
     public static function form(Form $form): Form
     {
@@ -31,9 +31,13 @@ class MarcaResource extends Resource
                 Forms\Components\TextInput::make('name')
                     ->label('Nome da Marca')
                     ->required()
-                    ->maxLength(255)
-                    ->columnSpanFull(),
-            ]);
+                    ->maxLength(255),
+                Forms\Components\Select::make('fabricante_id')
+                    ->label('Fabricante')
+                    ->options(fn() => \App\Models\Fabricante::pluck('name', 'id'))
+                    ->searchable()
+                    ->nullable(),
+            ])->columns(2);
     }
 
     public static function table(Table $table): Table
@@ -47,6 +51,10 @@ class MarcaResource extends Resource
                     ->label('Marca')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('fabricante.name')
+                    ->label('Fabricante')
+                    ->default('—')
+                    ->searchable(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

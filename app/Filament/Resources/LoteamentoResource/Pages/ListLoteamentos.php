@@ -25,6 +25,11 @@ class ListLoteamentos extends ListRecords
                     ->label('Exportar PDF')
                     ->icon('heroicon-o-document-text')
                     ->action(fn(LoteamentoExportService $service, $livewire) => $service->exportToPdf($livewire->getFilteredTableQuery()->get())),
+
+                Actions\Action::make('export_xml')
+                    ->label('Exportar XML')
+                    ->icon('heroicon-o-code-bracket')
+                    ->action(fn(LoteamentoExportService $service, $livewire) => $service->exportToXml($livewire->getFilteredTableQuery()->get())),
             ])
             ->label('Exportar')
             ->icon('heroicon-m-arrow-down-tray')

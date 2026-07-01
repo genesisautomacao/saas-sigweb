@@ -38,4 +38,9 @@ class Logradouro extends Model
         // Envelopa em ST_Multi para aceitar LineStrings simples e transformar em MultiLineString
         $this->attributes['geo'] = DB::raw("ST_Multi(ST_GeomFromGeoJSON('" . json_encode($value) . "'))");
     }
+
+    public function secoes()
+    {
+        return $this->hasMany(SecaoLogradouro::class, 'logradouro_id');
+    }
 }

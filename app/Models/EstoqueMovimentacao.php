@@ -18,9 +18,12 @@ class EstoqueMovimentacao extends Model
         'tenant_id',
         'sequential_id',
         'type', // entrada, saida, transferencia
+        'operacao_interna_id',
         'user_id',
         'origem_id',
         'destino_id',
+        'tipo_estoque_origem_id',
+        'tipo_estoque_destino_id',
         'referencia_type',
         'referencia_id',
         'observacao',
@@ -104,6 +107,21 @@ class EstoqueMovimentacao extends Model
     public function destino()
     {
         return $this->belongsTo(LocalEstoque::class, 'destino_id');
+    }
+
+    public function operacaoInterna()
+    {
+        return $this->belongsTo(OperacaoInterna::class);
+    }
+
+    public function tipoEstoqueOrigem()
+    {
+        return $this->belongsTo(TipoEstoque::class, 'tipo_estoque_origem_id');
+    }
+
+    public function tipoEstoqueDestino()
+    {
+        return $this->belongsTo(TipoEstoque::class, 'tipo_estoque_destino_id');
     }
 
     public function itens()

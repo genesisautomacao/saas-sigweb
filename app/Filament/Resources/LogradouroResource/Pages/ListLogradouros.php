@@ -17,6 +17,8 @@ class ListLogradouros extends ListRecords
                     ->action(fn(LogradouroExportService $service) => $service->exportToExcel($this->getFilteredTableQuery()->get())),
                 Actions\Action::make('export_pdf')->label('Exportar PDF')->icon('heroicon-o-document-text')
                     ->action(fn(LogradouroExportService $service) => $service->exportToPdf($this->getFilteredTableQuery()->get())),
+                Actions\Action::make('export_xml')->label('Exportar XML')->icon('heroicon-o-code-bracket')
+                    ->action(fn(LogradouroExportService $service) => $service->exportToXml($this->getFilteredTableQuery()->get())),
             ])->label('Exportar')->icon('heroicon-m-arrow-down-tray')->button()->color('gray'),
 
            \Filament\Actions\Action::make('novo_logradouro')

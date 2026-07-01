@@ -33,6 +33,7 @@ class EditRole extends EditRecord
         $data['permissions_iluminacao'] = array_values(array_intersect($permissions, ['view_tipos_poste', 'create_tipos_poste', 'edit_tipos_poste', 'delete_tipos_poste', 'view_postes', 'create_postes', 'edit_postes', 'delete_postes']));
         $data['permissions_arborizacao'] = array_values(array_intersect($permissions, ['view_arvores', 'create_arvores', 'edit_arvores', 'delete_arvores']));
         $data['permissions_estoque'] = array_values(array_intersect($permissions, ['view_locais_estoque', 'create_locais_estoque', 'edit_locais_estoque', 'delete_locais_estoque', 'view_marcas', 'create_marcas', 'edit_marcas', 'delete_marcas', 'view_produtos', 'create_produtos', 'edit_produtos', 'delete_produtos', 'view_estoques', 'create_estoques', 'edit_estoques', 'delete_estoques', 'view_movimentacoes', 'create_movimentacoes', 'edit_movimentacoes', 'delete_movimentacoes']));
+        $data['permissions_estoque_cadastros'] = array_values(array_intersect($permissions, ['gerenciar_estabelecimentos', 'gerenciar_fabricantes', 'gerenciar_fornecedores', 'gerenciar_unidade_medidas', 'gerenciar_embalagens', 'gerenciar_familia_produtos', 'gerenciar_tipo_estoques', 'gerenciar_operacao_internas', 'gerenciar_lote_estoques']));
         $data['permissions_manutencao'] = array_values(array_intersect($permissions, ['view_solicitacoes', 'create_solicitacoes', 'edit_solicitacoes', 'delete_solicitacoes', 'view_ordens_servico', 'create_ordens_servico', 'edit_ordens_servico', 'delete_ordens_servico']));
         $data['permissions_cemiterio'] = array_values(array_intersect($permissions, ['view_cemiterios', 'create_cemiterios', 'edit_cemiterios', 'delete_cemiterios', 'view_quadras_cemiterio', 'create_quadras_cemiterio', 'edit_quadras_cemiterio', 'delete_quadras_cemiterio', 'view_logradouros_cemiterio', 'create_logradouros_cemiterio', 'edit_logradouros_cemiterio', 'delete_logradouros_cemiterio', 'view_jazigos', 'create_jazigos', 'edit_jazigos', 'delete_jazigos']));
         $data['permissions_imobiliario'] = array_values(array_intersect($permissions, ['view_lotes', 'create_lotes', 'edit_lotes', 'delete_lotes', 'view_logradouros', 'create_logradouros', 'edit_logradouros', 'delete_logradouros', 'view_bairros', 'create_bairros', 'edit_bairros', 'delete_bairros', 'view_perimetros_urbanos', 'create_perimetros_urbanos', 'edit_perimetros_urbanos', 'delete_perimetros_urbanos', 'view_meio_fios', 'create_meio_fios', 'edit_meio_fios', 'delete_meio_fios', 'view_loteamentos', 'create_loteamentos', 'edit_loteamentos', 'delete_loteamentos', 'view_quadras', 'create_quadras', 'edit_quadras', 'delete_quadras', 'view_zonas', 'create_zonas', 'edit_zonas', 'delete_zonas']));
@@ -65,7 +66,7 @@ class EditRole extends EditRecord
         $data['permissions_mapa_camadas'] = array_values(array_intersect($permissions, [
             'ver_camada_perimetros', 'ver_camada_setores_fiscais', 'ver_camada_bairros',
             'ver_camada_loteamentos', 'ver_camada_quadras', 'ver_camada_lotes',
-            'ver_camada_logradouros', 'ver_camada_meio_fios', 'ver_camada_postes', 'ver_camada_arvores',
+            'ver_camada_logradouros', 'ver_camada_meio_fios', 'ver_camada_secoes_logradouro', 'ver_camada_postes', 'ver_camada_arvores',
             'ver_camada_zonas', 'ver_camada_patrimonio_publico', 'ver_camada_cemiterios',
             'ver_camada_rural_localidades', 'ver_camada_rural_propriedades', 'ver_camada_rural_estradas',
             'ver_camada_rural_hidrografias', 'ver_camada_rural_pontes', 'ver_camada_rural_pontos_interesse',
@@ -91,6 +92,7 @@ class EditRole extends EditRecord
         $iluminacaoData = $data['permissions_iluminacao'] ?? [];
         $arborizacaoData = $data['permissions_arborizacao'] ?? [];
         $estoqueData = $data['permissions_estoque'] ?? [];
+        $estoqueCadastrosData = $data['permissions_estoque_cadastros'] ?? [];
         $manutencaoData = $data['permissions_manutencao'] ?? [];
         $cemiterioData = $data['permissions_cemiterio'] ?? [];
         $imobiliarioData = $data['permissions_imobiliario'] ?? [];
@@ -114,6 +116,7 @@ class EditRole extends EditRecord
         $iluminacao = is_array($iluminacaoData) ? $iluminacaoData : ($iluminacaoData === true ? ['view_tipos_poste', 'create_tipos_poste', 'edit_tipos_poste', 'delete_tipos_poste', 'view_postes', 'create_postes', 'edit_postes', 'delete_postes'] : []);
         $arborizacao = is_array($arborizacaoData) ? $arborizacaoData : ($arborizacaoData === true ? ['view_arvores', 'create_arvores', 'edit_arvores', 'delete_arvores'] : []);
         $estoque = is_array($estoqueData) ? $estoqueData : ($estoqueData === true ? ['view_locais_estoque', 'create_locais_estoque', 'edit_locais_estoque', 'delete_locais_estoque', 'view_marcas', 'create_marcas', 'edit_marcas', 'delete_marcas', 'view_produtos', 'create_produtos', 'edit_produtos', 'delete_produtos', 'view_estoques', 'create_estoques', 'edit_estoques', 'delete_estoques', 'view_movimentacoes', 'create_movimentacoes', 'edit_movimentacoes', 'delete_movimentacoes'] : []);
+        $estoqueCadastros = is_array($estoqueCadastrosData) ? $estoqueCadastrosData : [];
         $manutencao = is_array($manutencaoData) ? $manutencaoData : ($manutencaoData === true ? ['view_solicitacoes', 'create_solicitacoes', 'edit_solicitacoes', 'delete_solicitacoes', 'view_ordens_servico', 'create_ordens_servico', 'edit_ordens_servico', 'delete_ordens_servico'] : []);
         $cemiterio = is_array($cemiterioData) ? $cemiterioData : ($cemiterioData === true ? ['view_cemiterios', 'create_cemiterios', 'edit_cemiterios', 'delete_cemiterios', 'view_quadras_cemiterio', 'create_quadras_cemiterio', 'edit_quadras_cemiterio', 'delete_quadras_cemiterio', 'view_logradouros_cemiterio', 'create_logradouros_cemiterio', 'edit_logradouros_cemiterio', 'delete_logradouros_cemiterio', 'view_jazigos', 'create_jazigos', 'edit_jazigos', 'delete_jazigos'] : []);
         $imobiliario = is_array($imobiliarioData) ? $imobiliarioData : ($imobiliarioData === true ? ['view_lotes', 'create_lotes', 'edit_lotes', 'delete_lotes', 'view_logradouros', 'create_logradouros', 'edit_logradouros', 'delete_logradouros', 'view_bairros', 'create_bairros', 'edit_bairros', 'delete_bairros', 'view_loteamentos', 'create_loteamentos', 'edit_loteamentos', 'delete_loteamentos', 'view_quadras', 'create_quadras', 'edit_quadras', 'delete_quadras', 'view_zonas', 'create_zonas', 'edit_zonas', 'delete_zonas'] : []);
@@ -128,7 +131,7 @@ class EditRole extends EditRecord
         $mapaCamadas   = is_array($mapaCamadasData)   ? $mapaCamadasData   : [];
         $mapaToolbar   = is_array($mapaToolbarData)   ? $mapaToolbarData   : [];
 
-        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $pontosPanoramicos, $iluminacao, $arborizacao, $estoque, $manutencao, $cemiterio, $imobiliario, $social, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $administracao, $mapaCamadas, $mapaToolbar);
+        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $pontosPanoramicos, $iluminacao, $arborizacao, $estoque, $estoqueCadastros, $manutencao, $cemiterio, $imobiliario, $social, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $administracao, $mapaCamadas, $mapaToolbar);
 
         unset(
             $data['permissions_users'],
@@ -141,6 +144,7 @@ class EditRole extends EditRecord
             $data['permissions_iluminacao'],
             $data['permissions_arborizacao'],
             $data['permissions_estoque'],
+            $data['permissions_estoque_cadastros'],
             $data['permissions_manutencao'],
             $data['permissions_cemiterio'],
             $data['permissions_imobiliario'],

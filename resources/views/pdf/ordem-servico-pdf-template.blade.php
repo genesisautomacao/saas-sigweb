@@ -61,7 +61,18 @@
         </tr>
     </table>
 
-    {{-- 3. DETALHES DA ORDEM DE SERVIÇO (OS) --}}
+    {{-- 3. MINI-MAPA DE LOCALIZAÇÃO --}}
+    @if(!empty($mapImageBase64))
+    <h2>Localização do Artefato</h2>
+    <div style="text-align: center; border: 1px solid #ccc; padding: 4px; margin-bottom: 15px;">
+        <img src="{{ $mapImageBase64 }}" style="width: 400px; height: 300px; object-fit: cover;" alt="Mapa de localização">
+        <p style="margin: 3px 0 0; font-size: 9px; color: #777;">
+            Mapa de situação (zoom 17) — © OpenStreetMap contributors
+        </p>
+    </div>
+    @endif
+
+    {{-- 5. DETALHES DA ORDEM DE SERVIÇO (OS) --}}
     <h2>Detalhes da Ordem de Serviço</h2>
     <table>
         <tr>
@@ -74,7 +85,7 @@
         </tr>
     </table>
 
-    {{-- 4. EQUIPE --}}
+    {{-- 6. EQUIPE --}}
     <h2>Equipe Designada</h2>
     @if($ordemServico->equipe->isEmpty())
         <p>Nenhuma equipe designada.</p>
@@ -94,7 +105,7 @@
         </table>
     @endif
 
-    {{-- 5. ITENS (Saída de Estoque) --}}
+    {{-- 7. ITENS (Saída de Estoque) --}}
     <h2>Materiais Utilizados (Estoque)</h2>
     @if($ordemServico->materiais->isEmpty())
         <p>Nenhum material registrado nesta OS.</p>
@@ -119,7 +130,7 @@
         </table>
     @endif
 
-    {{-- 6. RODAPÉ --}}
+    {{-- 8. RODAPÉ --}}
     <div class="footer">
         <p>Documento Oficial - {{ $ordemServico->tenant->name ?? 'Sistema de Gestão' }}</p>
     </div>

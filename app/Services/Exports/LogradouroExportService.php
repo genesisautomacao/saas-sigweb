@@ -28,4 +28,20 @@ class LogradouroExportService
         $pdf = Pdf::loadView('pdf.default-report', ['data' => $data, 'headings' => $headings, 'title' => 'Relatório de Logradouros'])->setPaper('a4', 'portrait');
         return response()->streamDownload(fn() => print($pdf->output()), $fileName);
     }
+
+    public function exportToXml(Collection $records)
+    {
+        $fileName = 'logradouros-' . now()->format('Y-m-d-His') . '.xml';
+        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><logradouros/>');
+
+        foreach ($records as $r) {
+            $item = $xml->addChild('logradouro');
+            $item->addAttribute('id', (string) $r->sequential_id);
+            $item->addChild('nome', htmlspecialchars($r->name ?? ''));
+        }
+
+        return response()->streamDownload(function () use ($xml) {
+            echo $xml->asXML();
+        }, $fileName, ['Content-Type' => 'application/xml']);
+    }
 }

@@ -22,7 +22,7 @@ class EstoqueMovimentacaoResource extends Resource
     protected static ?string $navigationGroup = 'Estoque e Almoxarifado';
     protected static ?string $modelLabel = 'Movimentação';
     protected static ?string $pluralModelLabel = 'Movimentações (Entradas/Saídas)';
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 14;
 
     // 🛑 LIVRO RAZÃO IMUTÁVEL: Não se edita nem apaga histórico! Se errou, faz uma movimentação reversa.
     public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
@@ -37,6 +37,21 @@ class EstoqueMovimentacaoResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Dados da Movimentação')
                     ->schema([
+                        Forms\Components\Select::make('operacao_interna_id')
+                            ->label('Operação Interna (configurada)')
+                            ->options(fn() => \App\Models\OperacaoInterna::where('is_active', true)->pluck('name', 'id'))
+                            ->helperText('Preenche o tipo automaticamente conforme o sentido cadastrado (item 054).')
+                            ->live()
+                            ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                if ($state) {
+                                    $op = \App\Models\OperacaoInterna::find($state);
+                                    if ($op) {
+                                        $set('type', $op->sentido);
+                                    }
+                                }
+                            })
+                            ->columnSpan(3),
+
                         Forms\Components\Select::make('type')
                             ->label('Tipo de Operação')
                             ->options([
@@ -60,6 +75,18 @@ class EstoqueMovimentacaoResource extends Resource
                             ->visible(fn(Forms\Get $get) => in_array($get('type'), ['entrada', 'transferencia']))
                             ->required(fn(Forms\Get $get) => in_array($get('type'), ['entrada', 'transferencia'])),
 
+                        Forms\Components\Select::make('tipo_estoque_origem_id')
+                            ->label('Tipo de Estoque (Origem)')
+                            ->options(fn() => \App\Models\TipoEstoque::pluck('name', 'id'))
+                            ->visible(fn(Forms\Get $get) => in_array($get('type'), ['saida', 'transferencia']))
+                            ->searchable(),
+
+                        Forms\Components\Select::make('tipo_estoque_destino_id')
+                            ->label('Tipo de Estoque (Destino)')
+                            ->options(fn() => \App\Models\TipoEstoque::pluck('name', 'id'))
+                            ->visible(fn(Forms\Get $get) => in_array($get('type'), ['entrada', 'transferencia']))
+                            ->searchable(),
+
                         Forms\Components\TextInput::make('observacao')
                             ->label('Observação / Motivo')
                             ->placeholder('Ex: Compra NF 1234, Transferência para Viatura 02...')
@@ -78,7 +105,19 @@ class EstoqueMovimentacaoResource extends Resource
                                     ->searchable()
                                     ->preload()
                                     ->required()
-                                    ->columnSpan(3),
+                                    ->live()
+                                    ->columnSpan(2),
+
+                                Forms\Components\Select::make('lote_estoque_id')
+                                    ->label('Lote / Série')
+                                    ->options(function (Forms\Get $get) {
+                                        $produtoId = $get('produto_id');
+                                        return $produtoId
+                                            ? \App\Models\LoteEstoque::where('produto_id', $produtoId)->pluck('numero_lote', 'id')
+                                            : [];
+                                    })
+                                    ->searchable()
+                                    ->columnSpan(2),
 
                                 Forms\Components\TextInput::make('quantity')
                                     ->label('Quantidade')
@@ -114,7 +153,7 @@ class EstoqueMovimentacaoResource extends Resource
                                     ->visible(fn(Forms\Get $get) => $get('../../type') === 'entrada')
                                     ->columnSpan(1),
                             ])
-                            ->columns(5)
+                            ->columns(6)
                             ->addActionLabel('Adicionar Produto')
                             ->required(),
                     ]),
@@ -205,7 +244,34 @@ class EstoqueMovimentacaoResource extends Resource
                                 $data['created_until'],
                                 fn(\Illuminate\Database\Eloquent\Builder $query, $date): \Illuminate\Database\Eloquent\Builder => $query->whereDate('created_at', '<=', $date),
                             );
-                    })
+                    }),
+
+                // 5. Filtro por Produto (via itens da movimentação) — item 057
+                Tables\Filters\SelectFilter::make('produto')
+                    ->label('Filtrar por Produto')
+                    ->options(fn() => \App\Models\Produto::pluck('name', 'id'))
+                    ->query(fn($query, array $data) => $query->when(
+                        $data['value'],
+                        fn($q, $v) => $q->whereHas('itens', fn($i) => $i->where('produto_id', $v))
+                    )),
+
+                // 6. Filtro por Lote / Série (via itens) — item 057
+                Tables\Filters\SelectFilter::make('lote')
+                    ->label('Filtrar por Lote / Série')
+                    ->options(fn() => \App\Models\LoteEstoque::pluck('numero_lote', 'id'))
+                    ->query(fn($query, array $data) => $query->when(
+                        $data['value'],
+                        fn($q, $v) => $q->whereHas('itens', fn($i) => $i->where('lote_estoque_id', $v))
+                    )),
+
+                // 7. Filtro por Tipo de Estoque (origem ou destino) — item 057
+                Tables\Filters\SelectFilter::make('tipo_estoque')
+                    ->label('Filtrar por Tipo de Estoque')
+                    ->options(fn() => \App\Models\TipoEstoque::pluck('name', 'id'))
+                    ->query(fn($query, array $data) => $query->when(
+                        $data['value'],
+                        fn($q, $v) => $q->where(fn($sub) => $sub->where('tipo_estoque_origem_id', $v)->orWhere('tipo_estoque_destino_id', $v))
+                    )),
             ])
             ->actions([
                 Tables\Actions\DeleteAction::make()

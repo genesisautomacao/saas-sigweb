@@ -350,6 +350,39 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
+        secoes_logradouro: {
+            z: 52,
+            minZoom: 15,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: "#7c3aed",
+                        width: 4,
+                        lineDash: [2, 6],
+                    }),
+                });
+                if (zoom >= 17) {
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name")
+                                ? feature.get("name").toString()
+                                : "",
+                            font: "bold 11px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: "#5b21b6" }),
+                            stroke: new ol.style.Stroke({
+                                color: "#ffffff",
+                                width: 3,
+                            }),
+                            placement: "line",
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
+
         postes: {
             z: 100,
             minZoom: 14,
@@ -1441,9 +1474,11 @@ document.addEventListener("DOMContentLoaded", function () {
         const hoverableLayers = [
             "lotes",
             "edificacao_ativa",
+            "testada_ativa",
             "pontos_panoramicos",
             "logradouros",
             "meio_fios",
+            "secoes_logradouro",
             "zonas",
             "bairros",
             "loteamentos",
@@ -1527,6 +1562,38 @@ document.addEventListener("DOMContentLoaded", function () {
                     featureTooltip.innerHTML =
                         `<strong>${titulo}</strong><br>` +
                         `${labelMaterial} · ${labelEstado}` +
+                        (labelExt ? `<br><em>${labelExt}</em>` : "");
+                    featureTooltip.style.display = "block";
+                    featureTooltip.style.left = e.originalEvent.clientX + "px";
+                    featureTooltip.style.top = e.originalEvent.clientY + "px";
+                }
+            } else if (layer === "secoes_logradouro") {
+                // Hover da seção de logradouro: engrossa o tracejado em destaque roxo
+                feature.setStyle(
+                    new ol.style.Style({
+                        stroke: new ol.style.Stroke({
+                            color: "#a78bfa",
+                            width: 6,
+                            lineDash: [4, 8],
+                        }),
+                    }),
+                );
+
+                if (featureTooltip) {
+                    const seq = feature.get("sequential_id");
+                    const nome = feature.get("name");
+                    const titulo = nome || (seq ? `Seção #${seq}` : "Seção de Logradouro");
+                    const tipo = feature.get("tipo_pavimentacao");
+                    const ext = feature.get("extensao_geo");
+                    const labelExt = ext
+                        ? Number(ext).toLocaleString("pt-BR", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                          }) + " m"
+                        : "";
+                    featureTooltip.innerHTML =
+                        `<strong>${titulo}</strong>` +
+                        (tipo ? `<br>${tipo}` : "") +
                         (labelExt ? `<br><em>${labelExt}</em>` : "");
                     featureTooltip.style.display = "block";
                     featureTooltip.style.left = e.originalEvent.clientX + "px";
@@ -2023,6 +2090,25 @@ document.addEventListener("DOMContentLoaded", function () {
                                     : null,
                         }),
                     );
+                } else if (layer === "testada_ativa") {
+                    const tipoLabel = feature.get("tipo") === "principal" ? "Testada Principal" : "Testada Secundária";
+                    const comp = feature.get("comprimento");
+                    const labelComp = comp
+                        ? Number(comp).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " m"
+                        : "";
+                    feature.setStyle(
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: "#f97316", width: 6 }),
+                        }),
+                    );
+                    if (featureTooltip) {
+                        featureTooltip.innerHTML =
+                            `<strong>${tipoLabel}</strong>` +
+                            (labelComp ? `<br><em>${labelComp}</em>` : "");
+                        featureTooltip.style.display = "block";
+                        featureTooltip.style.left = e.originalEvent.clientX + "px";
+                        featureTooltip.style.top = e.originalEvent.clientY + "px";
+                    }
                 }
             }
         } else {
@@ -2078,6 +2164,22 @@ document.addEventListener("DOMContentLoaded", function () {
         // 🛑 TRAVA MESTRA DE EDIÇÃO: Se estiver editando geometria, ignora cliques em outros artefatos!
         if (featureEmEdicao) {
             return; // Encerra o clique aqui, impedindo que abra qualquer ficha ou modal
+        }
+
+        // 🛑 INTERCEPTADOR: PRÉVIA DA NUMERAÇÃO ATIVA (itens PoC 101/102)
+        // Clicar numa parcela durante a prévia a exclui/reinclui do processo.
+        if (window.numeracaoPreviewAtivo) {
+            const feats = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 6 });
+            let loteId = null;
+            if (feats && feats.length) {
+                const dot = feats.find((f) => f.get("loteId"));
+                const lote = feats.find((f) => f.get("layer") === "lotes");
+                loteId = dot ? dot.get("loteId") : lote ? lote.get("id") : null;
+            }
+            if (loteId) {
+                Livewire.dispatch("toggleParcelaNumeracao", { loteId: loteId });
+            }
+            return; // não abre ficha lateral durante a prévia
         }
 
         // 🛑 INTERCEPTADOR DA NUMERAÇÃO PREDIAL (NOVO FLUXO: DESENHAR TRAJETO)
@@ -2216,6 +2318,68 @@ document.addEventListener("DOMContentLoaded", function () {
             return; // Impede que abra a ficha lateral
         }
 
+        // 🛑 INTERCEPTADOR DO CAD (ESPELHAR)
+        if (activeTool === "cad_espelhar_step1") {
+            const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
+            const f = features && features.find(
+                (feat) => feat.get("layer") && feat.get("layer") !== "cad_draft",
+            );
+            if (!f) return;
+
+            try {
+                // Pergunta ao usuário o tipo de espelhamento
+                const horizontal = confirm(
+                    "Escolha o tipo de espelhamento:\n\n[OK]       ↔ Horizontal — cópia à direita\n[Cancelar] ↕ Vertical   — cópia acima",
+                );
+
+                // Opera em EPSG:3857 (metros) diretamente — sem conversão GeoJSON
+                // Eixo de reflexão = borda da bounding box: cópia fica ADJACENTE ao original
+                const ext = f.getGeometry().getExtent(); // [minX, minY, maxX, maxY]
+                const axisX = ext[2]; // borda direita (para espelhar à direita)
+                const axisY = ext[3]; // borda superior (para espelhar acima)
+
+                function mirrorCoords3857(c) {
+                    if (typeof c[0] === "number") {
+                        return horizontal
+                            ? [2 * axisX - c[0], c[1]]
+                            : [c[0], 2 * axisY - c[1]];
+                    }
+                    return c.map(mirrorCoords3857);
+                }
+
+                const geomClone = f.getGeometry().clone();
+                const geomType = geomClone.getType();
+                let mirroredCoords = mirrorCoords3857(geomClone.getCoordinates());
+
+                // Reflexão inverte orientação dos anéis → reverter para manter CCW
+                if (geomType === "Polygon") {
+                    mirroredCoords = mirroredCoords.map((ring) => ring.slice().reverse());
+                } else if (geomType === "MultiPolygon") {
+                    mirroredCoords = mirroredCoords.map((poly) =>
+                        poly.map((ring) => ring.slice().reverse()),
+                    );
+                }
+
+                geomClone.setCoordinates(mirroredCoords);
+
+                const featureMirrored = new ol.Feature({ geometry: geomClone });
+                featureMirrored.set("id", "clone_temp");
+                featureMirrored.set("layer", "cad_draft");
+                featureCloneOriginalLayer = f.get("layer");
+
+                cadSource.clear();
+                cadSource.addFeature(featureMirrored);
+
+                activeTool = "pan";
+                window.ativarModoEdicaoAvancado(featureMirrored, "#4f46e5");
+                window.dispatchEvent(new Event("fechar-submenus-cad"));
+            } catch (err) {
+                console.error("Erro ao espelhar geometria:", err);
+                alert("⚠️ Não foi possível espelhar esta geometria.");
+            }
+            return;
+        }
+
         // 🛑 INTERCEPTADOR DO CAD (BUFFER)
         if (activeTool === "cad_buffer") {
             const features = map.getFeaturesAtPixel(evt.pixel, {
@@ -2243,41 +2407,103 @@ document.addEventListener("DOMContentLoaded", function () {
                     }
 
                     try {
-                        // 2. Transforma o artefato original em GeoJSON
-                        const geojsonOriginal =
-                            formatGeoJSON.writeFeatureObject(featureToBuffer);
+                        // Buffer com juntas miter — cantos vivos que seguem o contorno real do polígono.
+                        // Opera em EPSG:3857 (metros): distância em metros, sem conversão para graus.
+                        const geomType = featureToBuffer.getGeometry().getType();
 
-                        // 3. 🪄 A MÁGICA: O Turf infla a geometria instantaneamente!
-                        // Adicionado "steps: 1" para diminuir a curvatura das pontas e deixar mais "chanfrado/reto"
-                        const bufferedGeojson = turf.buffer(
-                            geojsonOriginal,
-                            distMetros,
-                            { units: "meters" },
-                        );
+                        // Normal esquerda unitária de uma aresta — aponta para fora em anel CCW
+                        function edgeNormal(a, b) {
+                            const dx = b[0] - a[0], dy = b[1] - a[1];
+                            const len = Math.sqrt(dx * dx + dy * dy);
+                            if (len < 1e-6) return [0, 1];
+                            return [-dy / len, dx / len];
+                        }
 
-                        // 4. Converte de volta para Feature do OpenLayers EPSG:3857
-                        const featureBuffer =
-                            formatGeoJSON.readFeature(bufferedGeojson);
+                        // Interseção de duas retas: p1+t*dir1 e p2+s*dir2
+                        function intersectLines(p1, dir1, p2, dir2) {
+                            const cross = dir1[0] * dir2[1] - dir1[1] * dir2[0];
+                            if (Math.abs(cross) < 1e-8) return null;
+                            const t = ((p2[0] - p1[0]) * dir2[1] - (p2[1] - p1[1]) * dir2[0]) / cross;
+                            return [p1[0] + dir1[0] * t, p1[1] + dir1[1] * t];
+                        }
 
-                        // 5. Carimba como "Mesa de Desenho"
+                        // Desloca um anel poligonal para fora (d>0) ou para dentro (d<0) com juntas miter
+                        function miterOffsetRing(ring, d) {
+                            const n = ring.length - 1; // exclui ponto de fechamento (=primeiro)
+                            const MITER_LIMIT = 10.0;
+                            const out = [];
+
+                            for (let i = 0; i < n; i++) {
+                                const prev = ring[(i - 1 + n) % n];
+                                const curr = ring[i];
+                                const next = ring[(i + 1) % n];
+
+                                const n1 = edgeNormal(prev, curr); // normal da aresta prev→curr
+                                const n2 = edgeNormal(curr, next); // normal da aresta curr→next
+
+                                // Pontos de partida nas retas-offset de cada aresta no vértice atual
+                                const p1 = [curr[0] + n1[0] * d, curr[1] + n1[1] * d];
+                                const p2 = [curr[0] + n2[0] * d, curr[1] + n2[1] * d];
+
+                                // Direções unitárias das arestas
+                                const dx1 = curr[0] - prev[0], dy1 = curr[1] - prev[1];
+                                const l1 = Math.sqrt(dx1 * dx1 + dy1 * dy1) || 1;
+                                const dx2 = next[0] - curr[0], dy2 = next[1] - curr[1];
+                                const l2 = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 1;
+
+                                const pt = intersectLines(p1, [dx1 / l1, dy1 / l1], p2, [dx2 / l2, dy2 / l2]);
+
+                                if (!pt) {
+                                    // Arestas paralelas — usa offset da aresta atual
+                                    out.push(p2.slice());
+                                } else {
+                                    const mx = pt[0] - curr[0], my = pt[1] - curr[1];
+                                    if (Math.sqrt(mx * mx + my * my) > Math.abs(d) * MITER_LIMIT) {
+                                        // Ângulo muito agudo: bevel (dois pontos para evitar ponta longa)
+                                        out.push(p1.slice());
+                                        out.push(p2.slice());
+                                    } else {
+                                        out.push(pt);
+                                    }
+                                }
+                            }
+                            out.push(out[0].slice()); // fecha o anel
+                            return out;
+                        }
+
+                        let bufferedGeom;
+                        if (geomType === "Polygon") {
+                            const rings = featureToBuffer.getGeometry().getCoordinates();
+                            bufferedGeom = new ol.geom.Polygon(
+                                rings.map((ring, i) => miterOffsetRing(ring, i === 0 ? distMetros : -distMetros)),
+                            );
+                        } else if (geomType === "MultiPolygon") {
+                            const polys = featureToBuffer.getGeometry().getCoordinates();
+                            bufferedGeom = new ol.geom.MultiPolygon(
+                                polys.map((poly) =>
+                                    poly.map((ring, i) => miterOffsetRing(ring, i === 0 ? distMetros : -distMetros)),
+                                ),
+                            );
+                        } else {
+                            // Ponto / Linha: usa turf como fallback
+                            const gj = formatGeoJSON.writeFeatureObject(featureToBuffer);
+                            const buf = turf.buffer(gj, distMetros, { units: "meters", steps: 1 });
+                            bufferedGeom = formatGeoJSON.readGeometry(buf.geometry);
+                        }
+
+                        const featureBuffer = new ol.Feature({ geometry: bufferedGeom });
                         featureBuffer.set("id", "clone_temp");
                         featureBuffer.set("layer", "cad_draft");
-                        featureCloneOriginalLayer = layerName; // Guarda a origem
+                        featureCloneOriginalLayer = layerName;
 
                         cadSource.clear();
                         cadSource.addFeature(featureBuffer);
 
-                        // 6. Joga o resultado pro topo com as ferramentas ativas
-                        activeTool = "pan"; // Solta a ferramenta
-                        window.ativarModoEdicaoAvancado(
-                            featureBuffer,
-                            "#4f46e5",
-                        );
-
-                        // 7. 🛑 AVISA O HTML PARA ESCONDER A CAIXINHA DE METROS
+                        activeTool = "pan";
+                        window.ativarModoEdicaoAvancado(featureBuffer, "#4f46e5");
                         window.dispatchEvent(new Event("fechar-submenus-cad"));
                     } catch (error) {
-                        console.error("Erro no motor Turf.js:", error);
+                        console.error("Erro no buffer miter:", error);
                         alert(
                             "⚠️ Não foi possível calcular o Buffer desta geometria.",
                         );
@@ -2635,6 +2861,7 @@ document.addEventListener("DOMContentLoaded", function () {
             // 🛑 HIERARQUIA INTELIGENTE DE CLIQUES: Quem estiver mais no topo da lista "rouba" o clique!
             const clickPriority = [
                 "edificacao_ativa", // Modo edição ganha de tudo
+                "testada_ativa",
                 "patrimonio_publicos",
                 "postes",
                 "arvores",
@@ -2644,6 +2871,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "logradouros",
                 "logradouros_cemiterio",
                 "meio_fios",
+                "secoes_logradouro",
                 "rural-estradas",
                 "pontos_panoramicos", // LINHAS
                 "jazigos", // Polígono Micro
@@ -2685,6 +2913,9 @@ document.addEventListener("DOMContentLoaded", function () {
                     case "edificacao_ativa":
                         Livewire.dispatch("abrirOpcoesEdificacao", { id: id });
                         break;
+                    case "testada_ativa":
+                        Livewire.dispatch("abrirOpcoesTestada", { id: id });
+                        break;
                     case "patrimonio_publicos":
                         Livewire.dispatch("abrirOpcoesPatrimonioPublico", { id: id });
                         break;
@@ -2707,6 +2938,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         break;
                     case "meio_fios":
                         Livewire.dispatch("abrirOpcoesMeioFio", { id: id });
+                        break;
+                    case "secoes_logradouro":
+                        Livewire.dispatch("abrirOpcoesSecaoLogradouro", { id: id });
                         break;
                     case "logradouros_cemiterio":
                         Livewire.dispatch("abrirOpcoesLogradouroCemiterio", {
@@ -3022,6 +3256,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 "rural_estrada",
                 "rural_hidro_linha",
                 "meio_fio",
+                "secao_logradouro",
+                "testada",
             ].includes(entityType)
         )
             geometryType = "LineString";
@@ -3178,6 +3414,50 @@ document.addEventListener("DOMContentLoaded", function () {
         const data = e.detail[0] || e.detail;
         if (window.loadedLayers["meio_fios"]) {
             const source = window.loadedLayers["meio_fios"].getSource();
+            const feature = source
+                .getFeatures()
+                .find((f) => f.get("id") == data.id);
+            if (feature) source.removeFeature(feature);
+        }
+    });
+
+    // ── CIRURGIA EM MEMÓRIA: SEÇÕES DE LOGRADOURO ──────────────────────
+    window.addEventListener("adicionar-secao_logradouro-mapa", (e) => {
+        const data = e.detail[0] || e.detail;
+        if (drawSource) drawSource.clear();
+        const checkbox = document.querySelector('input[data-layer="secoes_logradouro"]');
+        if (checkbox && checkbox.checked && window.loadedLayers["secoes_logradouro"]) {
+            const feature = new ol.Feature({
+                geometry: new ol.format.GeoJSON().readGeometry(data.geo, {
+                    dataProjection: "EPSG:4326",
+                    featureProjection: "EPSG:3857",
+                }),
+                id: data.id,
+                name: data.name,
+                layer: "secoes_logradouro",
+            });
+            window.loadedLayers["secoes_logradouro"].getSource().addFeature(feature);
+        }
+    });
+
+    window.addEventListener("atualizar-label-secao_logradouro", (e) => {
+        const data = e.detail[0] || e.detail;
+        if (window.loadedLayers["secoes_logradouro"]) {
+            const feature = window.loadedLayers["secoes_logradouro"]
+                .getSource()
+                .getFeatures()
+                .find((f) => f.get("id") == data.id);
+            if (feature) {
+                feature.set("name", data.name);
+                feature.changed();
+            }
+        }
+    });
+
+    window.addEventListener("remover-secao_logradouro-mapa", (e) => {
+        const data = e.detail[0] || e.detail;
+        if (window.loadedLayers["secoes_logradouro"]) {
+            const source = window.loadedLayers["secoes_logradouro"].getSource();
             const feature = source
                 .getFeatures()
                 .find((f) => f.get("id") == data.id);
@@ -3458,6 +3738,11 @@ document.addEventListener("DOMContentLoaded", function () {
             cor: "#92400e",
         },
         {
+            evento: "iniciar-edicao-geometria-secao_logradouro",
+            layer: "secoes_logradouro",
+            cor: "#7c3aed",
+        },
+        {
             evento: "iniciar-edicao-geometria-loteamento",
             layer: "loteamentos",
             cor: "#2563eb",
@@ -3544,6 +3829,11 @@ document.addEventListener("DOMContentLoaded", function () {
             layer: "patrimonio_publicos",
             cor: "#6366f1",
         },
+        {
+            evento: "iniciar-edicao-geometria-testada",
+            layer: "testada_ativa",
+            cor: "#16a34a",
+        },
     ];
 
     // 🔄 REGISTRA TODOS OS OUVINTES DE UMA VEZ SÓ
@@ -3556,6 +3846,12 @@ document.addEventListener("DOMContentLoaded", function () {
             if (config.layer === "edificacao_ativa") {
                 if (typeof edifAtivasSource !== "undefined") {
                     featureAlvo = edifAtivasSource
+                        .getFeatures()
+                        .find((f) => f.get("id") == data.id);
+                }
+            } else if (config.layer === "testada_ativa") {
+                if (typeof testadasAtivasSource !== "undefined") {
+                    featureAlvo = testadasAtivasSource
                         .getFeatures()
                         .find((f) => f.get("id") == data.id);
                 }
@@ -3594,6 +3890,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     bairros: "bairro",
                     perimetros: "perimetro_urbano",
                     meio_fios: "meio_fio",
+                    secoes_logradouro: "secao_logradouro",
+                    testada_ativa: "testada",
                     loteamentos: "loteamento",
                     edificacao_ativa: "edificacao",
                     logradouros: "logradouro",
@@ -3673,6 +3971,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     id: id,
                     geoJson: geoJson,
                 });
+            else if (layerName === "secoes_logradouro")
+                Livewire.dispatch("salvarNovaGeometriaSecaoLogradouro", {
+                    id: id,
+                    geoJson: geoJson,
+                });
             else if (layerName === "loteamentos")
                 Livewire.dispatch("salvarNovaGeometriaLoteamento", {
                     id: id,
@@ -3749,6 +4052,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     id: id,
                     geoJson: geoJson,
                 });
+            else if (layerName === "testada_ativa")
+                Livewire.dispatch("salvarNovaGeometriaTestada", {
+                    id: id,
+                    geoJson: geoJson,
+                });
 
             encerrarModoEdicao();
         }
@@ -3786,6 +4094,15 @@ document.addEventListener("DOMContentLoaded", function () {
                 closeBtn.click();
             }
         }, 150);
+    });
+
+    // Permite que ações PHP disparem o modo de desenho para uma entidade específica.
+    // Usado pelo botão "Nova Seção" no modal do logradouro.
+    window.addEventListener("iniciar-desenho-entidade", (e) => {
+        const data = e.detail[0] ?? e.detail;
+        if (data?.entityType && typeof window.enableDrawing === "function") {
+            window.enableDrawing(data.entityType);
+        }
     });
 
     function encerrarModoEdicao() {
@@ -3903,6 +4220,52 @@ document.addEventListener("DOMContentLoaded", function () {
 
     window.addEventListener("esconder-edificacoes-lote", () =>
         edifAtivasSource.clear(),
+    );
+
+    // 14b. CAMADA TEMPORÁRIA DE TESTADAS DO LOTE
+    const testadasAtivasSource = new ol.source.Vector();
+    const testadasAtivasLayer = new ol.layer.Vector({
+        source: testadasAtivasSource,
+        style: new ol.style.Style({
+            stroke: new ol.style.Stroke({ color: "#ea580c", width: 3 }),
+        }),
+        zIndex: 9998,
+    });
+    map.addLayer(testadasAtivasLayer);
+
+    window.addEventListener("mostrar-testadas-lote", (e) => {
+        const testadas =
+            e.detail && e.detail.testadas
+                ? e.detail.testadas
+                : e.detail[0] || e.detail;
+        testadasAtivasSource.clear();
+        if (testadas && Array.isArray(testadas) && testadas.length > 0) {
+            const features = [];
+            testadas.forEach((t) => {
+                if (t.geo) {
+                    try {
+                        const feature = new ol.Feature({
+                            geometry: new ol.format.GeoJSON().readGeometry(t.geo, {
+                                dataProjection: "EPSG:4326",
+                                featureProjection: "EPSG:3857",
+                            }),
+                            id: t.id,
+                            tipo: t.tipo,
+                            comprimento: t.comprimento,
+                            layer: "testada_ativa",
+                        });
+                        features.push(feature);
+                    } catch (err) {
+                        console.error("Erro ao pintar testada", err);
+                    }
+                }
+            });
+            testadasAtivasSource.addFeatures(features);
+        }
+    });
+
+    window.addEventListener("esconder-testadas-lote", () =>
+        testadasAtivasSource.clear(),
     );
 
     // 15. FERRAMENTAS DE MEDIÇÃO E NAVEGAÇÃO
@@ -4459,10 +4822,12 @@ document.addEventListener("DOMContentLoaded", function () {
             bairros: { label: "do novo Bairro", func: "bairro" },
             perimetros: { label: "do novo Distrito / Limite", func: "perimetro_urbano" },
             meio_fios: { label: "do novo Meio-fio / Calçada", func: "meio_fio" },
+            secoes_logradouro: { label: "da nova Seção de Logradouro", func: "secao_logradouro" },
             loteamentos: { label: "do novo Loteamento", func: "loteamento" },
             quadras: { label: "da nova Quadra", func: "quadra" },
 
             edificacoes: { label: "da nova Edificação", func: "edificacao" },
+            testadas: { label: "da nova Testada do Lote", func: "testada" },
             cemiterios: { label: "do novo Cemitério", func: "cemiterio" },
             quadras_cemiterio: {
                 label: "da nova Quadra",
@@ -4640,14 +5005,22 @@ document.addEventListener("DOMContentLoaded", function () {
     const previewNumLayer = new ol.layer.Vector({
         source: previewNumSource,
         style: function (feature) {
+            const excluido = feature.get("excluido");
+            const isPar = feature.get("isPar");
+            // Item PoC 100: par/ímpar em cores diferentes; excluído em cinza
+            const cor = excluido ? "#9ca3af" : isPar ? "#16a34a" : "#2563eb"; // cinza / verde / azul
             return new ol.style.Style({
                 image: new ol.style.Circle({
                     radius: 14,
-                    fill: new ol.style.Fill({ color: "#2563eb" }), // Azul Blue-600
-                    stroke: new ol.style.Stroke({ color: "#ffffff", width: 2 }),
+                    fill: new ol.style.Fill({ color: cor }),
+                    stroke: new ol.style.Stroke({
+                        color: "#ffffff",
+                        width: 2,
+                        lineDash: excluido ? [3, 3] : undefined,
+                    }),
                 }),
                 text: new ol.style.Text({
-                    text: feature.get("numero").toString(),
+                    text: excluido ? "✕" : feature.get("numero").toString(),
                     font: "bold 12px Arial, sans-serif",
                     fill: new ol.style.Fill({ color: "#ffffff" }),
                     offsetY: 0,
@@ -4658,9 +5031,32 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     map.addLayer(previewNumLayer);
 
+    // Camada de DIVERGÊNCIAS de numeração (item PoC 109) — polígonos vermelhos
+    const divergNumSource = new ol.source.Vector();
+    const divergNumLayer = new ol.layer.Vector({
+        source: divergNumSource,
+        style: function (feature) {
+            return new ol.style.Style({
+                stroke: new ol.style.Stroke({ color: "#dc2626", width: 3 }),
+                fill: new ol.style.Fill({ color: "rgba(220, 38, 38, 0.25)" }),
+                text: new ol.style.Text({
+                    text: feature.get("rotulo") || "",
+                    font: "bold 12px Arial, sans-serif",
+                    fill: new ol.style.Fill({ color: "#ffffff" }),
+                    backgroundFill: new ol.style.Fill({ color: "#dc2626" }),
+                    padding: [2, 4, 2, 4],
+                    overflow: true,
+                }),
+            });
+        },
+        zIndex: 10001,
+    });
+    map.addLayer(divergNumLayer);
+
     window.addEventListener("mostrar-preview-numeracao", (e) => {
         const lotes = e.detail[0] || e.detail.dados || e.detail;
         previewNumSource.clear();
+        window.numeracaoPreviewAtivo = true; // habilita clique para incluir/excluir
 
         if (lotes && Array.isArray(lotes)) {
             const features = [];
@@ -4676,6 +5072,9 @@ document.addEventListener("DOMContentLoaded", function () {
                                 },
                             ),
                             numero: lote.novo_numero,
+                            isPar: lote.is_par,
+                            excluido: lote.excluido,
+                            loteId: lote.lote_id,
                         });
                         features.push(feature);
                     } catch (err) {
@@ -4689,6 +5088,46 @@ document.addEventListener("DOMContentLoaded", function () {
 
     window.addEventListener("limpar-preview-numeracao", () => {
         previewNumSource.clear();
+        divergNumSource.clear();
+        window.numeracaoPreviewAtivo = false;
+    });
+
+    // Item PoC 109 — pinta as parcelas divergentes de vermelho com "atual → gerado"
+    window.addEventListener("mostrar-divergencias-numeracao", (e) => {
+        const lotes = e.detail[0] || e.detail.dados || e.detail;
+        divergNumSource.clear();
+
+        if (lotes && Array.isArray(lotes)) {
+            const gj = new ol.format.GeoJSON();
+            lotes.forEach((lote) => {
+                if (!lote.geo) return;
+                try {
+                    const feature = new ol.Feature({
+                        geometry: gj.readGeometry(lote.geo, {
+                            dataProjection: "EPSG:4326",
+                            featureProjection: "EPSG:3857",
+                        }),
+                        rotulo: `${lote.atual} → ${lote.gerado}`,
+                    });
+                    divergNumSource.addFeature(feature);
+                } catch (err) {
+                    console.error("Erro no JSON da divergência", err);
+                }
+            });
+
+            // Enquadra as divergências
+            if (divergNumSource.getFeatures().length > 0) {
+                map.getView().fit(divergNumSource.getExtent(), {
+                    padding: [80, 80, 80, 80],
+                    maxZoom: 18,
+                    duration: 800,
+                });
+            }
+        }
+    });
+
+    window.addEventListener("limpar-divergencias-numeracao", () => {
+        divergNumSource.clear();
     });
 
     // =========================================================================
@@ -4757,7 +5196,12 @@ document.addEventListener("DOMContentLoaded", function () {
             alert(
                 "📏 MODO COTAR ATIVADO\n\nClique em um Lote, Bairro ou Rua para extrair a área e a medida de todos os lados instantaneamente.",
             );
-            map.getTargetElement().style.cursor = "help"; // Cursor de dúvida/informação
+            map.getTargetElement().style.cursor = "help";
+
+        } else if (ferramenta === "espelhar") {
+            activeTool = "cad_espelhar_step1";
+            alert("🔁 MODO ESPELHAR\n\nClique na geometria que deseja espelhar.");
+            map.getTargetElement().style.cursor = "crosshair";
         }
     };
 
@@ -6652,4 +7096,49 @@ document.addEventListener("DOMContentLoaded", function () {
             zoom: Math.round(map.getView().getZoom()),
         };
     };
+
+    // =========================================================================
+    // A3 — STARTUP: ?layer=postes&id=X → ativa camada, voa e abre modal
+    // =========================================================================
+    (function () {
+        const params = new URLSearchParams(window.location.search);
+        const targetLayer = params.get("layer");
+        const targetId    = params.get("id");
+        if (!targetLayer || !targetId) return;
+
+        const dispatchMap = {
+            postes:  "abrirOpcoesPoste",
+            arvores: "abrirOpcoesArvore",
+        };
+        if (!dispatchMap[targetLayer]) return;
+
+        // Ativa o checkbox da camada se ainda não estiver marcado
+        const checkbox = document.querySelector(`[data-layer="${targetLayer}"]`);
+        if (checkbox && !checkbox.checked) checkbox.click();
+
+        // Polling: aguarda a feature aparecer no loadedLayers (máx. 10s)
+        let attempts = 0;
+        const poll = setInterval(function () {
+            if (++attempts > 20) { clearInterval(poll); return; }
+            const lyr = window.loadedLayers?.[targetLayer];
+            if (!lyr) return;
+            const feature = lyr.getSource().getFeatures()
+                .find(f => String(f.get("id")) === String(targetId));
+            if (!feature) return;
+            clearInterval(poll);
+
+            // Voa até a feature
+            const geom   = feature.getGeometry();
+            const coords = (geom.getType() === "Point" || geom.getType() === "MultiPoint")
+                ? geom.getCoordinates()
+                : ol.extent.getCenter(geom.getExtent());
+            map.getView().animate({ center: coords, zoom: 19, duration: 1000 });
+
+            // Abre o modal de opções após a animação
+            setTimeout(function () {
+                Livewire.dispatch(dispatchMap[targetLayer], { id: targetId });
+            }, 1200);
+        }, 500);
+    })();
+
 }); // <-- Fim do DOMContentLoaded

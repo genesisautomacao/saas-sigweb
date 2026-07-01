@@ -32,6 +32,15 @@ class ListLotes extends ListRecords
                         $lotes = $livewire->getFilteredTableQuery()->get();
                         return $exportService->exportToPdf($lotes);
                     }),
+
+                Actions\Action::make('export_xml')
+                    ->label('Exportar XML')
+                    ->icon('heroicon-o-code-bracket')
+                    ->action(function ($livewire, \App\Services\Exports\LoteExportService $exportService) {
+                        \Filament\Notifications\Notification::make()->title('Exportando para XML')->info()->send();
+                        $lotes = $livewire->getFilteredTableQuery()->get();
+                        return $exportService->exportToXml($lotes);
+                    }),
             ])
             ->label('Exportar')
             ->icon('heroicon-m-arrow-down-tray')

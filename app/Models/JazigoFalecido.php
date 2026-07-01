@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Documento;
 use App\Traits\BelongsToTenant;
+use Illuminate\Database\Eloquent\Model;
 
 class JazigoFalecido extends Model
 {
@@ -35,6 +36,11 @@ class JazigoFalecido extends Model
     public function pessoa()
     {
         return $this->belongsTo(Pessoa::class);
+    }
+
+    public function documentos()
+    {
+        return $this->morphMany(Documento::class, 'documentable');
     }
 
     /** Nome a exibir: prioriza pessoa cadastrada, cai para nome livre */

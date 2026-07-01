@@ -10,7 +10,7 @@ class RecalcularGeoMetadata extends Command
 {
     protected $signature = 'gis:recalcular-metadata
                             {--tenant= : Slug do município. Se omitido, roda em todos.}
-                            {--entidade= : Nome da entidade (perimetros_urbanos, zonas, bairros, loteamentos, quadras, logradouros). Se omitido, roda nas seis.}
+                            {--entidade= : Nome da entidade (perimetros_urbanos, zonas, bairros, loteamentos, quadras, logradouros, secoes_logradouro, meio_fios). Se omitido, roda em todos.}
                             {--force : Recalcula mesmo registros que já têm valor (sobrescreve).}';
 
     protected $description = 'Calcula area_geo (polígonos) e extensao_geo (linhas) via PostGIS para registros sem valor.';
@@ -19,12 +19,14 @@ class RecalcularGeoMetadata extends Command
      * Mapa de entidades suportadas: tabela → [coluna, função PostGIS].
      */
     private const ENTIDADES = [
-        'perimetros_urbanos' => ['area_geo',     'ST_Area'],
-        'zonas'              => ['area_geo',     'ST_Area'],
-        'bairros'            => ['area_geo',     'ST_Area'],
-        'loteamentos'        => ['area_geo',     'ST_Area'],
-        'quadras'            => ['area_geo',     'ST_Area'],
-        'logradouros'        => ['extensao_geo', 'ST_Length'],
+        'perimetros_urbanos'  => ['area_geo',     'ST_Area'],
+        'zonas'               => ['area_geo',     'ST_Area'],
+        'bairros'             => ['area_geo',     'ST_Area'],
+        'loteamentos'         => ['area_geo',     'ST_Area'],
+        'quadras'             => ['area_geo',     'ST_Area'],
+        'logradouros'         => ['extensao_geo', 'ST_Length'],
+        'secoes_logradouro'   => ['extensao_geo', 'ST_Length'],
+        'meio_fios'           => ['extensao_geo', 'ST_Length'],
     ];
 
     public function handle(): int

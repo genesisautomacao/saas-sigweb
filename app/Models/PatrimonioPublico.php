@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Documento;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasTenantSequentialId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -71,5 +72,10 @@ class PatrimonioPublico extends Model
     public function tipo()
     {
         return $this->belongsTo(TipoPatrimonio::class, 'tipo_patrimonio_id');
+    }
+
+    public function documentos()
+    {
+        return $this->morphMany(Documento::class, 'documentable');
     }
 }

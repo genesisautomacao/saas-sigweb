@@ -199,6 +199,26 @@ class RoleResource extends Resource
                                     ->columns(4),
                             ])->columns(1)->columnSpanFull(),
 
+                        // CAIXA 9b: ESTOQUE — CADASTROS AUXILIARES (permissão única "gerenciar")
+                        Forms\Components\Fieldset::make('Módulo: Estoque — Cadastros Auxiliares')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_estoque_cadastros')
+                                    ->label('Cada permissão libera visualizar, criar, editar e excluir a entidade')
+                                    ->options([
+                                        'gerenciar_estabelecimentos' => 'Gerenciar Estabelecimentos',
+                                        'gerenciar_fabricantes'      => 'Gerenciar Fabricantes',
+                                        'gerenciar_fornecedores'     => 'Gerenciar Fornecedores',
+                                        'gerenciar_unidade_medidas'  => 'Gerenciar Unidades de Medida',
+                                        'gerenciar_embalagens'       => 'Gerenciar Embalagens',
+                                        'gerenciar_familia_produtos' => 'Gerenciar Famílias de Produto',
+                                        'gerenciar_tipo_estoques'    => 'Gerenciar Tipos de Estoque',
+                                        'gerenciar_operacao_internas' => 'Gerenciar Operações Internas',
+                                        'gerenciar_lote_estoques'    => 'Gerenciar Lotes / Séries',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(3),
+                            ])->columns(1)->columnSpanFull(),
+
                         // CAIXA 10: MANUTENÇÃO E SERVIÇOS
                         Forms\Components\Fieldset::make('Módulo: Manutenção e Serviços')
                             ->schema([
@@ -464,6 +484,7 @@ class RoleResource extends Resource
                                         'ver_camada_bairros'               => 'Bairros',
                                         'ver_camada_loteamentos'           => 'Loteamentos',
                                         'ver_camada_meio_fios'             => 'Meio-fio / Calçada',
+                                        'ver_camada_secoes_logradouro'     => 'Seções de Logradouro',
                                         'ver_camada_quadras'               => 'Quadras',
                                         'ver_camada_lotes'                 => 'Lotes',
                                         'ver_camada_logradouros'           => 'Logradouros / Ruas',

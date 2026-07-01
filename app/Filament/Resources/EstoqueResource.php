@@ -21,7 +21,7 @@ class EstoqueResource extends Resource
     protected static ?string $navigationGroup = 'Estoque e Almoxarifado';
     protected static ?string $modelLabel = 'Saldo em Estoque';
     protected static ?string $pluralModelLabel = 'Saldos em Estoque';
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 13;
 
     // Removemos os botões de criar e editar pois Saldo não se cria na mão
     public static function canCreate(): bool { return false; }
@@ -37,14 +37,31 @@ class EstoqueResource extends Resource
                     ->sortable()
                     ->searchable(),
 
+                Tables\Columns\TextColumn::make('tipoEstoque.name')
+                    ->label('Tipo de Estoque')
+                    ->badge()
+                    ->color('info')
+                    ->default('—'),
+
                 Tables\Columns\TextColumn::make('produto.name')
                     ->label('Produto')
                     ->sortable()
                     ->searchable(),
 
+                Tables\Columns\TextColumn::make('produto.familia.name')
+                    ->label('Família')
+                    ->default('—')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('loteEstoque.numero_lote')
+                    ->label('Lote / Série')
+                    ->default('—')
+                    ->toggleable(),
+
                 Tables\Columns\TextColumn::make('produto.sku')
                     ->label('SKU')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('quantity')
                     ->label('Quantidade (Saldo)')
@@ -60,11 +77,23 @@ class EstoqueResource extends Resource
                 Tables\Filters\SelectFilter::make('local_estoque_id')
                     ->relationship('localEstoque', 'name')
                     ->label('Filtrar por Local'),
-                    
+
+                Tables\Filters\SelectFilter::make('tipo_estoque_id')
+                    ->relationship('tipoEstoque', 'name')
+                    ->label('Filtrar por Tipo de Estoque'),
+
                 Tables\Filters\SelectFilter::make('produto_id')
                     ->relationship('produto', 'name')
                     ->label('Filtrar por Produto')
                     ->searchable(),
+
+                Tables\Filters\SelectFilter::make('familia')
+                    ->label('Filtrar por Família')
+                    ->options(fn() => \App\Models\FamiliaProduto::pluck('name', 'id'))
+                    ->query(fn($query, array $data) => $query->when(
+                        $data['value'],
+                        fn($q, $v) => $q->whereHas('produto', fn($p) => $p->where('familia_produto_id', $v))
+                    )),
             ]);
     }
 

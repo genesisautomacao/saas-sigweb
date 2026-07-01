@@ -62,7 +62,7 @@ Each `Tenant` has a `modules` JSON column. Active module strings map to resource
 | `administrativo` | Pessoas, Contatos, Endereços, Documentos |
 | `iluminacao` | TipoPoste, Postes |
 | `arborizacao` | Árvores |
-| `estoque` | LocalEstoque, Marcas, Produtos, Estoques, Movimentações |
+| `estoque` | Estabelecimento, LocalEstoque, TipoEstoque, Fabricante, Marca, Fornecedor, FamíliaProduto, UnidadeMedida, Embalagem, Produto, LoteEstoque (lote/série), OperaçãoInterna, Estoque (saldo), Movimentações |
 | `manutencao` | Solicitações, Ordens de Serviço |
 | `cemiterio` | Cemitérios, QuadrasCemitério, Jazigos |
 | `pgv` | PGV Parâmetros, SetorFiscal |
@@ -78,7 +78,8 @@ Each `Tenant` has a `modules` JSON column. Active module strings map to resource
 - **`/api/ogc/{tenant_slug}`** ([app/Http/Controllers/Api/OgcController.php](app/Http/Controllers/Api/OgcController.php)): WFS/WMS interoperability endpoint (OGC standard).
 - **`public/js/gis/mapa-engine.js`**: The main interactive map JS engine (Leaflet-based), used by the internal Filament map page.
 - **`public/js/gis/mapa-cidadao-engine.js`**: Simplified citizen-facing public map.
-- **`MapaFullscreen` page** ([app/Filament/Pages/MapaFullscreen.php](app/Filament/Pages/MapaFullscreen.php)): Livewire-powered Filament page that hosts the map. Logic is split into ~20 traits in `app/Filament/Pages/Traits/Has*Actions.php`, one per GIS entity type.
+- **`MapaFullscreen` page** ([app/Filament/Pages/MapaFullscreen.php](app/Filament/Pages/MapaFullscreen.php)): Livewire-powered Filament page that hosts the map. Logic is split into ~21 traits in `app/Filament/Pages/Traits/Has*Actions.php`, one per GIS entity type.
+- **`SecaoLogradouro`** ([app/Models/SecaoLogradouro.php](app/Models/SecaoLogradouro.php)): LINESTRING/MULTILINESTRING entity — sections of a street with `tipo_pavimentacao` and cached `extensao_geo`. Accessible via `LogradouroResource` RelationManager tab ("Seções") and via standalone `SecaoLogradouroResource`. Map layer `secoes_logradouro` (violet dashed, z=52, minZoom=15). Permission gate: `ver_camada_secoes_logradouro`.
 
 ### Filament Panel Structure
 
@@ -128,6 +129,7 @@ Faz upsert em `unidades_imobiliarias.dados_tributarios` por `inscricao_imobiliar
 - All Filament forms use Portuguese field labels and entity names (Brazil-specific).
 - Sequential IDs per tenant are managed by the `HasTenantSequentialId` trait.
 - PDF generation uses `barryvdh/laravel-dompdf`.
+- Export Services (`app/Services/Exports/*ExportService.php`) follow a 3-method convention: `exportToExcel()` (Spatie SimpleExcel — `addNewSheetAndMakeItCurrent()` for multi-sheet workbooks), `exportToPdf()` (DomPDF + blade view), and `exportToXml()` (raw `SimpleXMLElement`, returned via `streamDownload` with `Content-Type: application/xml`). `LoteExportService` nests `unidadesImobiliarias`/`edificacoes` (via `lote_id`) in all three formats — XML as child elements, Excel as separate sheets, PDF via `pdf/lote-detalhado-report.blade.php` (per-lote block with sub-tables). `QuadraExportService`/`LogradouroExportService`/`LoteamentoExportService`/`BairroExportService` also expose `exportToXml()`. The export menu (Filament `ActionGroup` in each `List*` page) exposes "Exportar Excel" / "Exportar PDF" / "Exportar XML".
 - The `tenant.data` JSON column stores freeform config (logo, brand color `#rrggbb`, `map_lat`, `map_lon`, `map_zoom`).
 - API controllers use `$request->user()->tenants()->first()->id` for tenant isolation (no global scope in API layer).
 - `cadastrador_locations` table: upsert por `user_id` — um registro por usuário, atualizado a cada ping GPS.
@@ -277,9 +279,40 @@ php artisan tributario:importar --tenant=antonio-carlos --file=dados.json
 
 O JSON pode ser array raiz `[{...}]` ou `{"imoveis": [{...}]}`. Cada item precisa do campo `inscricao_imobiliaria`. Todo o restante do objeto vai para `dados_tributarios` como JSON livre. Faz upsert — não duplica se rodar mais de uma vez.
 
+### Colunas fiscais derivadas em `unidade_imobiliarias`
+
+Além do JSON `dados_tributarios` (fonte bruta, usada no BIC), 13 chaves fiscais são **promovidas a colunas** para busca/edição/relatórios (`UnidadeImobiliaria::CAMPOS_FISCAIS`): `tipo_construcao`, `descricao_classificacao`, `face`, `fracao_ideal`, `area_edificacao`, `area_total_edificacao`, `valor_venal_lote`, `valor_venal_edificacao`, `valor_metro_terreno`, `valor_metro_edificacao`, `valor_imposto_territorial`, `valor_imposto_predial`, `valor_total_imposto`.
+
+- **JSON → colunas:** hook `saved()` em [UnidadeImobiliaria.php](app/Models/UnidadeImobiliaria.php) (`sincronizarColunasFiscais()`) deriva as colunas do JSON no sync tributário e faz backfill quando a coluna está vazia. Roda junto com `propagarEnderecoParaLote()` (endereço → lote).
+- **Colunas → JSON (write-through):** os modais "Editar Unidade Imobiliária" (`editarUnidadeAction`) e "Cadastrar Nova Unidade Imobiliária" (`criarUnidadeAction`) em [HasLoteActions.php](app/Filament/Pages/Traits/HasLoteActions.php) trocam o textarea do JSON por inputs individuais; ao salvar, refletem os valores de volta no `dados_tributarios` para o BIC continuar correto. Ambos têm o botão ☁️ (informar só o código tributário e sincronizar preenche todos os inputs) e um bloco "JSON bruto" recolhível (read-only).
+- Endereço (`tipo_logradouro`/`logradouro`/`numero_logradouro`/`cep`), `area_geo` e `testada` **não** foram duplicados na unidade — vivem no `Lote` (evita redundância, pois um lote tem N unidades).
+
+### Módulo de Estoque / Almoxarifado (PoC Nova Esperança — itens 053–059)
+
+Cadastros completos sob o grupo "Estoque e Almoxarifado" (módulo `estoque`), todos com CRUD via modal (Resource + só a List page):
+
+- **Estabelecimento** → `LocalEstoque` pertence a um estabelecimento (`estabelecimento_id`).
+- **Fabricante** → `Marca` pertence a um fabricante (`fabricante_id`).
+- **Fornecedor** → origem dos `LoteEstoque`.
+- **UnidadeMedida** (`sigla`) → usada por `Embalagem` e `Produto`.
+- **Embalagem** (`quantidade` + `unidade_medida_id`).
+- **FamíliaProduto** → `Produto.familia_produto_id` (dimensão dos relatórios 058/059).
+- **TipoEstoque** → dimensão de saldo/movimentação (`Estoque.tipo_estoque_id`, `EstoqueMovimentacao.tipo_estoque_origem_id`/`destino_id`).
+- **OperacaoInterna** (`sentido` = entrada/saida/transferencia) → configura a movimentação (item 054); ao escolher no form da movimentação, seta o `type` automaticamente pelo `sentido`.
+- **LoteEstoque** (`numero_lote`/série, produto, fornecedor, `data_fabricacao`/`validade`/`garantia`, `quantidade_inicial`) → controle por lote/série (item 055). Accessor `dias_garantia` (negativo = vencida).
+
+`Produto` ganhou `familia_produto_id`, `unidade_medida_id`, `embalagem_id`; `Estoque` (saldo) ganhou `tipo_estoque_id` + `lote_estoque_id`; `MovimentacaoItem` ganhou `lote_estoque_id`. A lógica de saldo em `EstoqueMovimentacao` continua chaveada por `type` (mantido).
+
+**Permissões:** os 9 cadastros auxiliares usam uma **permissão única `gerenciar_X`** por entidade (não o quarteto view/create/edit/delete) — `gerenciar_estabelecimentos`, `gerenciar_fabricantes`, `gerenciar_fornecedores`, `gerenciar_unidade_medidas`, `gerenciar_embalagens`, `gerenciar_familia_produtos`, `gerenciar_tipo_estoques`, `gerenciar_operacao_internas`, `gerenciar_lote_estoques`. Cada Policy (`app/Policies/{Model}Policy.php`) checa a mesma permissão em todas as abilities. Configuráveis na CAIXA 9b da [RoleResource.php](app/Filament/Resources/RoleResource.php) ("Estoque — Cadastros Auxiliares"). Master/Manager mantêm bypass via `Gate::before`. Produto/Marca/LocalEstoque/Estoque/Movimentação continuam com o quarteto tradicional.
+
+**Relatórios (padrão ExportService — Excel/PDF/XML, via `ActionGroup` na List page):**
+- **057 Movimentação** — `EstoqueMovimentacaoExportService`; filtros por período, produto, lote/série e tipo de estoque em `EstoqueMovimentacaoResource`.
+- **058 Saldo** — `EstoqueExportService`; filtros por local, tipo de estoque, produto e família em `EstoqueResource`.
+- **059 Garantia** — `LoteEstoqueExportService`; `LoteEstoqueResource` com badge de situação da garantia (vencida/vence em 30d/vigente) e filtros por produto, fornecedor, família, "garantia vencida" e "vence em 30 dias".
+
 ### Metadados geométricos cacheados (`area_geo` / `extensao_geo`)
 
-Seis entidades têm coluna **read-only** populada via PostGIS, atualizada automaticamente após criação ou edição de geometria:
+Oito entidades têm coluna **read-only** populada via PostGIS, atualizada automaticamente após criação ou edição de geometria:
 
 | Entidade | Coluna | Função PostGIS |
 |---|---|---|
@@ -289,12 +322,14 @@ Seis entidades têm coluna **read-only** populada via PostGIS, atualizada automa
 | `loteamentos` | `area_geo` | `ST_Area(geo::geography)` |
 | `quadras` | `area_geo` | `ST_Area(geo::geography)` |
 | `logradouros` | `extensao_geo` | `ST_Length(geo::geography)` |
+| `secoes_logradouro` | `extensao_geo` | `ST_Length(geo::geography)` |
+| `meio_fios` | `extensao_geo` | `ST_Length(geo::geography)` |
 
 Mostradas read-only no Filament Resource (Form `disabled()->dehydrated(false)` + Table com `numeric(2, ',', '.')` e sufixo `m²`/`m`). Recalculadas nas traits `Has*Actions` após `criar*Action` e nos listeners `salvarNovaGeometria*` do `MapaFullscreen` — todos os UPDATEs estão dentro de try-catch para tolerar ambientes onde a coluna ainda não exista.
 
 **Backfill / recálculo manual:**
 ```bash
-# Recalcula apenas onde está NULL (idempotente, todos os tenants, todas as 6 entidades)
+# Recalcula apenas onde está NULL (idempotente, todos os tenants, todas as 8 entidades)
 php artisan gis:recalcular-metadata
 
 # Filtra por tenant ou entidade
@@ -351,6 +386,24 @@ A `Planta de Quadra` (`pdf.planta-quadra`) exibe a área da quadra (`$quadra->ar
 **Salvar enquadramento** chama `@this.call('salvarEnquadramento', lat, lon, zoom)` no Livewire, que grava em `tenant.data['map_lat/lon/zoom']` — o mesmo campo lido pelo mobile no login. Visível apenas para roles Master/Manager.
 
 **Buffer Circular no Filtro Avançado (TR Tangará Intranet #23)** — o `filtroAvancadoAction` (`MapaFullscreen.php`) no bloco "Desenho" expõe 3 formatos: `Polygon` (traço livre), `Box` (retângulo) e `BufferCircular`. No modo Buffer, o usuário informa um raio em metros (1–50.000) e, ao iniciar a consulta, o engine entra em modo "clique único" — o ponto clicado vira centro de um círculo gerado via `turf.buffer(turf.point([lon,lat]), raio, {units:'meters', steps:64})` (`steps:128` para raios >5km) e o GeoJSON resultante é enviado para `MapDataController::advancedSpatialQuery` exatamente como qualquer outro `drawn_geometry`. O toggle "TOTALMENTE dentro" continua válido (`ST_Within` vs. `ST_Intersects`).
+
+### Numeração Predial no Mapa (PoC Nova Esperança do Sul — itens 099–109)
+
+Fluxo em `MapaFullscreen.php` + `mapa-engine.js`, iniciado pelo botão "Numeração Predial" (menu Ferramentas):
+
+1. **Seleção do logradouro** (item 099) → clique na linha do logradouro (`numeracao_step1`).
+2. **Ponto de partida + trajeto** (item 104) → o usuário desenha uma polilinha; o **1º ponto é o marco zero** da numeração. `drawend` dispara `abrirModalNumeracao`.
+3. **Modal de configuração** (`configurarNumeracaoAction`): lado par (direita/esquerda) + **números iniciais separados para PAR e ÍMPAR** (item 105).
+4. **Cálculo** — SQL PostGIS: lotes a até 15 m do trajeto, distância via `ST_LineSubstring`/`ST_LineLocatePoint`, lado via produto vetorial. `numero_atual` vem de `unidade_imobiliarias.numero_imovel`. `recomputarNumeros()` aplica número inicial + distância + paridade.
+5. **Prévia colorida** (item 100) — `mostrar-preview-numeracao`: **verde=par, azul=ímpar, cinza=excluído** (camada `previewNumSource`).
+6. **Incluir/excluir parcela** (itens 101/102) — com a prévia ativa (`window.numeracaoPreviewAtivo`), clicar numa parcela dispara `toggleParcelaNumeracao`.
+7. **Inverter** (item 103) — `inverterLadosNumeracao()` troca par↔ímpar de todas as parcelas e recalcula, sem redesenhar.
+8. **Revisar** (item 107) — `revisarNumeracaoAction()`: modal com Repeater listando cada parcela (nº atual, lado, **faixa sugerida**, nº gerado editável). Override marca `manual=true` (preservado no recálculo).
+9. **Salvar** (item 108) — `confirmarNumeracaoAction()`: para cada parcela, **preserva o número atual** movendo `lotes.numero_logradouro → lotes.numero_predial_antigo` e grava o **novo número** em `lotes.numero_logradouro` (`UPDATE ... SET numero_predial_antigo = numero_logradouro, numero_logradouro = <novo>`). Parcelas excluídas não recebem número.
+10. **Divergências** (item 109) — `verDivergenciasNumeracao()`: pinta de vermelho (camada `divergNumSource`) as parcelas onde `numero_logradouro <> numero_predial_antigo`, rótulo `antigo → novo`, e enquadra o mapa nelas.
+11. **Relatório PDF** (`pdf.relatorio-numeracao`) — inclui lado, nº atual, nº proposto e marca parcelas excluídas.
+
+**Campos de endereço no `Lote` (herança do tributário):** `tipo_logradouro`, `logradouro`, `numero_logradouro`, `cep` são colunas em `lotes`, **herdadas do JSON `unidade_imobiliarias.dados_tributarios`** e propagadas automaticamente pelo hook `saved()` em [UnidadeImobiliaria.php](app/Models/UnidadeImobiliaria.php) (dispara quando `dados_tributarios` muda — cobre `tributario:importar`, simulação da API `IntegraPrefeituraService`, edição da unidade). Facilitam a busca no `LoteResource` (colunas `searchable`). O `numero_logradouro` é o **número predial atual** do lote; o gerador de numeração o sobrescreve guardando o valor anterior em `numero_predial_antigo`.
 
 ---
 

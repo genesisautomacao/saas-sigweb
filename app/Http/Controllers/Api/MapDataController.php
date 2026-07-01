@@ -64,6 +64,7 @@ class MapDataController extends Controller
                             'categoria' => $item->categoria ?? null, // Pontos de Interesse
                             'tipo' => $item->tipo ?? null, // Localidades e Hidrografia
                             'tipo_pavimento' => $item->tipo_pavimento ?? null, // Estradas
+                            'tipo_pavimentacao' => $item->tipo_pavimentacao ?? null, // Seções de Logradouro
                             'estado_conservacao' => $item->estado_conservacao ?? null, // Pontos, Pontes e Meio-fio
                             'material' => $item->material ?? null, // Meio-fio
                             'extensao_geo' => isset($item->extensao_geo) ? (float) $item->extensao_geo : null, // Meio-fio
@@ -159,10 +160,17 @@ class MapDataController extends Controller
                 );
                 break;
 
+            case 'secoes_logradouro':
+                $data = $buildFeatureCollection(
+                    \App\Models\SecaoLogradouro::query()->where('tenant_id', $tenantId)->get(),
+                    'secoes_logradouro'
+                );
+                break;
+
             case 'lotes':
                 // 🛑 A MÁGICA: Buscamos os lotes e já trazemos a contagem de vulnerabilidades sociais!
                 $lotes = Lote::query()->where('lotes.tenant_id', $tenantId)
-                    ->select('lotes.id', 'lotes.sequential_id', 'lotes.numero_lote', 'lotes.area_geo', 'lotes.geo', 'lotes.code', 'lotes.status_cadastro')
+                    ->select('lotes.id', 'lotes.sequential_id', 'lotes.numero_lote', 'lotes.numero_logradouro', 'lotes.area_geo', 'lotes.geo', 'lotes.code', 'lotes.status_cadastro')
                     ->withExists([
                         // Verifica se existe alguma Unidade no Lote que tenha um Cadastro Social em Área de Risco
                         'unidadesImobiliarias as tem_area_risco' => function ($query) {
@@ -215,6 +223,7 @@ class MapDataController extends Controller
                                 'codigo' => $lote->code,
                                 'layer' => 'lotes',
                                 'numero_lote' => $lote->numero_lote,
+                                'numero_logradouro' => $lote->numero_logradouro,
                                 'sequential_id' => $lote->sequential_id,
                                 'area_geo' => $lote->area_geo !== null ? round((float) $lote->area_geo, 2) : null,
                                 // 👇 AS ETIQUETAS DE BI PARA O MAPA 👇
@@ -423,6 +432,12 @@ class MapDataController extends Controller
                         ->orWhere('unidade_imobiliarias.logradouro_nome', 'ilike', "%{$termo}%")
                         ->orWhereRaw("CONCAT(unidade_imobiliarias.logradouro_nome, ', ', unidade_imobiliarias.numero_imovel) ILIKE ?", ["%{$termo}%"])
                         ->orWhereRaw("CONCAT(unidade_imobiliarias.logradouro_nome, ' ', unidade_imobiliarias.numero_imovel) ILIKE ?", ["%{$termo}%"])
+                        // 🆕 Endereço/numeração predial no PRÓPRIO lote (nº novo gerado + logradouro herdado).
+                        // Mantém o nº antigo (via numero_imovel acima) pesquisável durante a transição.
+                        ->orWhere('lotes.numero_logradouro', $termo)
+                        ->orWhere('lotes.logradouro', 'ilike', "%{$termo}%")
+                        ->orWhereRaw("CONCAT(lotes.logradouro, ', ', lotes.numero_logradouro) ILIKE ?", ["%{$termo}%"])
+                        ->orWhereRaw("CONCAT(lotes.tipo_logradouro, ' ', lotes.logradouro, ', ', lotes.numero_logradouro) ILIKE ?", ["%{$termo}%"])
                         // Busca por Nome do Edifício / Condomínio (não-sensível, permanece no modo público)
                         ->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'nome_edificio' ILIKE ?", ["%{$termo}%"]);
 
@@ -686,6 +701,7 @@ class MapDataController extends Controller
             'rural_localidades',
             'perimetros_urbanos',
             'meio_fios',
+            'secoes_logradouro',
         ];
 
         try {

@@ -51,18 +51,21 @@
         <thead>
             <tr>
                 <th>Lote ID (Sistema)</th>
-                <th>Distância (Marco Zero)</th>
+                <th>Distância (Ponto de Partida)</th>
+                <th>Lado</th>
                 <th>Número Atual</th>
                 <th class="highlight">Novo Número (Proposto)</th>
             </tr>
         </thead>
         <tbody>
             @foreach($dados as $index => $item)
-            <tr class="{{ $index % 2 == 0 ? 'bg-gray' : '' }}">
+            @php $excluido = $item['excluido'] ?? false; @endphp
+            <tr class="{{ $index % 2 == 0 ? 'bg-gray' : '' }}" @if($excluido) style="color:#9ca3af;text-decoration:line-through;" @endif>
                 <td>#{{ $item['lote_id'] }}</td>
                 <td>{{ $item['distancia'] }}m</td>
+                <td>{{ ($item['is_par'] ?? false) ? 'Par' : 'Ímpar' }}</td>
                 <td>{{ $item['numero_atual'] }}</td>
-                <td class="highlight">{{ $item['novo_numero'] }}</td>
+                <td class="highlight">{{ $excluido ? '— (excluído)' : $item['novo_numero'] }}</td>
             </tr>
             @endforeach
         </tbody>

@@ -28,8 +28,16 @@ class ListEstoqueMovimentacaos extends ListRecords
                     ->icon('heroicon-o-document-text')
                     ->action(function ($livewire, \App\Services\Exports\EstoqueMovimentacaoExportService $exportService) {
                         \Filament\Notifications\Notification::make()->title('Exportando para PDF')->info()->send();
-                        $movimentacoes = $livewire->getFilteredTableQuery()->get();
+                        $movimentacoes = $livewire->getFilteredTableQuery()->with(['itens.produto', 'itens.loteEstoque', 'origem', 'destino', 'operacaoInterna', 'tipoEstoqueOrigem', 'tipoEstoqueDestino', 'user'])->get();
                         return $exportService->exportToPdf($movimentacoes);
+                    }),
+
+                Actions\Action::make('export_xml')
+                    ->label('Exportar XML')
+                    ->icon('heroicon-o-code-bracket')
+                    ->action(function ($livewire, \App\Services\Exports\EstoqueMovimentacaoExportService $exportService) {
+                        $movimentacoes = $livewire->getFilteredTableQuery()->with(['itens.produto', 'itens.loteEstoque', 'origem', 'destino', 'operacaoInterna', 'tipoEstoqueOrigem', 'tipoEstoqueDestino', 'user'])->get();
+                        return $exportService->exportToXml($movimentacoes);
                     }),
             ])
                 ->label('Exportar')

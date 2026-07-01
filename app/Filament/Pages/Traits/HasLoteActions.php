@@ -138,6 +138,11 @@ trait HasLoteActions
                 $lote = Lote::query()->find($this->loteAtivoId);
                 return [
                     'numero_lote'              => $lote?->numero_lote ?? '',
+                    'tipo_logradouro'          => $lote?->tipo_logradouro,
+                    'logradouro'               => $lote?->logradouro,
+                    'numero_logradouro'        => $lote?->numero_logradouro,
+                    'cep'                      => $lote?->cep,
+                    'numero_predial_antigo'    => $lote?->numero_predial_antigo,
                     'main_facade_length'       => $lote?->main_facade_length,
                     'ocupacao'                 => $lote?->ocupacao,
                     'situacao_quadra'          => $lote?->situacao_quadra,
@@ -162,6 +167,35 @@ trait HasLoteActions
                         }
                     )
                     ->validationMessages(['unique' => 'Já existe um Lote com este número nesta exata Quadra.']),
+
+                \Filament\Forms\Components\Fieldset::make('Endereço (Numeração Predial)')
+                    ->schema([
+                        TextInput::make('tipo_logradouro')
+                            ->label('Tipo de Logradouro')
+                            ->placeholder('Rua, Avenida...')
+                            ->maxLength(255),
+
+                        TextInput::make('logradouro')
+                            ->label('Logradouro')
+                            ->maxLength(255),
+
+                        TextInput::make('numero_logradouro')
+                            ->label('Número Predial (atual)')
+                            ->helperText('Definido pelo gerador de numeração predial.')
+                            ->maxLength(255),
+
+                        TextInput::make('cep')
+                            ->label('CEP')
+                            ->maxLength(255),
+
+                        TextInput::make('numero_predial_antigo')
+                            ->label('Número Predial Anterior')
+                            ->helperText('Preenchido ao salvar uma nova numeração no mapa.')
+                            ->disabled()
+                            ->dehydrated(false),
+                    ])
+                    ->columns(2)
+                    ->columnSpanFull(),
 
                 TextInput::make('main_facade_length')
                     ->label('Testada Principal / Frente (metros)')
@@ -366,7 +400,7 @@ trait HasLoteActions
         return Action::make('criarUnidadeAction')
             ->modalHeading('Cadastrar Nova Unidade Imobiliária')
             ->modalSubmitActionLabel('Salvar Unidade')
-            ->modalWidth('xl')
+            ->modalWidth('3xl')
             ->form([
                 TextInput::make('inscricao_imobiliaria')
                     ->label('Inscrição Imobiliária')
@@ -400,6 +434,11 @@ trait HasLoteActions
                                         $set('numero_imovel', $payload['numero_imovel']);
                                         $set('proprietario_id', $payload['proprietario_id']);
 
+                                        // Reflete os campos fiscais nos inputs individuais
+                                        foreach (UnidadeImobiliaria::CAMPOS_FISCAIS as $campo) {
+                                            $set($campo, $dados[$campo] ?? null);
+                                        }
+
                                         // Mantém a visualização do JSON bonitinha no Textarea
                                         $set('dados_tributarios', json_encode($payload['dados_tributarios'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
@@ -417,19 +456,65 @@ trait HasLoteActions
                     ->searchable()
                     ->nullable(),
 
-                \Filament\Forms\Components\Textarea::make('dados_tributarios')
-                    ->label('Dados Fiscais Sincronizados (API Prefeitura)')
-                    ->disabled()
-                    ->dehydrated() // Envia pro banco
-                    ->rows(10)
-                    ->columnSpanFull(),
+                \Filament\Forms\Components\Section::make('Dados Fiscais (Prefeitura)')
+                    ->description('Preencha o Código Tributário acima e clique em ☁️ para sincronizar. Editar aqui atualiza também o JSON usado no BIC.')
+                    ->columns(3)
+                    ->schema([
+                        TextInput::make('tipo_construcao')->label('Tipo de Construção')->maxLength(255),
+                        TextInput::make('descricao_classificacao')->label('Classificação')->maxLength(255),
+                        TextInput::make('face')->label('Face da Quadra')->maxLength(255),
+
+                        TextInput::make('fracao_ideal')->label('Fração Ideal')->numeric(),
+                        TextInput::make('area_edificacao')->label('Área Edificação')->numeric()->suffix('m²'),
+                        TextInput::make('area_total_edificacao')->label('Área Total Edif.')->numeric()->suffix('m²'),
+
+                        TextInput::make('valor_venal_lote')->label('Valor Venal Terreno')->numeric()->prefix('R$'),
+                        TextInput::make('valor_venal_edificacao')->label('Valor Venal Edificação')->numeric()->prefix('R$'),
+                        TextInput::make('valor_metro_terreno')->label('Valor m² Terreno')->numeric()->prefix('R$'),
+
+                        TextInput::make('valor_metro_edificacao')->label('Valor m² Edificação')->numeric()->prefix('R$'),
+                        TextInput::make('valor_imposto_territorial')->label('IPTU Territorial')->numeric()->prefix('R$'),
+                        TextInput::make('valor_imposto_predial')->label('IPTU Predial')->numeric()->prefix('R$'),
+
+                        TextInput::make('valor_total_imposto')->label('IPTU Total')->numeric()->prefix('R$')
+                            ->columnSpan(['default' => 3]),
+                    ]),
+
+                \Filament\Forms\Components\Section::make('JSON bruto (referência)')
+                    ->description('Campos completos retornados pela Prefeitura. Somente leitura.')
+                    ->collapsed()
+                    ->collapsible()
+                    ->schema([
+                        \Filament\Forms\Components\Textarea::make('dados_tributarios')
+                            ->hiddenLabel()
+                            ->formatStateUsing(function ($state) {
+                                if (is_string($state)) $state = json_decode($state, true);
+                                return $state ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'Ainda não sincronizado.';
+                            })
+                            ->disabled()
+                            ->dehydrated() // envia o JSON para o write-through no ->action
+                            ->rows(12)
+                            ->columnSpanFull(),
+                    ]),
             ])
             ->action(function (array $data) {
-                // 🛑 BUG 3 RESOLVIDO: Decodifica antes de salvar
-                if (isset($data['dados_tributarios']) && is_string($data['dados_tributarios'])) {
-                    $decoded = json_decode($data['dados_tributarios'], true);
-                    if (json_last_error() === JSON_ERROR_NONE) $data['dados_tributarios'] = $decoded;
+                // Recupera o JSON bruto (textarea disabled) como array
+                $json = $data['dados_tributarios'] ?? null;
+                if (is_string($json)) {
+                    $decoded = json_decode($json, true);
+                    $json = json_last_error() === JSON_ERROR_NONE ? $decoded : null;
                 }
+                if (!is_array($json)) {
+                    $json = [];
+                }
+
+                // Write-through: reflete os inputs fiscais de volta no JSON (mantém o BIC correto)
+                foreach (UnidadeImobiliaria::CAMPOS_FISCAIS as $campo) {
+                    if (array_key_exists($campo, $data)) {
+                        $json[$campo] = ($data[$campo] === '') ? null : $data[$campo];
+                    }
+                }
+                $data['dados_tributarios'] = $json;
 
                 $lote = Lote::query()->find($this->loteAtivoId);
                 $data['tenant_id'] = $this->tenantId;
@@ -518,7 +603,7 @@ trait HasLoteActions
         return Action::make('editarUnidadeAction')
             ->modalHeading('Editar Unidade Imobiliária')
             ->modalSubmitActionLabel('Salvar Alterações')
-            ->modalWidth('xl')
+            ->modalWidth('3xl')
             ->fillForm(function (array $arguments): array {
                 if (!isset($arguments['unidadeId'])) return [];
                 $unidade = UnidadeImobiliaria::query()->find($arguments['unidadeId']);
@@ -581,6 +666,11 @@ trait HasLoteActions
                                             $set('numero_imovel', $payload['numero_imovel']);
                                             $set('proprietario_id', $payload['proprietario_id']);
 
+                                            // Reflete os campos fiscais nos inputs individuais
+                                            foreach (UnidadeImobiliaria::CAMPOS_FISCAIS as $campo) {
+                                                $set($campo, $dados[$campo] ?? null);
+                                            }
+
                                             $set('dados_tributarios', json_encode($payload['dados_tributarios'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
                                             Notification::make()->title('Sincronizado!')->success()->send();
@@ -599,28 +689,68 @@ trait HasLoteActions
                         ->searchable()
                         ->nullable(),
 
-                    \Filament\Forms\Components\Textarea::make('dados_tributarios')
-                        ->label('Dados Fiscais Sincronizados (API Prefeitura)')
-                        ->formatStateUsing(function ($state) {
-                            if (is_string($state)) $state = json_decode($state, true);
-                            return $state ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'Ainda não sincronizado.';
-                        })
-                        ->disabled()
-                        ->dehydrated() // 🛑 BUG 3 RESOLVIDO (Parte 2): Força o campo disabled a ser enviado pro banco!
-                        ->rows(10)
-                        ->columnSpanFull(),
+                    \Filament\Forms\Components\Section::make('Dados Fiscais (Prefeitura)')
+                        ->description('Valores do sistema tributário. Editar aqui atualiza também o JSON usado no BIC.')
+                        ->columns(3)
+                        ->schema([
+                            TextInput::make('tipo_construcao')->label('Tipo de Construção')->maxLength(255),
+                            TextInput::make('descricao_classificacao')->label('Classificação')->maxLength(255),
+                            TextInput::make('face')->label('Face da Quadra')->maxLength(255),
+
+                            TextInput::make('fracao_ideal')->label('Fração Ideal')->numeric(),
+                            TextInput::make('area_edificacao')->label('Área Edificação')->numeric()->suffix('m²'),
+                            TextInput::make('area_total_edificacao')->label('Área Total Edif.')->numeric()->suffix('m²'),
+
+                            TextInput::make('valor_venal_lote')->label('Valor Venal Terreno')->numeric()->prefix('R$'),
+                            TextInput::make('valor_venal_edificacao')->label('Valor Venal Edificação')->numeric()->prefix('R$'),
+                            TextInput::make('valor_metro_terreno')->label('Valor m² Terreno')->numeric()->prefix('R$'),
+
+                            TextInput::make('valor_metro_edificacao')->label('Valor m² Edificação')->numeric()->prefix('R$'),
+                            TextInput::make('valor_imposto_territorial')->label('IPTU Territorial')->numeric()->prefix('R$'),
+                            TextInput::make('valor_imposto_predial')->label('IPTU Predial')->numeric()->prefix('R$'),
+
+                            TextInput::make('valor_total_imposto')->label('IPTU Total')->numeric()->prefix('R$')
+                                ->columnSpan(['default' => 3]),
+                        ]),
+
+                    \Filament\Forms\Components\Section::make('JSON bruto (referência)')
+                        ->description('Campos completos retornados pela Prefeitura. Somente leitura.')
+                        ->collapsed()
+                        ->collapsible()
+                        ->schema([
+                            \Filament\Forms\Components\Textarea::make('dados_tributarios')
+                                ->hiddenLabel()
+                                ->formatStateUsing(function ($state) {
+                                    if (is_string($state)) $state = json_decode($state, true);
+                                    return $state ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'Ainda não sincronizado.';
+                                })
+                                ->disabled()
+                                ->dehydrated() // envia o JSON original para o write-through no ->action
+                                ->rows(12)
+                                ->columnSpanFull(),
+                        ]),
                 ];
             })
             ->action(function (array $data, array $arguments) {
                 $unidade = UnidadeImobiliaria::query()->find($arguments['unidadeId']);
                 if ($unidade) {
-                    // 🛑 BUG 3 RESOLVIDO (Parte 3): Decodifica a string do Textarea de volta para Array antes de salvar
-                    if (isset($data['dados_tributarios']) && is_string($data['dados_tributarios'])) {
-                        $decoded = json_decode($data['dados_tributarios'], true);
-                        if (json_last_error() === JSON_ERROR_NONE) {
-                            $data['dados_tributarios'] = $decoded;
+                    // Recupera o JSON bruto (textarea disabled) como array
+                    $json = $data['dados_tributarios'] ?? null;
+                    if (is_string($json)) {
+                        $decoded = json_decode($json, true);
+                        $json = json_last_error() === JSON_ERROR_NONE ? $decoded : null;
+                    }
+                    if (!is_array($json)) {
+                        $json = is_array($unidade->dados_tributarios) ? $unidade->dados_tributarios : [];
+                    }
+
+                    // Write-through: reflete os inputs fiscais de volta no JSON (mantém o BIC correto)
+                    foreach (UnidadeImobiliaria::CAMPOS_FISCAIS as $campo) {
+                        if (array_key_exists($campo, $data)) {
+                            $json[$campo] = ($data[$campo] === '') ? null : $data[$campo];
                         }
                     }
+                    $data['dados_tributarios'] = $json;
 
                     $unidade->update($data);
                     Notification::make()->title('Unidade atualizada!')->success()->send();
@@ -1134,6 +1264,37 @@ trait HasLoteActions
 
         $pdfService = app(\App\Services\Viabilidade\ViabilidadePdfService::class);
         return $pdfService->generateUnificacaoPdf($dadosAnalise, $mapImageBase64);
+    }
+
+    /**
+     * Ação: Emitir Notificação de Irregularidade
+     */
+    public function notificacaoIrregularidadeAction(): Action
+    {
+        return Action::make('notificacaoIrregularidade')
+            ->requiresConfirmation()
+            ->modalHeading('Emitir Notificação de Irregularidade')
+            ->modalDescription('Confirma a emissão da notificação oficial de irregularidade para este lote?')
+            ->modalSubmitActionLabel('Emitir Notificação PDF')
+            ->icon('heroicon-o-document-text')
+            ->color('danger')
+            ->visible(fn() => $this->loteStatusCadastro === 'inconformidade')
+            ->action(fn() => $this->imprimirNotificacaoIrregularidade($this->loteAtivoId));
+    }
+
+    public function imprimirNotificacaoIrregularidade(string $loteId)
+    {
+        $lote = \App\Models\Lote::with(['unidadesImobiliarias.proprietario', 'quadra.loteamento.bairro'])->find($loteId);
+        if (!$lote) {
+            \Filament\Notifications\Notification::make()->danger()->title('Lote não encontrado')->send();
+            return;
+        }
+        if (empty($lote->inconformidade_descricao)) {
+            \Filament\Notifications\Notification::make()->warning()->title('Lote sem inconformidade registrada')->send();
+            return;
+        }
+        $service = app(\App\Services\Irregularidade\NotificacaoIrregularidadeService::class);
+        return $service->generatePdf($lote);
     }
 
     /**

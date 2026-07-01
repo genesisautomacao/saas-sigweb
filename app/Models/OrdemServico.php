@@ -76,6 +76,13 @@ class OrdemServico extends Model
             // Só executa se o status foi alterado AGORA para 'concluida'
             if ($os->isDirty('status') && $os->status === 'concluida') {
 
+                // 🟢 Serviço executado: encerra a solicitação para o poste/árvore
+                // voltar à cor original no mapa (a camada só colore chamados ativos).
+                if ($os->solicitacao_id) {
+                    \App\Models\SolicitacaoManutencao::where('id', $os->solicitacao_id)
+                        ->update(['status' => 'concluida']);
+                }
+
                 if ($os->materiais()->count() > 0) {
 
                     // 🟢 CORREÇÃO: Agrupa os materiais pelo Local de Estoque (Origem)

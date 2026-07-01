@@ -36,6 +36,7 @@ class AppPanelProvider extends PanelProvider
             ->profile()
             ->colors([
                 'primary' => Color::hex('#00628b'),
+                'secondary' => Color::Hex('#000122')
             ])
 
             //configs adicionais do grupo
