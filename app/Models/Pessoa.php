@@ -36,6 +36,18 @@ class Pessoa extends Model
         'type',
         'cnpj',
         'trade_name',
+        // Pessoa - Social (item 092)
+        'rg',
+        'ctps',
+        'pis',
+        'nis',
+        'certidao_nascimento',
+        'telefone',
+        'estado_civil',
+        'sexo',
+        'pai_id',
+        'mae_id',
+        'conjuge_id',
     ];
 
     protected function casts(): array
@@ -44,6 +56,36 @@ class Pessoa extends Model
             'birth_date' => 'date',
             'death_date' => 'date',
         ];
+    }
+
+    public function pai()
+    {
+        return $this->belongsTo(Pessoa::class, 'pai_id');
+    }
+
+    public function mae()
+    {
+        return $this->belongsTo(Pessoa::class, 'mae_id');
+    }
+
+    public function conjuge()
+    {
+        return $this->belongsTo(Pessoa::class, 'conjuge_id');
+    }
+
+    public function rendas()
+    {
+        return $this->hasMany(PessoaRenda::class);
+    }
+
+    public function deficiencias()
+    {
+        return $this->hasMany(PessoaDeficiencia::class);
+    }
+
+    public function ocorrencias()
+    {
+        return $this->morphMany(OcorrenciaSocial::class, 'ocorrenciavel');
     }
 
     public function contatos()

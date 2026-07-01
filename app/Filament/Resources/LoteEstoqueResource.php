@@ -52,8 +52,8 @@ class LoteEstoqueResource extends Resource
                 Tables\Columns\TextColumn::make('produto.name')->label('Produto')->searchable()->default('—'),
                 Tables\Columns\TextColumn::make('fornecedor.name')->label('Fornecedor')->default('—'),
                 Tables\Columns\TextColumn::make('quantidade_inicial')->label('Qtd Inicial')->numeric(decimalPlaces: 3),
-                Tables\Columns\TextColumn::make('data_validade')->label('Validade')->date('d/m/Y')->default('—'),
-                Tables\Columns\TextColumn::make('data_garantia')->label('Garantia até')->date('d/m/Y')->default('—'),
+                Tables\Columns\TextColumn::make('data_validade')->label('Validade')->date('d/m/Y')->placeholder('—'),
+                Tables\Columns\TextColumn::make('data_garantia')->label('Garantia até')->date('d/m/Y')->placeholder('—'),
                 Tables\Columns\TextColumn::make('dias_garantia')
                     ->label('Situação Garantia')
                     ->badge()

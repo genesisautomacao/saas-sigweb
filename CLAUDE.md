@@ -68,7 +68,7 @@ Each `Tenant` has a `modules` JSON column. Active module strings map to resource
 | `pgv` | PGV Parâmetros, SetorFiscal |
 | `rural` | RuralLocalidade, RuralPropriedade, Estradas, Hidrografia, Pontes |
 | `patrimonio` | TipoPatrimônio, PatrimônioPúblico |
-| `social` | CadastroSocial |
+| `social` | Pessoa-Social, CadastroSocial (Família), TipoRenda, TipoEntidade, Entidade, ServiçoSocial, Programa, Evento, InformaçãoSocial, Empreendimento, Painel Social |
 | `bpmn` | BpmnFluxo, ProcessoDigital |
 
 ### GIS / Mapping
@@ -310,6 +310,17 @@ Cadastros completos sob o grupo "Estoque e Almoxarifado" (módulo `estoque`), to
 - **058 Saldo** — `EstoqueExportService`; filtros por local, tipo de estoque, produto e família em `EstoqueResource`.
 - **059 Garantia** — `LoteEstoqueExportService`; `LoteEstoqueResource` com badge de situação da garantia (vencida/vence em 30d/vigente) e filtros por produto, fornecedor, família, "garantia vencida" e "vence em 30 dias".
 
+### Módulo de Gestão do Cadastro Social (PoC Nova Esperança — itens 091–098)
+
+Módulo `social`, grupo "Módulo Social". Entidade central `CadastroSocial` = a **Família** (RF via `pessoa_id`, moradia via `unidade_imobiliaria_id`/`empreendimento_id`, membros via `MembroFamilia`).
+
+- **Pessoa-Social (092/093):** campos sociais adicionados direto em `pessoas` (rg, ctps, pis, nis, certidão, telefone, estado_civil, sexo, pai/mãe/conjuge self-FK). RelationManagers em `PessoaResource`: **Rendas** (`pessoa_rendas` + `tipo_renda_id` + `compoe_renda_familiar`), **Deficiências** (`pessoa_deficiencias` + CID), **Ocorrências** (`ocorrencias_sociais`, polimórfica) — além de Endereços/Documentos já existentes.
+- **Família (094/095):** `cadastros_sociais` ganhou `situacao_cadastro` (enum), `empreendimento_id`, terreno (`possui_terreno` + loteamento/quadra/lote + titularidade), `indice_vulnerabilidade`. `membro_familias.representante_familiar`. RelationManagers: **DefiniçãoSocial** (pivot `familia_informacoes` ↔ `InformacaoSocial`) e **Ocorrências** (polimórfica). Empreendimento tem `geo` POINT (moradia de benefício).
+- **Cálculos (096/097):** `App\Services\Social\CadastroSocialCalculoService` via Observers (`CadastroSocialObserver`, `MembroFamiliaObserver`, `PessoaRendaObserver`, registrados com `#[ObservedBy]`). Renda familiar = soma das `pessoa_rendas` (RF + membros) com `compoe_renda_familiar=true`; per capita = total/membros. Índice de vulnerabilidade 0–7 (área de risco +2, renda per capita < ¼ SM +2, PCD +1, moradia precária +1, sem benefícios +1). Grava via `DB::table` (não re-dispara evento). Badge no `CadastroSocialResource`.
+- **Painel Social (098):** [PainelSocialPage](app/Filament/Pages/PainelSocialPage.php) (`view_painel_social`) — gráfico pizza (Chart.js) da distribuição por `situacao_cadastro` + mapa Leaflet com as famílias (centróide de `unidade_imobiliaria` ou `empreendimento` via `ST_Centroid(COALESCE(u.geo, e.geo))`); **clicar numa fatia filtra os pontos no mapa** (interação client-side, cores por situação).
+- **Relatórios (091):** `PessoaSocialExportService` e `CadastroSocialExportService` com Excel/PDF/CSV/XML (CSV via `SimpleExcelWriter::create(..., 'csv')`, XML via `SimpleXMLElement`) nos `ActionGroup` de `ListPessoas` e `ListCadastroSocials`.
+- **Cadastros auxiliares (091):** TipoRenda, TipoEntidade, Entidade, ServiçoSocial, Programa, Evento, InformaçãoSocial, Empreendimento — CRUD modal, **permissão única `gerenciar_X`** por entidade (CAIXA 13b da `RoleResource`) + Policy por model. `view_painel_social` na CAIXA 13.
+
 ### Metadados geométricos cacheados (`area_geo` / `extensao_geo`)
 
 Oito entidades têm coluna **read-only** populada via PostGIS, atualizada automaticamente após criação ou edição de geometria:
@@ -380,6 +391,13 @@ A `Planta de Quadra` (`pdf.planta-quadra`) exibe a área da quadra (`$quadra->ar
 | `window.irParaCoordenada(lat, lon, zoom?)` | Voa o mapa para as coordenadas (zoom padrão 18, duração 1,5s) |
 | `window.toggleLayerLabels(layerName, enabled)` | Ativa/desativa rótulos de uma camada sem remover os polígonos |
 | `window.getEnquadramentoAtual()` | Retorna `{ lat, lon, zoom }` do enquadramento atual do mapa |
+| `window.previewAzimutes(lon, lat, pares)` | Prévia (laranja) do polígono por azimutes; retorna `{area, perimetro}` |
+| `window.finalizarAzimutes(lon, lat, pares, entidadePlural)` | Constrói polígono fechado → mesa de desenho (`cad_draft`) em edição |
+| `window.iniciarAzimutePickStart()` | Ativa modo "clicar no mapa" para capturar o ponto inicial dos azimutes |
+
+**Criação por Azimutes (item 046)** — botão "Criar por Azimutes" no menu **Ferramentas**; painel Alpine com ponto inicial (digitado ou clicado), tabela azimute(°)/distância(m), seletor "Salvar como". Usa `turf.destination` para montar o anel fechado; o resultado vai para a Mesa de Desenho (`cadSource`), salvável pelo fluxo `salvarEdicaoGeometria` → `abrirModalCriacao` (via `featureCloneOriginalLayer` = plural da entidade).
+
+**Cores de manutenção de Poste/Árvore (itens 070/086)** — `MapDataController` expõe `status_manutencao` (`null` | `solicitacao` | `os_aberta`) nas features. No `mapa-engine.js`: sem chamado = cor da condição · solicitação aberta = magenta `#d946ef` · OS aberta = laranja `#f97316` (base + hover). No modal do mapa, OS aberta troca o botão para "Ver Ordem de Serviço".
 
 **Toggle de rótulos** usa `window.loadedLayers[layerName]` (já exposto pelo engine) para cachear o style original e substituir por uma versão sem `setText`. Camadas suportadas: `lotes`, `quadras`.
 

@@ -168,6 +168,17 @@ class PermissionsSeeder extends Seeder
             'edit_cadastros_sociais',
             'delete_cadastros_sociais',
 
+            /* Módulo Social — Cadastros Auxiliares (permissão única "gerenciar" por entidade) */
+            'gerenciar_tipo_rendas',
+            'gerenciar_tipo_entidades',
+            'gerenciar_entidades',
+            'gerenciar_servico_sociais',
+            'gerenciar_programas',
+            'gerenciar_eventos',
+            'gerenciar_informacao_sociais',
+            'gerenciar_empreendimentos',
+            'view_painel_social',
+
             /* Faltou o módulo de PGV */
 
             /* Faltou o Módulo de Processos BPMN */

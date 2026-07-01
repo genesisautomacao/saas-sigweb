@@ -522,6 +522,11 @@
                                         <x-heroicon-o-link class="w-4 h-4 text-purple-500" /> Unificar Lotes (Solda)
                                     </button>
 
+                                    <button id="btn-tool-azimute" @click="openTools = false"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
+                                        <x-heroicon-o-arrow-trending-up class="w-4 h-4 text-blue-500" /> Criar por Azimutes
+                                    </button>
+
                                     <button wire:click="mountAction('abrirNuvemPontosAction')"
                                         @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
@@ -914,6 +919,142 @@
                 class="text-sm font-black text-red-600 hover:text-red-700 uppercase transition-colors">
                 Cancelar
             </button>
+        </div>
+
+        {{-- PAINEL: CRIAR GEOMETRIA POR AZIMUTES (item PoC 046) --}}
+        <div x-data="{
+                aberto: false,
+                pickando: false,
+                lon: '', lat: '', entidade: 'lotes',
+                rows: [{ az: null, dist: null }],
+                area: 0, perimetro: 0,
+                init() {
+                    window.addEventListener('abrir-azimute-tool', () => {
+                        this.aberto = true;
+                        // Já entra em modo 'clique no mapa' para o ponto inicial
+                        this.$nextTick(() => this.pegarDoMapa());
+                    });
+                    window.addEventListener('azimute-ponto-inicial', (e) => {
+                        this.lon = e.detail.lon.toFixed(7);
+                        this.lat = e.detail.lat.toFixed(7);
+                        this.pickando = false;
+                        this.recalc();
+                    });
+                },
+                dados() {
+                    return {
+                        lon: parseFloat(this.lon), lat: parseFloat(this.lat),
+                        pares: this.rows.filter(r => r.az !== null && r.az !== '' && r.dist !== null && r.dist !== '')
+                                        .map(r => ({ az: parseFloat(r.az), dist: parseFloat(r.dist) }))
+                    };
+                },
+                recalc() {
+                    const d = this.dados();
+                    if (!d.lon || !d.lat || d.pares.length < 1) { this.area = 0; this.perimetro = 0; window.limparAzimutePreview(); return; }
+                    const res = window.previewAzimutes(d.lon, d.lat, d.pares) || {};
+                    this.area = res.area || 0; this.perimetro = res.perimetro || 0;
+                },
+                addLinha() { this.rows.push({ az: null, dist: null }); },
+                delLinha(i) { this.rows.splice(i, 1); this.recalc(); },
+                pegarDoMapa() { this.pickando = true; window.iniciarAzimutePickStart(); },
+                finalizar() {
+                    const d = this.dados();
+                    if (!d.lon || !d.lat) { alert('Informe o ponto inicial (Lon/Lat) ou pegue do mapa.'); return; }
+                    if (d.pares.length < 2) { alert('Informe ao menos 2 arestas (azimute + distância).'); return; }
+                    window.finalizarAzimutes(d.lon, d.lat, d.pares, this.entidade);
+                    this.aberto = false;
+                },
+                limpar() { this.rows = [{ az: null, dist: null }]; this.area = 0; this.perimetro = 0; window.limparAzimutePreview(); },
+                fechar() { this.aberto = false; this.pickando = false; window.limparAzimutePreview(); }
+            }"
+            x-show="aberto" x-cloak
+            style="display:none; position: fixed; top: 70px; right: 16px; z-index: 9999; width: 330px;"
+            class="bg-white dark:bg-gray-800 shadow-2xl rounded-xl border-2 border-gray-300 dark:border-gray-600 p-4 flex flex-col gap-3">
+
+            <div class="flex items-center justify-between">
+                <span class="font-bold text-sm text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                    <x-heroicon-o-arrow-trending-up class="w-4 h-4 text-orange-500" /> Criar por Azimutes
+                </span>
+                <button type="button" @click="fechar()" class="text-gray-400 hover:text-gray-600">
+                    <x-heroicon-o-x-mark class="w-4 h-4" />
+                </button>
+            </div>
+
+            <div>
+                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Ponto inicial (Lon / Lat)</label>
+                <div class="flex gap-1">
+                    <input type="number" step="any" x-model="lon" @input="recalc()" placeholder="Longitude"
+                        class="w-full text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900">
+                    <input type="number" step="any" x-model="lat" @input="recalc()" placeholder="Latitude"
+                        class="w-full text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900">
+                </div>
+                <button type="button" @click="pegarDoMapa()"
+                    class="mt-1 text-[11px] font-semibold flex items-center gap-1"
+                    :class="pickando ? 'text-red-600 animate-pulse' : 'text-blue-600 hover:text-blue-700'">
+                    <x-heroicon-o-map-pin class="w-3 h-3" />
+                    <span x-text="pickando ? 'Clique no mapa...' : 'Pegar do mapa'"></span>
+                </button>
+            </div>
+
+            <div>
+                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Salvar como</label>
+                <select x-model="entidade"
+                    class="w-full text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900">
+                    <option value="lotes">Lote</option>
+                    <option value="quadras">Quadra</option>
+                    <option value="bairros">Bairro</option>
+                    <option value="loteamentos">Loteamento</option>
+                    <option value="perimetros">Perímetro Urbano</option>
+                    <option value="zonas">Zona</option>
+                    <option value="setores_fiscais">Setor Fiscal</option>
+                    <option value="areas_reurb">Área REURB</option>
+                    <option value="patrimonio_publicos">Patrimônio Público</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Arestas — Azimute (°) / Distância (m)</label>
+                <div class="flex flex-col gap-1 max-h-44 overflow-y-auto pr-1">
+                    <template x-for="(row, i) in rows" :key="i">
+                        <div class="flex gap-1 items-center">
+                            <span class="text-[10px] text-gray-400 w-4 text-right" x-text="i + 1"></span>
+                            <input type="number" step="any" x-model="row.az" @input="recalc()" placeholder="Az°"
+                                class="w-full text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900">
+                            <input type="number" step="any" x-model="row.dist" @input="recalc()" placeholder="metros"
+                                class="w-full text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900">
+                            <button type="button" @click="delLinha(i)" class="text-red-500 hover:text-red-700">
+                                <x-heroicon-o-minus-circle class="w-4 h-4" />
+                            </button>
+                        </div>
+                    </template>
+                </div>
+                <button type="button" @click="addLinha()"
+                    class="mt-1 text-[11px] text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1">
+                    <x-heroicon-o-plus-circle class="w-3 h-3" /> Adicionar aresta
+                </button>
+            </div>
+
+            <div class="text-[11px] text-gray-500 dark:text-gray-400" x-show="area > 0">
+                Área: <b x-text="area.toLocaleString('pt-BR', {maximumFractionDigits: 2})"></b> m² ·
+                Perímetro: <b x-text="perimetro.toLocaleString('pt-BR', {maximumFractionDigits: 2})"></b> m
+            </div>
+
+            <div class="flex gap-2">
+                <button type="button" @click="finalizar()"
+                    class="flex-1 text-white text-xs font-bold rounded px-2 py-2 transition-colors"
+                    style="background-color: rgb(var(--primary-600, 37 99 235));"
+                    onmouseover="this.style.backgroundColor='rgb(var(--primary-500, 59 130 246))'"
+                    onmouseout="this.style.backgroundColor='rgb(var(--primary-600, 37 99 235))'">
+                    Enviar p/ Mesa de Desenho
+                </button>
+                <button type="button" @click="limpar()"
+                    class="text-xs text-gray-500 border border-gray-300 dark:border-gray-600 rounded px-2 py-2 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Limpar
+                </button>
+            </div>
+            <p class="text-[10px] text-gray-400 leading-tight">
+                O polígono é fechado automaticamente. Ao enviar, ajuste se quiser e clique em <b>Salvar</b> na barra da Mesa de Desenho para criar o artefato.
+            </p>
         </div>
 
         {{-- BARRA FLUTUANTE DE REVISÃO DA PGV --}}

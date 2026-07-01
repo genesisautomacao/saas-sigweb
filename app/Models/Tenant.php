@@ -328,6 +328,46 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(CadastroSocial::class);
     }
 
+    public function tipoRendas(): HasMany
+    {
+        return $this->hasMany(TipoRenda::class);
+    }
+
+    public function tipoEntidades(): HasMany
+    {
+        return $this->hasMany(TipoEntidade::class);
+    }
+
+    public function entidades(): HasMany
+    {
+        return $this->hasMany(Entidade::class);
+    }
+
+    public function servicoSociais(): HasMany
+    {
+        return $this->hasMany(ServicoSocial::class);
+    }
+
+    public function programas(): HasMany
+    {
+        return $this->hasMany(Programa::class);
+    }
+
+    public function eventos(): HasMany
+    {
+        return $this->hasMany(Evento::class);
+    }
+
+    public function informacaoSociais(): HasMany
+    {
+        return $this->hasMany(InformacaoSocial::class);
+    }
+
+    public function empreendimentos(): HasMany
+    {
+        return $this->hasMany(Empreendimento::class);
+    }
+
     // Módulo PGV
     public function pgvParametros(): HasMany
     {

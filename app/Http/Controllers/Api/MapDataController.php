@@ -59,6 +59,10 @@ class MapDataController extends Controller
                             'phytosanitary_condition' => $item->phytosanitary_condition ?? null,
                             'size' => $item->size ?? null,
                             'tem_chamado' => (bool) ($item->tem_chamado ?? false),
+                            // null | 'solicitacao' (só chamado) | 'os_aberta' (OS gerada) — cores no mapa
+                            'status_manutencao' => ($item->tem_os_aberta ?? false)
+                                ? 'os_aberta'
+                                : (($item->tem_chamado ?? false) ? 'solicitacao' : null),
                             'name' => $item->nome ?? $item->nome_propriedade ?? $item->nome_referencia ?? $item->name ?? 'S/N',
 
                             'categoria' => $item->categoria ?? null, // Pontos de Interesse
@@ -253,7 +257,10 @@ class MapDataController extends Controller
                     ->withExists([
                         'solicitacoesManutencao as tem_chamado' => function ($query) {
                             $query->whereIn('status', ['pendente', 'analise', 'aprovada_os']);
-                        }
+                        },
+                        'solicitacoesManutencao as tem_os_aberta' => function ($query) {
+                            $query->where('status', 'aprovada_os');
+                        },
                     ])
                     ->get();
                 $data = $buildFeatureCollection($postes, 'postes');
@@ -265,7 +272,10 @@ class MapDataController extends Controller
                     ->withExists([
                         'solicitacoesManutencao as tem_chamado' => function ($query) {
                             $query->whereIn('status', ['pendente', 'analise', 'aprovada_os']);
-                        }
+                        },
+                        'solicitacoesManutencao as tem_os_aberta' => function ($query) {
+                            $query->where('status', 'aprovada_os');
+                        },
                     ])
                     ->get();
                 $data = $buildFeatureCollection($arvores, 'arvores');

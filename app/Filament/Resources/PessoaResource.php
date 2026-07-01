@@ -105,6 +105,37 @@ class PessoaResource extends Resource
                             ->collapsed(), // Mantém fechado por padrão para não poluir a tela
 
                     ])->columns(2),
+
+                // Pessoa - Social (item 092) — só para pessoa física
+                Forms\Components\Section::make('Dados Sociais (Assistência Social)')
+                    ->icon('heroicon-o-identification')
+                    ->description('Documentos e vínculos usados no Módulo de Cadastro Social.')
+                    ->collapsed()
+                    ->visible(fn(Forms\Get $get) => $get('type') === 'fisica')
+                    ->schema([
+                        Forms\Components\TextInput::make('rg')->label('RG')->maxLength(255),
+                        Forms\Components\TextInput::make('ctps')->label('CTPS')->maxLength(255),
+                        Forms\Components\TextInput::make('pis')->label('PIS/PASEP')->maxLength(255),
+                        Forms\Components\TextInput::make('nis')->label('NIS')->maxLength(255),
+                        Forms\Components\TextInput::make('certidao_nascimento')->label('Certidão de Nascimento')->maxLength(255),
+                        Forms\Components\TextInput::make('telefone')->label('Telefone')->maxLength(255),
+                        Forms\Components\Select::make('estado_civil')->label('Estado Civil')
+                            ->options([
+                                'solteiro' => 'Solteiro(a)', 'casado' => 'Casado(a)', 'divorciado' => 'Divorciado(a)',
+                                'viuvo' => 'Viúvo(a)', 'uniao_estavel' => 'União Estável', 'separado' => 'Separado(a)',
+                            ]),
+                        Forms\Components\Select::make('sexo')->label('Sexo')
+                            ->options(['masculino' => 'Masculino', 'feminino' => 'Feminino', 'outro' => 'Outro']),
+                        Forms\Components\Select::make('pai_id')->label('Pai')
+                            ->relationship('pai', 'name', fn($query) => $query->where('type', 'fisica'))
+                            ->searchable()->preload(),
+                        Forms\Components\Select::make('mae_id')->label('Mãe')
+                            ->relationship('mae', 'name', fn($query) => $query->where('type', 'fisica'))
+                            ->searchable()->preload(),
+                        Forms\Components\Select::make('conjuge_id')->label('Cônjuge')
+                            ->relationship('conjuge', 'name', fn($query) => $query->where('type', 'fisica'))
+                            ->searchable()->preload(),
+                    ])->columns(3),
             ]);
     }
 
@@ -167,6 +198,9 @@ class PessoaResource extends Resource
             PessoaResource\RelationManagers\ContatosRelationManager::class,
             PessoaResource\RelationManagers\EnderecosRelationManager::class,
             PessoaResource\RelationManagers\DocumentosRelationManager::class,
+            PessoaResource\RelationManagers\RendasRelationManager::class,
+            PessoaResource\RelationManagers\DeficienciasRelationManager::class,
+            PessoaResource\RelationManagers\OcorrenciasRelationManager::class,
         ];
     }
 

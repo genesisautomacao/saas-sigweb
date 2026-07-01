@@ -31,6 +31,18 @@ class ListCadastroSocials extends ListRecords
                         $cadastros = $livewire->getFilteredTableQuery()->get();
                         return $exportService->exportToPdf($cadastros);
                     }),
+
+                Actions\Action::make('export_csv')
+                    ->label('Exportar CSV')
+                    ->icon('heroicon-o-document')
+                    ->action(fn($livewire, \App\Services\Exports\CadastroSocialExportService $svc) =>
+                        $svc->exportToCsv($livewire->getFilteredTableQuery()->get())),
+
+                Actions\Action::make('export_xml')
+                    ->label('Exportar XML')
+                    ->icon('heroicon-o-code-bracket')
+                    ->action(fn($livewire, \App\Services\Exports\CadastroSocialExportService $svc) =>
+                        $svc->exportToXml($livewire->getFilteredTableQuery()->get())),
             ])
             ->label('Exportar')
             ->icon('heroicon-m-arrow-down-tray')

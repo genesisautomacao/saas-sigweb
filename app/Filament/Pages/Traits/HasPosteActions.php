@@ -84,7 +84,21 @@ trait HasPosteActions
                         }),
                 ])->fullWidth();
 
-                if ($solicitacaoAberta) {
+                if ($solicitacaoAberta && $solicitacaoAberta->status === 'aprovada_os') {
+                    // Já virou Ordem de Serviço → leva direto para a OS
+                    $osAberta = \App\Models\OrdemServico::where('solicitacao_id', $solicitacaoAberta->id)
+                        ->latest('id')->first();
+                    $actions[] = \Filament\Forms\Components\Actions::make([
+                        \Filament\Forms\Components\Actions\Action::make('ver_os')
+                            ->label('Ver Ordem de Serviço' . ($osAberta ? ' (#' . $osAberta->sequential_id . ')' : ''))
+                            ->icon('heroicon-o-wrench-screwdriver')
+                            ->color('warning')
+                            ->url(fn() => $osAberta
+                                ? \App\Filament\Resources\OrdemServicoResource::getUrl('edit', ['record' => $osAberta->id])
+                                : \App\Filament\Resources\SolicitacaoManutencaoResource::getUrl('edit', ['record' => $solicitacaoAberta->id]))
+                            ->openUrlInNewTab(),
+                    ])->fullWidth();
+                } elseif ($solicitacaoAberta) {
                     $actions[] = \Filament\Forms\Components\Actions::make([
                         \Filament\Forms\Components\Actions\Action::make('ver_manutencao')
                             ->label('Ver Solicitação Aberta (#' . $solicitacaoAberta->sequential_id . ')')

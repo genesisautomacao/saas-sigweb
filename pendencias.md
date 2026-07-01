@@ -9,22 +9,22 @@
 
 ## Contadores de Conformidade PoC Nova Esperança do Sul
 
-**Progresso real (atualizado 2026-07-01): ~191/260 ≈ 73%**
-- ✅ **Sprint A:** A1–A11 concluídos (18 itens PoC) — pendentes: A12, A13, A14
-- 🔄 **Sprint B:** B5 e B6 concluídos (18 itens PoC) — demais pendentes
+**Progresso real (atualizado 2026-07-01): ~203/260 ≈ 78%**
+- ✅ **Sprint A completo:** A1–A14 concluídos (22 itens PoC)
+- 🔄 **Sprint B:** B1, B2, B3, B4, B5, B6 concluídos (26 itens PoC) — B7–B18 pendentes
 
 | Marco | Itens cobertos | % acumulado | Status |
 |-------|---------------|-------------|--------|
 | Baseline | ~155/260 | ~60% | — |
-| + Sprint A (A1–A11) | ~173/260 | ~67% | ✅ parcial (falta A12–A14) |
-| + Sprint B (B5, B6) | **~191/260** | **~73%** | 🔄 em andamento |
+| + Sprint A (A1–A14) | ~177/260 | ~68% | ✅ concluído |
+| + Sprint B (B1–B6) | **~203/260** | **~78%** | 🔄 em andamento |
 | Meta Sprint B completo | ~212/260 | ~82% | ⏳ |
 | Meta Sprint C1 (PGV) | ~234/260 | **~90%** | ⏳ |
 | Projeção final (C2–C5) | ~251/260 | ~97% | ⏳ |
 
 > **Itens concluídos por sprint:**
-> Sprint A ✅ = 015, 017, 027, 030, 032, 034, 037, 038, 047, 067, 072, 074, 083, 088, 090, 119, 162, 163.
-> Sprint B ✅ = 053, 054, 055, 056, 057, 058, 059 (B5) · 099–109 (B6).
+> Sprint A ✅ = 015, 017, 027, 030, 032, 034, 037, 038, 046, 047, 067, 070, 072, 074, 083, 086, 088, 090, 119, 123, 162, 163.
+> Sprint B ✅ = 091–098 (B1–B4, Módulo Social) · 053–059 (B5, Estoque) · 099–109 (B6, Numeração Predial).
 
 ---
 
@@ -177,44 +177,40 @@ Como melhoria adicional (solicitada junto), os exports **PDF** e **Excel** exist
 
 ---
 
-#### A12 — Toggle "Ativar Fluxo" no Editor BPMN
+#### ~~A12 — Toggle "Ativar Fluxo" no Editor BPMN~~
 **Item PoC:** 123
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-01
 
-- Adicionar toggle `ativo` inline na listagem do `BpmnFluxoResource` (ToggleColumn ou ação rápida)
-- Lógica: fluxo inativo não aparece na seleção ao criar novo `ProcessoDigital`
-- Se já existe o campo `ativo` no model, apenas expor na UI
+- `BpmnFluxoResource`: `IconColumn` de `ativo` trocada por **`ToggleColumn`** (on=verde, off=vermelho) — ativa/desativa o fluxo com 1 clique na listagem
+- Fluxos inativos já eram filtrados na abertura de processo pelo cidadão (`Cidadao\ProcessoDigitalResource`: `BpmnFluxo::where('ativo', true)`)
 
 ---
 
-#### A13 — Cores Customizadas de Poste/Árvore por Status de OS
+#### ~~A13 — Cores Customizadas de Poste/Árvore por Status de OS~~
 **Itens PoC:** 070, 086
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-01
 
-- Verificar no `MapDataController` (ou endpoint de GeoJSON de postes/árvores) se já retorna `status_os` ou `tem_os_aberta` nas properties
-- Se não, incluir via LEFT JOIN com `ordens_servico` (status aberta/em andamento)
-- No `mapa-engine.js`, aplicar paleta de cores por status:
-  - Sem OS: cor padrão
-  - Com solicitação aberta: amarelo/laranja
-  - Com OS em andamento: vermelho/vermelho vivo
-  - OS concluída: verde
+- `MapDataController` (postes/arvores): novo `withExists('tem_os_aberta')` (status `aprovada_os`); property **`status_manutencao`** (`null` | `solicitacao` | `os_aberta`) no `buildFeatureCollection`
+- `mapa-engine.js`: paleta de 3 estados no estilo base **e** no hover — sem chamado = cor da condição · **solicitação aberta = magenta `#d946ef`** · **OS aberta = laranja `#f97316`**; handler `atualizar-manutencao-*` também seta `status_manutencao`
+- `HasPosteActions`/`HasArvoreActions`: quando há OS aberta, o botão do modal vira **"Ver Ordem de Serviço"** (leva à OS); senão continua "Ver Solicitação"
 
 ---
 
-#### A14 — Criação de Geometria por Azimutes
+#### ~~A14 — Criação de Geometria por Azimutes~~
 **Item PoC:** 046
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-01
 
-- Adicionar modo "Criar por Azimutes" na barra CAD do `mapa-engine.js`
-- Interface no painel lateral:
-  1. Ponto inicial: coordenadas (input) ou clique no mapa
-  2. Tabela de pares: Azimute (graus) + Distância (metros) — adicionar/remover linhas
-- Construir geometria iterativamente com Turf.js (`turf.destination`)
-- Prévia da geometria em tempo real no mapa à medida que o usuário preenche
+- Botão **"Criar por Azimutes"** no menu **Ferramentas** da barra principal (`mapa-fullscreen.blade.php`) + painel flutuante Alpine
+- Painel: ponto inicial (Lon/Lat digitado **ou** "Pegar do mapa" clicando), tabela de arestas Azimute(°)/Distância(m) add/remove, seletor "Salvar como" (Lote/Quadra/Bairro/Loteamento/Perímetro/Zona/Setor Fiscal/Área REURB/Patrimônio), área/perímetro ao vivo
+- `mapa-engine.js`: `previewAzimutes()` (pré-via laranja via `turf.destination` + `turf.area`/`turf.length`), `finalizarAzimutes()` (polígono fechado → `cadSource` como `cad_draft` + `ativarModoEdicaoAvancado`), `iniciarAzimutePickStart()` + interceptador de clique; `zonas → zona` adicionado ao `mapSingular`
+- Polígono sempre fechado; salvamento reutiliza o fluxo da Mesa de Desenho (`salvarEdicaoGeometria` → `abrirModalCriacao`)
 
 ---
 
-**Total Sprint A: ~21 itens PoC cobertos**
+**Total Sprint A: 22 itens PoC cobertos (A1–A14 concluídos)**
 
 ---
 
@@ -223,73 +219,88 @@ Como melhoria adicional (solicitada junto), os exports **PDF** e **Excel** exist
 
 ---
 
-#### B1 — Campos de Pessoa-Social Faltantes
+#### ~~B1 — Campos de Pessoa-Social Faltantes~~
 **Itens PoC:** 092, 093
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído · **Concluído em:** 2026-07-01
 
-Campos a adicionar na tabela `pessoas` (ou tabela complementar `pessoa_social_dados`):
-- `rg`, `ctps`, `pis` (strings)
-- `nis` (mover de `CadastroSocial` ou duplicar)
-- `certidao_nascimento` (string)
-- `telefone` (string)
-- `estado_civil` (enum: solteiro, casado, divorciado, viuvo, uniao_estavel)
-- `sexo` (enum: masculino, feminino, outro)
-- `pai_id` (FK nullable → pessoas)
-- `mae_id` (FK nullable → pessoas)
-- `conjuge_id` (FK nullable → pessoas)
-
-RelationManagers adicionais em `CadastroSocialResource`:
-- **Rendas**: `pessoa_id`, `valor`, `tipo`, `compoe_renda_familiar` (bool) — afeta cálculo de renda bruta
-- **Ocorrências Sociais**: data, tipo, descrição
+- `pessoas` estendida: `rg`, `ctps`, `pis`, `nis`, `certidao_nascimento`, `telefone`, `estado_civil`, `sexo`, `pai_id`/`mae_id`/`conjuge_id` (self-FK). Seção "Dados Sociais" no `PessoaResource`.
+- Novas tabelas: `pessoa_rendas` (tipo_renda_id + compoe_renda_familiar), `pessoa_deficiencias` (CID), `ocorrencias_sociais` (polimórfica).
+- RelationManagers no `PessoaResource`: Rendas, Deficiências, Ocorrências (Endereços/Documentos já existiam).
 
 ---
 
-#### B2 — Entidade Família Completa
+#### ~~B2 — Entidade Família Completa~~
 **Itens PoC:** 094, 095
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído · **Concluído em:** 2026-07-01
 
-- Verificar campos existentes em `CadastroSocial` e completar:
-  - `situacao_cadastro` (enum: cadastrado, beneficiado, aprovado, sorteado, nao_localizado, apresentou_documentos)
-  - `empreendimento_id` (FK)
-  - `titularidade` (enum: proprio, alugado, cedido, ocupacao) para o terreno
-  - Coluna `geo` POINT em `CadastroSocial` ou relação com `Lote`/`UnidadeImobiliaria` para localização do terreno
+- `cadastros_sociais`: `situacao_cadastro`, `empreendimento_id`, `possui_terreno` + `terreno_loteamento_id/quadra_id/lote_id` + `terreno_titularidade`, `indice_vulnerabilidade`.
+- `membro_familias.representante_familiar`. Pivot `familia_informacoes` (definição social).
+- RelationManagers no `CadastroSocialResource`: DefiniçãoSocial (InformacaoSocial) e Ocorrências. Terreno + situação no form.
 
 ---
 
-#### B3 — Entidades Sociais Faltantes
+#### ~~B3 — Entidades Sociais Faltantes~~
 **Item PoC:** 091
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído · **Concluído em:** 2026-07-01
 
-Migration + Model + Resource para:
-- `Entidade` (nome, tipo, cnpj, telefone, endereço)
-- `TipoEntidade`
-- `ServicoSocial` (nome, entidade_id, descricao)
-- `Programa` (nome, descricao, data_inicio, data_fim)
-- `Evento` (nome, data, local, programa_id)
-- `InformacaoSocial` (tipo, valor — para registrar informações livres na família)
-
-Relacionar com `CadastroSocial` onde aplicável via RelationManagers.
+8 cadastros novos (CRUD modal, `gerenciar_X` + Policy): `TipoRenda`, `TipoEntidade`, `Entidade`, `ServicoSocial`, `Programa`, `Evento`, `InformacaoSocial`, `Empreendimento`. Relacionados à Pessoa (rendas) e Família (empreendimento, definição social).
 
 ---
 
-#### B4 — Índice de Vulnerabilidade + Gráfico Família
-**Itens PoC:** 096, 098
-**Status:** ⏳ Pendente
+#### ~~B4 — Índice de Vulnerabilidade + Gráfico Família~~
+**Itens PoC:** 096, 097, 098
+**Status:** ✅ Concluído · **Concluído em:** 2026-07-01
 
-**Índice de vulnerabilidade (096):**
-- Algoritmo em `CadastroSocial` (calculado no `save()`):
-  - +2 pts: em área de risco
-  - +2 pts: renda per capita < 1/4 salário mínimo
-  - +1 pt: possui membro com deficiência
-  - +1 pt: situação de moradia precária (ocupação irregular, situação de rua)
-  - +1 pt: sem benefícios sociais
-  - Campo `indice_vulnerabilidade` (int 0–7) salvo automaticamente
-- Exibir badge colorido na listagem do `CadastroSocialResource`
+- **096/097** `CadastroSocialCalculoService` + Observers (`#[ObservedBy]`): renda familiar (rendas que compõem) + per capita + índice de vulnerabilidade (0–7) recalculados automaticamente. Badges no Resource.
+- **098** `PainelSocialPage`: pizza Chart.js por `situacao_cadastro` + mapa Leaflet; clicar na fatia filtra as famílias no mapa (centróide de unidade/empreendimento).
+- **Relatórios (091):** `PessoaSocialExportService` + `CadastroSocialExportService` com Excel/PDF/CSV/XML.
 
-**Gráfico pizza + mapa (098):**
-- Widget Filament Chart (Chart.js) na page ou dashboard:
-  - Fatias: Alta Vulnerabilidade / Média / Baixa / Sem Dados
-  - Clicar em fatia → filtrar tabela e destacar famílias no mapa pelo `unidade_imobiliaria_id`
+##### Glossário do Módulo Social (lógica das entidades)
+
+**Núcleo — Pessoa e Família**
+
+| Entidade | O que é |
+|---|---|
+| **Pessoa (Pessoa-Social)** | O cidadão individual. Base de tudo: dados pessoais + documentos sociais (RG, CTPS, PIS, NIS, certidão), estado civil, sexo, pai/mãe/cônjuge. Uma pessoa pode ter **rendas**, **deficiências (CID)**, **ocorrências**, endereços e documentos. |
+| **CadastroSocial (Família)** | A **família** — a unidade de atendimento. Tem um **Responsável Familiar (RF)** que é uma Pessoa, uma **moradia** (unidade imobiliária no mapa) e/ou um **empreendimento** (moradia de benefício). Guarda situação cadastral, NIS, flags de vulnerabilidade e os valores calculados. |
+| **MembroFamilia** | A ligação de uma Pessoa a uma Família, com o **grau de parentesco** e a marca de **representante familiar**. É o que forma a "composição familiar". |
+
+**Renda e vulnerabilidade (calculados)**
+
+| Entidade / Campo | O que é |
+|---|---|
+| **TipoRenda** | Catálogo dos tipos de renda (Salário, Bolsa Família, BPC, Aposentadoria...). |
+| **PessoaRenda** | Uma renda lançada para uma Pessoa: valor + tipo + se **compõe a renda familiar**. |
+| **renda_familiar_total / renda_per_capita** | **Calculados automaticamente** (item 097): soma das rendas do RF + membros que compõem a renda, dividida pelos membros. |
+| **indice_vulnerabilidade** | **Calculado automaticamente** (item 096), 0–7: área de risco, renda per capita baixa, PCD, moradia precária, sem benefícios. |
+| **situacao_cadastro** | Estágio da família na fila do benefício (Cadastrado → Sorteado → Aprovado → Beneficiado...). É a dimensão do gráfico do Painel Social. |
+
+**Registros e histórico**
+
+| Entidade | O que é |
+|---|---|
+| **PessoaDeficiencia** | Deficiência de um membro, com o número do **CID**. |
+| **OcorrenciaSocial** | Evento de atendimento (atendimento, visita, encaminhamento, denúncia...). É **polimórfica**: pode ser de uma Pessoa **ou** de uma Família. |
+| **InformacaoSocial** + **Definição Social** | Catálogo de indicadores (Insegurança Alimentar, Trabalho Infantil...) e quais se aplicam a cada Família (pivot `familia_informacoes`, com valor). |
+
+**Rede de assistência e habitação**
+
+| Entidade | O que é |
+|---|---|
+| **TipoEntidade** | Natureza da entidade (CRAS, CREAS, ONG, Associação). |
+| **Entidade** | A organização que presta serviços (pertence a um TipoEntidade). |
+| **ServicoSocial** | Um serviço oferecido por uma Entidade. |
+| **Programa** | Um programa social (com início/fim). |
+| **Evento** | Uma ação/evento vinculado a um Programa. |
+| **Empreendimento** | Empreendimento habitacional (moradia de benefício), com localização opcional no mapa. |
+
+**Visualização**
+
+| Recurso | O que é |
+|---|---|
+| **Painel Social** | Gráfico pizza da distribuição das famílias por situação cadastral + mapa; clicar numa fatia destaca no mapa onde essas famílias estão (item 098). |
+
+> **Fluxo:** cada **Pessoa** tem suas **rendas** (por **TipoRenda**) e **deficiências**. Pessoas se juntam numa **Família** (CadastroSocial) via **MembroFamilia** (parentesco), sob um **Responsável Familiar**. O sistema soma as rendas que compõem → **renda familiar/per capita** e calcula o **índice de vulnerabilidade**. A família recebe uma **situação cadastral**, pode ganhar uma **definição social** (InformacaoSocial), morar numa unidade ou num **Empreendimento**, registrar **ocorrências**, e ser atendida pela rede (**Entidade → ServiçoSocial**, **Programa → Evento**). O **Painel Social** cruza tudo no gráfico + mapa.
 
 ---
 

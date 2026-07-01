@@ -79,8 +79,11 @@ class BpmnFluxoResource extends Resource
                     ->sortable()
                     ->weight('bold'),
 
-                Tables\Columns\IconColumn::make('ativo')
-                    ->boolean()
+                Tables\Columns\ToggleColumn::make('ativo')
+                    ->label('Ativo')
+                    ->onColor('success')
+                    ->offColor('danger')
+                    ->tooltip('Ativa/desativa o fluxo. Fluxos inativos não aparecem na abertura de novos processos.')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('updated_at')

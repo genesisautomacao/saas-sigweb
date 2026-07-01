@@ -91,11 +91,69 @@ class CadastroSocialResource extends Resource
                                 ])
                                 ->default('propria')
                                 ->required(),
+
+                            Forms\Components\Select::make('empreendimento_id')
+                                ->label('Empreendimento (Moradia de Benefício)')
+                                ->options(fn() => \App\Models\Empreendimento::pluck('name', 'id'))
+                                ->searchable()
+                                ->helperText('Vincule se a família foi contemplada em um empreendimento habitacional.'),
                         ]),
+
+                    // SESSÃO: Terreno próprio (item 095)
+                    Forms\Components\Section::make('Terreno da Família')
+                        ->description('Informe se a família possui terreno e sua localização geográfica.')
+                        ->collapsed()
+                        ->schema([
+                            Forms\Components\Toggle::make('possui_terreno')
+                                ->label('Possui terreno?')
+                                ->live()
+                                ->columnSpanFull(),
+
+                            Forms\Components\Select::make('terreno_loteamento_id')
+                                ->label('Loteamento')
+                                ->options(fn() => \App\Models\Loteamento::pluck('name', 'id'))
+                                ->searchable()
+                                ->visible(fn(Forms\Get $get) => $get('possui_terreno')),
+
+                            Forms\Components\Select::make('terreno_quadra_id')
+                                ->label('Quadra')
+                                ->options(fn() => \App\Models\Quadra::pluck('name', 'id'))
+                                ->searchable()
+                                ->visible(fn(Forms\Get $get) => $get('possui_terreno')),
+
+                            Forms\Components\Select::make('terreno_lote_id')
+                                ->label('Lote')
+                                ->options(fn() => \App\Models\Lote::query()->limit(200)->pluck('numero_lote', 'id'))
+                                ->searchable()
+                                ->visible(fn(Forms\Get $get) => $get('possui_terreno')),
+
+                            Forms\Components\Select::make('terreno_titularidade')
+                                ->label('Titularidade')
+                                ->options([
+                                    'proprio' => 'Próprio (com escritura)',
+                                    'posse' => 'Posse',
+                                    'cedido' => 'Cedido',
+                                    'irregular' => 'Irregular',
+                                ])
+                                ->visible(fn(Forms\Get $get) => $get('possui_terreno')),
+                        ])->columns(2),
 
                     // SESSÃO 2: Dados Sociais e CadÚnico
                     Forms\Components\Section::make('Indicadores Sociais (CadÚnico)')
                         ->schema([
+                            Forms\Components\Select::make('situacao_cadastro')
+                                ->label('Situação do Cadastro')
+                                ->options([
+                                    'cadastrado' => 'Cadastrado',
+                                    'beneficiado' => 'Beneficiado',
+                                    'aprovado' => 'Aprovado',
+                                    'sorteado' => 'Sorteado',
+                                    'nao_localizado' => 'Não Localizado',
+                                    'apresentou_documentos' => 'Apresentou Documentos',
+                                ])
+                                ->default('cadastrado')
+                                ->required(),
+
                             Forms\Components\TextInput::make('nis')
                                 ->label('Número do NIS')
                                 ->maxLength(15),
@@ -110,7 +168,9 @@ class CadastroSocialResource extends Resource
                                 ->label('Renda Familiar Total (R$)')
                                 ->numeric()
                                 ->prefix('R$')
-                                ->helperText('A Renda Per Capita será calculada automaticamente ao salvar.'),
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->helperText('Calculada automaticamente a partir das rendas dos membros (que compõem a renda familiar).'),
                         ])->columns(3),
 
                     // SESSÃO 3: Parecer Técnico
@@ -164,6 +224,34 @@ class CadastroSocialResource extends Resource
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
+                Tables\Columns\TextColumn::make('situacao_cadastro')
+                    ->label('Situação')
+                    ->badge()
+                    ->formatStateUsing(fn(?string $state) => match ($state) {
+                        'cadastrado' => 'Cadastrado', 'beneficiado' => 'Beneficiado', 'aprovado' => 'Aprovado',
+                        'sorteado' => 'Sorteado', 'nao_localizado' => 'Não Localizado',
+                        'apresentou_documentos' => 'Apresentou Docs', default => $state ?? '—',
+                    })
+                    ->color(fn(?string $state) => match ($state) {
+                        'beneficiado', 'aprovado' => 'success',
+                        'sorteado', 'apresentou_documentos' => 'info',
+                        'nao_localizado' => 'danger',
+                        default => 'gray',
+                    })
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('indice_vulnerabilidade')
+                    ->label('Vulnerab.')
+                    ->badge()
+                    ->formatStateUsing(fn(?int $state) => $state === null ? '—' : $state . '/7')
+                    ->color(fn(?int $state) => match (true) {
+                        $state === null => 'gray',
+                        $state >= 5 => 'danger',
+                        $state >= 3 => 'warning',
+                        default => 'success',
+                    })
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('unidadeImobiliaria.logradouro_nome')
                     ->label('Endereço')
                     ->description(fn(CadastroSocial $record): string => $record->unidadeImobiliaria ? "Nº {$record->unidadeImobiliaria->numero_imovel}" : 'Sem endereço fixo')
@@ -196,6 +284,12 @@ class CadastroSocialResource extends Resource
                     ->boolean(),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('situacao_cadastro')
+                    ->label('Situação do Cadastro')
+                    ->options([
+                        'cadastrado' => 'Cadastrado', 'beneficiado' => 'Beneficiado', 'aprovado' => 'Aprovado',
+                        'sorteado' => 'Sorteado', 'nao_localizado' => 'Não Localizado', 'apresentou_documentos' => 'Apresentou Documentos',
+                    ]),
                 Tables\Filters\TernaryFilter::make('em_area_de_risco')->label('Moram em Área de Risco?'),
                 Tables\Filters\TernaryFilter::make('recebe_beneficios')->label('Recebem Benefício?'),
                 // Novo filtro adicionado
@@ -215,6 +309,8 @@ class CadastroSocialResource extends Resource
     {
         return [
             CadastroSocialResource\RelationManagers\MembrosRelationManager::class,
+            CadastroSocialResource\RelationManagers\DefinicaoSocialRelationManager::class,
+            CadastroSocialResource\RelationManagers\OcorrenciasRelationManager::class,
         ];
     }
 

@@ -4,8 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use App\Traits\BelongsToTenant;
+use App\Observers\MembroFamiliaObserver;
 
+#[ObservedBy(MembroFamiliaObserver::class)]
 class MembroFamilia extends Model
 {
     use HasFactory, BelongsToTenant;
@@ -17,6 +20,11 @@ class MembroFamilia extends Model
         'cadastro_social_id',
         'pessoa_id',
         'parentesco',
+        'representante_familiar',
+    ];
+
+    protected $casts = [
+        'representante_familiar' => 'boolean',
     ];
 
     public function cadastroSocial()

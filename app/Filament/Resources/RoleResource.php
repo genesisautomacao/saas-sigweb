@@ -328,9 +328,29 @@ class RoleResource extends Resource
                                         'create_cadastros_sociais' => 'Criar Cadastros sociais',
                                         'edit_cadastros_sociais' => 'Editar Cadastros sociais',
                                         'delete_cadastros_sociais' => 'Excluir Cadastros sociais',
+                                        'view_painel_social' => 'Acessar Painel Social (gráfico + mapa)',
                                     ])
                                     ->bulkToggleable(),
                             ])->columns(1)->columnSpan(1),
+
+                        // CAIXA 13b: SOCIAL — CADASTROS AUXILIARES (permissão única "gerenciar")
+                        Forms\Components\Fieldset::make('Módulo Social — Cadastros Auxiliares')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_social_aux')
+                                    ->label('Cada permissão libera visualizar, criar, editar e excluir a entidade')
+                                    ->options([
+                                        'gerenciar_tipo_rendas' => 'Gerenciar Tipos de Renda',
+                                        'gerenciar_tipo_entidades' => 'Gerenciar Tipos de Entidade',
+                                        'gerenciar_entidades' => 'Gerenciar Entidades',
+                                        'gerenciar_servico_sociais' => 'Gerenciar Serviços Sociais',
+                                        'gerenciar_programas' => 'Gerenciar Programas',
+                                        'gerenciar_eventos' => 'Gerenciar Eventos',
+                                        'gerenciar_informacao_sociais' => 'Gerenciar Informações Sociais',
+                                        'gerenciar_empreendimentos' => 'Gerenciar Empreendimentos',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(2),
+                            ])->columns(1)->columnSpanFull(),
 
                         // CAIXA 14: MÓDULO RURAL
                         Forms\Components\Fieldset::make('Módulo: Imobiliário e Geográfico (SIGWEB)')

@@ -69,6 +69,11 @@ class MembrosRelationManager extends RelationManager
                     ])
                     ->required()
                     ->columnSpanFull(),
+
+                Forms\Components\Toggle::make('representante_familiar')
+                    ->label('Representante familiar')
+                    ->helperText('Membro que representa a família junto à assistência social (item 095).')
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -101,6 +106,10 @@ class MembrosRelationManager extends RelationManager
                     })
                     ->badge()
                     ->color('info'),
+
+                Tables\Columns\IconColumn::make('representante_familiar')
+                    ->label('Representante')
+                    ->boolean(),
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()

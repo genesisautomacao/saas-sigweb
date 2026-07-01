@@ -388,14 +388,21 @@ document.addEventListener("DOMContentLoaded", function () {
             minZoom: 14,
             style: function (feature) {
                 const condition = feature.get("structural_condition");
-                const temChamado = feature.get("tem_chamado"); // 🟢 LÊ DO BANCO
+                // status_manutencao: null | 'solicitacao' | 'os_aberta' (fallback ao antigo tem_chamado)
+                const statusManut =
+                    feature.get("status_manutencao") ||
+                    (feature.get("tem_chamado") ? "solicitacao" : null);
+                const temChamado = statusManut !== null;
 
                 let fillColor = "#eab308"; // Amarelo (Padrão)
                 if (condition === "Bom") fillColor = "#22c55e"; // Verde
                 if (condition === "Ruim") fillColor = "#ef4444"; // Vermelho
 
-                // 🛑 SOBRESCREVE SE ESTIVER EM MANUTENÇÃO (Roxo brilhante)
-                if (temChamado) fillColor = "#d946ef";
+                // 🛑 SOBRESCREVE CONFORME MANUTENÇÃO:
+                //   Solicitação aberta (sem OS) → Roxo/Magenta
+                //   Ordem de Serviço aberta      → Laranja
+                if (statusManut === "solicitacao") fillColor = "#d946ef";
+                if (statusManut === "os_aberta") fillColor = "#f97316";
 
                 return new ol.style.Style({
                     image: new ol.style.Circle({
@@ -438,7 +445,11 @@ document.addEventListener("DOMContentLoaded", function () {
             style: function (feature) {
                 const condition = feature.get("phytosanitary_condition");
                 const size = feature.get("size");
-                const temChamado = feature.get("tem_chamado"); // 🟢 LÊ DO BANCO
+                // status_manutencao: null | 'solicitacao' | 'os_aberta' (fallback ao antigo tem_chamado)
+                const statusManut =
+                    feature.get("status_manutencao") ||
+                    (feature.get("tem_chamado") ? "solicitacao" : null);
+                const temChamado = statusManut !== null;
 
                 let radius = 6;
                 if (size === "pequeno") radius = 6;
@@ -450,8 +461,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (condition === "Ruim") fillColor = "#ef4444";
                 if (condition === "Morta") fillColor = "#6b7280";
 
-                // 🛑 SOBRESCREVE SE ESTIVER EM MANUTENÇÃO (Roxo brilhante)
-                if (temChamado) fillColor = "#d946ef";
+                // 🛑 SOBRESCREVE CONFORME MANUTENÇÃO:
+                //   Solicitação aberta (sem OS) → Roxo/Magenta
+                //   Ordem de Serviço aberta      → Laranja
+                if (statusManut === "solicitacao") fillColor = "#d946ef";
+                if (statusManut === "os_aberta") fillColor = "#f97316";
 
                 return new ol.style.Style({
                     image: new ol.style.Circle({
@@ -1688,17 +1702,24 @@ document.addEventListener("DOMContentLoaded", function () {
                 } else if (layer === "postes") {
                     const condition = feature.get("structural_condition");
                     const seqId = feature.get("sequential_id");
-                    const temChamado = feature.get("tem_chamado"); // 🟢
+                    const statusManut =
+                        feature.get("status_manutencao") ||
+                        (feature.get("tem_chamado") ? "solicitacao" : null);
+                    const temChamado = statusManut !== null;
 
                     const textoBase = seqId ? `Poste #${seqId}` : "Poste S/N";
-                    const textoHover = temChamado
-                        ? `🛠️ ${textoBase} (Em Manutenção)`
-                        : textoBase;
+                    const textoHover =
+                        statusManut === "os_aberta"
+                            ? `🔧 ${textoBase} (OS Aberta)`
+                            : statusManut === "solicitacao"
+                              ? `🛠️ ${textoBase} (Solicitação Aberta)`
+                              : textoBase;
 
                     let fillColor = "#eab308";
                     if (condition === "Bom") fillColor = "#22c55e";
                     if (condition === "Ruim") fillColor = "#ef4444";
-                    if (temChamado) fillColor = "#d946ef"; // 🛑
+                    if (statusManut === "solicitacao") fillColor = "#d946ef"; // 🛑
+                    if (statusManut === "os_aberta") fillColor = "#f97316"; // 🔧
 
                     feature.setStyle(
                         new ol.style.Style({
@@ -1732,7 +1753,10 @@ document.addEventListener("DOMContentLoaded", function () {
                     const condition = feature.get("phytosanitary_condition");
                     const seqId = feature.get("sequential_id");
                     const nameStr = feature.get("name");
-                    const temChamado = feature.get("tem_chamado"); // 🟢
+                    const statusManut =
+                        feature.get("status_manutencao") ||
+                        (feature.get("tem_chamado") ? "solicitacao" : null);
+                    const temChamado = statusManut !== null;
 
                     const especie =
                         nameStr && nameStr !== "S/N"
@@ -1741,15 +1765,19 @@ document.addEventListener("DOMContentLoaded", function () {
                     const textoBase = seqId
                         ? `Árvore #${seqId} - ${especie}`
                         : `Árvore - ${especie}`;
-                    const textoHover = temChamado
-                        ? `🛠️ ${textoBase} (Em Manutenção)`
-                        : textoBase;
+                    const textoHover =
+                        statusManut === "os_aberta"
+                            ? `🔧 ${textoBase} (OS Aberta)`
+                            : statusManut === "solicitacao"
+                              ? `🛠️ ${textoBase} (Solicitação Aberta)`
+                              : textoBase;
 
                     let fillColor = "#22c55e";
                     if (condition === "Regular") fillColor = "#eab308";
                     if (condition === "Ruim") fillColor = "#ef4444";
                     if (condition === "Morta") fillColor = "#6b7280";
-                    if (temChamado) fillColor = "#d946ef"; // 🛑
+                    if (statusManut === "solicitacao") fillColor = "#d946ef"; // 🛑
+                    if (statusManut === "os_aberta") fillColor = "#f97316"; // 🔧
 
                     feature.setStyle(
                         new ol.style.Style({
@@ -2164,6 +2192,19 @@ document.addEventListener("DOMContentLoaded", function () {
         // 🛑 TRAVA MESTRA DE EDIÇÃO: Se estiver editando geometria, ignora cliques em outros artefatos!
         if (featureEmEdicao) {
             return; // Encerra o clique aqui, impedindo que abra qualquer ficha ou modal
+        }
+
+        // 📐 AZIMUTES: capturar ponto inicial clicando no mapa (item PoC 046)
+        if (window.azimutePickStart) {
+            const coord = ol.proj.toLonLat(evt.coordinate);
+            window.azimutePickStart = false;
+            map.getTargetElement().style.cursor = "";
+            window.dispatchEvent(
+                new CustomEvent("azimute-ponto-inicial", {
+                    detail: { lon: coord[0], lat: coord[1] },
+                }),
+            );
+            return;
         }
 
         // 🛑 INTERCEPTADOR: PRÉVIA DA NUMERAÇÃO ATIVA (itens PoC 101/102)
@@ -3893,6 +3934,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     secoes_logradouro: "secao_logradouro",
                     testada_ativa: "testada",
                     loteamentos: "loteamento",
+                    zonas: "zona",
                     edificacao_ativa: "edificacao",
                     logradouros: "logradouro",
                     postes: "poste",
@@ -4659,8 +4701,13 @@ document.addEventListener("DOMContentLoaded", function () {
                         .getFeatures()
                         .find((f) => f.get("id") == data.id);
                     if (feature) {
-                        // Injeta a propriedade "tem_chamado" no cache do OpenLayers e força redesenhar
+                        // Injeta as propriedades de manutenção no cache do OpenLayers e força redesenhar
                         feature.set("tem_chamado", data.tem_chamado);
+                        feature.set(
+                            "status_manutencao",
+                            data.status_manutencao ??
+                                (data.tem_chamado ? "solicitacao" : null),
+                        );
                         feature.changed();
                     }
                 }
@@ -5149,6 +5196,98 @@ document.addEventListener("DOMContentLoaded", function () {
     map.addLayer(cadLayer);
 
     let featureCloneOriginalLayer = null;
+
+    // =========================================================================
+    // 📐 CRIAÇÃO DE GEOMETRIA POR AZIMUTES (item PoC 046)
+    // =========================================================================
+    const azimutePreviewSource = new ol.source.Vector();
+    const azimutePreviewLayer = new ol.layer.Vector({
+        source: azimutePreviewSource,
+        style: new ol.style.Style({
+            stroke: new ol.style.Stroke({ color: "#f97316", width: 2, lineDash: [6, 4] }),
+            fill: new ol.style.Fill({ color: "rgba(249, 115, 22, 0.2)" }),
+            image: new ol.style.Circle({ radius: 4, fill: new ol.style.Fill({ color: "#f97316" }) }),
+        }),
+        zIndex: 10004,
+    });
+    map.addLayer(azimutePreviewLayer);
+
+    // Monta o anel [lon,lat] fechado a partir do ponto inicial + pares {az, dist(m)}
+    function _construirAnelAzimutes(lon, lat, pares) {
+        const pts = [[lon, lat]];
+        let cur = [lon, lat];
+        pares.forEach((p) => {
+            const dest = turf.destination(turf.point(cur), p.dist / 1000, p.az, { units: "kilometers" });
+            cur = dest.geometry.coordinates;
+            pts.push(cur);
+        });
+        pts.push([lon, lat]); // fecha o polígono
+        return pts;
+    }
+
+    window.previewAzimutes = function (lon, lat, pares) {
+        azimutePreviewSource.clear();
+        if (!lon || !lat || !pares || pares.length < 1) return { area: 0, perimetro: 0 };
+        try {
+            const anel = _construirAnelAzimutes(lon, lat, pares);
+            const feat = new ol.Feature({
+                geometry: new ol.format.GeoJSON().readGeometry(
+                    { type: "Polygon", coordinates: [anel] },
+                    { dataProjection: "EPSG:4326", featureProjection: "EPSG:3857" },
+                ),
+            });
+            azimutePreviewSource.addFeature(feat);
+            return {
+                area: turf.area(turf.polygon([anel])),
+                perimetro: turf.length(turf.lineString(anel), { units: "kilometers" }) * 1000,
+            };
+        } catch (e) {
+            console.error("Erro no preview de azimutes:", e);
+            return { area: 0, perimetro: 0 };
+        }
+    };
+
+    window.limparAzimutePreview = function () {
+        azimutePreviewSource.clear();
+    };
+
+    window.finalizarAzimutes = function (lon, lat, pares, entidadePlural) {
+        try {
+            const anel = _construirAnelAzimutes(lon, lat, pares);
+            const feature = new ol.Feature({
+                geometry: new ol.format.GeoJSON().readGeometry(
+                    { type: "Polygon", coordinates: [anel] },
+                    { dataProjection: "EPSG:4326", featureProjection: "EPSG:3857" },
+                ),
+            });
+            feature.set("id", "clone_temp");
+            feature.set("layer", "cad_draft"); // Mesa de Desenho → salva via fluxo CAD
+            featureCloneOriginalLayer = entidadePlural || "lotes";
+
+            azimutePreviewSource.clear();
+            cadSource.clear();
+            cadSource.addFeature(feature);
+
+            activeTool = "pan";
+            window.ativarModoEdicaoAvancado(feature, "#f97316");
+        } catch (e) {
+            console.error("Erro ao finalizar azimutes:", e);
+            alert("⚠️ Não foi possível construir a geometria. Confira o ponto inicial e as arestas.");
+        }
+    };
+
+    // Modo "pegar ponto inicial clicando no mapa"
+    window.iniciarAzimutePickStart = function () {
+        window.azimutePickStart = true;
+        map.getTargetElement().style.cursor = "crosshair";
+    };
+
+    const _btnAzimute = document.getElementById("btn-tool-azimute");
+    if (_btnAzimute) {
+        _btnAzimute.addEventListener("click", function () {
+            window.dispatchEvent(new Event("abrir-azimute-tool"));
+        });
+    }
 
     window.setFerramentaCAD = function (ferramenta) {
         window.resetToPan(); // Limpa as ferramentas antigas

@@ -69,4 +69,57 @@ class CadastroSocialExportService
             echo $pdf->stream();
         }, $fileName);
     }
+
+    private function linha($c): array
+    {
+        return [
+            'ID'                    => $c->sequential_id,
+            'Responsavel'           => $c->responsavel->name ?? '-',
+            'NIS'                   => $c->nis ?? '-',
+            'Situacao'              => $c->situacao_cadastro ?? '-',
+            'Endereco'              => $c->unidadeImobiliaria ? ($c->unidadeImobiliaria->logradouro_nome . ', ' . $c->unidadeImobiliaria->numero_imovel) : 'Sem endereco fixo',
+            'Membros'               => $c->quantidade_membros,
+            'RendaFamiliar'         => (float) $c->renda_familiar_total,
+            'RendaPerCapita'        => (float) $c->renda_per_capita,
+            'IndiceVulnerabilidade' => $c->indice_vulnerabilidade,
+            'Beneficios'            => $c->recebe_beneficios ? 'Sim' : 'Nao',
+            'AreaRisco'             => $c->em_area_de_risco ? 'Sim' : 'Nao',
+            'PCD'                   => $c->possui_membro_com_deficiencia ? 'Sim' : 'Nao',
+        ];
+    }
+
+    public function exportToCsv(Collection $cadastros)
+    {
+        $fileName = 'cadastros-sociais-' . now()->format('Y-m-d-His') . '.csv';
+        $path = storage_path('app/exports/');
+        if (!File::isDirectory($path)) {
+            File::makeDirectory($path, 0755, true, true);
+        }
+        $filePath = $path . $fileName;
+
+        $data = $cadastros->map(fn($c) => $this->linha($c));
+        SimpleExcelWriter::create($filePath, 'csv')
+            ->addHeader(array_keys($data->first() ?? []))
+            ->addRows($data->toArray());
+
+        return response()->download($filePath)->deleteFileAfterSend(true);
+    }
+
+    public function exportToXml(Collection $cadastros)
+    {
+        $fileName = 'cadastros-sociais-' . now()->format('Y-m-d-His') . '.xml';
+        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><familias/>');
+
+        foreach ($cadastros as $c) {
+            $item = $xml->addChild('familia');
+            $item->addAttribute('id', (string) $c->sequential_id);
+            foreach ($this->linha($c) as $k => $v) {
+                $item->addChild(lcfirst($k), htmlspecialchars((string) $v));
+            }
+        }
+
+        return response()->streamDownload(function () use ($xml) {
+            echo $xml->asXML();
+        }, $fileName, ['Content-Type' => 'application/xml']);
+    }
 }
