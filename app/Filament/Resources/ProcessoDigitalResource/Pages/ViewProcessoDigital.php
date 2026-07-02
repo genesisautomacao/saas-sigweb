@@ -14,6 +14,34 @@ class ViewProcessoDigital extends ViewRecord
 {
     protected static string $resource = ProcessoDigitalResource::class;
 
+    /**
+     * Exclui uma CÓPIA ANOTADA deste processo (item 222). Só permite `tipo_anexo = 'anotado'`
+     * e do próprio processo — originais/uploads do cidadão são preservados. Chamado via wire:click.
+     */
+    public function excluirAnexoAnotado(int $anexoId): void
+    {
+        $anexo = \App\Models\ProcessoAnexo::find($anexoId);
+
+        if (! $anexo || (int) $anexo->processo_digital_id !== (int) $this->record->id || $anexo->tipo_anexo !== 'anotado') {
+            \Filament\Notifications\Notification::make()
+                ->danger()
+                ->title('Não foi possível excluir')
+                ->body('Só é possível excluir cópias anotadas deste processo.')
+                ->send();
+            return;
+        }
+
+        if ($anexo->caminho_arquivo) {
+            Storage::disk('public')->delete($anexo->caminho_arquivo);
+        }
+        $anexo->delete();
+
+        \Filament\Notifications\Notification::make()
+            ->success()
+            ->title('Cópia anotada excluída')
+            ->send();
+    }
+
     // Montamos a tela de leitura de dados (Infolist) para o Analista
     public function infolist(Infolist $infolist): Infolist
     {
@@ -68,41 +96,11 @@ class ViewProcessoDigital extends ViewRecord
                         Infolists\Components\Section::make('Documentos e PDFs')
                             ->icon('heroicon-o-paper-clip')
                             ->schema([
-                                Infolists\Components\TextEntry::make('anexos_renderizados')
+                                // ViewEntry (blade) em vez de TextEntry->html(): o sanitizador do Filament
+                                // removeria o wire:click/<button> do "Excluir". A blade não é sanitizada.
+                                Infolists\Components\ViewEntry::make('anexos')
                                     ->hiddenLabel()
-                                    ->html()
-                                    ->default(function ($record) {
-                                        // Busca os anexos salvos na tabela pivô
-                                        $anexos = \App\Models\ProcessoAnexo::where('processo_digital_id', $record->id)->get();
-                                        
-                                        if ($anexos->isEmpty()) {
-                                            return '<span class="text-gray-500 italic">Nenhum documento anexado.</span>';
-                                        }
-                                        
-                                        $html = '<ul class="space-y-3">';
-                                        foreach ($anexos as $anexo) {
-                                            $url = Storage::url($anexo->caminho_arquivo);
-                                            $ehPdf = str_ends_with(strtolower($anexo->nome_arquivo), '.pdf');
-                                            $icone = $ehPdf ? '📕' : '🖼️';
-                                            $tag = $anexo->tipo_anexo === 'anotado'
-                                                ? " <span class='text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-800'>anotado v{$anexo->versao}</span>"
-                                                : '';
-
-                                            // Item 222 — anotar PDF (abre o editor; salva uma cópia sem sobrescrever)
-                                            $anotar = $ehPdf
-                                                ? " · <a href='" . route('processo-anexo.anotar', $anexo) . "' target='_blank' class='text-amber-600 hover:text-amber-800 underline'>✏️ Anotar</a>"
-                                                : '';
-
-                                            $html .= "<li class='flex items-center gap-2 flex-wrap'>
-                                                <a href='{$url}' target='_blank' class='text-primary-600 hover:text-primary-800 underline font-semibold'>
-                                                    {$icone} {$anexo->nome_arquivo}
-                                                </a>{$tag}{$anotar}
-                                            </li>";
-                                        }
-                                        $html .= '</ul>';
-
-                                        return new HtmlString($html);
-                                    })
+                                    ->view('filament.infolists.processo-anexos'),
                             ]),
                     ])->columnSpan(1),
                 ]),

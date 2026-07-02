@@ -8,16 +8,23 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasTenantSequentialId;
+use App\Traits\LogsGeometryChanges;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class Quadra extends Model
 {
-    use HasFactory, SoftDeletes, BelongsToTenant, HasTenantSequentialId, LogsActivity;
+    use HasFactory, SoftDeletes, BelongsToTenant, HasTenantSequentialId, LogsActivity, LogsGeometryChanges;
 
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()->logOnly(['name'])->logOnlyDirty()->dontSubmitEmptyLogs();
+    }
+
+    /** Histórico cartográfico da quadra na Auditoria (B13 / item 044). */
+    public function geometryLogLabel(): string
+    {
+        return 'Geometria da quadra alterada';
     }
 
     protected $table = 'quadras';

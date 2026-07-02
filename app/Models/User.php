@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
@@ -17,15 +18,24 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements FilamentUser, HasTenants
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+    // SoftDeletes: excluir um usuário nunca apaga a linha (vira deleted_at), preservando
+    // a integridade das FKs de histórico (processo_tramitacoes, respostas, anexos, pessoas…).
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes;
 
     protected $fillable = [
         'name',
         'email',
+        'tipo', // prefeitura | cidadao
         'password',
         'email_verified_at',
         'expo_push_token',
     ];
+
+    /** Cidadão (auto-cadastro no painel do cidadão) — não acessa o painel da prefeitura. */
+    public function isCidadao(): bool
+    {
+        return $this->tipo === 'cidadao';
+    }
 
     protected $hidden = [
         'password',
@@ -85,8 +95,12 @@ class User extends Authenticatable implements FilamentUser, HasTenants
             return $this->hasRole('Master');
         }
 
-        // Para o painel 'app', liberamos o login. 
-        // O próprio Filament vai barrar caso o usuário não tenha nenhuma Tenant vinculada.
+        // Painel da prefeitura: CIDADÃO não pode acessar (mesmo sem papel definido).
+        if ($panel->getId() === 'app') {
+            return !$this->isCidadao();
+        }
+
+        // Demais painéis (cidadão): o Filament ainda exige uma Tenant vinculada.
         return true;
     }
 }

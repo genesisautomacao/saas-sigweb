@@ -8,10 +8,24 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasTenantSequentialId;
+use App\Traits\LogsGeometryChanges;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Bairro extends Model
 {
-    use HasFactory, SoftDeletes, BelongsToTenant, HasTenantSequentialId;
+    use HasFactory, SoftDeletes, BelongsToTenant, HasTenantSequentialId, LogsActivity, LogsGeometryChanges;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()->logOnly(['name'])->logOnlyDirty()->dontSubmitEmptyLogs();
+    }
+
+    /** Histórico cartográfico do bairro na Auditoria (B13 / item 044). */
+    public function geometryLogLabel(): string
+    {
+        return 'Geometria do bairro alterada';
+    }
 
     protected $table = 'bairros';
 

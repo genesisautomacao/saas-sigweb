@@ -162,6 +162,10 @@ class PermissionsSeeder extends Seeder
             'edit_zonas',
             'delete_zonas',
 
+            /* Módulo Imobiliário — extras (permissão única "gerenciar" por entidade) */
+            'gerenciar_areas_reurb',
+            'gerenciar_secoes_logradouro',
+
             /* Módulo de Cadastro Social */
             'view_cadastros_sociais',
             'create_cadastros_sociais',
@@ -224,6 +228,7 @@ class PermissionsSeeder extends Seeder
             'view_cnaes', 'create_cnaes', 'edit_cnaes', 'delete_cnaes',
             'view_regras_zoneamento', 'create_regras_zoneamento', 'edit_regras_zoneamento', 'delete_regras_zoneamento',
             'view_parametros_urbanos', 'create_parametros_urbanos', 'edit_parametros_urbanos', 'delete_parametros_urbanos',
+            'view_viabilidade_emissoes', // Histórico de Emissões (somente leitura)
 
             /* Módulo PGV / Gestão Tributária */
             'view_pgv_parametros', 'create_pgv_parametros', 'edit_pgv_parametros', 'delete_pgv_parametros',

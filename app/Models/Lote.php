@@ -7,12 +7,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasTenantSequentialId;
+use App\Traits\LogsGeometryChanges;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class Lote extends Model
 {
-    use SoftDeletes, BelongsToTenant, HasTenantSequentialId, LogsActivity;
+    use SoftDeletes, BelongsToTenant, HasTenantSequentialId, LogsActivity, LogsGeometryChanges;
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -20,6 +21,12 @@ class Lote extends Model
             ->logOnly(['numero_lote', 'status_cadastro', 'ocupacao', 'situacao_quadra', 'observacao'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
+    }
+
+    /** Histórico cartográfico (B13 / item 044). */
+    public function geometryLogLabel(): string
+    {
+        return 'Geometria do lote alterada';
     }
 
     protected $fillable = [

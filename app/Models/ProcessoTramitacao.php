@@ -20,6 +20,8 @@ class ProcessoTramitacao extends Model
     }
     
     public function responsavel() {
-        return $this->belongsTo(User::class, 'usuario_id');
+        // withTrashed: o histórico continua mostrando quem tramitou mesmo que o usuário
+        // tenha sido excluído (soft delete) depois.
+        return $this->belongsTo(User::class, 'usuario_id')->withTrashed();
     }
 }

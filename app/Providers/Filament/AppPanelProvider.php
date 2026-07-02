@@ -32,6 +32,7 @@ class AppPanelProvider extends PanelProvider
             ->id('app')
             ->path('app')
             ->login()
+            ->registration(\App\Filament\Pages\Auth\RegisterPrefeitura::class) // B12 — auto-cadastro (sem papel)
             ->passwordReset()
             ->profile()
             ->colors([

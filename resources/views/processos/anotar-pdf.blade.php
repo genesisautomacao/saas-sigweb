@@ -166,12 +166,14 @@
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
                     body: JSON.stringify({ pdf_base64: base64 }),
                 });
-                const json = await resp.json();
-                if (json.ok) {
+                const json = await resp.json().catch(() => ({}));
+                if (resp.ok && json.ok) {
                     status.textContent = 'Cópia anotada salva (versão ' + json.versao + ').';
                     alert('Cópia anotada salva com sucesso (versão ' + json.versao + '). Você já pode fechar esta aba.');
                 } else {
-                    status.textContent = 'Falha ao salvar.';
+                    const msg = json.message || ('Falha ao salvar (HTTP ' + resp.status + ').');
+                    status.textContent = msg;
+                    alert(msg);
                 }
             } catch (e) {
                 console.error(e);

@@ -32,9 +32,15 @@ class ProcessoAnexoController extends Controller
 
         $request->validate(['pdf_base64' => 'required|string']);
 
-        $b64 = preg_replace('#^data:application/pdf;base64,#', '', $request->input('pdf_base64'));
+        // O jsPDF gera `data:application/pdf;filename=generated.pdf;base64,...` — o `filename=`
+        // varia por versão. Corta tudo até `base64,` (cobre com/sem filename e base64 cru).
+        $raw = (string) $request->input('pdf_base64');
+        $pos = strpos($raw, 'base64,');
+        $b64 = $pos !== false ? substr($raw, $pos + 7) : $raw;
+        $b64 = str_replace(["\n", "\r", ' '], '', $b64);
+
         $binary = base64_decode($b64, true);
-        abort_if($binary === false, 422, 'Conteúdo PDF inválido.');
+        abort_if($binary === false || $binary === '', 422, 'Conteúdo PDF inválido.');
 
         $origemId = $anexo->anexo_origem_id ?? $anexo->id;
 

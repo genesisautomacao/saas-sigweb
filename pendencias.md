@@ -11,7 +11,7 @@
 
 **Progresso real (atualizado 2026-07-01): ~222/260 ≈ 85%**
 - ✅ **Sprint A completo:** A1–A14 concluídos (22 itens PoC)
-- 🔄 **Sprint B:** B1, B2, B3, B4, B5, B6 concluídos (26 itens PoC) — B7–B18 pendentes (ver **🔧 Reorganização do Sprint B** abaixo: Parte A = Processo Digital, Parte B = App de Chamados a arquitetar, Parte C = transversais)
+- 🔄 **Sprint B:** B1–B6 + **B11–B18 concluídos** (Parte A do motor de Processos + Parte C transversais). **Resta só a Parte B (B7–B10 = App de Chamados do Cidadão)**, que ainda não foi arquitetado (ver **🔧 Reorganização do Sprint B** abaixo).
 - ✅ **Sprint C1 completo (PGV):** itens 225–243 concluídos (19 itens PoC)
 
 | Marco | Itens cobertos | % acumulado | Status |
@@ -484,27 +484,21 @@ Criar `ChamadoPdfService` com template blade contendo:
 
 #### B12 — [Parte C] Tela de Cadastro para Usuário da Prefeitura (sem necessitar autorização de gerente)
 **Item PoC:** 011
-**Status:** ⏳ Pendente — **confirmar escopo**
+**Status:** ✅ Concluído · **Concluído em:** 2026-07-02
 
-> O auto-registro do cidadão já existe (`RegisterCidadao` no painel `cidadao`), o que cobre 011 na leitura básica. Confirmar com o cliente se o item exige um fluxo **separado** de usuário-prefeitura aguardando promoção do Manager (abaixo) ou se o registro do cidadão basta.
-
-- Criar rota pública ou semi-pública `/app/{tenant}/cadastro-usuario`
-- Formulário: nome, email, senha (sem seleção de permissões)
-- Usuário criado com role padrão sem permissões (aguarda promoção pelo Manager)
-- Manager vê lista de usuários pendentes de ativação no painel de usuários
+> **Auto-cadastro no painel `app`:** `->registration(RegisterPrefeitura::class)` no `AppPanelProvider` → `/app/register`. Form nome/email/senha + seleção da prefeitura; usuário criado **sem papel** (o Gerente alinha depois atribuindo um papel na Equipe). Marca `tipo='prefeitura'`.
+>
+> 🔐 **Falha de segurança corrigida junto (crítica):** o cidadão conseguia acessar o painel `app`. Novo campo **`users.tipo`** (`prefeitura`|`cidadao`): `User::canAccessPanel` bloqueia `cidadao` no painel `app`; `RegisterCidadao` grava `tipo='cidadao'`; `UserResource` (Equipe) esconde os cidadãos (`getEloquentQuery`). Backfill seguro (quem tem `pessoas.user_id` **e sem papel** → `cidadao`; Master/Manager/analistas intactos).
 
 ---
 
 #### B13 — [Parte C] Histórico Cartográfico (antes/depois) na Auditoria
 **Item PoC:** 044
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído · **Concluído em:** 2026-07-02
 
-> Base já existente: `Lote` usa `LogsActivity` e a `AuditoriaPage` existe — mas o `logOnly()` do `Lote` **não inclui `geo`**, então a geometria antiga não é gravada hoje.
-
-- No `LogsActivity` do `Lote`, incluir o campo `geo` no log de alterações (salvar GeoJSON antigo em `properties.old.geo`)
-- Na `AuditoriaPage`, quando a operação for `updated` e envolver o campo `geo`:
-  - Exibir dois mini-mapas lado a lado (Antes / Depois) com a geometria renderizada
-  - Usar OpenLayers leve embutido no modal de detalhes
+> O `geo` do `Lote` não é um atributo "dirty" comum (setter `DB::raw`, accessor `geo_json`), então **não dava** para só adicionar ao `logOnly`. Solução: no `booted()` do `Lote`, hook `updating` captura o **GeoJSON antigo** (`ST_AsGeoJSON`), e `updated` — quando a geometria muda — registra uma **atividade dedicada** ("Geometria do lote alterada") com `properties.old.geo_json` + `properties.attributes.geo_json`.
+>
+> Na `AuditoriaPage`: o componente Alpine `auditoriaGeoMaps` (OpenLayers, registrado no load da página) renderiza **2 mini-mapas Antes/Depois** no modal de detalhes quando a atividade tem `geo_json` (estilos inline; a geometria sai da tabela de campos). ⚠️ Render dos mapas precisa de validação visual no navegador.
 
 ---
 

@@ -81,13 +81,26 @@ Each `Tenant` has a `modules` JSON column. Active module strings map to resource
 - **`public/js/gis/mapa-engine.js`**: The main interactive map JS engine (Leaflet-based), used by the internal Filament map page.
 - **`public/js/gis/mapa-cidadao-engine.js`**: Simplified citizen-facing public map.
 - **`MapaFullscreen` page** ([app/Filament/Pages/MapaFullscreen.php](app/Filament/Pages/MapaFullscreen.php)): Livewire-powered Filament page that hosts the map. Logic is split into ~21 traits in `app/Filament/Pages/Traits/Has*Actions.php`, one per GIS entity type.
-- **`SecaoLogradouro`** ([app/Models/SecaoLogradouro.php](app/Models/SecaoLogradouro.php)): LINESTRING/MULTILINESTRING entity — sections of a street with `tipo_pavimentacao` and cached `extensao_geo`. Accessible via `LogradouroResource` RelationManager tab ("Seções") and via standalone `SecaoLogradouroResource`. Map layer `secoes_logradouro` (violet dashed, z=52, minZoom=15). Permission gate: `ver_camada_secoes_logradouro`.
+- **`SecaoLogradouro`** ([app/Models/SecaoLogradouro.php](app/Models/SecaoLogradouro.php)): LINESTRING/MULTILINESTRING entity — sections of a street with `tipo_pavimentacao` and cached `extensao_geo`. Accessible via `LogradouroResource` RelationManager tab ("Seções") and via standalone `SecaoLogradouroResource`. Map layer `secoes_logradouro` (violet dashed, z=52, minZoom=15). **Dois gates distintos:** camada do mapa = `ver_camada_secoes_logradouro`; recurso CRUD (Policy `SecaoLogradouroPolicy`) = `gerenciar_secoes_logradouro`.
+
+> **Gate de recurso via Policy (importante):** um Resource **sem Policy** fica visível para qualquer usuário (o `HasTenantModule::canAccess()` só filtra por módulo; sem Policy o Gate libera por padrão). Todo Resource novo que apareça no menu precisa de `app/Policies/{Model}Policy.php` + permissão no `PermissionsSeeder` + checkbox na `RoleResource` + whitelist no `EditRole::mutateFormDataBeforeFill`. Recursos gated por permissão única "gerenciar": `AreaReurbResource` (`gerenciar_areas_reurb`), `SecaoLogradouroResource` (`gerenciar_secoes_logradouro`), `ViabilidadeEmissaoResource` (view-only, `view_viabilidade_emissoes`).
 
 ### Filament Panel Structure
 
 - **Admin panel** ([app/Filament/Admin/](app/Filament/Admin/)): Super-admin area, manages tenants. Accessible at `/admin`.
 - **App panel** ([app/Filament/](app/Filament/)): Tenant-scoped area with all GIS resources. Accessible at `/app`.
+- **Cidadão panel** ([app/Filament/Cidadao/](app/Filament/Cidadao/)): Public-facing citizen area (auto-registration, digital processes). Accessible at `/cidadao`.
 - Resources follow standard Filament structure: `app/Filament/Resources/XxxResource.php` + `Pages/` subfolder.
+
+#### Distinção Prefeitura × Cidadão (`users.tipo`)
+
+Coluna `users.tipo` = `prefeitura` | `cidadao` separa a **equipe** do **cidadão** (auto-cadastro). Regras:
+
+- **Acesso:** `User::canAccessPanel()` bloqueia o `cidadao` no painel `app` (`return !$this->isCidadao()` para o painel `app`). O painel `cidadao` fica aberto.
+- **Registro (fluxo "prefeitura primeiro"):** `RegisterCidadao` grava `tipo='cidadao'` (+ cria/vincula `Pessoa`); `RegisterPrefeitura` (`/app/register`, self-cadastro de equipe sem papel) grava `tipo='prefeitura'`. Ambos usam o trait [`HasTenantFirstRegistration`](app/Filament/Concerns/HasTenantFirstRegistration.php): **passo 1** = escolher a prefeitura (só aparece se a URL não trouxer `?prefeitura={slug}`); ao continuar, redireciona para a mesma rota com `?prefeitura={slug}` e cai no **passo 2** (dados do usuário, prefeitura fixada da URL, `tenant_id` vem de `$this->tenantSelecionadoId` — não do form). A URL com slug é **compartilhável** (ex.: link no site oficial da prefeitura cai direto nos dados). Ex.: `/cidadao/register?prefeitura=prefeitura-de-santa-cecilia`.
+- **Equipe (UserResource):** filtro `tipo` **default `prefeitura`** — cidadãos ficam ocultos por padrão, mas o admin pode trocar o filtro para vê-los. Coluna **Tipo** (badge) + ação **Tornar Equipe / Tornar Cidadão** (não permite rebaixar a si mesmo) corrigem classificação sem SQL.
+- **Sinal confiável (backfill legado):** usuário **sem nenhum papel = cidadão** (toda a equipe tem papel). É o critério do backfill em `2026_07_02_100012_add_tipo_to_users_table.php` — pega cidadãos antigos e novos. Em produção, revise `SELECT id,name,email FROM users WHERE tipo='cidadao'` após o `migrate`.
+- **Exclusão = soft delete:** `User` usa `SoftDeletes` (coluna `deleted_at`). Excluir na Equipe marca `deleted_at` em vez de apagar a linha — evita violar as FKs `RESTRICT` das tabelas de histórico que referenciam `users` (`processo_tramitacoes`, `processo_respostas`, `processo_anexos`, `pessoas`, `mensagens`…). O usuário some das listas e do login (escopo global), mas o histórico segue resolvível: relações que precisam exibir o nome de um usuário possivelmente excluído usam `->withTrashed()` (ex.: `ProcessoTramitacao::responsavel()`).
 
 ### API (Mobile Sync)
 
@@ -135,7 +148,8 @@ Faz upsert em `unidades_imobiliarias.dados_tributarios` por `inscricao_imobiliar
 - The `tenant.data` JSON column stores freeform config (logo, brand color `#rrggbb`, `map_lat`, `map_lon`, `map_zoom`).
 - API controllers use `$request->user()->tenants()->first()->id` for tenant isolation (no global scope in API layer).
 - `cadastrador_locations` table: upsert por `user_id` — um registro por usuário, atualizado a cada ping GPS.
-- Activity log (`spatie/laravel-activitylog`) instalado. Models logados: `Lote`, `Edificacao`, `Quadra`, `Logradouro`, `Pessoa`. Para logar um novo model, adicionar o trait `LogsActivity` + definir `$recordEvents` e `logOnly([...])`.
+- Activity log (`spatie/laravel-activitylog`) instalado. Models logados: `Lote`, `Edificacao`, `Quadra`, `Logradouro`, `Bairro`, `Pessoa`. Para logar um novo model, adicionar o trait `LogsActivity` + definir `$recordEvents` e `logOnly([...])`.
+- **Histórico cartográfico** (croqui Antes/Depois na Auditoria): trait [`LogsGeometryChanges`](app/Traits/LogsGeometryChanges.php) registra uma atividade dedicada (`old`/`attributes` com `geo_json`) sempre que a coluna `geo` muda. Aplicado em `Lote`, `Quadra`, `Bairro`. Como `LogsActivity`+`logOnlyDirty` não vê a coluna `geo` (raw PostGIS), este trait é o que faz a **alteração de geometria** aparecer na Auditoria. Requer accessor `geo_json` + `setGeoAttribute`; sobrescreva `geometryLogLabel()` para o rótulo. Para incluir outra entidade GIS (Logradouro, Loteamento, Zona, PerímetroUrbano…), basta adicionar o trait ao model.
 
 ---
 
@@ -365,7 +379,8 @@ A `Planta de Quadra` (`pdf.planta-quadra`) exibe a área da quadra (`$quadra->ar
 - Colunas: Data/Hora · Usuário · Operação (badge criado/atualizado/excluído) · Entidade · ID
 - Filtros: tipo de operação (select) e período (date range)
 - Ação "Ver detalhes": modal com tabela Antes/Depois dos campos alterados
-- Models com log ativo: `Lote`, `Edificacao`, `Quadra`, `Logradouro`, `Pessoa`
+- Models com log ativo: `Lote`, `Edificacao`, `Quadra`, `Logradouro`, `Bairro`, `Pessoa`
+- Alteração de **geometria** (croqui Antes/Depois) via trait `LogsGeometryChanges` em `Lote`, `Quadra`, `Bairro`
 
 #### Monitoramento de Campo (`app/Filament/Pages/MonitoramentoCampoPage.php`)
 

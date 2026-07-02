@@ -75,6 +75,12 @@ class AuditoriaPage extends Page implements HasTable
 
             Tables\Columns\TextColumn::make('description')
                 ->label('Descrição')
+                ->formatStateUsing(fn(?string $state) => match ($state) {
+                    'created' => 'Criado',
+                    'updated' => 'Atualizado',
+                    'deleted' => 'Excluído',
+                    default   => $state,
+                })
                 ->limit(60),
         ];
     }

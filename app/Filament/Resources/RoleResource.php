@@ -313,6 +313,10 @@ class RoleResource extends Resource
                                         'create_zonas' => 'Criar Zonas',
                                         'edit_zonas' => 'Editar Zonas',
                                         'delete_zonas' => 'Excluir Zonas',
+
+                                        // Extras do módulo (permissão única "gerenciar" por entidade)
+                                        'gerenciar_areas_reurb' => 'Gerenciar Áreas REURB',
+                                        'gerenciar_secoes_logradouro' => 'Gerenciar Seções de Logradouro',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(4),
@@ -453,6 +457,7 @@ class RoleResource extends Resource
                                         'create_parametros_urbanos'  => 'Criar Parâmetros de Loteamento',
                                         'edit_parametros_urbanos'    => 'Editar Parâmetros de Loteamento',
                                         'delete_parametros_urbanos'  => 'Excluir Parâmetros de Loteamento',
+                                        'view_viabilidade_emissoes'  => 'Ver Histórico de Emissões',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(2),

@@ -3,51 +3,50 @@
 namespace App\Filament\Cidadao\Pages\Auth;
 
 use Filament\Pages\Auth\Register as BaseRegister;
-use Filament\Forms\Components\Select;
+use App\Filament\Concerns\HasTenantFirstRegistration;
 use Filament\Forms\Components\TextInput;
 use Filament\Support\RawJs;
-use App\Models\Tenant;
 use App\Models\Pessoa;
 use Illuminate\Database\Eloquent\Model;
 
 class RegisterCidadao extends BaseRegister
 {
+    use HasTenantFirstRegistration;
+
     protected function getForms(): array
     {
+        // Passo 1: escolher a prefeitura. Passo 2 (prefeitura já na URL): dados do cidadão.
+        $schema = $this->prefeituraDefinida()
+            ? [
+                $this->faixaPrefeituraSelecionada(),
+                $this->getNameFormComponent(),
+                $this->getEmailFormComponent(),
+
+                // CPF e telefone alimentam a Pessoa vinculada (não são colunas de users).
+                // Necessários aos itens 136/147/214/219. Ver processosConceito.md §9.1.
+                TextInput::make('cpf')
+                    ->label('CPF')
+                    ->required()
+                    ->mask('999.999.999-99')
+                    ->maxLength(14),
+                TextInput::make('telefone')
+                    ->label('Telefone / Celular')
+                    ->required()
+                    // Máscara híbrida: 8 dígitos (fixo) ou 9 dígitos (celular) — item 5
+                    ->mask(RawJs::make(<<<'JS'
+                        $input.length > 14 ? '(99) 99999-9999' : '(99) 9999-9999'
+                        JS))
+                    ->maxLength(20),
+
+                $this->getPasswordFormComponent(),
+                $this->getPasswordConfirmationFormComponent(),
+            ]
+            : $this->passoSelecaoPrefeitura();
+
         return [
             'form' => $this->form(
                 $this->makeForm()
-                    ->schema([
-                        $this->getNameFormComponent(),
-                        $this->getEmailFormComponent(),
-
-                        // CPF e telefone alimentam a Pessoa vinculada (não são colunas de users).
-                        // Necessários aos itens 136/147/214/219. Ver processosConceito.md §9.1.
-                        TextInput::make('cpf')
-                            ->label('CPF')
-                            ->required()
-                            ->mask('999.999.999-99')
-                            ->maxLength(14),
-                        TextInput::make('telefone')
-                            ->label('Telefone / Celular')
-                            ->required()
-                            // Máscara híbrida: 8 dígitos (fixo) ou 9 dígitos (celular) — item 5
-                            ->mask(RawJs::make(<<<'JS'
-                                $input.length > 14 ? '(99) 99999-9999' : '(99) 9999-9999'
-                                JS))
-                            ->maxLength(20),
-
-                        $this->getPasswordFormComponent(),
-                        $this->getPasswordConfirmationFormComponent(),
-
-                        // O NOSSO CAMPO NOVO AQUI!
-                        Select::make('tenant_id')
-                            ->label('Selecione sua Cidade / Prefeitura')
-                            ->options(Tenant::pluck('name', 'id'))
-                            ->required()
-                            ->searchable()
-                            ->helperText('Esta informação é necessária para vincularmos seus processos à prefeitura correta.'),
-                    ])
+                    ->schema($schema)
                     ->statePath('data'),
             ),
         ];
@@ -55,11 +54,14 @@ class RegisterCidadao extends BaseRegister
 
     protected function handleRegistration(array $data): Model
     {
-        // 1. Isolamos os campos que NÃO pertencem à tabela 'users'
-        $tenantId = $data['tenant_id'];
+        // A prefeitura vem da URL (passo 1), não do formulário.
+        $tenantId = $this->tenantSelecionadoId;
         $cpf = $data['cpf'] ?? null;
         $telefone = $data['telefone'] ?? null;
-        unset($data['tenant_id'], $data['cpf'], $data['telefone']);
+        unset($data['cpf'], $data['telefone']);
+
+        // Marca como CIDADÃO — não pode acessar o painel da prefeitura nem aparecer na Equipe.
+        $data['tipo'] = 'cidadao';
 
         // 2. Criamos o Usuário normalmente (Padrão do Filament)
         $user = parent::handleRegistration($data);

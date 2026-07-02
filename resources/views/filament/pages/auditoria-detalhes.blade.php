@@ -1,3 +1,26 @@
+@php
+    $props = $activity->properties;
+    $atributos = $props->get('attributes', []);
+    $antes = $props->get('old', []);
+
+    // Histórico cartográfico (B13): a geometria é mostrada em mini-mapas, não na tabela.
+    $geoAntigo = $antes['geo_json'] ?? null;
+    $geoNovo = $atributos['geo_json'] ?? null;
+    $temGeo = !empty($geoAntigo) || !empty($geoNovo);
+
+    // Campos "normais" (sem a geometria) para a tabela Antes/Depois
+    $camposTabela = collect($atributos)->except('geo_json');
+
+    // Operação em português (traduz o "created"/"updated"/"deleted" padrão do Spatie)
+    $operacaoBruta = $activity->description ?: $activity->event;
+    $operacaoLabel = match ($operacaoBruta) {
+        'created' => 'Criado',
+        'updated' => 'Atualizado',
+        'deleted' => 'Excluído',
+        default   => $operacaoBruta,
+    };
+@endphp
+
 <div class="space-y-4 text-sm">
     <div class="grid grid-cols-2 gap-4">
         <div>
@@ -14,11 +37,11 @@
         </div>
         <div>
             <span class="font-semibold text-gray-500">Operação:</span>
-            <span class="ml-2">{{ $activity->event }}</span>
+            <span class="ml-2">{{ $operacaoLabel }}</span>
         </div>
     </div>
 
-    @if($activity->properties->isNotEmpty())
+    @if($camposTabela->isNotEmpty())
         <div class="mt-4">
             <span class="font-semibold text-gray-500">Campos alterados:</span>
             <div class="mt-2 overflow-auto rounded border border-gray-200 dark:border-gray-700">
@@ -31,15 +54,35 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($activity->properties->get('attributes', []) as $campo => $valorNovo)
+                        @foreach($camposTabela as $campo => $valorNovo)
                             <tr class="border-t border-gray-200 dark:border-gray-700">
                                 <td class="px-3 py-2 font-mono text-gray-600">{{ $campo }}</td>
-                                <td class="px-3 py-2 text-red-500">{{ $activity->properties->get('old', [])[$campo] ?? '—' }}</td>
-                                <td class="px-3 py-2 text-green-600">{{ $valorNovo }}</td>
+                                <td class="px-3 py-2 text-red-500">{{ $antes[$campo] ?? '—' }}</td>
+                                <td class="px-3 py-2 text-green-600">{{ is_scalar($valorNovo) ? $valorNovo : json_encode($valorNovo) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
+            </div>
+        </div>
+    @endif
+
+    @if($temGeo)
+        {{-- Croqui do Lote — Antes / Depois (item 044) --}}
+        <div style="margin-top:12px;">
+            <div class="font-semibold text-gray-500" style="margin-bottom:6px;">Croqui do Lote — Antes / Depois:</div>
+            <div wire:ignore
+                 x-data="auditoriaGeoMaps({ antigo: @js($geoAntigo), novo: @js($geoNovo) })"
+                 x-init="boot()"
+                 style="display:flex; gap:12px; width:100%;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:11px; font-weight:700; color:#dc2626; margin-bottom:4px;">Antes</div>
+                    <div x-ref="mapaAntigo" style="width:100%; height:220px; border:1px solid #e5e7eb; border-radius:8px; background:#f3f4f6; overflow:hidden; position:relative;"></div>
+                </div>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:11px; font-weight:700; color:#16a34a; margin-bottom:4px;">Depois</div>
+                    <div x-ref="mapaNovo" style="width:100%; height:220px; border:1px solid #e5e7eb; border-radius:8px; background:#f3f4f6; overflow:hidden; position:relative;"></div>
+                </div>
             </div>
         </div>
     @endif

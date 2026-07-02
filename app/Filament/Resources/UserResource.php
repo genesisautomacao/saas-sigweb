@@ -98,6 +98,14 @@ class UserResource extends Resource
                     ->searchable()
                     ->sortable(),
 
+                // Tipo do usuário: Prefeitura (equipe) x Cidadão (auto-cadastro, sem acesso ao painel)
+                Tables\Columns\TextColumn::make('tipo')
+                    ->label('Tipo')
+                    ->badge()
+                    ->formatStateUsing(fn(?string $state) => $state === 'cidadao' ? 'Cidadão' : 'Prefeitura')
+                    ->color(fn(?string $state) => $state === 'cidadao' ? 'warning' : 'success')
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Criado em')
                     ->dateTime('d/m/Y H:i')
@@ -111,11 +119,42 @@ class UserResource extends Resource
                     ->label('Filtrar por Papel')
                     ->preload()
                     ->multiple(), // Permite selecionar mais de um papel no filtro
+
+                // Por padrão a Equipe mostra só a prefeitura; troque para ver/gerenciar cidadãos.
+                Tables\Filters\SelectFilter::make('tipo')
+                    ->label('Tipo de usuário')
+                    ->options([
+                        'prefeitura' => 'Prefeitura (equipe)',
+                        'cidadao'    => 'Cidadão',
+                    ])
+                    ->default('prefeitura'),
             ])
             // ITEM 4: Ações em um menu de 3 pontinhos (ActionGroup)
             ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\EditAction::make(),
+
+                    // Converte Prefeitura <-> Cidadão. Cidadão não acessa o painel `app`.
+                    Tables\Actions\Action::make('converter_tipo')
+                        ->label(fn(\App\Models\User $record) => $record->tipo === 'cidadao' ? 'Tornar Equipe' : 'Tornar Cidadão')
+                        ->icon('heroicon-o-arrows-right-left')
+                        ->color(fn(\App\Models\User $record) => $record->tipo === 'cidadao' ? 'success' : 'warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Alterar tipo de usuário')
+                        ->modalDescription(fn(\App\Models\User $record) => $record->tipo === 'cidadao'
+                            ? 'O usuário passará a ser da EQUIPE e poderá acessar o painel administrativo. Lembre-se de atribuir um papel de acesso.'
+                            : 'O usuário passará a ser CIDADÃO e perderá o acesso ao painel administrativo.')
+                        // Não permite rebaixar a si mesmo (evita perder o próprio acesso).
+                        ->hidden(fn(\App\Models\User $record) => $record->id === \Filament\Facades\Filament::auth()->id())
+                        ->action(function (\App\Models\User $record) {
+                            $record->tipo = $record->tipo === 'cidadao' ? 'prefeitura' : 'cidadao';
+                            $record->save();
+                            \Filament\Notifications\Notification::make()
+                                ->success()
+                                ->title('Tipo atualizado')
+                                ->body($record->tipo === 'cidadao' ? 'Usuário agora é Cidadão.' : 'Usuário agora é da Equipe (Prefeitura).')
+                                ->send();
+                        }),
 
                     Tables\Actions\DeleteAction::make()
                         // 1. Esconde o botão excluir individual se o ID da linha for o mesmo do usuário logado
