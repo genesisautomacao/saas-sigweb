@@ -2194,6 +2194,17 @@ document.addEventListener("DOMContentLoaded", function () {
             return; // Encerra o clique aqui, impedindo que abra qualquer ficha ou modal
         }
 
+        // 💰 PGV: capturar ponto para criar Amostra/Pólo (itens 225/227)
+        if (window.pgvCliqueModo) {
+            const coord = ol.proj.toLonLat(evt.coordinate);
+            const modo = window.pgvCliqueModo;
+            window.pgvCliqueModo = null;
+            map.getTargetElement().style.cursor = "";
+            const evento = modo === "polo" ? "pgv-clique-polo" : "pgv-clique-amostra";
+            Livewire.dispatch(evento, { lon: coord[0], lat: coord[1] });
+            return;
+        }
+
         // 📐 AZIMUTES: capturar ponto inicial clicando no mapa (item PoC 046)
         if (window.azimutePickStart) {
             const coord = ol.proj.toLonLat(evt.coordinate);
@@ -5617,6 +5628,89 @@ document.addEventListener("DOMContentLoaded", function () {
     window.addEventListener("limpar-preview-pgv", () =>
         previewPgvSource.clear(),
     );
+
+    // ── MOTOR DA PGV: faces de quadra coloridas por valor (item 235) ──
+    const pgvFacesSource = new ol.source.Vector();
+    let pgvFacesRange = { min: 0, max: 1 };
+    const pgvFacesLayer = new ol.layer.Vector({
+        source: pgvFacesSource,
+        style: function (feature) {
+            const v = feature.get("valor") || 0;
+            const t =
+                pgvFacesRange.max > pgvFacesRange.min
+                    ? (v - pgvFacesRange.min) / (pgvFacesRange.max - pgvFacesRange.min)
+                    : 0.5;
+            // gradiente azul (baixo) → amarelo → vermelho (alto)
+            const r = Math.round(255 * Math.min(1, t * 2));
+            const g = Math.round(255 * (1 - Math.abs(t - 0.5) * 2));
+            const b = Math.round(255 * Math.min(1, (1 - t) * 2));
+            return new ol.style.Style({
+                stroke: new ol.style.Stroke({ color: `rgb(${r},${g},${b})`, width: 6 }),
+                text: new ol.style.Text({
+                    text: "R$ " + v.toLocaleString("pt-BR", { maximumFractionDigits: 0 }),
+                    font: "bold 11px Arial",
+                    placement: "line",
+                    fill: new ol.style.Fill({ color: "#111827" }),
+                    stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                    overflow: true,
+                }),
+            });
+        },
+        zIndex: 10003,
+    });
+    map.addLayer(pgvFacesLayer);
+
+    window.addEventListener("pgv-mostrar-faces", (e) => {
+        const faces = e.detail[0] || e.detail.dados || e.detail;
+        pgvFacesSource.clear();
+        if (!Array.isArray(faces) || faces.length === 0) return;
+        const valores = faces.map((f) => f.valor).filter((v) => v != null);
+        pgvFacesRange = { min: Math.min(...valores), max: Math.max(...valores) };
+        const gj = new ol.format.GeoJSON();
+        faces.forEach((f) => {
+            if (!f.geo) return;
+            try {
+                pgvFacesSource.addFeature(
+                    new ol.Feature({
+                        geometry: gj.readGeometry(f.geo, {
+                            dataProjection: "EPSG:4326",
+                            featureProjection: "EPSG:3857",
+                        }),
+                        valor: f.valor,
+                        code: f.code,
+                    }),
+                );
+            } catch (err) {
+                console.error("Erro face PGV", err);
+            }
+        });
+        if (pgvFacesSource.getFeatures().length > 0) {
+            map.getView().fit(pgvFacesSource.getExtent(), { padding: [60, 60, 60, 60], maxZoom: 18, duration: 700 });
+        }
+    });
+    window.addEventListener("limpar-faces-pgv", () => pgvFacesSource.clear());
+
+    // Clique para criar Amostra (225) / Pólo (227)
+    window.pgvIniciarClique = function (tipo) {
+        window.pgvCliqueModo = tipo; // 'amostra' | 'polo'
+        map.getTargetElement().style.cursor = "crosshair";
+    };
+
+    // Desenhar Face de Quadra (233) — LineString
+    window.pgvIniciarDesenhoFace = function () {
+        window.resetToPan();
+        map.getTargetElement().style.cursor = "crosshair";
+        const draw = new ol.interaction.Draw({ source: drawSource, type: "LineString" });
+        window.currentDrawInteraction = draw;
+        draw.on("drawend", function (ev) {
+            const gj = formatGeoJSON.writeGeometryObject(ev.feature.getGeometry());
+            setTimeout(() => drawSource.clear(), 400);
+            map.removeInteraction(draw);
+            window.resetToPan();
+            Livewire.dispatch("pgv-desenho-face", { geoJson: gj });
+        });
+        map.addInteraction(draw);
+    };
 
     // ── CAMADA DO MARCADOR DE BUSCA (PIN LARANJA) ──────────────────
     const searchPinSource = new ol.source.Vector();

@@ -65,11 +65,13 @@ Each `Tenant` has a `modules` JSON column. Active module strings map to resource
 | `estoque` | Estabelecimento, LocalEstoque, TipoEstoque, Fabricante, Marca, Fornecedor, FamíliaProduto, UnidadeMedida, Embalagem, Produto, LoteEstoque (lote/série), OperaçãoInterna, Estoque (saldo), Movimentações |
 | `manutencao` | Solicitações, Ordens de Serviço |
 | `cemiterio` | Cemitérios, QuadrasCemitério, Jazigos |
-| `pgv` | PGV Parâmetros, SetorFiscal |
+| `pgv` | PGV Parâmetros, SetorFiscal, LoteValorHistórico + **Avaliação em Massa** (PgvAmostra, PgvPolo, PgvCub, PgvDepreciação, FaceQuadra, PgvConfiguração) |
 | `rural` | RuralLocalidade, RuralPropriedade, Estradas, Hidrografia, Pontes |
 | `patrimonio` | TipoPatrimônio, PatrimônioPúblico |
 | `social` | Pessoa-Social, CadastroSocial (Família), TipoRenda, TipoEntidade, Entidade, ServiçoSocial, Programa, Evento, InformaçãoSocial, Empreendimento, Painel Social |
 | `bpmn` | BpmnFluxo, ProcessoDigital |
+
+> **Processos Digitais (BPMN) — material de estudo:** [processosConceito.md](processosConceito.md) — o motor de processos é **único e configurável por fluxos BPMN**: "Aprovação de Projeto" (XIII), "Habite-se" (XIV) e "REURB" (XVIII) são **fluxos-semente do mesmo motor**, não módulos separados. Documenta a arquitetura do **fluxo híbrido** (cada `BpmnEtapa` declara `executor` [solicitante|analista] + formulário próprio; respostas por etapa em `processo_respostas`; roteamento livre via tramitação), o vínculo **User↔Pessoa** (`pessoas.user_id`), a entidade **`Setor`** (swimlanes) e o plano de execução em ondas. Ler antes de mexer no motor de processos.
 
 ### GIS / Mapping
 
@@ -497,6 +499,53 @@ Após confronto com `check_final.pdf`, status final:
 > 4. **Acesso por página administrativa:** permissões individuais (`view_auditoria`, `view_monitoramento_campo`, `view_produtividade`, `view_mensagens`) controlam acesso a Pages Filament via `canAccess()`.
 >
 > Ou seja: na leitura ampla, **#88 está atendido**. Sob a leitura estrita (controlar campos EAV criados dinamicamente pelo gestor — item #75), depende de refactor arquitetural fora do escopo PoC.
+
+---
+
+## PGV — Avaliação em Massa / Planta Genérica de Valores (Sprint C1, itens 225–243)
+
+Motor de avaliação em massa que estende o simulador PGV simples (área × valor m²) com regressão linear, cálculo por face de quadra e simulação de IPTU. Módulo `pgv`, grupo Filament **"Gestão Tributária (PGV)"**.
+
+> **Material de estudo:** [pgvConceito.md](pgvConceito.md) — documento conceitual do módulo (a ideia central, os 3 estágios do cálculo, glossário item-a-item do menu "Gestão Tributária (PGV)" com o papel de cada cadastro na conta, quadro-resumo, onde os resultados aparecem ligados ao lote e as lacunas conhecidas). Ler antes de mexer no motor PGV.
+
+### Entidades (todas `BelongsToTenant` + `HasTenantSequentialId` + `SoftDeletes`, exceto `PgvConfiguracao`)
+
+| Model | Tabela | Geo | Papel |
+|---|---|---|---|
+| `PgvAmostra` | `pgv_amostras` | POINT | Amostra de mercado (valor m² observado, idade, conservação, tipologia, áreas, `espuria` bool, `lote_id` opcional) |
+| `PgvPolo` | `pgv_polos` | POINT | Pólo valorizante — referência de distância para a regressão |
+| `PgvCub` | `pgv_cubs` | — | Tabela CUB por tipologia/estrutura/padrão (coeficiente + valor m²) |
+| `PgvDepreciacao` | `pgv_depreciacoes` | — | Faixas de depreciação por estado de conservação × faixa de idade |
+| `FaceQuadra` | `face_quadras` | MULTILINESTRING | Face de quadra (linear), desenhada no mapa; guarda saída do cálculo (`valor_m2_calculado`, `distancia_polo`, `pgv_polo_id`, `setor_fiscal_id`) |
+| `PgvConfiguracao` | `pgv_configuracoes` | — | 1 registro/tenant — `fatores` JSON (homogeneização), `lote_paradigma_id`, `percentual_valor_venal`, `limite_aumento_iptu` |
+
+### Services (`app/Services/Pgv/`)
+
+- **`PgvRegressaoService`** — `calcular($tenantId)`: distância de cada amostra não-espúria ao pólo mais próximo (`ST_Distance(::geography)`), regressão por mínimos quadrados `valor_m2 = a + b·distancia`, retorna `pontos` + `equacao{a,b,r2,n}`. `toggleEspuria($tenantId,$amostraId)` marca espúria e recalcula (itens 230–232).
+- **`PgvFaceCalculoService`** — `recalcularTodas($tenantId)`: para cada face, distância ao pólo mais próximo (KNN `<->`), setor via `ST_LineInterpolatePoint` no ponto médio, aplica `a + b·dist × fatorGlobal` → grava `valor_m2_calculado` (itens 233–234).
+- **`PgvSimulacaoIptuService`** — `simular($tenantId, $params)`: valor venal por lote (valor da face mais próxima com fallback para parâmetro do setor + edificação), IPTU simulado = valorVenal × %venal × alíquota, com limitador vs. `dados_tributarios.valor_total_imposto` (IPTU atual). Retorna `linhas` + `totais` (itens 237–243).
+- **`PgvFaceExportService`** — Excel/PDF/XML das faces (código, quadra, logradouro, zona, extensão, valor) — item 236.
+
+### Integração no mapa (`MapaFullscreen`)
+
+Trait **`HasPgvMotorActions`** (Livewire listeners `#[On]`): `rodarRegressaoPgv`, `toggleEspuriaPgv`, `calcularFacesPgv` (dispatch `pgv-mostrar-faces`), `criarAmostraPgvAction`/`criarPoloPgvAction` (clique único no mapa), `criarFacePgvAction` (desenho LineString), `simularIptuAction` (modal → service → dispatch `pgv-simulacao-resultado`).
+
+No menu **Ferramentas** (fora da janela de camadas): **Motor da PGV** (painel flutuante Alpine com Chart.js scatter + linha de tendência + R², botões rodar/calcular faces/simular), **Nova Amostra**, **Novo Pólo**, **Nova Face**. `mapa-engine.js`: camada `pgvFacesLayer` colore faces por `valor_m2_calculado` (gradiente), `window.pgvIniciarClique(tipo)` e `window.pgvIniciarDesenhoFace()`.
+
+### Permissões
+
+`gerenciar_pgv_amostras`, `gerenciar_pgv_polos`, `gerenciar_pgv_cubs`, `gerenciar_pgv_depreciacoes`, `gerenciar_face_quadras` (permissão única "gerenciar" por entidade, Policy auto-descoberta). Configuráveis na CAIXA 18b "PGV — Avaliação em Massa" da `RoleResource`; grupo `permissions_pgv_avaliacao` em Create/EditRole. Master/Manager têm bypass via `Gate::before`.
+
+### Dados de demonstração (PoC)
+
+`PgvExemploSeeder` popula um cenário completo ancorado em geometria real do tenant (pólo no centro da malha de lotes, 10 amostras em lotes reais com valor/m² decaindo pela distância + 1 outlier no meio da faixa para demonstrar "remover espúria", tabela CUB, depreciação, 12 faces nas bordas de 3 quadras reais, config) e roda os motores para as faces já aparecerem coloridas. Idempotente (pula tenant que já tem amostras).
+
+```bash
+# Alvo por slug (recomendado):
+PGV_SEED_TENANT=prefeitura-de-santa-cecilia php artisan db:seed --class=PgvExemploSeeder
+# Sem slug: todos os tenants com módulo 'pgv' + lotes com geometria
+php artisan db:seed --class=PgvExemploSeeder
+```
 
 ---
 

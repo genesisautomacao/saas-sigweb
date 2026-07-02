@@ -9,17 +9,19 @@
 
 ## Contadores de Conformidade PoC Nova Esperança do Sul
 
-**Progresso real (atualizado 2026-07-01): ~203/260 ≈ 78%**
+**Progresso real (atualizado 2026-07-01): ~222/260 ≈ 85%**
 - ✅ **Sprint A completo:** A1–A14 concluídos (22 itens PoC)
-- 🔄 **Sprint B:** B1, B2, B3, B4, B5, B6 concluídos (26 itens PoC) — B7–B18 pendentes
+- 🔄 **Sprint B:** B1, B2, B3, B4, B5, B6 concluídos (26 itens PoC) — B7–B18 pendentes (ver **🔧 Reorganização do Sprint B** abaixo: Parte A = Processo Digital, Parte B = App de Chamados a arquitetar, Parte C = transversais)
+- ✅ **Sprint C1 completo (PGV):** itens 225–243 concluídos (19 itens PoC)
 
 | Marco | Itens cobertos | % acumulado | Status |
 |-------|---------------|-------------|--------|
 | Baseline | ~155/260 | ~60% | — |
 | + Sprint A (A1–A14) | ~177/260 | ~68% | ✅ concluído |
-| + Sprint B (B1–B6) | **~203/260** | **~78%** | 🔄 em andamento |
-| Meta Sprint B completo | ~212/260 | ~82% | ⏳ |
-| Meta Sprint C1 (PGV) | ~234/260 | **~90%** | ⏳ |
+| + Sprint B (B1–B6) | ~203/260 | ~78% | 🔄 em andamento |
+| + Sprint C1 (PGV 225–243) | **~222/260** | **~85%** | ✅ concluído |
+| Meta Sprint B completo | ~231/260 | ~89% | ⏳ |
+| Meta 90% (B completo + C1) | ~234/260 | **~90%** | ⏳ (falta B7–B18) |
 | Projeção final (C2–C5) | ~251/260 | ~97% | ⏳ |
 
 > **Itens concluídos por sprint:**
@@ -367,59 +369,105 @@ A ferramenta de numeração predial foi ampliada:
 
 ---
 
-#### B7 — Categorias do App de Chamados (pai/filho, cor, ícone, privada)
+### 🔧 Reorganização do Sprint B (correção de escopo — 2026-07-01)
+
+> **Correção importante.** O recorte inicial de B7–B10 confundia sistemas distintos. Registro aqui a separação correta antes de executar. São **quatro sistemas independentes** — nunca misturar:
+>
+> 1. **Processo Digital** — fluxo BPMN definido pela prefeitura (tipo de processo, etapas e formulários customizados por etapa). O cidadão abre o pedido no **painel `cidadao`** ([ProcessoDigitalResource](app/Filament/Cidadao/Resources/ProcessoDigitalResource.php)); o analista tramita no painel `app`. **Já existe e funciona.** → alvo da **Parte A**. Itens TR 120–148, 205–224.
+> 2. **Solicitação de Manutenção** — poste/árvore → Ordem de Serviço, no **painel `app`, restrito à prefeitura**. **Já existe.** **NÃO é o app de chamados** — não estender esta entidade para chamados. Itens TR 060–090.
+> 3. **App de Chamados do Cidadão** — reclamações gerais de fins diversos (mato na rua, buraco, árvore caída, etc.). **Ainda não arquitetado, nem backend nem frontend.** → **Parte B** (greenfield, exige sessão de design própria). Módulo XV do TR, itens 149–174.
+> 4. **App dos Fiscais / Recadastramento Imobiliário (CTM em campo)** — já existe, a aprimorar depois (Sprint C4). Itens TR 190–204.
+>
+> **Agrupamento do Sprint B restante:**
+> - **Parte A (Processo Digital / BPMN / REURB — sistema existente):** B14, B16, B17, B18, B11, B15. Escopo claro, baixo risco. **Prioridade.**
+> - **Parte B (App de Chamados — a arquitetar):** B7, B8, B9, B10. **Re-escopados**: deixaram de "estender `SolicitacaoManutencao`" (premissa errada). Cobrem o Módulo XV inteiro (149–174) — inclusive subitens hoje órfãos: 149–154 (fluxo/fases: cor, aviso, duração em min, ordem, fase de encerramento, boletim), 160–161 (filtros), 164 (detalhes), 167 (alterar fase), 172 (ver respostas do boletim), 173 (fotos). Alvo da PoC WEB = **backend + gestão WEB no painel prefeitura**; o app mobile em si está fora do escopo deste repo.
+> - **Parte C (transversais):** B12, B13.
+
+---
+
+### 🏗️ Motor de Processos Digitais — Fundação Híbrida (Onda 0) — PRÉ-REQUISITO da Parte A
+
+**Estudo completo e arquitetura:** [processosConceito.md](processosConceito.md).
+**Decisão-chave:** os "módulos" XIII (Aprovação de Projeto), XIV (Habite-se) e XVIII (REURB) **não são sistemas separados** — são **fluxos-semente do mesmo motor BPMN**. Não duplicar código por tipo de processo.
+
+Antes de executar B11/B14/B16/B17/B18, é preciso a **Onda 0** (base do motor híbrido — `processosConceito.md` §10). **Status: ✅ Concluído · Concluído em: 2026-07-02**
+
+- [x] **`pessoas.user_id`** (FK nullable + índice único `(tenant_id, user_id)`) + `RegisterCidadao` pede CPF/telefone e cria/vincula `Pessoa` no tenant (dedup por CPF, `tenant_id` explícito) — resolve dados do requerente (214/136/147/219). §9.1
+- [x] **`BpmnFluxo`** `+ perfis_autorizados` (121/207) `+ exige_imovel` (§9.5) — expostos no `BpmnFluxoResource`
+- [x] **Entidade `Setor`** (`setores`, model + `SetorResource`/`ListSetores` + `SetorPolicy` + permissão `gerenciar_setores`) — base das swimlanes (206). §9.6
+- [x] **`BpmnEtapa`** `+ executor` (solicitante|analista) `+ setor_id` `+ ordem` — expostos no `EtapasRelationManager`. §9.2
+- [x] **`processo_respostas`** (tabela + model `ProcessoResposta`) — respostas por etapa, sem sobrescrever. §9.2
+- [x] **Estado `aguardando_solicitante`** no `ProcessoDigital` — valor de string (sem migration); em uso na **Onda 1** ao rotear o processo de volta ao cidadão.
+
+> **Follow-up da Onda 0 — ✅ resolvido (2026-07-02):** `PermissionsSeeder` rodado; `gerenciar_setores`, `view_todos_processos` e `view_processos_progresso` adicionadas à CAIXA 16 (Processos Digitais) da `RoleResource` (+ pré-marcação no `EditRole`). Master/Manager mantêm bypass via `Gate::before`.
+> Depois da Onda 0 vêm as ondas 1–4 do §10 do `processosConceito.md`, que absorvem B11/B14/B16/B17/B18.
+
+---
+
+#### B7 — [Parte B] App de Chamados do Cidadão: Categorias (pai/filho, cor, ícone, privada)
 **Itens PoC:** 155, 156, 157, 158, 159
-**Status:** ⏳ Pendente
+**Status:** ⏳ Pendente — **bloqueado por design** (Sistema 3 ainda não arquitetado)
+
+> ⚠️ Pertence ao **App de Chamados do Cidadão** (Sistema 3), **não** à Solicitação de Manutenção. Exige antes uma sessão de design da entidade `Chamado` (fluxo de trabalho, fases, categorias, mensagens, boletim, geolocalização de abertura pelo cidadão).
 
 - Migration: tabela `categorias_chamado` (`id`, `tenant_id`, `nome`, `cor` hex, `icone` path, `pai_id` FK self-referencing, `privada` bool)
-- `CategoriaChamadoResource` com árvore pai/filho no Filament
-- Adicionar `categoria_chamado_id` FK em `SolicitacaoManutencao`
-- Categorias privadas: visíveis apenas para usuários com role `fiscal` ou superior
-- Endpoints API: `GET /api/categorias-chamado` (respeitando privacidade)
+- `CategoriaChamadoResource` com árvore pai/filho no Filament (painel prefeitura)
+- Vincular `categoria_chamado_id` FK à futura entidade `Chamado` (**não** ao `SolicitacaoManutencao`)
+- Categorias privadas: visíveis apenas para usuários com role `fiscal` ou superior (item 159/189)
+- Endpoints API para o futuro app: `GET /api/categorias-chamado` (respeitando privacidade)
 
 ---
 
-#### B8 — Notificações de Mudança de Categoria e Fase
+#### B8 — [Parte B] App de Chamados: Notificações de Mudança de Categoria e Fase
 **Itens PoC:** 166, 168
-**Status:** ⏳ Pendente
+**Status:** ⏳ Pendente — **depende de B7** (entidade `Chamado` + conceito de fase)
 
-- Criar Events: `CategoriaAlterada`, `FaseAlterada` em `SolicitacaoManutencao`
-- Listener: dispara `ExpoPushService` para o cidadão (se tiver `expo_push_token`)
+> Pertence ao **App de Chamados** (Sistema 3). Pressupõe que a entidade `Chamado` tenha categoria, fases e vínculo com o cidadão (para o `expo_push_token`). Hoje isso não existe (`SolicitacaoManutencao` só tem `solicitante_nome` string, sem FK de usuário).
+
+- Criar Events: `CategoriaChamadoAlterada`, `FaseChamadoAlterada`
+- Listener: dispara `ExpoPushService` para o cidadão autor (se tiver `expo_push_token`)
 - Mensagem push:
-  - Categoria: "Sua solicitação #{id} teve a categoria alterada para {nova_categoria}"
-  - Fase: "Sua solicitação #{id} avançou para a fase: {nova_fase}"
+  - Categoria: "Seu chamado #{id} teve a categoria alterada para {nova_categoria}"
+  - Fase: "Seu chamado #{id} avançou para a fase: {nova_fase}"
 
 ---
 
-#### B9 — Mensagens Públicas ao Cidadão por Solicitação
+#### B9 — [Parte B] App de Chamados: Mensagens Públicas/Privadas por Chamado
 **Itens PoC:** 169, 170, 171
-**Status:** ⏳ Pendente
+**Status:** ⏳ Pendente — **depende de B7** (entidade `Chamado`)
 
-- Adicionar `solicitacao_manutencao_id` (FK nullable) e `publica` (bool) ao model `Mensagem`
+> Pertence ao **App de Chamados** (Sistema 3). O model `Mensagem` atual é **user↔user** (`remetente_id`/`destinatario_id`) — servirá de referência, mas as mensagens do chamado precisam de vínculo próprio + flag pública/privada.
+
+- Vincular mensagens ao `Chamado` (FK `chamado_id`) + flag `publica` (bool). Privada = comunicação interna da prefeitura, invisível ao cidadão (item 170)
 - Endpoints API:
-  - `GET /api/solicitacoes/{id}/mensagens` — lista mensagens da solicitação (público: apenas públicas; interno: todas)
-  - `POST /api/solicitacoes/{id}/mensagens` — envia mensagem (body: `{texto, publica}`)
-- Enviar Expo push quando `publica = true` (mesmo após solicitação finalizada — item 171)
-- Na `MensagensPage` do Filament: exibir mensagens agrupadas por solicitação
+  - `GET /api/chamados/{id}/mensagens` — público vê só públicas; interno vê todas
+  - `POST /api/chamados/{id}/mensagens` — body `{texto, publica}`
+- Enviar Expo push quando `publica = true`, **mesmo após o chamado finalizado** (item 171)
+- Na gestão WEB (painel prefeitura): exibir mensagens agrupadas por chamado
 
 ---
 
-#### B10 — Impressão da Solicitação com Mapa, Mensagens, Questionário e Histórico
+#### B10 — [Parte B] App de Chamados: Impressão do Chamado (mapa, mensagens, boletim, histórico)
 **Item PoC:** 174
-**Status:** ⏳ Pendente
+**Status:** ⏳ Pendente — **depende de B7 + B9**
 
-Criar `SolicitacaoManutencaoPdfService` com template blade contendo:
-- Mini-mapa com localização do asset (mesma lógica do A4)
-- Dados básicos da solicitação
-- Questionário/boletim respondido (se houver)
+> Pertence ao **App de Chamados** (Sistema 3). Reaproveita o `StaticMapService` (A4) para o mini-mapa.
+
+Criar `ChamadoPdfService` com template blade contendo:
+- Mini-mapa com o ponto de abertura do chamado (mesma lógica do A4/`StaticMapService`)
+- Dados básicos do chamado
+- Questionário/boletim respondido (se houver — item 172)
 - Mensagens públicas
-- Histórico de fases (tramitações com data/responsável)
+- Histórico de fases (com data/responsável)
 
 ---
 
-#### B11 — Mapa REURB por Etapa + Dashboard de Progresso
+#### B11 — [Parte A] Mapa REURB por Etapa + Dashboard de Progresso
 **Itens PoC:** 223, 224
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído (Onda 4) · **Concluído em:** 2026-07-02
+
+> **223 (mapa):** `MapDataController` expõe `processo_etapa_cor/nome` por lote (agora para todos os status em trânsito, não só `em_andamento`); o toggle "Colorir por Etapa" + legenda já existiam no `mapa-engine.js`/blade. O lote é pintado pela `cor_mapa` da `etapa_atual` do processo.
+> **224 (dashboard):** nova `ReurbProgressoPage` (grupo Processos Digitais, permissão `view_processos_progresso`) — cards (total/em andamento/aguardando/correção/concluídos/%) + gráfico de barras por etapa (cor da etapa) + filtro por fluxo + poll 60s.
 
 **Mapa por etapa (223):**
 - Adicionar `processo_digital_id` e `etapa_atual` ao `AreaReurb` (atualizado na tramitação)
@@ -434,9 +482,11 @@ Criar `SolicitacaoManutencaoPdfService` com template blade contendo:
 
 ---
 
-#### B12 — Tela de Cadastro para Usuário da Prefeitura (sem necessitar autorização de gerente)
+#### B12 — [Parte C] Tela de Cadastro para Usuário da Prefeitura (sem necessitar autorização de gerente)
 **Item PoC:** 011
-**Status:** ⏳ Pendente
+**Status:** ⏳ Pendente — **confirmar escopo**
+
+> O auto-registro do cidadão já existe (`RegisterCidadao` no painel `cidadao`), o que cobre 011 na leitura básica. Confirmar com o cliente se o item exige um fluxo **separado** de usuário-prefeitura aguardando promoção do Manager (abaixo) ou se o registro do cidadão basta.
 
 - Criar rota pública ou semi-pública `/app/{tenant}/cadastro-usuario`
 - Formulário: nome, email, senha (sem seleção de permissões)
@@ -445,9 +495,11 @@ Criar `SolicitacaoManutencaoPdfService` com template blade contendo:
 
 ---
 
-#### B13 — Histórico Cartográfico (antes/depois) na Auditoria
+#### B13 — [Parte C] Histórico Cartográfico (antes/depois) na Auditoria
 **Item PoC:** 044
 **Status:** ⏳ Pendente
+
+> Base já existente: `Lote` usa `LogsActivity` e a `AuditoriaPage` existe — mas o `logOnly()` do `Lote` **não inclui `geo`**, então a geometria antiga não é gravada hoje.
 
 - No `LogsActivity` do `Lote`, incluir o campo `geo` no log de alterações (salvar GeoJSON antigo em `properties.old.geo`)
 - Na `AuditoriaPage`, quando a operação for `updated` e envolver o campo `geo`:
@@ -456,20 +508,29 @@ Criar `SolicitacaoManutencaoPdfService` com template blade contendo:
 
 ---
 
-#### B14 — Seleção de Imóvel no Mapa dentro do Formulário de Processo
+#### B14 — [Parte A] Seleção de Imóvel no Mapa dentro do Formulário de Processo
 **Itens PoC:** 130, 221
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído (Onda 2) · **Concluído em:** 2026-07-02
 
-- Componente Filament/Livewire reutilizável: mapa clicável dentro do formulário de processo
-- Ao clicar em lote: preenche automaticamente campos:
-  - `lote_id`, `numero_cadastro_imobiliario`, `inscricao_imobiliaria`, `localizacao_texto`
-- Usar nos processos: Aprovação de Projeto (130), REURB Digital (221) e Habite-se (item análogo)
+> Cidadão vê os dados do imóvel selecionado (número do lote, quadra, loteamento, localização, inscrição e cadastro imobiliário) via Placeholder reativo; analista vê a mesma ficha no `ViewProcessoDigital`. Resolve via `ProcessoFormService::dadosImovel()`. Respeita `BpmnFluxo.exige_imovel`. Ver `processosConceito.md` §10 (Onda 2).
+
+> ✅ **Já existe:** o `ProcessoDigitalResource` do painel cidadão tem o Wizard Step "Localização (Mapa)" com o `ViewField` `filament.forms.components.mapa-selecao-lote`, que ao clicar no lote grava `lote_id` no processo. Funciona para qualquer fluxo (Aprovação de Projeto, REURB, Habite-se).
+>
+> ⏳ **Falta:** ao selecionar o lote, **exibir/persistir** os dados exigidos pelo item 130 — número do cadastro imobiliário, inscrição imobiliária e localização — trazidos do lote/unidade imobiliária. Hoje só o `lote_id` é vinculado; os demais campos não são mostrados ao solicitante.
+
+- Enriquecer o componente `mapa-selecao-lote` para, após o clique, buscar e exibir: nº cadastro imobiliário, inscrição imobiliária e localização textual (item 130)
+- Persistir esses dados no processo (ou resolvê-los via relação `lote` no momento da visualização)
+- Confirmar que o mesmo componente atende REURB Digital (221) — mesmo fluxo (REURB pede também loteamento/quadra/nº do lote)
+
+> 🏗️ **Motor híbrido:** executado na **Onda 2** ([processosConceito.md](processosConceito.md) §10, item 10), respeitando a flag `BpmnFluxo.exige_imovel` (§9.5).
 
 ---
 
-#### B15 — Anotação em PDF de Documentos do Processo
+#### B15 — [Parte A] Anotação em PDF de Documentos do Processo
 **Item PoC:** 222
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído (Onda 4) · **Concluído em:** 2026-07-02
+
+> Editor `processos/anotar-pdf` (PDF.js + Fabric.js + jsPDF) via `ProcessoAnexoController` (rotas `processo-anexo.anotar`/`salvar`). Salva uma **cópia versionada** (`processo_anexos.versao` + `anexo_origem_id`) sem sobrescrever o original. Botão "✏️ Anotar" nos PDFs do `ViewProcessoDigital`. ⚠️ Interação de navegador (desenhar/salvar) precisa de validação visual.
 
 - Integrar PDF.js + Fabric.js (ou similar) na view de anexos do processo
 - Usuário pode adicionar anotações (texto, setas, destaques) sobre o PDF
@@ -478,19 +539,33 @@ Criar `SolicitacaoManutencaoPdfService` com template blade contendo:
 
 ---
 
-#### B16 — Enforcement: Correções Somente em Fases Reprovadas
+#### B16 — [Parte A] Enforcement: Correções Somente em Fases Reprovadas
 **Itens PoC:** 129, 220
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído (Onda 1) · **Concluído em:** 2026-07-02
 
-- No `ProcessoDigital`, bloquear edição dos campos do formulário quando `status != 'reprovado'`
+> Implementado no motor híbrido: o form do cidadão só é editável quando `status ∈ {rascunho, pendente_correcao, aguardando_solicitante}` (`ProcessoDigitalResource::podeEditar` + `disabled()` nos campos e anexos); a `EditAction` só aparece nesses estados. Ver `processosConceito.md` §10 (Onda 1, item 8).
+
+> ✅ **Já existe:** o `EditProcessoDigital` (cidadão) devolve o processo para o analista ao salvar (`pendente_correcao → em_andamento`) e grava tramitação; o `ProcessoDigitalResource` mostra o aviso vermelho "Processo Devolvido para Correção" com o motivo do parecer.
+>
+> ⏳ **Falta:** **bloquear a edição** dos campos do formulário quando `status != 'pendente_correcao'` (hoje o cidadão consegue editar mesmo sem reprovação). Ou seja, o enforcement do item 129/220.
+
+- No form do processo (cidadão), tornar os campos `disabled` quando `status != 'pendente_correcao'`
 - Exibir mensagem clara: "Edição disponível apenas após parecer reprovado nesta fase"
-- Aplicar tanto na view do analista quanto na view do solicitante/cidadão
+- Confirmar o mesmo comportamento na view do analista
+
+> 🏗️ **Motor híbrido:** executado na **Onda 1** ([processosConceito.md](processosConceito.md) §10, item 8), junto com a renderização do formulário da etapa atual.
 
 ---
 
-#### B17 — Seeders de Fluxos BPMN Pré-configurados
+#### B17 — [Parte A] Seeders de Fluxos BPMN Pré-configurados
 **Itens PoC:** 138–148 (Habite-se), 205 (REURB)
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído (Onda 4) · **Concluído em:** 2026-07-02
+
+> `ProcessoFluxoExemploSeeder` cria Setores + 3 fluxos (Aprovação de Projeto, Habite-se/Atestado, REURB) com o motor híbrido completo (etapas com `executor`/`setor_id`/`ordem`, formulários por etapa, `exige_imovel`). Idempotente. `php artisan db:seed --class=ProcessoFluxoExemploSeeder`.
+
+> Base já existente: models `BpmnFluxo` + `BpmnEtapa` (com `campos_formulario` JSON e `perfis_autorizados`) prontos. Falta só popular os fluxos-modelo.
+>
+> 🏗️ **Motor híbrido:** executado na **Onda 4** ([processosConceito.md](processosConceito.md) §10, item 15). Os seeds usam todo o motor híbrido (etapas com `executor`/`setor_id`, `exige_imovel`, formulários por etapa) — são a materialização de XIII/XIV/XVIII como fluxos, não módulos.
 
 Criar seeders com fluxos pré-configurados:
 
@@ -502,28 +577,43 @@ Cada seeder cria o `BpmnFluxo` com etapas, formulários e perfis autorizados.
 
 ---
 
-#### B18 — Swimlanes por Setor/Departamento no BPMN
+#### B18 — [Parte A] Swimlanes por Setor/Departamento no BPMN
 **Item PoC:** 206
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído (Onda 4) · **Concluído em:** 2026-07-02
 
-- Adicionar campo `setor_departamento` nas etapas (`BpmnEtapa`)
+> Entidade `Setor` (Onda 0) + `BpmnEtapa.setor_id`. O `EtapasRelationManager` agrupa as etapas por Setor (swimlanes) com colunas executor/setor/ordem; a Caixa de Entrada do analista filtra por Setor da etapa atual.
+
+- ~~Adicionar campo `setor_departamento` nas etapas~~ → **substituído** pela entidade `Setor` + `BpmnEtapa.setor_id` (criados na Onda 0, decisão #6)
 - Exibir agrupamento visual por setor no editor BPMN (swimlanes/pools)
 - Filtrar no gerenciamento de processos por setor responsável
 
----
-
-**Total Sprint B: ~39 itens PoC cobertos**
+> 🏗️ **Motor híbrido:** executado na **Onda 4** ([processosConceito.md](processosConceito.md) §10, item 14). Usa a FK `BpmnEtapa.setor_id` → `setores` já criada na Onda 0.
 
 ---
 
-## Sprint C1 — PGV Completo (Semanas 7–9)
-> Módulo crítico: 19 itens (7% da conformidade). Atingir os 90% ao concluir este sprint.
+**Total Sprint B: ~39 itens PoC cobertos** — divididos em **Parte A** (Processo Digital/BPMN/REURB, sistema existente: B11, B14, B15, B16, B17, B18), **Parte B** (App de Chamados, a arquitetar: B7–B10) e **Parte C** (transversais: B12, B13).
+
+---
+
+## ~~Sprint C1 — PGV Completo (Semanas 7–9)~~ ✅ CONCLUÍDO
+> **Status: ✅ Concluído** — **Concluído em:** 2026-07-01
+> Módulo crítico: 19 itens (7% da conformidade). Cobre 225–243 → sistema em ~85%; os 90% dependem de fechar B7–B18.
+>
+> **Entregue:** 6 entidades (`PgvAmostra`, `PgvPolo`, `PgvCub`, `PgvDepreciacao`, `FaceQuadra`, `PgvConfiguracao`) + 5 Resources CRUD; services `PgvRegressaoService` (mínimos quadrados, R², espúrias), `PgvFaceCalculoService` (KNN pólo → valor/face), `PgvSimulacaoIptuService` (alíquota/%venal/limitador), `PgvFaceExportService` (Excel/PDF/XML); integração no mapa via trait `HasPgvMotorActions` (Motor da PGV no menu Ferramentas: regressão Chart.js, coloração de faces, simulação IPTU) + desenho de amostras/pólos/faces; 5 permissões `gerenciar_*` na CAIXA 18b da `RoleResource`. Documentado em `CLAUDE.md`.
+> **Seed de demonstração:** `PgvExemploSeeder` (`PGV_SEED_TENANT=<slug> php artisan db:seed --class=PgvExemploSeeder`).
+> **Material de estudo:** [pgvConceito.md](pgvConceito.md) — conceito do motor, glossário do menu "Gestão Tributária (PGV)", quadro-resumo, onde os resultados ligam ao lote e lacunas conhecidas (motor novo só mostra totais; falta descer ao lote na UI + conectar CUB/Depreciação no valor da edificação).
+
+**Melhorias identificadas (backlog PGV, pós-C1 — registrar antes de executar):**
+- Renderizar a **tabela por-lote** no modal de simulação do Motor PGV (o `PgvSimulacaoIptuService` já retorna `linhas`; falta só o blade).
+- **Homologar** a simulação da regressão em `LoteValorHistorico` (reaproveitar `homologarPgvAction`), unificando com o fluxo do simulador simples.
+- Aba **"Valores Venais (PGV)"** (RelationManager de `LoteValorHistorico`) + coluna de valor venal vigente no `LoteResource`, para ver o resultado abrindo o lote.
+- Conectar **CUB × Depreciação × área** no valor da edificação da simulação (hoje usa `valor_m2_edificacao` do Parâmetro do Setor).
 
 ---
 
 #### C1-F1 — PGV: Amostras, Polos Valorizantes, CUB e Depreciação
 **Itens PoC:** 225, 226, 227, 228, 229
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído (2026-07-01)
 
 **Migration:**
 - `pgv_amostras`: `id`, `tenant_id`, `lote_id` FK nullable, `geo` POINT, `valor_m2`, `idade_aparente`, `estado_conservacao`, `tipologia`, `estrutura`, `padrao_construcao`, `area_terreno`, `area_edificacao`, `observacao`, `espuria` bool
@@ -541,7 +631,7 @@ Cada seeder cria o `BpmnFluxo` com etapas, formulários e perfis autorizados.
 
 #### C1-F2 — PGV: Cálculo, Regressão Linear e Homogeneização
 **Itens PoC:** 230, 231, 232, 233, 234
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído (2026-07-01)
 
 **`PgvCalculoService`:**
 - Fórmula de homogeneização: configurável via JSON (fatores multiplicadores por atributo)
@@ -555,7 +645,7 @@ Cada seeder cria o `BpmnFluxo` com etapas, formulários e perfis autorizados.
 
 #### C1-F3 — PGV: Visualização no Mapa, Relatório e Simulação IPTU
 **Itens PoC:** 235, 236, 237, 238, 239, 240, 241, 242, 243
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído (2026-07-01)
 
 **Mapa (235):**
 - Layer `pgv_faces_quadra` no mapa com coloração por valor calculado (gradiente de cor)
@@ -573,7 +663,7 @@ Cada seeder cria o `BpmnFluxo` com etapas, formulários e perfis autorizados.
 
 ---
 
-**Total Sprint C1: +19 itens PoC cobertos → META 90% ATINGIDA**
+**Total Sprint C1: +19 itens PoC cobertos → ~222/260 ≈ 85%** (os 90% dependem de concluir B7–B18)
 
 ---
 

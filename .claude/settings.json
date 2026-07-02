@@ -51,7 +51,9 @@
       "Bash(where ogr2ogr *)",
       "Bash(ogr2ogr --version)",
       "Bash(node --check \"c:\\\\laragon\\\\www\\\\saas-sigweb\\\\public\\\\js\\\\gis\\\\mapa-engine.js\")",
-      "Bash(grep -c '$request->query\\(' 'c:\\\\laragon\\\\www\\\\saas-sigweb\\\\app\\\\Http\\\\Controllers\\\\Api\\\\MapDataController.php')"
+      "Bash(grep -c '$request->query\\(' 'c:\\\\laragon\\\\www\\\\saas-sigweb\\\\app\\\\Http\\\\Controllers\\\\Api\\\\MapDataController.php')",
+      "PowerShell(php 'C:\\\\Users\\\\jesse\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--laragon-www-saas-sigweb\\\\52f63d32-cc09-4894-9fe8-3133f608aaea\\\\scratchpad\\\\boot_pdf2.php')",
+      "PowerShell(php -l app/Services/Processo/ProcessoFormService.php)"
     ]
   }
 }

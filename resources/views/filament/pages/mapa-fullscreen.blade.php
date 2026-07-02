@@ -534,10 +534,31 @@
                                     </button>
 
                                     <button wire:click="mountAction('configurarPgvAction')" @click="openTools = false"
-                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors border-b border-gray-100 pb-3 mb-1">
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-banknotes class="w-4 h-4 text-emerald-500" /> Simulador de
                                         Valores
                                         (PGV)
+                                    </button>
+
+                                    <button @click="openTools = false; window.dispatchEvent(new Event('abrir-motor-pgv'))"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
+                                        <x-heroicon-o-calculator class="w-4 h-4 text-emerald-600" /> Motor da PGV
+                                        (Avaliação em Massa)
+                                    </button>
+
+                                    <button @click="openTools = false; window.pgvIniciarClique('amostra')"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 transition-colors">
+                                        <x-heroicon-o-map-pin class="w-4 h-4 text-emerald-500" /> Nova Amostra (clique)
+                                    </button>
+
+                                    <button @click="openTools = false; window.pgvIniciarClique('polo')"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 transition-colors">
+                                        <x-heroicon-o-star class="w-4 h-4 text-amber-500" /> Novo Pólo Valorizante (clique)
+                                    </button>
+
+                                    <button @click="openTools = false; window.pgvIniciarDesenhoFace()"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 transition-colors border-b border-gray-100 pb-3 mb-1">
+                                        <x-heroicon-o-view-columns class="w-4 h-4 text-emerald-500" /> Nova Face de Quadra (desenho)
                                     </button>
 
                                     <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
@@ -1056,6 +1077,130 @@
                 O polígono é fechado automaticamente. Ao enviar, ajuste se quiser e clique em <b>Salvar</b> na barra da Mesa de Desenho para criar o artefato.
             </p>
         </div>
+
+        {{-- PAINEL: MOTOR DA PGV (avaliação em massa — itens 230–243) --}}
+        <div x-data="{
+                aberto: false,
+                eq: null,
+                pontos: [],
+                chart: null,
+                sim: null,
+                init() {
+                    window.addEventListener('abrir-motor-pgv', () => { this.aberto = true; });
+                    window.addEventListener('pgv-regressao-resultado', (e) => {
+                        const d = e.detail[0] || e.detail.dados || e.detail;
+                        this.eq = d.equacao; this.pontos = d.pontos || [];
+                        this.$nextTick(() => this.renderChart());
+                    });
+                    window.addEventListener('pgv-simulacao-resultado', (e) => {
+                        const d = e.detail[0] || e.detail.dados || e.detail;
+                        this.sim = d;
+                    });
+                },
+                rodar() { Livewire.dispatch('pgv-rodar-regressao'); },
+                calcularFaces() { Livewire.dispatch('pgv-calcular-faces'); },
+                toggleEspuria(id) { Livewire.dispatch('pgv-toggle-espuria', { amostraId: id }); },
+                brl(v) { return 'R$ ' + Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}); },
+                renderChart() {
+                    if (typeof Chart === 'undefined' || !this.$refs.chart) return;
+                    const pts = this.pontos.map(p => ({ x: p.distancia, y: p.valor, esp: p.espuria }));
+                    const linha = [];
+                    if (this.eq && pts.length) {
+                        const xs = pts.map(p => p.x);
+                        const minX = Math.min(...xs), maxX = Math.max(...xs);
+                        linha.push({ x: minX, y: this.eq.a + this.eq.b * minX });
+                        linha.push({ x: maxX, y: this.eq.a + this.eq.b * maxX });
+                    }
+                    if (this.chart) this.chart.destroy();
+                    this.chart = new Chart(this.$refs.chart, {
+                        data: {
+                            datasets: [
+                                { type: 'scatter', label: 'Amostras', data: pts.filter(p=>!p.esp), backgroundColor: '#10b981' },
+                                { type: 'scatter', label: 'Espúrias', data: pts.filter(p=>p.esp), backgroundColor: '#ef4444' },
+                                { type: 'line', label: 'Tendência', data: linha, borderColor: '#6366f1', borderWidth: 2, pointRadius: 0, fill: false },
+                            ]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            scales: { x: { title: { display: true, text: 'Distância ao pólo (m)' } }, y: { title: { display: true, text: 'Valor m² (R$)' } } },
+                            plugins: { legend: { labels: { boxWidth: 10, font: { size: 10 } } } },
+                        },
+                    });
+                },
+                fechar() { this.aberto = false; window.dispatchEvent(new Event('limpar-faces-pgv')); }
+            }"
+            x-show="aberto" x-cloak
+            style="display:none; position: fixed; top: 70px; right: 16px; z-index: 9999; width: 360px; max-height: 88vh; overflow-y: auto;"
+            class="bg-white dark:bg-gray-800 shadow-2xl rounded-xl border-2 border-emerald-500 p-4 flex flex-col gap-3">
+
+            <div class="flex items-center justify-between">
+                <span class="font-bold text-sm text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                    <x-heroicon-o-calculator class="w-4 h-4 text-emerald-600" /> Motor da PGV
+                </span>
+                <button type="button" @click="fechar()" class="text-gray-400 hover:text-gray-600"><x-heroicon-o-x-mark class="w-4 h-4" /></button>
+            </div>
+
+            {{-- 1. Regressão --}}
+            <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-bold text-gray-600 dark:text-gray-300">1. Regressão (valor × distância)</span>
+                    <button type="button" @click="rodar()" class="text-[11px] font-bold text-emerald-600 hover:text-emerald-700">Rodar</button>
+                </div>
+                <div style="height: 160px;"><canvas x-ref="chart"></canvas></div>
+                <div class="text-[11px] text-gray-600 dark:text-gray-300 mt-1" x-show="eq">
+                    <span x-show="!eq">—</span>
+                    <template x-if="eq">
+                        <div>
+                            valor = <b x-text="eq && eq.a"></b> + (<b x-text="eq && eq.b"></b> × dist) ·
+                            R² = <b x-text="eq && eq.r2"></b> · n = <b x-text="eq && eq.n"></b>
+                        </div>
+                    </template>
+                </div>
+                <div class="mt-1 max-h-24 overflow-y-auto flex flex-col gap-0.5" x-show="pontos.length">
+                    <template x-for="p in pontos" :key="p.amostra_id">
+                        <button type="button" @click="toggleEspuria(p.amostra_id)"
+                            class="flex justify-between text-[10px] px-1 py-0.5 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
+                            :class="p.espuria ? 'text-red-500 line-through' : 'text-gray-600 dark:text-gray-300'">
+                            <span x-text="'#' + p.amostra_id + ' · ' + p.distancia + 'm'"></span>
+                            <span x-text="brl(p.valor) + (p.espuria ? ' (espúria)' : '')"></span>
+                        </button>
+                    </template>
+                    <span class="text-[9px] text-gray-400">Clique numa amostra para marcar/desmarcar espúria.</span>
+                </div>
+            </div>
+
+            {{-- 2. Faces --}}
+            <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 flex items-center justify-between">
+                <span class="text-xs font-bold text-gray-600 dark:text-gray-300">2. Calcular faces de quadra</span>
+                <button type="button" @click="calcularFaces()" class="text-[11px] font-bold text-emerald-600 hover:text-emerald-700">Calcular & Colorir</button>
+            </div>
+
+            {{-- 3. IPTU --}}
+            <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-bold text-gray-600 dark:text-gray-300">3. Simular IPTU</span>
+                    <button type="button" wire:click="mountAction('simularIptuAction')" class="text-[11px] font-bold text-emerald-600 hover:text-emerald-700">Abrir Simulação</button>
+                </div>
+                <template x-if="sim">
+                    <div class="text-[11px] text-gray-600 dark:text-gray-300">
+                        <div>Lotes: <b x-text="sim.totais.lotes"></b> · Valor venal: <b x-text="brl(sim.totais.valor_venal)"></b></div>
+                        <div>IPTU atual: <b x-text="brl(sim.totais.iptu_atual)"></b></div>
+                        <div>IPTU simulado: <b class="text-emerald-600" x-text="brl(sim.totais.iptu_simulado)"></b>
+                            <span x-text="'(' + (sim.totais.variacao_pct ?? '—') + '%)'"></span></div>
+                    </div>
+                </template>
+            </div>
+
+            <p class="text-[10px] text-gray-400 leading-tight">
+                Fluxo: cadastre pólo + amostras (Ferramentas) → Rodar regressão → Calcular faces → Simular IPTU.
+            </p>
+        </div>
+
+        @once
+            @push('scripts')
+            <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+            @endpush
+        @endonce
 
         {{-- BARRA FLUTUANTE DE REVISÃO DA PGV --}}
         <div x-data="{ previewPgv: @entangle('previewPgvAtivo') }" x-show="previewPgv"

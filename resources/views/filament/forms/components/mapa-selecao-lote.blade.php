@@ -6,7 +6,7 @@
     <div
         wire:ignore
         x-data="mapaSelecaoLote({
-            state: $wire.$entangle('{{ $getStatePath() }}'),
+            state: $wire.$entangle('{{ $getStatePath() }}').live,
             tenantId: {{ $tenant->id ?? 1 }},
             centerLat: {{ $tenant->data['map_lat'] ?? -29.51 }}, 
             centerLon: {{ $tenant->data['map_lon'] ?? -51.34 }},
@@ -18,7 +18,29 @@
 
         <div class="rounded-xl border-2 border-gray-300 dark:border-gray-700 bg-gray-100 overflow-hidden shadow-sm relative">
             <div x-ref="mapContainer" style="width: 100%; height: 400px; cursor: crosshair;"></div>
-            
+
+            {{-- Barra de busca (nº do lote / código tributário / endereço) — voa e seleciona o lote.
+                 Estilos inline de propósito: não dependem do CSS do painel (Tailwind arbitrário
+                 não é compilado aqui) e ficam SEMPRE acima do mapa (z-index alto). --}}
+            <div style="position:absolute; top:12px; left:56px; z-index:1000; width:min(400px, calc(100% - 72px));">
+                <div style="position:relative;">
+                    <input type="text" x-model="busca" @input.debounce.400ms="buscar()"
+                        placeholder="Buscar por nº do lote, código tributário ou endereço..."
+                        style="width:100%; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px; background:#ffffff; padding:9px 12px; font-size:13px; color:#111827; box-shadow:0 2px 6px rgba(0,0,0,.18); outline:none;" />
+                    <div x-show="resultados.length > 0" x-transition @click.outside="resultados = []"
+                        style="position:absolute; margin-top:4px; width:100%; max-height:220px; overflow:auto; border:1px solid #e5e7eb; border-radius:8px; background:#ffffff; box-shadow:0 6px 16px rgba(0,0,0,.2); z-index:1001;">
+                        <template x-for="(r, i) in resultados" :key="i">
+                            <button type="button" @click="selecionarBusca(r)"
+                                style="display:block; width:100%; text-align:left; padding:8px 12px; border:0; border-bottom:1px solid #f3f4f6; background:transparent; cursor:pointer;"
+                                onmouseover="this.style.background='#ecfdf5'" onmouseout="this.style.background='transparent'">
+                                <span style="display:block; font-size:13px; font-weight:600; color:#1f2937;" x-text="r.titulo"></span>
+                                <span style="display:block; font-size:11px; color:#6b7280;" x-text="r.subtitulo"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
             <div x-show="state" x-transition class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-full font-bold shadow-lg text-sm flex items-center gap-2">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                 Imóvel Selecionado!
@@ -33,6 +55,35 @@
                 state: config.state,
                 map: null,
                 vectorLayer: null,
+                busca: '',
+                resultados: [],
+
+                // Autocomplete usando o MESMO endpoint do mapa público (nº do lote, código
+                // tributário, inscrição, endereço, edifício). Modo publico=1 (sem dados sensíveis).
+                buscar() {
+                    const q = (this.busca || '').trim();
+                    if (q.length < 2) { this.resultados = []; return; }
+                    fetch(`/api/search-lote?tenant_id=${config.tenantId}&termo=${encodeURIComponent(q)}&publico=1`)
+                        .then(r => r.json())
+                        .then(data => { this.resultados = Array.isArray(data) ? data : []; })
+                        .catch(() => { this.resultados = []; });
+                },
+
+                // Ao escolher: voa/zoom até o resultado (padrão do mapa público) e, se for um
+                // lote/edifício, já SELECIONA o lote para o processo.
+                selecionarBusca(res) {
+                    this.resultados = [];
+                    this.busca = '';
+                    if (!res || !Array.isArray(res.coords)) return;
+
+                    const target = ol.proj.fromLonLat([res.coords[0], res.coords[1]]);
+                    this.map.getView().animate({ center: target, zoom: 20, duration: 1500 });
+
+                    if (res.id && (res.tipo === 'lote' || res.tipo === 'edificio')) {
+                        this.state = res.id;
+                        if (this.vectorLayer) this.vectorLayer.changed();
+                    }
+                },
 
                 init() {
                     const vectorSource = new ol.source.Vector({

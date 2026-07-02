@@ -46,6 +46,7 @@ class EditRole extends EditRecord
         $data['permissions_bpmn'] = array_values(array_intersect($permissions, [
             'view_bpmn_fluxos', 'create_bpmn_fluxos', 'edit_bpmn_fluxos', 'delete_bpmn_fluxos',
             'view_processos_digitais', 'create_processos_digitais', 'edit_processos_digitais', 'delete_processos_digitais',
+            'gerenciar_setores', 'view_todos_processos', 'view_processos_progresso',
         ]));
 
         $data['permissions_viabilidade'] = array_values(array_intersect($permissions, [
@@ -59,6 +60,7 @@ class EditRole extends EditRecord
             'view_setores_fiscais', 'create_setores_fiscais', 'edit_setores_fiscais', 'delete_setores_fiscais',
             'view_lote_valor_historicos', 'create_lote_valor_historicos', 'edit_lote_valor_historicos', 'delete_lote_valor_historicos',
         ]));
+        $data['permissions_pgv_avaliacao'] = array_values(array_intersect($permissions, ['gerenciar_pgv_amostras', 'gerenciar_pgv_polos', 'gerenciar_pgv_cubs', 'gerenciar_pgv_depreciacoes', 'gerenciar_face_quadras']));
 
         $data['permissions_administracao'] = array_values(array_intersect($permissions, [
             'view_auditoria', 'view_monitoramento_campo', 'view_produtividade',
@@ -104,6 +106,7 @@ class EditRole extends EditRecord
         $bpmnData            = $data['permissions_bpmn'] ?? [];
         $viabilidadeData     = $data['permissions_viabilidade'] ?? [];
         $pgvData             = $data['permissions_pgv'] ?? [];
+        $pgvAvalData         = $data['permissions_pgv_avaliacao'] ?? [];
         $administracaoData   = $data['permissions_administracao'] ?? [];
         $mapaCamadasData     = $data['permissions_mapa_camadas'] ?? [];
         $mapaToolbarData     = $data['permissions_mapa_toolbar'] ?? [];
@@ -130,11 +133,12 @@ class EditRole extends EditRecord
         $bpmn          = is_array($bpmnData)          ? $bpmnData          : [];
         $viabilidade   = is_array($viabilidadeData)   ? $viabilidadeData   : [];
         $pgv           = is_array($pgvData)           ? $pgvData           : [];
+        $pgvAval       = is_array($pgvAvalData)       ? $pgvAvalData       : [];
         $administracao = is_array($administracaoData) ? $administracaoData : [];
         $mapaCamadas   = is_array($mapaCamadasData)   ? $mapaCamadasData   : [];
         $mapaToolbar   = is_array($mapaToolbarData)   ? $mapaToolbarData   : [];
 
-        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $pontosPanoramicos, $iluminacao, $arborizacao, $estoque, $estoqueCadastros, $manutencao, $cemiterio, $imobiliario, $social, $socialAux, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $administracao, $mapaCamadas, $mapaToolbar);
+        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $pontosPanoramicos, $iluminacao, $arborizacao, $estoque, $estoqueCadastros, $manutencao, $cemiterio, $imobiliario, $social, $socialAux, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $pgvAval, $administracao, $mapaCamadas, $mapaToolbar);
 
         unset(
             $data['permissions_users'],
@@ -158,6 +162,7 @@ class EditRole extends EditRecord
             $data['permissions_bpmn'],
             $data['permissions_viabilidade'],
             $data['permissions_pgv'],
+            $data['permissions_pgv_avaliacao'],
             $data['permissions_administracao'],
             $data['permissions_mapa_camadas'],
             $data['permissions_mapa_toolbar']

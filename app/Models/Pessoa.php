@@ -26,6 +26,7 @@ class Pessoa extends Model
 
     protected $fillable = [
         'tenant_id',
+        'user_id',
         'sequential_id',
         'name',
         'cpf',
@@ -56,6 +57,12 @@ class Pessoa extends Model
             'birth_date' => 'date',
             'death_date' => 'date',
         ];
+    }
+
+    // Conta de acesso vinculada (o cidadão é User + Pessoa). Ver processosConceito.md §9.1.
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     public function pai()

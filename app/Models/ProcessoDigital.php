@@ -13,7 +13,7 @@ class ProcessoDigital extends Model
 
     protected $table = 'processos_digitais';
 
-    protected $fillable = ['tenant_id', 'sequential_id', 'codigo_processo', 'requerente_id', 'lote_id', 'bpmn_fluxo_id', 'etapa_atual_id', 'status', 'dados_formulario'];
+    protected $fillable = ['tenant_id', 'sequential_id', 'codigo_processo', 'requerente_id', 'lote_id', 'bpmn_fluxo_id', 'etapa_atual_id', 'etapa_retorno_id', 'analista_id', 'status', 'dados_formulario'];
 
     protected $casts = [
         'dados_formulario' => 'array',
@@ -30,6 +30,10 @@ class ProcessoDigital extends Model
         return $this->belongsTo(User::class, 'requerente_id');
     }
 
+    public function analista() {
+        return $this->belongsTo(User::class, 'analista_id');
+    }
+
     public function lote() {
         return $this->belongsTo(Lote::class, 'lote_id');
     }
@@ -40,5 +44,18 @@ class ProcessoDigital extends Model
 
     public function etapaAtual() {
         return $this->belongsTo(BpmnEtapa::class, 'etapa_atual_id');
+    }
+
+    // Etapa para onde o processo deve retornar quando a pendência da reprova for resolvida.
+    public function etapaRetorno() {
+        return $this->belongsTo(BpmnEtapa::class, 'etapa_retorno_id');
+    }
+
+    public function respostas() {
+        return $this->hasMany(ProcessoResposta::class, 'processo_digital_id');
+    }
+
+    public function tramitacoes() {
+        return $this->hasMany(ProcessoTramitacao::class, 'processo_digital_id');
     }
 }

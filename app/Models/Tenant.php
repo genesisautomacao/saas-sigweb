@@ -374,10 +374,40 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(PgvParametro::class);
     }
 
+    public function pgvAmostras(): HasMany
+    {
+        return $this->hasMany(PgvAmostra::class);
+    }
+
+    public function pgvPolos(): HasMany
+    {
+        return $this->hasMany(PgvPolo::class);
+    }
+
+    public function pgvCubs(): HasMany
+    {
+        return $this->hasMany(PgvCub::class);
+    }
+
+    public function pgvDepreciacoes(): HasMany
+    {
+        return $this->hasMany(PgvDepreciacao::class);
+    }
+
+    public function faceQuadras(): HasMany
+    {
+        return $this->hasMany(FaceQuadra::class);
+    }
+
     // Módulo BPMN
     public function bpmnFluxos(): HasMany
     {
         return $this->hasMany(BpmnFluxo::class);
+    }
+
+    public function setores(): HasMany
+    {
+        return $this->hasMany(Setor::class);
     }
 
     // Módulo de Cadastro Rural

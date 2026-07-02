@@ -23,7 +23,7 @@ class BpmnFluxoResource extends Resource
     protected static ?string $modelLabel = 'Fluxo de Processo (BPMN)';
     protected static ?string $pluralModelLabel = 'Fluxos BPMN';
     protected static ?string $navigationGroup = 'Processos Digitais';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
@@ -40,6 +40,19 @@ class BpmnFluxoResource extends Resource
                             ->label('Fluxo Ativo')
                             ->default(true),
 
+                        // Decisão #5 / item 2: modo de seleção de imóvel (processosConceito.md §9.5)
+                        Forms\Components\Select::make('modo_imovel')
+                            ->label('Seleção de imóvel')
+                            ->options([
+                                'nenhum' => 'Sem necessidade de imóvel',
+                                'mapa'   => 'Mostrar mapa para localização do imóvel',
+                                'busca'  => 'Seleção de imóvel por busca (nº do lote / código tributário)',
+                            ])
+                            ->default('mapa')
+                            ->required()
+                            ->native(false)
+                            ->helperText('Define se e como o cidadão informa o imóvel ao abrir o processo (itens 130/221).'),
+
                         Forms\Components\Textarea::make('descricao')
                             ->label('Descrição do Fluxo')
                             ->rows(2)
@@ -48,6 +61,9 @@ class BpmnFluxoResource extends Resource
 
                 Forms\Components\Section::make('Editor Visual BPMN')
                     ->description('Desenhe o fluxo arrastando os elementos. Cada tarefa (caixa) representará uma etapa do processo digital.')
+                    // Item 3 — recolhido por padrão para não atrapalhar a rolagem; abre ao clicar.
+                    ->collapsible()
+                    ->collapsed()
                     ->schema([
                         // O NOSSO COMPONENTE CUSTOMIZADO SENDO CHAMADO AQUI:
                         Forms\Components\ViewField::make('xml_diagrama')

@@ -33,6 +33,7 @@ use App\Filament\Pages\Traits\HasSecaoLogradouroActions;
 use App\Filament\Pages\Traits\HasAreaReurbActions;
 use App\Filament\Pages\Traits\HasPatrimonioPublicoActions;
 use App\Filament\Pages\Traits\HasTestadaActions;
+use App\Filament\Pages\Traits\HasPgvMotorActions;
 
 use App\Models\Lote;
 use App\Models\Edificacao;
@@ -84,6 +85,7 @@ class MapaFullscreen extends Page
     use HasAreaReurbActions;
     use HasPatrimonioPublicoActions;
     use HasTestadaActions;
+    use HasPgvMotorActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
     protected static ?string $navigationLabel = 'Mapa Interativo';

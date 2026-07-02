@@ -181,7 +181,10 @@ class PermissionsSeeder extends Seeder
 
             /* Faltou o módulo de PGV */
 
-            /* Faltou o Módulo de Processos BPMN */
+            /* Módulo de Processos Digitais (BPMN) */
+            'gerenciar_setores',
+            'view_processos_progresso',
+            'view_todos_processos', // vê todos os processos, ignorando o filtro por setor
 
             /* Módulo de Cadastro Rural */
             'view_rural_localidades',
@@ -226,6 +229,13 @@ class PermissionsSeeder extends Seeder
             'view_pgv_parametros', 'create_pgv_parametros', 'edit_pgv_parametros', 'delete_pgv_parametros',
             'view_setores_fiscais', 'create_setores_fiscais', 'edit_setores_fiscais', 'delete_setores_fiscais',
             'view_lote_valor_historicos', 'create_lote_valor_historicos', 'edit_lote_valor_historicos', 'delete_lote_valor_historicos',
+
+            /* Módulo PGV — Avaliação em Massa (permissão única "gerenciar" por entidade) */
+            'gerenciar_pgv_amostras',
+            'gerenciar_pgv_polos',
+            'gerenciar_pgv_cubs',
+            'gerenciar_pgv_depreciacoes',
+            'gerenciar_face_quadras',
 
             /* Páginas de Administração */
             'view_auditoria',

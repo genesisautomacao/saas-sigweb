@@ -12,8 +12,9 @@ class ListProcessoDigitals extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [
-            Actions\CreateAction::make(),
-        ];
+        // A prefeitura NÃO cria processos — ela julga/tramita. Quem abre processo é o cidadão
+        // (painel `cidadao`). Um CreateAction aqui abriria um modal que falha ao salvar
+        // (Tenant não tem a relação `processoDigitals`).
+        return [];
     }
 }

@@ -201,7 +201,8 @@ class MapDataController extends Controller
                 $processosPorLote = DB::table('processos_digitais')
                     ->join('bpmn_etapas', 'bpmn_etapas.id', '=', 'processos_digitais.etapa_atual_id')
                     ->where('processos_digitais.tenant_id', $tenantId)
-                    ->where('processos_digitais.status', 'em_andamento')
+                    // Motor híbrido: qualquer processo em trânsito (com o setor OU com o cidadão)
+                    ->whereNotIn('processos_digitais.status', ['rascunho', 'concluido', 'cancelado'])
                     ->whereNull('processos_digitais.deleted_at')
                     ->whereNotNull('processos_digitais.lote_id')
                     ->select(

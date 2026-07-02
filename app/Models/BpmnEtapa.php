@@ -11,14 +11,18 @@ class BpmnEtapa extends Model
 {
     use HasFactory, SoftDeletes, BelongsToTenant, HasTenantSequentialId;
 
-    protected $fillable = ['tenant_id', 'sequential_id', 'bpmn_fluxo_id', 'nome', 'codigo_etapa_bpmn', 'cor_mapa', 'tempo_medio_minutos', 'perfis_autorizados', 'campos_formulario'];
+    protected $fillable = ['tenant_id', 'sequential_id', 'bpmn_fluxo_id', 'nome', 'executor', 'setor_id', 'ordem', 'codigo_etapa_bpmn', 'cor_mapa', 'tempo_medio_minutos', 'usuarios_autorizados', 'campos_formulario'];
 
     protected $casts = [
-        'perfis_autorizados' => 'array',
+        'usuarios_autorizados' => 'array',
         'campos_formulario' => 'array',
     ];
 
     public function fluxo() {
         return $this->belongsTo(BpmnFluxo::class, 'bpmn_fluxo_id');
+    }
+
+    public function setor() {
+        return $this->belongsTo(Setor::class, 'setor_id');
     }
 }

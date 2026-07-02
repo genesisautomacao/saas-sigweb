@@ -422,10 +422,14 @@ class RoleResource extends Resource
                                         'create_bpmn_fluxos'        => 'Criar Fluxos BPMN',
                                         'edit_bpmn_fluxos'          => 'Editar Fluxos BPMN',
                                         'delete_bpmn_fluxos'        => 'Excluir Fluxos BPMN',
-                                        'view_processos_digitais'   => 'Ver Processos Digitais',
+                                        'view_processos_digitais'   => 'Ver Processos Digitais (Caixa de Entrada)',
                                         'create_processos_digitais' => 'Criar Processos Digitais',
                                         'edit_processos_digitais'   => 'Editar Processos Digitais',
                                         'delete_processos_digitais' => 'Excluir Processos Digitais',
+                                        // Motor de Processos — permissões adicionais
+                                        'gerenciar_setores'         => 'Gerenciar Setores / Departamentos',
+                                        'view_todos_processos'      => 'Ver TODOS os processos (ignora o filtro por setor)',
+                                        'view_processos_progresso'  => 'Ver Progresso dos Processos (dashboard)',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(2),
@@ -472,6 +476,22 @@ class RoleResource extends Resource
                                         'create_lote_valor_historicos' => 'Criar Valores Venais',
                                         'edit_lote_valor_historicos'   => 'Editar Valores Venais',
                                         'delete_lote_valor_historicos' => 'Excluir Valores Venais',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(2),
+                            ])->columns(1)->columnSpanFull(),
+
+                        // CAIXA 18b: PGV — AVALIAÇÃO EM MASSA (permissão única "gerenciar")
+                        Forms\Components\Fieldset::make('PGV — Avaliação em Massa')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_pgv_avaliacao')
+                                    ->label('Cada permissão libera visualizar, criar, editar e excluir a entidade')
+                                    ->options([
+                                        'gerenciar_pgv_amostras'      => 'Gerenciar Amostras de Mercado',
+                                        'gerenciar_pgv_polos'         => 'Gerenciar Pólos Valorizantes',
+                                        'gerenciar_pgv_cubs'          => 'Gerenciar Tabela CUB',
+                                        'gerenciar_pgv_depreciacoes'  => 'Gerenciar Depreciação',
+                                        'gerenciar_face_quadras'      => 'Gerenciar Faces de Quadra',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(2),

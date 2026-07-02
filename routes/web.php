@@ -36,6 +36,12 @@ Route::middleware(['web', 'auth'])->get('/api/mapa/export-shp', function (\Illum
 // Rota exclusiva para o Mapa do Portal do Cidadão
 Route::get('/cidadao/lotes-geojson', [\App\Http\Controllers\CidadaoMapController::class, 'getLotes'])->middleware('web');
 
+// Anotação em PDF de anexos de Processo Digital (item 222 / B15)
+Route::middleware(['web', 'auth'])->group(function () {
+    Route::get('/processo-anexo/{anexo}/anotar', [\App\Http\Controllers\ProcessoAnexoController::class, 'anotar'])->name('processo-anexo.anotar');
+    Route::post('/processo-anexo/{anexo}/anotar', [\App\Http\Controllers\ProcessoAnexoController::class, 'salvar'])->name('processo-anexo.salvar');
+});
+
 // Seletor público de prefeitura — usado quando o cidadão acessa o mapa anonimamente
 // e precisa escolher de qual município quer ver os dados.
 Route::get('/mapa-publico', function () {
