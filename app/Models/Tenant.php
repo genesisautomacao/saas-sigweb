@@ -421,6 +421,22 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(FonteWms::class);
     }
 
+    // Módulo XV — App de Chamados (gestão WEB)
+    public function categoriasChamado(): HasMany
+    {
+        return $this->hasMany(CategoriaChamado::class);
+    }
+
+    public function fluxosChamado(): HasMany
+    {
+        return $this->hasMany(FluxoChamado::class);
+    }
+
+    public function chamados(): HasMany
+    {
+        return $this->hasMany(Chamado::class);
+    }
+
     // Módulo de Cadastro Rural
     public function ruralLocalidades(): HasMany
     {

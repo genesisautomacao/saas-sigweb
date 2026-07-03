@@ -518,6 +518,20 @@ class RoleResource extends Resource
                                     ->columns(2),
                             ])->columns(1)->columnSpanFull(),
 
+                        // CAIXA 19b: MÓDULO XV — APP DE CHAMADOS (GESTÃO WEB)
+                        Forms\Components\Fieldset::make('Módulo: App de Chamados (Gestão do Aplicativo Móvel)')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_chamados')
+                                    ->label('Gestão de chamados, fluxos e categorias')
+                                    ->options([
+                                        'gerenciar_chamados'            => 'Gerenciar Chamados (solicitações)',
+                                        'gerenciar_fluxos_chamado'      => 'Gerenciar Fluxos de Trabalho + Fases',
+                                        'gerenciar_categorias_chamado'  => 'Gerenciar Categorias de Chamado',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(2),
+                            ])->columns(1)->columnSpanFull(),
+
                         // CAIXA 20: VISIBILIDADE DE CAMADAS NO MAPA
                         Forms\Components\Fieldset::make('Mapa — Visibilidade de Camadas (ver_camada_*)')
                             ->schema([

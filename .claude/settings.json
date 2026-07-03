@@ -101,7 +101,10 @@
       "WebFetch(domain:openlayers.org)",
       "Bash(curl -s -m 40 \"https://geoservicos.ibge.gov.br/geoserver/wms?service=WMS&version=1.1.1&request=GetCapabilities\")",
       "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('public/potree/build/potree/potree.js','utf8'\\);const i=s.indexOf\\('cloud.js'\\);console.log\\(JSON.stringify\\(s.slice\\(i-90,i+50\\)\\)\\);\")",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "Bash(php -l app/Filament/Resources/ChamadoResource/Pages/ViewChamado.php)",
+      "Bash(find potree *)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/Api/Concerns/BuildsMobileAuthResponse.php app/Http/Controllers/Api/AuthController.php app/Http/Controllers/Api/CidadaoAuthController.php app/Http/Controllers/Api/ChamadoController.php)"
     ]
   }
 }

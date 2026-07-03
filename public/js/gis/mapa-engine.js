@@ -509,6 +509,22 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
+        chamados: {
+            z: 103,
+            minZoom: 12,
+            style: function (feature) {
+                // Ponto colorido pela cor da CATEGORIA do chamado (App de Chamados — item 162/163)
+                const cor = feature.get("categoria_cor") || "#3b82f6";
+                return new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 8,
+                        fill: new ol.style.Fill({ color: cor }),
+                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 2 }),
+                    }),
+                });
+            },
+        },
+
         patrimonio_publicos: {
             z: 102,
             minZoom: 13,
@@ -3062,6 +3078,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "edificacao_ativa", // Modo edição ganha de tudo
                 "testada_ativa",
                 "patrimonio_publicos",
+                "chamados",
                 "postes",
                 "arvores",
                 "toponimias",
@@ -3117,6 +3134,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         break;
                     case "patrimonio_publicos":
                         Livewire.dispatch("abrirOpcoesPatrimonioPublico", { id: id });
+                        break;
+                    case "chamados":
+                        Livewire.dispatch("abrirChamado", { id: id });
                         break;
                     case "postes":
                         Livewire.dispatch("abrirOpcoesPoste", { id: id });

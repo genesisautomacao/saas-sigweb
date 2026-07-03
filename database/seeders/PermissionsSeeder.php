@@ -249,6 +249,11 @@ class PermissionsSeeder extends Seeder
             'view_mensagens',
             'gerenciar_wms', // Fontes e Categorias WMS (mapas temáticos hierarquizados — item PoC 022)
 
+            /* Módulo XV — App de Chamados (gestão WEB) */
+            'gerenciar_categorias_chamado',
+            'gerenciar_fluxos_chamado',
+            'gerenciar_chamados',
+
             /* Permissões de visibilidade de camadas GIS */
             'ver_camada_perimetros',
             'ver_camada_setores_fiscais',

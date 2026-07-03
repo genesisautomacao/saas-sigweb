@@ -279,6 +279,13 @@ class MapaFullscreen extends Page
         return $resultado;
     }
 
+    // Item 163 — clique num chamado no mapa abre o detalhe (tabela/ficha) do chamado.
+    #[On('abrirChamado')]
+    public function abrirChamado($id)
+    {
+        return redirect()->to(\App\Filament\Resources\ChamadoResource::getUrl('view', ['record' => $id]));
+    }
+
     #[On('abrirFichaImovel')]
     public function carregarFicha($loteId, $loteNome = 'S/N')
     {

@@ -67,6 +67,10 @@ class EditRole extends EditRecord
             'view_auditoria', 'view_monitoramento_campo', 'view_produtividade', 'view_mensagens', 'gerenciar_wms',
         ]));
 
+        $data['permissions_chamados'] = array_values(array_intersect($permissions, [
+            'gerenciar_chamados', 'gerenciar_fluxos_chamado', 'gerenciar_categorias_chamado',
+        ]));
+
         $data['permissions_mapa_camadas'] = array_values(array_intersect($permissions, [
             'ver_camada_perimetros', 'ver_camada_setores_fiscais', 'ver_camada_bairros',
             'ver_camada_loteamentos', 'ver_camada_quadras', 'ver_camada_lotes', 'ver_camada_processos',
@@ -109,6 +113,7 @@ class EditRole extends EditRecord
         $pgvData             = $data['permissions_pgv'] ?? [];
         $pgvAvalData         = $data['permissions_pgv_avaliacao'] ?? [];
         $administracaoData   = $data['permissions_administracao'] ?? [];
+        $chamadosData        = $data['permissions_chamados'] ?? [];
         $mapaCamadasData     = $data['permissions_mapa_camadas'] ?? [];
         $mapaToolbarData     = $data['permissions_mapa_toolbar'] ?? [];
 
@@ -136,10 +141,11 @@ class EditRole extends EditRecord
         $pgv           = is_array($pgvData)           ? $pgvData           : [];
         $pgvAval       = is_array($pgvAvalData)       ? $pgvAvalData       : [];
         $administracao = is_array($administracaoData) ? $administracaoData : [];
+        $chamados      = is_array($chamadosData)      ? $chamadosData      : [];
         $mapaCamadas   = is_array($mapaCamadasData)   ? $mapaCamadasData   : [];
         $mapaToolbar   = is_array($mapaToolbarData)   ? $mapaToolbarData   : [];
 
-        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $pontosPanoramicos, $iluminacao, $arborizacao, $estoque, $estoqueCadastros, $manutencao, $cemiterio, $imobiliario, $social, $socialAux, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $pgvAval, $administracao, $mapaCamadas, $mapaToolbar);
+        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $pontosPanoramicos, $iluminacao, $arborizacao, $estoque, $estoqueCadastros, $manutencao, $cemiterio, $imobiliario, $social, $socialAux, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $pgvAval, $administracao, $chamados, $mapaCamadas, $mapaToolbar);
 
         unset(
             $data['permissions_users'],
@@ -165,6 +171,7 @@ class EditRole extends EditRecord
             $data['permissions_pgv'],
             $data['permissions_pgv_avaliacao'],
             $data['permissions_administracao'],
+            $data['permissions_chamados'],
             $data['permissions_mapa_camadas'],
             $data['permissions_mapa_toolbar']
         );

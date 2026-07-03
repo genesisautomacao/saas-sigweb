@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    // Login social do cidadão (app de Chamados). Opcionais: se preenchidos, o backend
+    // exige que o token recebido pertença a este app (checagem do 'aud' do Google).
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+    ],
+
+    'facebook' => [
+        'client_id' => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+    ],
+
 ];

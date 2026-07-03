@@ -1863,6 +1863,16 @@
                             </span>
                         </label>
 
+                        {{-- Chamados (App de Chamados — itens 162/163) --}}
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" data-layer="chamados"
+                                class="layer-toggle rounded border-gray-300 text-rose-600 focus:ring-rose-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-rose-500 rounded-full flex-shrink-0"></div><span
+                                    class="layer-text truncate">Chamados (App)</span>
+                            </span>
+                        </label>
+
                         {{-- Áreas REURB --}}
                         <div data-permission-group="layer:areas_reurb" x-data="{ on: false }">
 

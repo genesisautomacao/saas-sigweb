@@ -482,6 +482,46 @@ class MapDataController extends Controller
                 $data = ['type' => 'FeatureCollection', 'features' => $features];
                 break;
 
+            case 'chamados':
+                // App de Chamados — pontos coloridos pela cor da CATEGORIA. Self-contained.
+                $rows = DB::table('chamados as c')
+                    ->leftJoin('categorias_chamado as cat', 'cat.id', '=', 'c.categoria_chamado_id')
+                    ->leftJoin('fases_chamado as fa', 'fa.id', '=', 'c.fase_atual_id')
+                    ->where('c.tenant_id', $tenantId)
+                    ->whereNull('c.deleted_at')
+                    ->whereNotNull('c.geo')
+                    ->orderBy('c.id')
+                    ->selectRaw("c.id, c.protocolo, c.status, c.solicitante_nome,
+                        cat.nome as categoria_nome, COALESCE(cat.cor, '#3b82f6') as categoria_cor,
+                        fa.nome as fase_nome, COALESCE(fa.cor, '#6b7280') as fase_cor,
+                        ST_AsGeoJSON(c.geo, 6) as geo_json")
+                    ->get();
+
+                $features = [];
+                foreach ($rows as $row) {
+                    $geom = $row->geo_json ? json_decode($row->geo_json) : null;
+                    if (!$geom || empty($geom->coordinates)) {
+                        continue;
+                    }
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'id'              => $row->id,
+                            'layer'           => 'chamados',
+                            'protocolo'       => $row->protocolo,
+                            'categoria_nome'  => $row->categoria_nome,
+                            'categoria_cor'   => $row->categoria_cor ?: '#3b82f6',
+                            'fase_nome'        => $row->fase_nome,
+                            'fase_cor'         => $row->fase_cor ?: '#6b7280',
+                            'status'          => $row->status,
+                            'solicitante'     => $row->solicitante_nome,
+                        ],
+                        'geometry' => $geom,
+                    ];
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
             default:
                 return response()->json(['error' => 'Camada não encontrada'], 404);
         }

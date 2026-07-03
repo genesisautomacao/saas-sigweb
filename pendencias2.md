@@ -8,17 +8,17 @@
 
 ## 1. Resumo executivo (percentuais reais)
 
-> **Atualizado em 2026-07-03 após o Lote 1 de Quick Wins** (ver §9). Baseline original ao final da checagem: ✅ 199 (76,5%) · ⚠️ 11 · ❌ 50.
+> **Atualizado em 2026-07-03 após o Módulo XV (App de Chamados — gestão WEB)** (ver §10). Marcos: checagem inicial ✅ 199 (76,5%) → Lote 1 ✅ 210 → **Módulo XV ✅ 236**.
 
 | Situação | Itens | % |
 |---|---|---|
-| ✅ **Atendido** | **211** | **81,2%** |
-| ⚠️ **Parcial** | **6** | **2,3%** |
-| ❌ **Não atendido** | **43** | **16,5%** |
+| ✅ **Atendido** | **236** | **90,8%** |
+| ⚠️ **Parcial** | **7** | **2,7%** |
+| ❌ **Não atendido** | **17** | **6,5%** |
 
-- **Leitura generosa** (parciais = atendidos): **217/260 = 83,5%**.
-- **Maior lacuna isolada:** App de Chamados do Cidadão (Módulos XV + XVI) = **41 itens (15,8%)** — sem backend nem frontend.
-- **Contexto importante:** a **API existente no sistema é do App de Coletas dos Fiscais de Rua** (Recadastramento Imobiliário — Módulo XVII), que está com **backend pronto**. Ela **não** é o App de Chamados.
+- **Meta >90% da PoC: ATINGIDA** (236/260 = 90,8%). Leitura generosa (parciais = atendidos): **243/260 = 93,5%**.
+- **Maior lacuna restante:** o **app nativo** de chamados (Módulo XVI = 15 itens) — entregável contratual de 60 dias. O Módulo XV (gestão WEB + backend + API) está **concluído**.
+- **Contexto importante:** a **API do App de Coletas dos Fiscais de Rua** (Recadastramento — Módulo XVII) já existia; o Módulo XV adicionou a **API do App de Chamados** (`/api/chamados`, `/api/categorias-chamado`, `/api/chamados/{id}/mensagens`).
 
 ---
 
@@ -40,27 +40,26 @@
 | XII — Processo Digital (120–126) | 7 | 6 | 1 | — |
 | XIII — Aprovação de Projeto (127–137) | 11 | 11 | — | — |
 | XIV — Habite-se online (138–148) | 11 | 11 | — | — |
-| **XV — Gestão App Móvel / Chamados (149–174)** | **26** | — | — | **26** |
+| **XV — Gestão App Móvel / Chamados (149–174)** | **26** | **26** | — | — |
 | **XVI — App móvel de Chamados (175–189)** | **15** | — | — | **15** |
 | XVII — App Recadastramento Imobiliário (190–204) | 15 | 10 | 3 | 2 |
 | XVIII — REURB Digital (205–222) | 18 | 17 | 1 | — |
 | XIX — Progresso do trabalho (223–224) | 2 | 2 | — | — |
 | XX — Planta Genérica de Valores (225–243) | 19 | 19 | — | — |
-| XXI — Nuvem de Pontos 3D (244–250) | 7 | 7 | — | — |
+| XXI — Nuvem de Pontos 3D (244–250) | 7 | 6 | 1 | — |
 | XXII — Cadastro Rural (251–260) | 10 | 10 | — | — |
-| **TOTAL** | **260** | **211** | **6** | **43** |
+| **TOTAL** | **260** | **236** | **7** | **17** |
 
 ---
 
-## 3. ❌ Não atendido (50 itens)
+## 3. ❌ Não atendido (17 itens)
 
-### 3.1 App de Chamados do Cidadão — Módulos XV + XVI (41 itens) — *maior lacuna*
-> Sem backend nem frontend. Sistema **greenfield** e **distinto** do Processo Digital (BPMN), da Solicitação de Manutenção (poste/árvore) e do App de Recadastramento. Corresponde a B7–B10 (⏳ bloqueado por design) no `pendencias.md`.
+### 3.1 App de Chamados — Módulo XVI (15 itens) — *o app nativo (60 dias)*
+> O **Módulo XV (149–174, gestão WEB + backend + API)** foi **CONCLUÍDO** (✅, ver §10). Resta o **app nativo** (Módulo XVI), entregável contratual de 60 dias.
 
 | Itens | O que é |
 |---|---|
-| **149–174** (XV) | Gestão WEB do app de chamados: fluxos/fases (cor, aviso, duração min, ordem, encerramento), boletim/questionário, categorias pai/filho com cor/ícone/privada, filtros, seleção tabela↔mapa, alterar categoria/fase + notificação, mensagens públicas/privadas, ver respostas do boletim, fotos, impressão do chamado |
-| **175–189** (XVI) | App mobile Android/iOS de abertura de chamados: login (inclusive social 178), criação de solicitação, marcador no mapa, fotos, geocoding reverso de endereço, perfil do cidadão, compartilhar app, categorias de fiscais |
+| **175–189** (XVI) | App mobile Android/iOS de abertura de chamados: login (inclusive social 178), criação de solicitação, marcador no mapa, fotos, geocoding reverso de endereço, perfil do cidadão, compartilhar app, categorias de fiscais. **Backend/API já pronto no Módulo XV** — falta a UI nativa. |
 
 ### 3.2 App de Recadastramento — offline (2 itens: 198, 204)
 > Cache/sincronização offline: lógica **interna do app mobile**, fora do escopo do backend.
@@ -69,13 +68,14 @@
 
 ---
 
-## 4. ⚠️ Parcial (6 itens)
+## 4. ⚠️ Parcial (7 itens)
 
 > 5 parciais fechados no Lote 1 (022, 045, 076, 251, e 075 que já existia) — ver §9. Restam:
 
 | Item | Requisito | Estado atual | Falta |
 |---|---|---|---|
 | **060** | Iluminação: além de XLS/PDF/CSV/XML (✅), entidades "Itens de Produto p/ Poste" (c/ lote de estoque) e "Tipos de Defeito" | Relatórios nos 4 formatos ✅; poste guarda luminária em colunas soltas; `tipo_servico` é string livre | Entidade **`TipoDefeito`** (CRUD) + entidade **"Itens do Poste"** vinculada ao `LoteEstoque` *(fora do escopo por decisão)* |
+| **245** | Nuvem 3D: coordenadas **+ intensidade** | Coords 3D ✅ (Potree); dado de João Pinheiro tem RGB+classificação, **sem `intensity`** | Pedir a conversão do LAS **com o atributo `intensity`** |
 | **120** | Processo Digital via **editor BPMN** (desenhar/incorporar objetos) | Motor configurável por etapas + formulários funcional | **Canvas visual drag-drop** de desenho BPMN |
 | **205** | REURB via **editor BPMN configurável** | Idem 120 (mesmo motor) | Idem — sem canvas visual |
 | **193** | App recad.: listar lotes **por loteamento** | Pull completo existe | `GET /api/sync/lotes/pull?loteamento_id=X` |
@@ -199,3 +199,26 @@ Saiu de **199 (76,5%)** para **211 (81,2%)** — +12 itens. Detalhe do que foi f
 **Arquivos principais:** 10 `*ExportService.php` + 10 List pages · `RuralPropriedadeResource.php` · `mapa-fullscreen.blade.php` + `mapa-engine.js` (045 e 022) · `MapaFullscreen.php` (`montarArvoreWms`, `$wmsCategorias`) · migration `2026_07_03_120000_create_wms_tables.php` · models `CategoriaWms`/`FonteWms` + Policies · `CategoriaWmsResource`/`FonteWmsResource` + pages · `PermissionsSeeder`/`RoleResource`/`EditRole` (`gerenciar_wms`) · `CLAUDE.md`.
 
 **Validação:** `php -l` (todos) · `node --check mapa-engine.js` · `php artisan view:cache` (blade OK) · `migrate` + `db:seed PermissionsSeeder` + `permission:cache-reset` rodados · `./vendor/bin/pint` · demo WMS (Cartografia → Bases Externas → OSM/terrestris) criado no tenant `prefeitura-de-santa-cecilia`.
+
+---
+
+## 10. Changelog — Módulo XV: App de Chamados (Gestão WEB) · executado em 2026-07-03
+
+Saiu de **210 (80,8%)** para **236 (90,8%)** — **+26 itens (149–174)**. Meta >90% da PoC **atingida**. É a gestão WEB + backend do app de chamados (o app nativo, Módulo XVI, fica para a janela contratual de 60 dias).
+
+| Bloco | Itens | Entregue |
+|---|---|---|
+| Fluxos + Fases | 149–153 | `FluxoChamadoResource` + `FasesRelationManager` (cor, aviso de duração, duração em min, ordem, fase de encerramento, usuários autorizados) |
+| Boletim / Questionário | 154 | `Builder` de 4 tipos (texto, checkbox, mapa, CPF/telefone) no fluxo |
+| Categorias | 155–159 | `CategoriaChamadoResource` (pai/filho, cor, ícone png/jpg, **privada** só fiscais) |
+| Gestão das solicitações | 160–168 | `ChamadoResource`: filtros (código/data/observações/anotações + categoria), View, **alterar categoria/fase → push ao cidadão**, histórico de fases |
+| Mensagens | 169–171 | `MensagemChamado` pública (push via `ExpoPushService`) / privada (interna, oculta ao cidadão), inclusive após encerrado |
+| Boletim + Fotos | 172, 173 | respostas do boletim + `FileUpload` de fotos na View |
+| Mapa (tabela↔mapa) | 162, 163 | camada `chamados` (`MapDataController` + `mapa-engine.js` + toggle) · "Ver no Mapa" · clique no ponto → View do chamado |
+| Impressão | 174 | `ChamadoPdfService` + `pdf/chamado.blade.php` (mini-mapa `StaticMapService` + mensagens + boletim + histórico) |
+
+**Arquitetura:** sistema `Chamado` **dedicado** (não mistura com ProcessoDigital/Manutenção). 6 entidades (`CategoriaChamado`, `FluxoChamado`, `FaseChamado`, `Chamado`, `MensagemChamado`, `HistoricoFaseChamado`) + `hasMany` no `Tenant` + `$tenantRelationshipName` em cada Resource. Permissões `gerenciar_categorias_chamado`/`gerenciar_fluxos_chamado`/`gerenciar_chamados`. **API** (`ChamadoController` sob `auth:sanctum`): `/api/categorias-chamado` (respeita `privada`), `/api/chamados`, `/api/chamados/{id}/mensagens`. **Seed:** `ChamadoExemploSeeder`.
+
+**Validação:** `php -l` (todos) · `node --check mapa-engine.js` · `php artisan view:cache` · `migrate` + `db:seed` (Permissions + ChamadoExemplo) · `route:list` (API + Resources) · endpoint `layer=chamados` → 4 features · render do PDF (881KB) · `./vendor/bin/pint` (pass). Teste funcional da cadeia categoria→fluxo→fase→chamado→mensagem OK.
+
+**Restam para 100%:** Módulo XVI (app nativo, 60 dias) + os 7 parciais (060, 120, 205, 193, 196, 199, 245).
