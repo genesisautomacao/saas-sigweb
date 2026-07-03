@@ -3,22 +3,22 @@
 namespace App\Services\Exports;
 
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Spatie\SimpleExcel\SimpleExcelWriter;
-use Illuminate\Support\Collection;
 
 class PosteExportService
 {
     public function exportToExcel(Collection $postes)
     {
-        $fileName = 'postes-' . now()->format('Y-m-d-His') . '.xlsx';
+        $fileName = 'postes-'.now()->format('Y-m-d-His').'.xlsx';
         $path = storage_path('app/exports/');
 
-        if (!File::isDirectory($path)) {
+        if (! File::isDirectory($path)) {
             File::makeDirectory($path, 0755, true, true);
         }
 
-        $filePath = $path . $fileName;
+        $filePath = $path.$fileName;
 
         $data = $postes->map(function ($poste) {
             return [
@@ -41,8 +41,8 @@ class PosteExportService
 
     public function exportToPdf(Collection $postes)
     {
-        $fileName = 'postes-' . now()->format('Y-m-d-His') . '.pdf';
-        
+        $fileName = 'postes-'.now()->format('Y-m-d-His').'.pdf';
+
         $headings = ['ID', 'Endereço', 'Tipo', 'Luminária', 'Potência', 'Condição'];
 
         $data = $postes->map(function ($poste) {
@@ -64,5 +64,52 @@ class PosteExportService
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->stream();
         }, $fileName);
+    }
+
+    private function linha($poste): array
+    {
+        return [
+            'ID' => $poste->sequential_id,
+            'Endereco' => $poste->address ?? 'S/N',
+            'Tipo' => $poste->tipoPoste?->name ?? 'Não Definido',
+            'Luminaria' => $poste->luminaire_type ?? '-',
+            'Potencia' => $poste->lamp_power ?? '-',
+            'Condicao' => $poste->structural_condition ?? '-',
+            'DataInstalacao' => $poste->installation_date ? $poste->installation_date->format('d/m/Y') : '-',
+        ];
+    }
+
+    public function exportToCsv(Collection $postes)
+    {
+        $fileName = 'postes-'.now()->format('Y-m-d-His').'.csv';
+        $path = storage_path('app/exports/');
+        if (! File::isDirectory($path)) {
+            File::makeDirectory($path, 0755, true, true);
+        }
+        $filePath = $path.$fileName;
+
+        $data = $postes->map(fn ($p) => $this->linha($p));
+        SimpleExcelWriter::create($filePath, 'csv')
+            ->addHeader(array_keys($data->first() ?? []))
+            ->addRows($data->toArray());
+
+        return response()->download($filePath)->deleteFileAfterSend(true);
+    }
+
+    public function exportToXml(Collection $postes)
+    {
+        $fileName = 'postes-'.now()->format('Y-m-d-His').'.xml';
+        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><postes/>');
+
+        foreach ($postes as $poste) {
+            $item = $xml->addChild('poste');
+            foreach ($this->linha($poste) as $k => $v) {
+                $item->addChild($k, htmlspecialchars((string) $v));
+            }
+        }
+
+        return response()->streamDownload(function () use ($xml) {
+            echo $xml->asXML();
+        }, $fileName, ['Content-Type' => 'application/xml']);
     }
 }

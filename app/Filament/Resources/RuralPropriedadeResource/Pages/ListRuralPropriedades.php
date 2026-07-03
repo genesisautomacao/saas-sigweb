@@ -32,6 +32,16 @@ class ListRuralPropriedades extends ListRecords
                         $records = $livewire->getFilteredTableQuery()->get();
                         return $exportService->exportToPdf($records);
                     }),
+
+                Actions\Action::make('export_csv')
+                    ->label('Exportar CSV')
+                    ->icon('heroicon-o-document')
+                    ->action(fn ($livewire, \App\Services\Exports\RuralPropriedadeExportService $s) => $s->exportToCsv($livewire->getFilteredTableQuery()->get())),
+
+                Actions\Action::make('export_xml')
+                    ->label('Exportar XML')
+                    ->icon('heroicon-o-code-bracket')
+                    ->action(fn ($livewire, \App\Services\Exports\RuralPropriedadeExportService $s) => $s->exportToXml($livewire->getFilteredTableQuery()->get())),
             ])
             ->label('Exportar')
             ->icon('heroicon-m-arrow-down-tray')

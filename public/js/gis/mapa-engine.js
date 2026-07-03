@@ -2353,6 +2353,18 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
+        // 📍 COORDENADA XY: capturar vértices clicando no mapa (item PoC 045)
+        // Mantém o modo ligado para permitir clicar vários vértices em sequência.
+        if (window.xyPickVertex) {
+            const coord = ol.proj.toLonLat(evt.coordinate);
+            window.dispatchEvent(
+                new CustomEvent("coordxy-vertice-add", {
+                    detail: { lon: coord[0], lat: coord[1] },
+                }),
+            );
+            return;
+        }
+
         // 🛑 INTERCEPTADOR: PRÉVIA DA NUMERAÇÃO ATIVA (itens PoC 101/102)
         // Clicar numa parcela durante a prévia a exclui/reinclui do processo.
         if (window.numeracaoPreviewAtivo) {
@@ -5435,6 +5447,102 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // =========================================================================
+    // 📍 CRIAÇÃO DE GEOMETRIA POR COORDENADA XY DE CADA VÉRTICE (item PoC 045)
+    // Reaproveita a mesma prévia/Mesa de Desenho dos Azimutes.
+    // =========================================================================
+    // Constrói a lista [lon,lat] a partir dos vértices {lon, lat} informados
+    function _construirAnelXY(pontos) {
+        return (pontos || [])
+            .filter(
+                (p) =>
+                    p &&
+                    p.lon !== "" &&
+                    p.lat !== "" &&
+                    !isNaN(parseFloat(p.lon)) &&
+                    !isNaN(parseFloat(p.lat)),
+            )
+            .map((p) => [parseFloat(p.lon), parseFloat(p.lat)]);
+    }
+
+    window.previewCoordenadasXY = function (pontos) {
+        azimutePreviewSource.clear();
+        const pts = _construirAnelXY(pontos);
+        if (pts.length < 2) return { area: 0, perimetro: 0 };
+        try {
+            let geom, ring;
+            if (pts.length >= 3) {
+                ring = pts.concat([pts[0]]); // fecha o polígono
+                geom = { type: "Polygon", coordinates: [ring] };
+            } else {
+                ring = pts;
+                geom = { type: "LineString", coordinates: pts };
+            }
+            const feat = new ol.Feature({
+                geometry: new ol.format.GeoJSON().readGeometry(geom, {
+                    dataProjection: "EPSG:4326",
+                    featureProjection: "EPSG:3857",
+                }),
+            });
+            azimutePreviewSource.addFeature(feat);
+            return {
+                area: pts.length >= 3 ? turf.area(turf.polygon([ring])) : 0,
+                perimetro: turf.length(turf.lineString(ring), { units: "kilometers" }) * 1000,
+            };
+        } catch (e) {
+            console.error("Erro no preview de coordenadas XY:", e);
+            return { area: 0, perimetro: 0 };
+        }
+    };
+
+    window.limparCoordenadasXYPreview = function () {
+        azimutePreviewSource.clear();
+    };
+
+    window.finalizarCoordenadasXY = function (pontos, entidadePlural) {
+        const pts = _construirAnelXY(pontos);
+        if (pts.length < 3) {
+            alert("⚠️ Informe ao menos 3 vértices para formar um polígono.");
+            return;
+        }
+        try {
+            const ring = pts.concat([pts[0]]);
+            const feature = new ol.Feature({
+                geometry: new ol.format.GeoJSON().readGeometry(
+                    { type: "Polygon", coordinates: [ring] },
+                    { dataProjection: "EPSG:4326", featureProjection: "EPSG:3857" },
+                ),
+            });
+            feature.set("id", "clone_temp");
+            feature.set("layer", "cad_draft"); // Mesa de Desenho → salva via fluxo CAD
+            featureCloneOriginalLayer = entidadePlural || "lotes";
+
+            azimutePreviewSource.clear();
+            cadSource.clear();
+            cadSource.addFeature(feature);
+
+            activeTool = "pan";
+            map.getTargetElement().style.cursor = "";
+            window.ativarModoEdicaoAvancado(feature, "#f97316");
+        } catch (e) {
+            console.error("Erro ao finalizar coordenadas XY:", e);
+            alert("⚠️ Não foi possível construir a geometria. Confira os vértices informados.");
+        }
+    };
+
+    // Modo "adicionar vértice clicando no mapa" (permanece ativo p/ vários cliques)
+    window.iniciarXYPickVertex = function () {
+        window.xyPickVertex = true;
+        map.getTargetElement().style.cursor = "crosshair";
+    };
+
+    const _btnCoordXY = document.getElementById("btn-tool-coordxy");
+    if (_btnCoordXY) {
+        _btnCoordXY.addEventListener("click", function () {
+            window.dispatchEvent(new Event("abrir-coordxy-tool"));
+        });
+    }
+
     window.setFerramentaCAD = function (ferramenta) {
         window.resetToPan(); // Limpa as ferramentas antigas
 
@@ -6833,12 +6941,13 @@ document.addEventListener("DOMContentLoaded", function () {
                         url: url,
                         params: {
                             LAYERS: layerName,
-                            TILED: true,
+                            STYLES: "", // obrigatório em MapServer/terrestris (senão HTTP 500 "missing parameters ['styles']")
+                            // NÃO enviar TILED (extensão GeoServer): MapServer/terrestris recusa com
+                            // "Request too large or invalid BBOX. (not a single tile)".
                             FORMAT: "image/png",
                             TRANSPARENT: true,
-                            VERSION: "1.1.1", // 🛑 A MÁGICA: Força a versão 1.1.1 para evitar erros de inversão de eixo em servidores do Governo BR
+                            VERSION: "1.1.1", // 🛑 Força 1.1.1 para evitar inversão de eixo em servidores gov BR
                         },
-                        serverType: "geoserver",
                         crossOrigin: "anonymous",
                     }),
                     zIndex: 21,
@@ -6896,6 +7005,60 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     }
+
+    // --- Camadas WMS persistidas (por categoria) — item PoC 022 ---
+    // Função reutilizável para instanciar uma camada TileWMS (mesmo padrão do quick-add).
+    window._wmsFonteLayers = window._wmsFonteLayers || {};
+
+    window.criarCamadaWmsExterna = function (opts) {
+        const layer = new ol.layer.Tile({
+            source: new ol.source.TileWMS({
+                url: opts.url,
+                params: {
+                    LAYERS: opts.layer,
+                    STYLES: "", // obrigatório em MapServer/terrestris (senão HTTP 500 "missing parameters ['styles']")
+                    // NÃO enviar TILED: é extensão do GeoServer (WMS-C); MapServer/terrestris recusa
+                    // com "Request too large or invalid BBOX. (not a single tile)".
+                    FORMAT: opts.formato || "image/png",
+                    TRANSPARENT: true,
+                    VERSION: "1.1.1", // evita inversão de eixo em servidores gov BR
+                },
+                crossOrigin: "anonymous",
+            }),
+            zIndex: 21,
+            visible: true,
+            opacity: typeof opts.opacity === "number" ? opts.opacity : 1,
+        });
+        if (opts.id) layer.set("id", opts.id);
+        layer.set("is_external_wms", true);
+        map.addLayer(layer);
+        return layer;
+    };
+
+    // Liga/desliga fontes WMS salvas via toggle no painel de camadas.
+    document.addEventListener("change", function (e) {
+        if (!e.target || !e.target.classList.contains("wms-fonte-toggle")) return;
+        const el = e.target;
+        const fonteId = "wms_fonte_" + el.getAttribute("data-fonte-id");
+
+        if (el.checked) {
+            if (window._wmsFonteLayers[fonteId]) {
+                window._wmsFonteLayers[fonteId].setVisible(true);
+                return;
+            }
+            const op = parseInt(el.getAttribute("data-opacidade") || "100", 10);
+            window._wmsFonteLayers[fonteId] = window.criarCamadaWmsExterna({
+                id: fonteId,
+                url: el.getAttribute("data-url"),
+                layer: el.getAttribute("data-camadas"),
+                formato: el.getAttribute("data-formato") || "image/png",
+                opacity: isNaN(op) ? 1 : op / 100,
+            });
+        } else if (window._wmsFonteLayers[fonteId]) {
+            map.removeLayer(window._wmsFonteLayers[fonteId]);
+            delete window._wmsFonteLayers[fonteId];
+        }
+    });
 
     // =========================================================================
     // 21. EXPORTAÇÃO PARA SHAPEFILE (SHP) — server-side via ogr2ogr (TR Tangará #30)

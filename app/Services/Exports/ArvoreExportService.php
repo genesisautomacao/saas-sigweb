@@ -3,22 +3,22 @@
 namespace App\Services\Exports;
 
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Spatie\SimpleExcel\SimpleExcelWriter;
-use Illuminate\Support\Collection;
 
 class ArvoreExportService
 {
     public function exportToExcel(Collection $arvores)
     {
-        $fileName = 'arvores-' . now()->format('Y-m-d-His') . '.xlsx';
+        $fileName = 'arvores-'.now()->format('Y-m-d-His').'.xlsx';
         $path = storage_path('app/exports/');
 
-        if (!File::isDirectory($path)) {
+        if (! File::isDirectory($path)) {
             File::makeDirectory($path, 0755, true, true);
         }
 
-        $filePath = $path . $fileName;
+        $filePath = $path.$fileName;
 
         $data = $arvores->map(function ($arvore) {
             return [
@@ -42,8 +42,8 @@ class ArvoreExportService
 
     public function exportToPdf(Collection $arvores)
     {
-        $fileName = 'arvores-' . now()->format('Y-m-d-His') . '.pdf';
-        
+        $fileName = 'arvores-'.now()->format('Y-m-d-His').'.pdf';
+
         $headings = ['ID', 'Espécie', 'Endereço', 'Porte', 'Saúde', 'Risco'];
 
         $data = $arvores->map(function ($arvore) {
@@ -65,5 +65,53 @@ class ArvoreExportService
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->stream();
         }, $fileName);
+    }
+
+    private function linha($arvore): array
+    {
+        return [
+            'ID' => $arvore->sequential_id,
+            'EspecieBotanica' => $arvore->botanical_species ?? 'Não Identificada',
+            'Endereco' => $arvore->address ?? 'S/N',
+            'Porte' => ucfirst($arvore->size ?? '-'),
+            'Saude' => $arvore->phytosanitary_condition ?? '-',
+            'Risco' => $arvore->risk_potential ?? '-',
+            'DAP_cm' => $arvore->trunk_diameter_dap ?? '-',
+            'AlturaTotal_m' => $arvore->total_height ?? '-',
+        ];
+    }
+
+    public function exportToCsv(Collection $arvores)
+    {
+        $fileName = 'arvores-'.now()->format('Y-m-d-His').'.csv';
+        $path = storage_path('app/exports/');
+        if (! File::isDirectory($path)) {
+            File::makeDirectory($path, 0755, true, true);
+        }
+        $filePath = $path.$fileName;
+
+        $data = $arvores->map(fn ($a) => $this->linha($a));
+        SimpleExcelWriter::create($filePath, 'csv')
+            ->addHeader(array_keys($data->first() ?? []))
+            ->addRows($data->toArray());
+
+        return response()->download($filePath)->deleteFileAfterSend(true);
+    }
+
+    public function exportToXml(Collection $arvores)
+    {
+        $fileName = 'arvores-'.now()->format('Y-m-d-His').'.xml';
+        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><arvores/>');
+
+        foreach ($arvores as $arvore) {
+            $item = $xml->addChild('arvore');
+            foreach ($this->linha($arvore) as $k => $v) {
+                $item->addChild($k, htmlspecialchars((string) $v));
+            }
+        }
+
+        return response()->streamDownload(function () use ($xml) {
+            echo $xml->asXML();
+        }, $fileName, ['Content-Type' => 'application/xml']);
     }
 }

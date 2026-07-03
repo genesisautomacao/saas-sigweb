@@ -3,22 +3,22 @@
 namespace App\Services\Exports;
 
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Spatie\SimpleExcel\SimpleExcelWriter;
-use Illuminate\Support\Collection;
 
 class CemiterioExportService
 {
     public function exportToExcel(Collection $cemiterios)
     {
-        $fileName = 'cemiterios-' . now()->format('Y-m-d-His') . '.xlsx';
+        $fileName = 'cemiterios-'.now()->format('Y-m-d-His').'.xlsx';
         $path = storage_path('app/exports/');
 
-        if (!File::isDirectory($path)) {
+        if (! File::isDirectory($path)) {
             File::makeDirectory($path, 0755, true, true);
         }
 
-        $filePath = $path . $fileName;
+        $filePath = $path.$fileName;
 
         $data = $cemiterios->map(function ($cemiterio) {
             return [
@@ -39,8 +39,8 @@ class CemiterioExportService
 
     public function exportToPdf(Collection $cemiterios)
     {
-        $fileName = 'cemiterios-' . now()->format('Y-m-d-His') . '.pdf';
-        
+        $fileName = 'cemiterios-'.now()->format('Y-m-d-His').'.pdf';
+
         $headings = ['ID', 'Nome', 'Endereço', 'Área (m²)', 'Cadastro'];
 
         $data = $cemiterios->map(function ($cemiterio) {

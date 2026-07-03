@@ -527,10 +527,20 @@
                                         <x-heroicon-o-arrow-trending-up class="w-4 h-4 text-blue-500" /> Criar por Azimutes
                                     </button>
 
+                                    <button id="btn-tool-coordxy" @click="openTools = false"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
+                                        <x-heroicon-o-map-pin class="w-4 h-4 text-blue-500" /> Criar por Coordenada XY
+                                    </button>
+
                                     <button wire:click="mountAction('abrirNuvemPontosAction')"
                                         @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-cube class="w-4 h-4 text-blue-500" /> Visualizador 3D (LiDAR)
+                                    </button>
+
+                                    <button @click="openTools = false; window.dispatchEvent(new Event('abrir-wms-sidebar'))"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
+                                        <x-heroicon-o-globe-alt class="w-4 h-4 text-emerald-500" /> Camadas WMS
                                     </button>
 
                                     <button wire:click="mountAction('configurarPgvAction')" @click="openTools = false"
@@ -1075,6 +1085,119 @@
             </div>
             <p class="text-[10px] text-gray-400 leading-tight">
                 O polígono é fechado automaticamente. Ao enviar, ajuste se quiser e clique em <b>Salvar</b> na barra da Mesa de Desenho para criar o artefato.
+            </p>
+        </div>
+
+        {{-- PAINEL: CRIAR GEOMETRIA POR COORDENADA XY (item PoC 045) --}}
+        <div x-data="{
+                aberto: false,
+                pickando: false,
+                entidade: 'lotes',
+                texto: '',
+                area: 0, perimetro: 0,
+                init() {
+                    window.addEventListener('abrir-coordxy-tool', () => { this.aberto = true; });
+                    window.addEventListener('coordxy-vertice-add', (e) => {
+                        this.texto += e.detail.lon.toFixed(6) + ' ' + e.detail.lat.toFixed(6) + ',\n';
+                        this.recalc();
+                    });
+                },
+                pontos() {
+                    return this.texto
+                        .split(/[\n,]+/)
+                        .map(l => l.trim().replace(/\s+/g, ' '))
+                        .filter(l => l.length)
+                        .map(l => {
+                            const p = l.split(' ');
+                            const lon = parseFloat((p[0] || '').replace(/[^0-9.\-]/g, ''));
+                            const lat = parseFloat((p[1] || '').replace(/[^0-9.\-]/g, ''));
+                            return { lon, lat };
+                        })
+                        .filter(pt => !isNaN(pt.lon) && !isNaN(pt.lat));
+                },
+                recalc() {
+                    const res = window.previewCoordenadasXY(this.pontos()) || {};
+                    this.area = res.area || 0; this.perimetro = res.perimetro || 0;
+                },
+                toggleMapa() {
+                    this.pickando = !this.pickando;
+                    if (this.pickando) { window.iniciarXYPickVertex(); }
+                    else { window.xyPickVertex = false; }
+                },
+                finalizar() {
+                    const pts = this.pontos();
+                    if (pts.length < 3) { alert('Informe ao menos 3 coordenadas (uma por linha: longitude latitude).'); return; }
+                    window.xyPickVertex = false;
+                    window.finalizarCoordenadasXY(pts, this.entidade);
+                    this.aberto = false; this.pickando = false;
+                },
+                limpar() { this.texto = ''; this.area = 0; this.perimetro = 0; window.limparCoordenadasXYPreview(); },
+                fechar() { this.aberto = false; this.pickando = false; window.xyPickVertex = false; window.limparCoordenadasXYPreview(); }
+            }"
+            x-show="aberto" x-cloak
+            style="display:none; position: fixed; top: 70px; right: 16px; z-index: 9999; width: 330px;"
+            class="bg-white dark:bg-gray-800 shadow-2xl rounded-xl border-2 border-gray-300 dark:border-gray-600 p-4 flex flex-col gap-3">
+
+            <div class="flex items-center justify-between">
+                <span class="font-bold text-sm text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                    <x-heroicon-o-map-pin class="w-4 h-4 text-blue-500" /> Criar por Coordenada XY
+                </span>
+                <button type="button" @click="fechar()" class="text-gray-400 hover:text-gray-600">
+                    <x-heroicon-o-x-mark class="w-4 h-4" />
+                </button>
+            </div>
+
+            <div>
+                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Salvar como</label>
+                <select x-model="entidade"
+                    class="w-full text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900">
+                    <option value="lotes">Lote</option>
+                    <option value="quadras">Quadra</option>
+                    <option value="bairros">Bairro</option>
+                    <option value="loteamentos">Loteamento</option>
+                    <option value="perimetros">Perímetro Urbano</option>
+                    <option value="zonas">Zona</option>
+                    <option value="setores_fiscais">Setor Fiscal</option>
+                    <option value="areas_reurb">Área REURB</option>
+                    <option value="patrimonio_publicos">Patrimônio Público</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Coordenadas — uma por linha (Longitude Latitude)</label>
+                <textarea x-model="texto" @input="recalc()" rows="6" spellcheck="false"
+                    placeholder="-50.426802 -26.959919,&#10;-50.426896 -26.959655,&#10;-50.426761 -26.959623,&#10;-50.426668 -26.959880,&#10;-50.426802 -26.959919"
+                    class="w-full text-xs font-mono border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900"></textarea>
+                <div class="flex items-center justify-end mt-1">
+                    <button type="button" @click="toggleMapa()"
+                        class="text-[11px] font-semibold flex items-center gap-1"
+                        :class="pickando ? 'text-red-600 animate-pulse' : 'text-blue-600 hover:text-blue-700'">
+                        <x-heroicon-o-map-pin class="w-3 h-3" />
+                        <span x-text="pickando ? 'Clicando... (parar)' : 'Pegar do mapa'"></span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="text-[11px] text-gray-500 dark:text-gray-400" x-show="area > 0">
+                Área: <b x-text="area.toLocaleString('pt-BR', {maximumFractionDigits: 2})"></b> m² ·
+                Perímetro: <b x-text="perimetro.toLocaleString('pt-BR', {maximumFractionDigits: 2})"></b> m
+            </div>
+
+            <div class="flex gap-2">
+                <button type="button" @click="finalizar()"
+                    class="flex-1 text-white text-xs font-bold rounded px-2 py-2 transition-colors"
+                    style="background-color: rgb(var(--primary-600, 37 99 235));"
+                    onmouseover="this.style.backgroundColor='rgb(var(--primary-500, 59 130 246))'"
+                    onmouseout="this.style.backgroundColor='rgb(var(--primary-600, 37 99 235))'">
+                    Enviar p/ Mesa de Desenho
+                </button>
+                <button type="button" @click="limpar()"
+                    class="text-xs text-gray-500 border border-gray-300 dark:border-gray-600 rounded px-2 py-2 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Limpar
+                </button>
+            </div>
+            <p class="text-[10px] text-gray-400 leading-tight">
+                Uma coordenada por linha no formato <b>longitude latitude</b> (WGS84), separadas por espaço. Vírgula ao fim da linha é opcional. O polígono é fechado automaticamente. Ao enviar, ajuste se quiser e clique em <b>Salvar</b> na barra da Mesa de Desenho.
             </p>
         </div>
 
@@ -1939,44 +2062,7 @@
                     </div>
                 </div>
 
-                {{-- GRUPO OGC: CONEXÕES EXTERNAS (WMS) --}}
-                <div data-permission-group="toolbar:ferramentas"
-                    class="border-b border-gray-100/50 dark:border-gray-700/50">
-                    <button @click="activeTab = activeTab === 'ogc' ? '' : 'ogc'"
-                        class="w-full px-4 py-3 text-left font-bold text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 flex justify-between items-center transition-colors">
-                        <span class="flex items-center gap-2">WMS Externo (OGC)</span>
-                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
-                            x-bind:class="activeTab === 'ogc' ? 'rotate-180' : ''" />
-                    </button>
-
-                    <div x-show="activeTab === 'ogc'" x-collapse
-                        class="px-4 pb-4 bg-transparent w-full overflow-hidden">
-                        <div
-                            class="p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/50 rounded-lg shadow-sm space-y-3">
-                            <p class="text-[10px] text-emerald-800 dark:text-emerald-300 font-medium leading-tight">
-                                Conecte serviços oficiais (IBGE, INPE) colando a URL WMS abaixo.
-                            </p>
-
-                            <div class="space-y-2">
-                                <input type="text" id="wms-url" placeholder="URL do Serviço WMS..."
-                                    class="w-full text-xs rounded border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400">
-
-                                <input type="text" id="wms-layer" placeholder="Nome da Camada (Layer)"
-                                    class="w-full text-xs rounded border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400">
-
-                                <button id="btn-add-wms"
-                                    style="width: 100%; background-color: #073bc0; color: white; font-weight: bold; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                                    + Conectar Camada OGC
-                                </button>
-
-                            </div>
-                        </div>
-
-                        {{-- Lista de camadas conectadas --}}
-                        <div id="wms-layers-list" class="space-y-2 mt-3 empty:hidden">
-                        </div>
-                    </div>
-                </div>
+                {{-- WMS movido para o menu Ferramentas → barra lateral esquerda "Camadas WMS" (painel #wms-sidebar). --}}
 
             </div>
         </div>
@@ -2104,6 +2190,89 @@
             </button>
         </div>
 
+    </div>
+
+    {{-- 🌐 BARRA LATERAL ESQUERDA: GERENCIAR CAMADAS WMS (movido do painel de camadas — item PoC 022) --}}
+    <div x-data="{ open: false, init() { window.addEventListener('abrir-wms-sidebar', () => { this.open = true; }); } }"
+        x-show="open" x-cloak
+        class="fixed inset-y-0 left-0 bg-white dark:bg-gray-800 shadow-2xl border-r border-gray-200 dark:border-gray-700 flex flex-col"
+        x-transition:enter="transition ease-out duration-300" x-transition:enter-start="-translate-x-full"
+        x-transition:enter-end="translate-x-0" x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full"
+        style="display:none; width: 320px !important; z-index: 100000 !important;">
+
+        <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900">
+            <h2 class="text-base font-bold flex items-center gap-2 text-gray-800 dark:text-white">
+                <x-heroicon-o-globe-alt class="w-5 h-5 text-emerald-600" /> Camadas WMS
+            </h2>
+            <button type="button" @click="open = false" class="text-gray-400 hover:text-red-500 transition-colors">
+                <x-heroicon-o-x-mark class="w-6 h-6" />
+            </button>
+        </div>
+
+        <div class="p-4 flex-1 overflow-y-auto space-y-5">
+
+            {{-- BLOCO 1: FONTES SALVAS (persistidas por categoria) --}}
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">Fontes salvas</h3>
+                    @if(auth()->user()?->can('gerenciar_wms'))
+                        <a href="{{ \App\Filament\Resources\FonteWmsResource::getUrl('index') }}" target="_blank"
+                            class="text-[11px] text-emerald-600 hover:text-emerald-700 font-semibold flex items-center gap-1">
+                            <x-heroicon-o-cog-6-tooth class="w-3.5 h-3.5" /> Gerenciar
+                        </a>
+                    @endif
+                </div>
+
+                @if(count($wmsCategorias) > 0)
+                    <div class="space-y-1">
+                        @foreach($wmsCategorias as $cat)
+                            <div @style(['margin-left: '.($cat['nivel'] * 12).'px'])>
+                                <p class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mt-2 mb-1 flex items-center gap-1">
+                                    <x-heroicon-o-folder class="w-3.5 h-3.5" /> {{ $cat['nome'] }}
+                                </p>
+                                @forelse($cat['fontes'] as $fonte)
+                                    <label class="flex items-center gap-2 cursor-pointer py-1 pl-1">
+                                        <input type="checkbox"
+                                            class="wms-fonte-toggle rounded border-gray-400 text-emerald-600 focus:ring-emerald-500 w-4 h-4 flex-shrink-0"
+                                            data-fonte-id="{{ $fonte['id'] }}"
+                                            data-url="{{ $fonte['url'] }}"
+                                            data-camadas="{{ $fonte['camadas'] }}"
+                                            data-formato="{{ $fonte['formato'] }}"
+                                            data-opacidade="{{ $fonte['opacidade'] }}">
+                                        <span class="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate"
+                                            title="{{ $fonte['nome'] }}">{{ $fonte['nome'] }}</span>
+                                    </label>
+                                @empty
+                                    <p class="text-[10px] text-gray-400 pl-1 italic">Sem fontes nesta categoria.</p>
+                                @endforelse
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-[11px] text-gray-400 italic leading-tight">Nenhuma fonte WMS salva ainda. Cadastre em <b>Administração → Fontes WMS</b> (organizadas por categoria) para reutilizá-las sempre que abrir o mapa.</p>
+                @endif
+            </div>
+
+            {{-- BLOCO 2: CONEXÃO AVULSA (temporária, não persiste) --}}
+            <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <h3 class="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Conectar WMS avulso</h3>
+                <div class="p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/50 rounded-lg shadow-sm space-y-2">
+                    <p class="text-[10px] text-emerald-800 dark:text-emerald-300 font-medium leading-tight">
+                        Conexão <b>temporária</b> (some ao recarregar). Cole a URL de um serviço oficial (IBGE, INPE) + o nome da camada.
+                    </p>
+                    <input type="text" id="wms-url" placeholder="URL do Serviço WMS..."
+                        class="w-full text-xs rounded border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400">
+                    <input type="text" id="wms-layer" placeholder="Nome da Camada (Layer)"
+                        class="w-full text-xs rounded border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400">
+                    <button id="btn-add-wms"
+                        style="width: 100%; background-color: #073bc0; color: white; font-weight: bold; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                        + Conectar Camada OGC
+                    </button>
+                </div>
+                <div id="wms-layers-list" class="space-y-2 mt-3 empty:hidden"></div>
+            </div>
+        </div>
     </div>
 
     {{-- ⚡ FICHA DO IMÓVEL (GERENCIADA PELO LIVEWIRE) ⚡ --}}

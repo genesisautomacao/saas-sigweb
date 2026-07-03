@@ -146,6 +146,8 @@ class MapaFullscreen extends Page
     public array $zonasTipos = [];
     // Fluxos BPMN ativos do tenant — um toggle por fluxo na camada "Processos Digitais" do mapa.
     public array $processoFluxos = [];
+    // Fontes WMS persistidas agrupadas por categoria (mapas temáticos hierarquizados — item PoC 022).
+    public array $wmsCategorias = [];
     public ?int $cemiterioAtivoId = null;
 
 
@@ -208,7 +210,73 @@ class MapaFullscreen extends Page
                     'cor'  => $f->cor ?: '#3b82f6',
                 ])
                 ->toArray();
+
+            // Camadas WMS persistidas, agrupadas por categoria (pai/filho) — item PoC 022.
+            $this->wmsCategorias = $this->montarArvoreWms();
         }
+    }
+
+    /**
+     * Monta a árvore de categorias WMS (pai → filho, com nível) e suas fontes ativas.
+     * Retorna [] se a tabela ainda não existir ou não houver fontes — o acordeon some.
+     */
+    private function montarArvoreWms(): array
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('fontes_wms')) {
+            return [];
+        }
+
+        $fontes = \App\Models\FonteWms::query()
+            ->where('tenant_id', $this->tenantId)
+            ->where('ativo', true)
+            ->orderBy('ordem')->orderBy('nome')
+            ->get(['id', 'categoria_wms_id', 'nome', 'url', 'camadas', 'formato', 'opacidade']);
+
+        if ($fontes->isEmpty()) {
+            return [];
+        }
+
+        $categorias = \App\Models\CategoriaWms::query()
+            ->where('tenant_id', $this->tenantId)
+            ->orderBy('ordem')->orderBy('nome')
+            ->get(['id', 'nome', 'pai_id']);
+
+        $fontesPorCat = $fontes->groupBy('categoria_wms_id');
+
+        $mapFonte = fn($f) => [
+            'id'        => $f->id,
+            'nome'      => $f->nome,
+            'url'       => $f->url,
+            'camadas'   => $f->camadas,
+            'formato'   => $f->formato ?: 'image/png',
+            'opacidade' => $f->opacidade ?? 100,
+        ];
+
+        $resultado = [];
+
+        $adicionar = function ($cat, $nivel) use (&$adicionar, &$resultado, $categorias, $fontesPorCat, $mapFonte) {
+            $resultado[] = [
+                'id'     => $cat->id,
+                'nome'   => $cat->nome,
+                'nivel'  => $nivel,
+                'fontes' => ($fontesPorCat->get($cat->id) ?? collect())->map($mapFonte)->values()->toArray(),
+            ];
+            foreach ($categorias->where('pai_id', $cat->id) as $filho) {
+                $adicionar($filho, $nivel + 1);
+            }
+        };
+
+        foreach ($categorias->whereNull('pai_id') as $raiz) {
+            $adicionar($raiz, 0);
+        }
+
+        // Fontes sem categoria → grupo "Sem categoria".
+        $semCat = ($fontesPorCat->get(null) ?? collect())->map($mapFonte)->values()->toArray();
+        if (!empty($semCat)) {
+            $resultado[] = ['id' => 0, 'nome' => 'Sem categoria', 'nivel' => 0, 'fontes' => $semCat];
+        }
+
+        return $resultado;
     }
 
     #[On('abrirFichaImovel')]

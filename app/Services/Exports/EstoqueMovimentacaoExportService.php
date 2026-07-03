@@ -3,26 +3,26 @@
 namespace App\Services\Exports;
 
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Spatie\SimpleExcel\SimpleExcelWriter;
-use Illuminate\Support\Collection;
 
 class EstoqueMovimentacaoExportService
 {
     public function exportToExcel(Collection $movimentacoes)
     {
-        $fileName = 'movimentacoes-' . now()->format('Y-m-d-His') . '.xlsx';
+        $fileName = 'movimentacoes-'.now()->format('Y-m-d-His').'.xlsx';
         $path = storage_path('app/exports/');
 
-        if (!File::isDirectory($path)) {
+        if (! File::isDirectory($path)) {
             File::makeDirectory($path, 0755, true, true);
         }
 
-        $filePath = $path . $fileName;
+        $filePath = $path.$fileName;
 
         $data = $movimentacoes->map(function ($mov) {
             // Concatena os itens (Ex: "5x Lâmpada, 10x Fio")
-            $itensStr = $mov->itens->map(fn($i) => $i->quantity . 'x ' . ($i->produto->name ?? ''))->implode(', ');
+            $itensStr = $mov->itens->map(fn ($i) => $i->quantity.'x '.($i->produto->name ?? ''))->implode(', ');
 
             return [
                 'ID' => $mov->sequential_id,
@@ -45,13 +45,13 @@ class EstoqueMovimentacaoExportService
 
     public function exportToPdf(Collection $movimentacoes)
     {
-        $fileName = 'movimentacoes-' . now()->format('Y-m-d-His') . '.pdf';
-        
+        $fileName = 'movimentacoes-'.now()->format('Y-m-d-His').'.pdf';
+
         $headings = ['ID', 'Tipo', 'Origem', 'Destino', 'Itens', 'Data'];
 
         $data = $movimentacoes->map(function ($mov) {
-            $itensStr = $mov->itens->map(fn($i) => $i->quantity . 'x ' . ($i->produto->name ?? ''))->implode(', ');
-            
+            $itensStr = $mov->itens->map(fn ($i) => $i->quantity.'x '.($i->produto->name ?? ''))->implode(', ');
+
             return [
                 $mov->sequential_id,
                 ucfirst($mov->type),
@@ -75,7 +75,7 @@ class EstoqueMovimentacaoExportService
 
     public function exportToXml(Collection $movimentacoes)
     {
-        $fileName = 'movimentacoes-' . now()->format('Y-m-d-His') . '.xml';
+        $fileName = 'movimentacoes-'.now()->format('Y-m-d-His').'.xml';
         $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><movimentacoes/>');
 
         foreach ($movimentacoes as $mov) {

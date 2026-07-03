@@ -247,6 +247,7 @@ class PermissionsSeeder extends Seeder
             'view_monitoramento_campo',
             'view_produtividade',
             'view_mensagens',
+            'gerenciar_wms', // Fontes e Categorias WMS (mapas temáticos hierarquizados — item PoC 022)
 
             /* Permissões de visibilidade de camadas GIS */
             'ver_camada_perimetros',

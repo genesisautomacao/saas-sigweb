@@ -78,7 +78,9 @@ class RuralPropriedadeResource extends Resource
                 Tables\Columns\TextColumn::make('nome_propriedade')->label('Nome')->searchable(),
                 Tables\Columns\TextColumn::make('localidade.nome')->label('Localidade')->searchable(),
                 Tables\Columns\TextColumn::make('proprietario.name')->label('Proprietário')->searchable(),
+                Tables\Columns\TextColumn::make('codigo_incra')->label('INCRA')->searchable()->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('codigo_car')->label('CAR')->searchable(),
+                Tables\Columns\TextColumn::make('codigo_sigef')->label('SIGEF')->searchable()->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('area_geo')->label('Área (m²)')->numeric(decimalPlaces: 2)->sortable(),
             ])
             ->filters([

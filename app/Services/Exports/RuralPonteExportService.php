@@ -3,22 +3,22 @@
 namespace App\Services\Exports;
 
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Spatie\SimpleExcel\SimpleExcelWriter;
-use Illuminate\Support\Collection;
 
 class RuralPonteExportService
 {
     public function exportToExcel(Collection $records)
     {
-        $fileName = 'pontes-rurais-' . now()->format('Y-m-d-His') . '.xlsx';
+        $fileName = 'pontes-rurais-'.now()->format('Y-m-d-His').'.xlsx';
         $path = storage_path('app/exports/');
 
-        if (!File::isDirectory($path)) {
+        if (! File::isDirectory($path)) {
             File::makeDirectory($path, 0755, true, true);
         }
 
-        $filePath = $path . $fileName;
+        $filePath = $path.$fileName;
 
         $data = $records->map(function ($record) {
             return [
@@ -41,8 +41,8 @@ class RuralPonteExportService
 
     public function exportToPdf(Collection $records)
     {
-        $fileName = 'pontes-rurais-' . now()->format('Y-m-d-His') . '.pdf';
-        
+        $fileName = 'pontes-rurais-'.now()->format('Y-m-d-His').'.pdf';
+
         $headings = ['ID', 'Referência', 'Localidade', 'Estrada', 'Material', 'Carga (Ton)', 'Conservação'];
 
         $data = $records->map(function ($record) {
@@ -65,5 +65,52 @@ class RuralPonteExportService
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->stream();
         }, $fileName);
+    }
+
+    private function linha($record): array
+    {
+        return [
+            'ID' => $record->sequential_id,
+            'Referencia' => $record->nome_referencia ?? 'Sem Nome',
+            'Localidade' => $record->localidade->nome ?? '-',
+            'Estrada' => $record->estrada->nome ?? '-',
+            'Material' => $record->material_construcao ?? '-',
+            'CargaTon' => $record->capacidade_carga_toneladas ?? '-',
+            'Conservacao' => $record->estado_conservacao ?? '-',
+        ];
+    }
+
+    public function exportToCsv(Collection $records)
+    {
+        $fileName = 'pontes-rurais-'.now()->format('Y-m-d-His').'.csv';
+        $path = storage_path('app/exports/');
+        if (! File::isDirectory($path)) {
+            File::makeDirectory($path, 0755, true, true);
+        }
+        $filePath = $path.$fileName;
+
+        $data = $records->map(fn ($r) => $this->linha($r));
+        SimpleExcelWriter::create($filePath, 'csv')
+            ->addHeader(array_keys($data->first() ?? []))
+            ->addRows($data->toArray());
+
+        return response()->download($filePath)->deleteFileAfterSend(true);
+    }
+
+    public function exportToXml(Collection $records)
+    {
+        $fileName = 'pontes-rurais-'.now()->format('Y-m-d-His').'.xml';
+        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><pontes/>');
+
+        foreach ($records as $record) {
+            $item = $xml->addChild('ponte');
+            foreach ($this->linha($record) as $k => $v) {
+                $item->addChild($k, htmlspecialchars((string) $v));
+            }
+        }
+
+        return response()->streamDownload(function () use ($xml) {
+            echo $xml->asXML();
+        }, $fileName, ['Content-Type' => 'application/xml']);
     }
 }

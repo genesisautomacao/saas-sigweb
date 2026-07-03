@@ -64,7 +64,7 @@ class EditRole extends EditRecord
         $data['permissions_pgv_avaliacao'] = array_values(array_intersect($permissions, ['gerenciar_pgv_amostras', 'gerenciar_pgv_polos', 'gerenciar_pgv_cubs', 'gerenciar_pgv_depreciacoes', 'gerenciar_face_quadras']));
 
         $data['permissions_administracao'] = array_values(array_intersect($permissions, [
-            'view_auditoria', 'view_monitoramento_campo', 'view_produtividade',
+            'view_auditoria', 'view_monitoramento_campo', 'view_produtividade', 'view_mensagens', 'gerenciar_wms',
         ]));
 
         $data['permissions_mapa_camadas'] = array_values(array_intersect($permissions, [

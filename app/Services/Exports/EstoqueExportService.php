@@ -16,27 +16,27 @@ class EstoqueExportService
     private function linha($e): array
     {
         return [
-            'Local'   => $e->localEstoque->name ?? '-',
-            'Tipo'    => $e->tipoEstoque->name ?? '-',
+            'Local' => $e->localEstoque->name ?? '-',
+            'Tipo' => $e->tipoEstoque->name ?? '-',
             'Produto' => $e->produto->name ?? '-',
             'Família' => $e->produto->familia->name ?? '-',
-            'Lote'    => $e->loteEstoque->numero_lote ?? '-',
-            'SKU'     => $e->produto->sku ?? '-',
-            'Saldo'   => (float) $e->quantity,
-            'UN'      => $e->produto->unit ?? '-',
+            'Lote' => $e->loteEstoque->numero_lote ?? '-',
+            'SKU' => $e->produto->sku ?? '-',
+            'Saldo' => (float) $e->quantity,
+            'UN' => $e->produto->unit ?? '-',
         ];
     }
 
     public function exportToExcel(Collection $records)
     {
-        $fileName = 'saldo-estoque-' . now()->format('Y-m-d-His') . '.xlsx';
+        $fileName = 'saldo-estoque-'.now()->format('Y-m-d-His').'.xlsx';
         $path = storage_path('app/exports/');
-        if (!File::isDirectory($path)) {
+        if (! File::isDirectory($path)) {
             File::makeDirectory($path, 0755, true, true);
         }
-        $filePath = $path . $fileName;
+        $filePath = $path.$fileName;
 
-        $data = $records->map(fn($e) => $this->linha($e));
+        $data = $records->map(fn ($e) => $this->linha($e));
         $header = ['Local', 'Tipo', 'Produto', 'Família', 'Lote', 'SKU', 'Saldo', 'UN'];
 
         SimpleExcelWriter::create($filePath)
@@ -48,10 +48,10 @@ class EstoqueExportService
 
     public function exportToPdf(Collection $records)
     {
-        $fileName = 'saldo-estoque-' . now()->format('Y-m-d-His') . '.pdf';
+        $fileName = 'saldo-estoque-'.now()->format('Y-m-d-His').'.pdf';
         $headings = ['Local', 'Tipo', 'Produto', 'Família', 'Lote', 'Saldo', 'UN'];
 
-        $data = $records->map(fn($e) => [
+        $data = $records->map(fn ($e) => [
             $e->localEstoque->name ?? '-',
             $e->tipoEstoque->name ?? '-',
             $e->produto->name ?? '-',
@@ -65,12 +65,12 @@ class EstoqueExportService
         $pdf = Pdf::loadView('pdf.default-report', compact('data', 'headings', 'title'))
             ->setPaper('a4', 'landscape');
 
-        return response()->streamDownload(fn() => print($pdf->stream()), $fileName);
+        return response()->streamDownload(fn () => print ($pdf->stream()), $fileName);
     }
 
     public function exportToXml(Collection $records)
     {
-        $fileName = 'saldo-estoque-' . now()->format('Y-m-d-His') . '.xml';
+        $fileName = 'saldo-estoque-'.now()->format('Y-m-d-His').'.xml';
         $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><saldos/>');
 
         foreach ($records as $e) {

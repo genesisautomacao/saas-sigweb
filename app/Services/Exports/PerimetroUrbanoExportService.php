@@ -11,29 +11,29 @@ class PerimetroUrbanoExportService
 {
     public function exportToExcel(Collection $records)
     {
-        $fileName = 'distritos-' . now()->format('Y-m-d-His') . '.xlsx';
+        $fileName = 'distritos-'.now()->format('Y-m-d-His').'.xlsx';
         $path = storage_path('app/exports/');
-        if (!File::isDirectory($path)) {
+        if (! File::isDirectory($path)) {
             File::makeDirectory($path, 0755, true, true);
         }
 
         $data = $records->map(fn ($r) => [
-            'ID'         => $r->sequential_id,
-            'Código'     => $r->code,
-            'Nome'       => $r->name,
-            'Distrito'   => $r->distrito ?? '-',
+            'ID' => $r->sequential_id,
+            'Código' => $r->code,
+            'Nome' => $r->name,
+            'Distrito' => $r->distrito ?? '-',
         ]);
 
-        SimpleExcelWriter::create($path . $fileName)
+        SimpleExcelWriter::create($path.$fileName)
             ->addHeader(array_keys($data->first() ?? []))
             ->addRows($data->toArray());
 
-        return response()->download($path . $fileName)->deleteFileAfterSend(true);
+        return response()->download($path.$fileName)->deleteFileAfterSend(true);
     }
 
     public function exportToPdf(Collection $records)
     {
-        $fileName = 'distritos-' . now()->format('Y-m-d-His') . '.pdf';
+        $fileName = 'distritos-'.now()->format('Y-m-d-His').'.pdf';
         $data = $records->map(fn ($r) => [
             $r->sequential_id,
             $r->code,
@@ -43,9 +43,9 @@ class PerimetroUrbanoExportService
         $headings = ['ID', 'Código', 'Nome', 'Distrito'];
 
         $pdf = Pdf::loadView('pdf.default-report', [
-            'data'     => $data,
+            'data' => $data,
             'headings' => $headings,
-            'title'    => 'Relatório de Distritos / Limites',
+            'title' => 'Relatório de Distritos / Limites',
         ])->setPaper('a4', 'portrait');
 
         return response()->streamDownload(fn () => print ($pdf->output()), $fileName);

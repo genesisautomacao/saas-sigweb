@@ -3,22 +3,22 @@
 namespace App\Services\Exports;
 
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Spatie\SimpleExcel\SimpleExcelWriter;
-use Illuminate\Support\Collection;
 
 class LoteExportService
 {
     public function exportToExcel(Collection $lotes)
     {
-        $fileName = 'lotes-' . now()->format('Y-m-d-His') . '.xlsx';
+        $fileName = 'lotes-'.now()->format('Y-m-d-His').'.xlsx';
         $path = storage_path('app/exports/');
 
-        if (!File::isDirectory($path)) {
+        if (! File::isDirectory($path)) {
             File::makeDirectory($path, 0755, true, true);
         }
 
-        $filePath = $path . $fileName;
+        $filePath = $path.$fileName;
 
         $lotes->loadMissing(['unidadesImobiliarias.proprietario', 'edificacoes']);
 
@@ -79,7 +79,7 @@ class LoteExportService
 
     public function exportToPdf(Collection $lotes)
     {
-        $fileName = 'lotes-' . now()->format('Y-m-d-His') . '.pdf';
+        $fileName = 'lotes-'.now()->format('Y-m-d-His').'.pdf';
 
         $lotes->loadMissing(['unidadesImobiliarias.proprietario', 'edificacoes']);
 
@@ -94,7 +94,7 @@ class LoteExportService
 
     public function exportToXml(Collection $lotes)
     {
-        $fileName = 'lotes-' . now()->format('Y-m-d-His') . '.xml';
+        $fileName = 'lotes-'.now()->format('Y-m-d-His').'.xml';
 
         $lotes->loadMissing(['unidadesImobiliarias.proprietario', 'edificacoes']);
 

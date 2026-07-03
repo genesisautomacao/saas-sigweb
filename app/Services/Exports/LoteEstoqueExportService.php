@@ -16,36 +16,43 @@ class LoteEstoqueExportService
     private function situacao($lote): string
     {
         $d = $lote->dias_garantia;
-        if ($d === null) return 'Sem garantia';
-        if ($d < 0) return 'Vencida há ' . abs($d) . ' dia(s)';
-        if ($d <= 30) return 'Vence em ' . $d . ' dia(s)';
-        return 'Vigente (' . $d . ' dia(s))';
+        if ($d === null) {
+            return 'Sem garantia';
+        }
+        if ($d < 0) {
+            return 'Vencida há '.abs($d).' dia(s)';
+        }
+        if ($d <= 30) {
+            return 'Vence em '.$d.' dia(s)';
+        }
+
+        return 'Vigente ('.$d.' dia(s))';
     }
 
     private function linha($l): array
     {
         return [
-            'Lote/Série'   => $l->numero_lote,
-            'Produto'      => $l->produto->name ?? '-',
-            'Fornecedor'   => $l->fornecedor->name ?? '-',
-            'Qtd Inicial'  => (float) $l->quantidade_inicial,
-            'Fabricação'   => $l->data_fabricacao?->format('d/m/Y') ?? '-',
-            'Validade'     => $l->data_validade?->format('d/m/Y') ?? '-',
+            'Lote/Série' => $l->numero_lote,
+            'Produto' => $l->produto->name ?? '-',
+            'Fornecedor' => $l->fornecedor->name ?? '-',
+            'Qtd Inicial' => (float) $l->quantidade_inicial,
+            'Fabricação' => $l->data_fabricacao?->format('d/m/Y') ?? '-',
+            'Validade' => $l->data_validade?->format('d/m/Y') ?? '-',
             'Garantia até' => $l->data_garantia?->format('d/m/Y') ?? '-',
-            'Situação'     => $this->situacao($l),
+            'Situação' => $this->situacao($l),
         ];
     }
 
     public function exportToExcel(Collection $records)
     {
-        $fileName = 'garantia-lotes-' . now()->format('Y-m-d-His') . '.xlsx';
+        $fileName = 'garantia-lotes-'.now()->format('Y-m-d-His').'.xlsx';
         $path = storage_path('app/exports/');
-        if (!File::isDirectory($path)) {
+        if (! File::isDirectory($path)) {
             File::makeDirectory($path, 0755, true, true);
         }
-        $filePath = $path . $fileName;
+        $filePath = $path.$fileName;
 
-        $data = $records->map(fn($l) => $this->linha($l));
+        $data = $records->map(fn ($l) => $this->linha($l));
         $header = ['Lote/Série', 'Produto', 'Fornecedor', 'Qtd Inicial', 'Fabricação', 'Validade', 'Garantia até', 'Situação'];
 
         SimpleExcelWriter::create($filePath)
@@ -57,10 +64,10 @@ class LoteEstoqueExportService
 
     public function exportToPdf(Collection $records)
     {
-        $fileName = 'garantia-lotes-' . now()->format('Y-m-d-His') . '.pdf';
+        $fileName = 'garantia-lotes-'.now()->format('Y-m-d-His').'.pdf';
         $headings = ['Lote/Série', 'Produto', 'Fornecedor', 'Validade', 'Garantia até', 'Situação'];
 
-        $data = $records->map(fn($l) => [
+        $data = $records->map(fn ($l) => [
             $l->numero_lote,
             $l->produto->name ?? '-',
             $l->fornecedor->name ?? '-',
@@ -73,12 +80,12 @@ class LoteEstoqueExportService
         $pdf = Pdf::loadView('pdf.default-report', compact('data', 'headings', 'title'))
             ->setPaper('a4', 'landscape');
 
-        return response()->streamDownload(fn() => print($pdf->stream()), $fileName);
+        return response()->streamDownload(fn () => print ($pdf->stream()), $fileName);
     }
 
     public function exportToXml(Collection $records)
     {
-        $fileName = 'garantia-lotes-' . now()->format('Y-m-d-His') . '.xml';
+        $fileName = 'garantia-lotes-'.now()->format('Y-m-d-His').'.xml';
         $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><lotes/>');
 
         foreach ($records as $l) {

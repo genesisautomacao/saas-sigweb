@@ -32,12 +32,12 @@ class ShapefileExportService
 
     public function export(string $layer, int $tenantId)
     {
-        if (!in_array($layer, self::ALLOWED_LAYERS, true)) {
+        if (! in_array($layer, self::ALLOWED_LAYERS, true)) {
             abort(403, 'Camada não permitida para exportação.');
         }
 
         // 1. Pré-flight: ogr2ogr está disponível?
-        if (!$this->ogr2ogrDisponivel()) {
+        if (! $this->ogr2ogrDisponivel()) {
             abort(500, 'GDAL (ogr2ogr) não está instalado no servidor. Solicite ao administrador a instalação para habilitar a exportação SHP.');
         }
 
@@ -49,14 +49,14 @@ class ShapefileExportService
         }
 
         // 3. Diretório temporário isolado
-        $base = storage_path('app/tmp/shp-' . uniqid('', true));
+        $base = storage_path('app/tmp/shp-'.uniqid('', true));
         File::makeDirectory($base, 0755, true);
 
-        $jsonPath = $base . '/' . $layer . '.geojson';
+        $jsonPath = $base.'/'.$layer.'.geojson';
         File::put($jsonPath, json_encode($geojson));
 
         // 4. Roda ogr2ogr — Shapefile tem limites (nome de coluna ≤10 chars; encoding UTF-8 via .cpg)
-        $shpDir = $base . '/shp';
+        $shpDir = $base.'/shp';
         File::makeDirectory($shpDir, 0755, true);
 
         $process = new Process([
@@ -64,21 +64,21 @@ class ShapefileExportService
             '-f', 'ESRI Shapefile',
             '-lco', 'ENCODING=UTF-8',
             '-nlt', 'PROMOTE_TO_MULTI', // converte Polygon → MultiPolygon (Shapefile não suporta mistura)
-            $shpDir . '/' . $layer . '.shp',
+            $shpDir.'/'.$layer.'.shp',
             $jsonPath,
         ]);
         $process->setTimeout(180);
         $process->run();
 
-        if (!$process->isSuccessful()) {
+        if (! $process->isSuccessful()) {
             $erro = $process->getErrorOutput() ?: $process->getOutput();
             File::deleteDirectory($base);
-            abort(500, 'Falha na conversão SHP: ' . trim($erro));
+            abort(500, 'Falha na conversão SHP: '.trim($erro));
         }
 
         // 5. Zipa o diretório shp/
-        $zipPath = $base . '/' . $layer . '.zip';
-        $zip = new ZipArchive();
+        $zipPath = $base.'/'.$layer.'.zip';
+        $zip = new ZipArchive;
         if ($zip->open($zipPath, ZipArchive::CREATE) !== true) {
             File::deleteDirectory($base);
             abort(500, 'Não foi possível criar o arquivo .zip de saída.');
@@ -89,7 +89,7 @@ class ShapefileExportService
         $zip->close();
 
         // 6. Stream do download + cleanup
-        return response()->download($zipPath, $layer . '-' . date('Ymd-His') . '.zip')
+        return response()->download($zipPath, $layer.'-'.date('Ymd-His').'.zip')
             ->deleteFileAfterSend(true)
             ->headers(['X-Accel-Buffering' => 'no'])
             ->prepare(request())
@@ -101,11 +101,11 @@ class ShapefileExportService
      */
     public function exportStream(string $layer, int $tenantId)
     {
-        if (!in_array($layer, self::ALLOWED_LAYERS, true)) {
+        if (! in_array($layer, self::ALLOWED_LAYERS, true)) {
             abort(403, 'Camada não permitida para exportação.');
         }
 
-        if (!$this->ogr2ogrDisponivel()) {
+        if (! $this->ogr2ogrDisponivel()) {
             abort(500, 'GDAL (ogr2ogr) não está instalado no servidor. Solicite ao administrador a instalação para habilitar a exportação SHP.');
         }
 
@@ -114,13 +114,13 @@ class ShapefileExportService
             abort(404, 'A camada selecionada não tem registros para exportar.');
         }
 
-        $base = storage_path('app/tmp/shp-' . uniqid('', true));
+        $base = storage_path('app/tmp/shp-'.uniqid('', true));
         File::makeDirectory($base, 0755, true);
 
-        $jsonPath = $base . '/' . $layer . '.geojson';
+        $jsonPath = $base.'/'.$layer.'.geojson';
         File::put($jsonPath, json_encode($geojson));
 
-        $shpDir = $base . '/shp';
+        $shpDir = $base.'/shp';
         File::makeDirectory($shpDir, 0755, true);
 
         $process = new Process([
@@ -128,35 +128,35 @@ class ShapefileExportService
             '-f', 'ESRI Shapefile',
             '-lco', 'ENCODING=UTF-8',
             '-nlt', 'PROMOTE_TO_MULTI',
-            $shpDir . '/' . $layer . '.shp',
+            $shpDir.'/'.$layer.'.shp',
             $jsonPath,
         ]);
         $process->setTimeout(180);
         $process->run();
 
-        if (!$process->isSuccessful()) {
+        if (! $process->isSuccessful()) {
             $erro = $process->getErrorOutput() ?: $process->getOutput();
             File::deleteDirectory($base);
-            abort(500, 'Falha na conversão SHP: ' . trim($erro));
+            abort(500, 'Falha na conversão SHP: '.trim($erro));
         }
 
-        $zipPath = $base . '/' . $layer . '.zip';
-        $zip = new ZipArchive();
+        $zipPath = $base.'/'.$layer.'.zip';
+        $zip = new ZipArchive;
         $zip->open($zipPath, ZipArchive::CREATE);
         foreach (File::files($shpDir) as $f) {
             $zip->addFile($f->getPathname(), $f->getFilename());
         }
         $zip->close();
 
-        $fileName = $layer . '-' . date('Ymd-His') . '.zip';
+        $fileName = $layer.'-'.date('Ymd-His').'.zip';
         $size = filesize($zipPath);
         $content = file_get_contents($zipPath);
         File::deleteDirectory($base);
 
         return response($content, 200, [
-            'Content-Type'        => 'application/zip',
-            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
-            'Content-Length'      => (string) $size,
+            'Content-Type' => 'application/zip',
+            'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
+            'Content-Length' => (string) $size,
         ]);
     }
 
@@ -165,6 +165,7 @@ class ShapefileExportService
         $cmd = PHP_OS_FAMILY === 'Windows' ? 'where ogr2ogr' : 'which ogr2ogr';
         $process = Process::fromShellCommandline($cmd);
         $process->run();
+
         return $process->isSuccessful() && trim($process->getOutput()) !== '';
     }
 
@@ -176,7 +177,7 @@ class ShapefileExportService
     {
         // Descobre as colunas escalares (todas exceto a geo)
         $cols = DB::getSchemaBuilder()->getColumnListing($layer);
-        $attrCols = array_filter($cols, fn ($c) => !in_array($c, ['geo', 'foto_frontal', 'foto_lateral_esq', 'foto_lateral_dir'], true));
+        $attrCols = array_filter($cols, fn ($c) => ! in_array($c, ['geo', 'foto_frontal', 'foto_lateral_esq', 'foto_lateral_dir'], true));
 
         $selectAttrs = implode(', ', array_map(fn ($c) => "\"$c\"", $attrCols));
 
@@ -199,19 +200,19 @@ class ShapefileExportService
             // Trunca campos JSON longos (dados_tributarios) — Shapefile DBF tem limite de 254 chars/coluna
             foreach ($rowArray as $k => $v) {
                 if (is_string($v) && strlen($v) > 254) {
-                    $rowArray[$k] = substr($v, 0, 251) . '...';
+                    $rowArray[$k] = substr($v, 0, 251).'...';
                 }
             }
 
             $features[] = [
-                'type'       => 'Feature',
-                'geometry'   => $geom,
+                'type' => 'Feature',
+                'geometry' => $geom,
                 'properties' => $rowArray,
             ];
         }
 
         return [
-            'type'     => 'FeatureCollection',
+            'type' => 'FeatureCollection',
             'features' => $features,
         ];
     }

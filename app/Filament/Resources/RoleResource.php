@@ -512,6 +512,7 @@ class RoleResource extends Resource
                                         'view_monitoramento_campo' => 'Monitoramento de Campo (GPS)',
                                         'view_produtividade'      => 'Relatório de Produtividade',
                                         'view_mensagens'          => 'Mensagens (Chat Supervisor ↔ Cadastrador)',
+                                        'gerenciar_wms'           => 'Gerenciar Camadas WMS (fontes e categorias)',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(2),

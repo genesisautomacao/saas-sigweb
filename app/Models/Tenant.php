@@ -410,6 +410,17 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(Setor::class);
     }
 
+    // Camadas WMS (item PoC 022)
+    public function categoriasWms(): HasMany
+    {
+        return $this->hasMany(CategoriaWms::class);
+    }
+
+    public function fontesWms(): HasMany
+    {
+        return $this->hasMany(FonteWms::class);
+    }
+
     // Módulo de Cadastro Rural
     public function ruralLocalidades(): HasMany
     {

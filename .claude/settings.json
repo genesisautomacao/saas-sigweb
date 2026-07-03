@@ -89,7 +89,17 @@
       "PowerShell(php -l app/Http/Controllers/ProcessoAnexoController.php)",
       "PowerShell(php 'C:\\\\Users\\\\jesse\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--laragon-www-saas-sigweb\\\\52f63d32-cc09-4894-9fe8-3133f608aaea\\\\scratchpad\\\\test_anotar.php')",
       "PowerShell(php -l app/Filament/Resources/ProcessoDigitalResource/Pages/ViewProcessoDigital.php)",
-      "PowerShell(php 'C:\\\\Users\\\\jesse\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--laragon-www-saas-sigweb\\\\52f63d32-cc09-4894-9fe8-3133f608aaea\\\\scratchpad\\\\test_excluir.php')"
+      "PowerShell(php 'C:\\\\Users\\\\jesse\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--laragon-www-saas-sigweb\\\\52f63d32-cc09-4894-9fe8-3133f608aaea\\\\scratchpad\\\\test_excluir.php')",
+      "Bash(curl -s -m 25 -D - -o /tmp/wms_test.png -H 'Origin: http://localhost' 'https://ows.terrestris.de/osm/service?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=OSM-WMS&SRS=EPSG:3857&BBOX=-5620000,-3125000,-5600000,-3105000&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true')",
+      "Read(//tmp/**)",
+      "Bash(curl -s -m 25 \"https://ows.terrestris.de/osm/service?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=OSM-WMS&STYLES=&SRS=EPSG:900913&BBOX=-5620000,-3125000,-5600000,-3105000&WIDTH=256&HEIGHT=256&FORMAT=image/png\" -o /tmp/w2.png -w \"HTTP %{http_code} | %{content_type}\\\\n\")",
+      "Bash(curl -s -m 25 \"https://ows.terrestris.de/osm/service?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=OSM-WMS&STYLES=&SRS=EPSG:3857&BBOX=-5620000,-3125000,-5600000,-3105000&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true\" -o /tmp/w3.png -w \"HTTP %{http_code} | %{content_type}\\\\n\")",
+      "Bash(curl -s -m 25 -D - -o /tmp/nostyles.xml \"https://ows.terrestris.de/osm/service?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=OSM-WMS&TILED=true&SRS=EPSG:3857&BBOX=-5620000,-3125000,-5600000,-3105000&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true\")",
+      "Bash(curl -s -m 25 -o /tmp/withstyles.png -w \"HTTP %{http_code} | %{content_type} | %{size_download} bytes\\\\n\" \"https://ows.terrestris.de/osm/service?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&LAYERS=OSM-WMS&STYLES=&TILED=true&SRS=EPSG:3857&BBOX=-5620000,-3125000,-5600000,-3105000&WIDTH=256&HEIGHT=256\")",
+      "Bash(curl -s -m 25 \"https://ows.terrestris.de/osm/service?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&LAYERS=OSM-WMS&STYLES=&TILED=true&SRS=EPSG:3857&BBOX=-5620000,-3125000,-5600000,-3105000&WIDTH=256&HEIGHT=256\")",
+      "Bash(curl -s -m 25 -o /tmp/ok.png -w \"HTTP %{http_code} | %{content_type} | %{size_download} bytes\\\\n\" \"https://ows.terrestris.de/osm/service?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&LAYERS=OSM-WMS&STYLES=&SRS=EPSG:3857&BBOX=-5620000,-3125000,-5600000,-3105000&WIDTH=256&HEIGHT=256\")",
+      "WebFetch(domain:openlayers.org)",
+      "Bash(curl -s -m 40 \"https://geoservicos.ibge.gov.br/geoserver/wms?service=WMS&version=1.1.1&request=GetCapabilities\")"
     ]
   }
 }

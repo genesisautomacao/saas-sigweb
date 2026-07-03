@@ -3,22 +3,22 @@
 namespace App\Services\Exports;
 
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Spatie\SimpleExcel\SimpleExcelWriter;
-use Illuminate\Support\Collection;
 
 class JazigoExportService
 {
     public function exportToExcel(Collection $jazigos)
     {
-        $fileName = 'jazigos-' . now()->format('Y-m-d-His') . '.xlsx';
+        $fileName = 'jazigos-'.now()->format('Y-m-d-His').'.xlsx';
         $path = storage_path('app/exports/');
 
-        if (!File::isDirectory($path)) {
+        if (! File::isDirectory($path)) {
             File::makeDirectory($path, 0755, true, true);
         }
 
-        $filePath = $path . $fileName;
+        $filePath = $path.$fileName;
 
         $data = $jazigos->map(function ($jazigo) {
             return [
@@ -42,8 +42,8 @@ class JazigoExportService
 
     public function exportToPdf(Collection $jazigos)
     {
-        $fileName = 'jazigos-' . now()->format('Y-m-d-His') . '.pdf';
-        
+        $fileName = 'jazigos-'.now()->format('Y-m-d-His').'.pdf';
+
         $headings = ['ID', 'Quadra', 'Código', 'Status', 'Proprietário', 'Área (m²)'];
 
         $data = $jazigos->map(function ($jazigo) {
