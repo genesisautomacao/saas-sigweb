@@ -31,3 +31,9 @@ Releases.md
 /public/potree/
 /public/nuvem-pontos/*/data/
 /public/nuvem-pontos/*/debug.html
+
+# Arquivos compactados (dumps de nuvem de pontos, backups) — nunca vão pro git.
+*.tar
+*.tar.gz
+*.tgz
+*.zip
