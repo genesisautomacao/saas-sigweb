@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\QuadraResource\Pages;
 
 use App\Filament\Resources\QuadraResource;
-use Filament\Actions;
-use Filament\Resources\Pages\ListRecords;
 use App\Services\Exports\QuadraExportService;
+use Filament\Actions;
 use Filament\Forms;
+use Filament\Resources\Pages\ListRecords;
 
 class ListQuadras extends ListRecords
 {
@@ -19,22 +19,27 @@ class ListQuadras extends ListRecords
                 Actions\Action::make('export_excel')
                     ->label('Exportar Excel')
                     ->icon('heroicon-o-table-cells')
-                    ->action(fn(QuadraExportService $service, $livewire) => $service->exportToExcel($livewire->getFilteredTableQuery()->get())),
-                
+                    ->action(fn (QuadraExportService $service, $livewire) => $service->exportToExcel($livewire->getFilteredTableQuery()->get())),
+
                 Actions\Action::make('export_pdf')
                     ->label('Exportar PDF')
                     ->icon('heroicon-o-document-text')
-                    ->action(fn(QuadraExportService $service, $livewire) => $service->exportToPdf($livewire->getFilteredTableQuery()->get())),
+                    ->action(fn (QuadraExportService $service, $livewire) => $service->exportToPdf($livewire->getFilteredTableQuery()->get())),
 
                 Actions\Action::make('export_xml')
                     ->label('Exportar XML')
                     ->icon('heroicon-o-code-bracket')
-                    ->action(fn(QuadraExportService $service, $livewire) => $service->exportToXml($livewire->getFilteredTableQuery()->get())),
+                    ->action(fn (QuadraExportService $service, $livewire) => $service->exportToXml($livewire->getFilteredTableQuery()->get())),
+
+                Actions\Action::make('export_csv')
+                    ->label('Exportar CSV')
+                    ->icon('heroicon-o-document')
+                    ->action(fn (QuadraExportService $service, $livewire) => $service->exportToCsv($livewire->getFilteredTableQuery()->get())),
             ])
-            ->label('Exportar')
-            ->icon('heroicon-m-arrow-down-tray')
-            ->button()
-            ->color('gray'),
+                ->label('Exportar')
+                ->icon('heroicon-m-arrow-down-tray')
+                ->button()
+                ->color('gray'),
 
             Actions\Action::make('nova_quadra')
                 ->label('Nova Quadra')
@@ -57,7 +62,8 @@ class ListQuadras extends ListRecords
                 ->action(function (array $data) {
                     if ($data['metodo'] === 'mapa') {
                         $tenant = \Filament\Facades\Filament::getTenant();
-                        return redirect()->to(url('/app/' . $tenant->slug . '/mapa-interativo?layer=quadras&action=create'));
+
+                        return redirect()->to(url('/app/'.$tenant->slug.'/mapa-interativo?layer=quadras&action=create'));
                     } else {
                         return redirect()->to(QuadraResource::getUrl('create'));
                     }

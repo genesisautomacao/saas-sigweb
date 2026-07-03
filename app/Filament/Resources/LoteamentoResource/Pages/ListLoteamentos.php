@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\LoteamentoResource\Pages;
 
 use App\Filament\Resources\LoteamentoResource;
-use Filament\Actions;
-use Filament\Resources\Pages\ListRecords;
 use App\Services\Exports\LoteamentoExportService;
+use Filament\Actions;
 use Filament\Forms;
+use Filament\Resources\Pages\ListRecords;
 
 class ListLoteamentos extends ListRecords
 {
@@ -19,22 +19,27 @@ class ListLoteamentos extends ListRecords
                 Actions\Action::make('export_excel')
                     ->label('Exportar Excel')
                     ->icon('heroicon-o-table-cells')
-                    ->action(fn(LoteamentoExportService $service, $livewire) => $service->exportToExcel($livewire->getFilteredTableQuery()->get())),
-                
+                    ->action(fn (LoteamentoExportService $service, $livewire) => $service->exportToExcel($livewire->getFilteredTableQuery()->get())),
+
                 Actions\Action::make('export_pdf')
                     ->label('Exportar PDF')
                     ->icon('heroicon-o-document-text')
-                    ->action(fn(LoteamentoExportService $service, $livewire) => $service->exportToPdf($livewire->getFilteredTableQuery()->get())),
+                    ->action(fn (LoteamentoExportService $service, $livewire) => $service->exportToPdf($livewire->getFilteredTableQuery()->get())),
 
                 Actions\Action::make('export_xml')
                     ->label('Exportar XML')
                     ->icon('heroicon-o-code-bracket')
-                    ->action(fn(LoteamentoExportService $service, $livewire) => $service->exportToXml($livewire->getFilteredTableQuery()->get())),
+                    ->action(fn (LoteamentoExportService $service, $livewire) => $service->exportToXml($livewire->getFilteredTableQuery()->get())),
+
+                Actions\Action::make('export_csv')
+                    ->label('Exportar CSV')
+                    ->icon('heroicon-o-document')
+                    ->action(fn (LoteamentoExportService $service, $livewire) => $service->exportToCsv($livewire->getFilteredTableQuery()->get())),
             ])
-            ->label('Exportar')
-            ->icon('heroicon-m-arrow-down-tray')
-            ->button()
-            ->color('gray'),
+                ->label('Exportar')
+                ->icon('heroicon-m-arrow-down-tray')
+                ->button()
+                ->color('gray'),
 
             Actions\Action::make('novo_loteamento')
                 ->label('Novo Loteamento')
@@ -57,7 +62,8 @@ class ListLoteamentos extends ListRecords
                 ->action(function (array $data) {
                     if ($data['metodo'] === 'mapa') {
                         $tenant = \Filament\Facades\Filament::getTenant();
-                        return redirect()->to(url('/app/' . $tenant->slug . '/mapa-interativo?layer=loteamentos&action=create'));
+
+                        return redirect()->to(url('/app/'.$tenant->slug.'/mapa-interativo?layer=loteamentos&action=create'));
                     } else {
                         return redirect()->to(LoteamentoResource::getUrl('create'));
                     }

@@ -62,4 +62,49 @@ class ProdutoExportService
             echo $pdf->stream();
         }, $fileName);
     }
+
+    private function linha($produto): array
+    {
+        return [
+            'ID' => $produto->sequential_id,
+            'Nome' => $produto->name ?? '-',
+            'SKU' => $produto->sku ?? '-',
+            'Descricao' => $produto->description ?? '-',
+            'Unidade' => $produto->unit ?? '-',
+        ];
+    }
+
+    public function exportToCsv(Collection $produtos)
+    {
+        $fileName = 'produtos-'.now()->format('Y-m-d-His').'.csv';
+        $path = storage_path('app/exports/');
+        if (! File::isDirectory($path)) {
+            File::makeDirectory($path, 0755, true, true);
+        }
+        $filePath = $path.$fileName;
+
+        $data = $produtos->map(fn ($p) => $this->linha($p));
+        SimpleExcelWriter::create($filePath, 'csv')
+            ->addHeader(array_keys($data->first() ?? []))
+            ->addRows($data->toArray());
+
+        return response()->download($filePath)->deleteFileAfterSend(true);
+    }
+
+    public function exportToXml(Collection $produtos)
+    {
+        $fileName = 'produtos-'.now()->format('Y-m-d-His').'.xml';
+        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><produtos/>');
+
+        foreach ($produtos as $produto) {
+            $item = $xml->addChild('produto');
+            foreach ($this->linha($produto) as $k => $v) {
+                $item->addChild($k, htmlspecialchars((string) $v));
+            }
+        }
+
+        return response()->streamDownload(function () use ($xml) {
+            echo $xml->asXML();
+        }, $fileName, ['Content-Type' => 'application/xml']);
+    }
 }

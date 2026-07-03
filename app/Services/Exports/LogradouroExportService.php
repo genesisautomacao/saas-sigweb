@@ -50,4 +50,21 @@ class LogradouroExportService
             echo $xml->asXML();
         }, $fileName, ['Content-Type' => 'application/xml']);
     }
+
+    public function exportToCsv(Collection $records)
+    {
+        $fileName = 'logradouros-'.now()->format('Y-m-d-His').'.csv';
+        $path = storage_path('app/exports/');
+        if (! File::isDirectory($path)) {
+            File::makeDirectory($path, 0755, true, true);
+        }
+        $filePath = $path.$fileName;
+
+        $data = $records->map(fn ($r) => ['ID' => $r->sequential_id, 'Nome' => $r->name]);
+        SimpleExcelWriter::create($filePath, 'csv')
+            ->addHeader(array_keys($data->first() ?? []))
+            ->addRows($data->toArray());
+
+        return response()->download($filePath)->deleteFileAfterSend(true);
+    }
 }

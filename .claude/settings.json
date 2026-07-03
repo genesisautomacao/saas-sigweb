@@ -99,7 +99,9 @@
       "Bash(curl -s -m 25 \"https://ows.terrestris.de/osm/service?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&LAYERS=OSM-WMS&STYLES=&TILED=true&SRS=EPSG:3857&BBOX=-5620000,-3125000,-5600000,-3105000&WIDTH=256&HEIGHT=256\")",
       "Bash(curl -s -m 25 -o /tmp/ok.png -w \"HTTP %{http_code} | %{content_type} | %{size_download} bytes\\\\n\" \"https://ows.terrestris.de/osm/service?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&LAYERS=OSM-WMS&STYLES=&SRS=EPSG:3857&BBOX=-5620000,-3125000,-5600000,-3105000&WIDTH=256&HEIGHT=256\")",
       "WebFetch(domain:openlayers.org)",
-      "Bash(curl -s -m 40 \"https://geoservicos.ibge.gov.br/geoserver/wms?service=WMS&version=1.1.1&request=GetCapabilities\")"
+      "Bash(curl -s -m 40 \"https://geoservicos.ibge.gov.br/geoserver/wms?service=WMS&version=1.1.1&request=GetCapabilities\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('public/potree/build/potree/potree.js','utf8'\\);const i=s.indexOf\\('cloud.js'\\);console.log\\(JSON.stringify\\(s.slice\\(i-90,i+50\\)\\)\\);\")",
+      "Bash(git check-ignore *)"
     ]
   }
 }

@@ -4,8 +4,8 @@ namespace App\Filament\Resources\LoteResource\Pages;
 
 use App\Filament\Resources\LoteResource;
 use Filament\Actions;
-use Filament\Resources\Pages\ListRecords;
 use Filament\Forms;
+use Filament\Resources\Pages\ListRecords;
 
 class ListLotes extends ListRecords
 {
@@ -21,6 +21,7 @@ class ListLotes extends ListRecords
                     ->action(function ($livewire, \App\Services\Exports\LoteExportService $exportService) {
                         \Filament\Notifications\Notification::make()->title('Exportando para Excel')->info()->send();
                         $lotes = $livewire->getFilteredTableQuery()->get();
+
                         return $exportService->exportToExcel($lotes);
                     }),
 
@@ -30,6 +31,7 @@ class ListLotes extends ListRecords
                     ->action(function ($livewire, \App\Services\Exports\LoteExportService $exportService) {
                         \Filament\Notifications\Notification::make()->title('Exportando para PDF')->info()->send();
                         $lotes = $livewire->getFilteredTableQuery()->get();
+
                         return $exportService->exportToPdf($lotes);
                     }),
 
@@ -39,13 +41,24 @@ class ListLotes extends ListRecords
                     ->action(function ($livewire, \App\Services\Exports\LoteExportService $exportService) {
                         \Filament\Notifications\Notification::make()->title('Exportando para XML')->info()->send();
                         $lotes = $livewire->getFilteredTableQuery()->get();
+
                         return $exportService->exportToXml($lotes);
                     }),
+
+                Actions\Action::make('export_csv')
+                    ->label('Exportar CSV')
+                    ->icon('heroicon-o-document')
+                    ->action(function ($livewire, \App\Services\Exports\LoteExportService $exportService) {
+                        \Filament\Notifications\Notification::make()->title('Exportando para CSV')->info()->send();
+                        $lotes = $livewire->getFilteredTableQuery()->get();
+
+                        return $exportService->exportToCsv($lotes);
+                    }),
             ])
-            ->label('Exportar')
-            ->icon('heroicon-m-arrow-down-tray')
-            ->button()
-            ->color('gray'),
+                ->label('Exportar')
+                ->icon('heroicon-m-arrow-down-tray')
+                ->button()
+                ->color('gray'),
 
             Actions\Action::make('novo_lote')
                 ->label('Novo Lote')
@@ -68,7 +81,8 @@ class ListLotes extends ListRecords
                 ->action(function (array $data) {
                     if ($data['metodo'] === 'mapa') {
                         $tenant = \Filament\Facades\Filament::getTenant();
-                        $mapUrl = url('/app/' . $tenant->slug . '/mapa-interativo?layer=lotes&action=create');
+                        $mapUrl = url('/app/'.$tenant->slug.'/mapa-interativo?layer=lotes&action=create');
+
                         return redirect()->to($mapUrl);
                     } else {
                         return redirect()->to(LoteResource::getUrl('create'));

@@ -25,3 +25,9 @@ Thumbs.db
 Briefing.md
 Releases.md
 /public/mapas/
+
+# Nuvem de pontos 3D (Potree): lib do viewer (~64MB) e octree pesada (GBs) NÃO vão pro git.
+# Subir direto no servidor (rsync/SFTP). Ficam versionados só o index.html e o cloud.js.
+/public/potree/
+/public/nuvem-pontos/*/data/
+/public/nuvem-pontos/*/debug.html

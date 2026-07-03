@@ -52,4 +52,21 @@ class BairroExportService
             echo $xml->asXML();
         }, $fileName, ['Content-Type' => 'application/xml']);
     }
+
+    public function exportToCsv(Collection $records)
+    {
+        $fileName = 'bairros-'.now()->format('Y-m-d-His').'.csv';
+        $path = storage_path('app/exports/');
+        if (! File::isDirectory($path)) {
+            File::makeDirectory($path, 0755, true, true);
+        }
+        $filePath = $path.$fileName;
+
+        $data = $records->map(fn ($r) => ['ID' => $r->sequential_id, 'Codigo' => $r->code, 'Nome' => $r->name, 'Setor' => $r->setor ?? '-']);
+        SimpleExcelWriter::create($filePath, 'csv')
+            ->addHeader(array_keys($data->first() ?? []))
+            ->addRows($data->toArray());
+
+        return response()->download($filePath)->deleteFileAfterSend(true);
+    }
 }

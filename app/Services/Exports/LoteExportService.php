@@ -133,4 +133,29 @@ class LoteExportService
             echo $xml->asXML();
         }, $fileName, ['Content-Type' => 'application/xml']);
     }
+
+    public function exportToCsv(Collection $lotes)
+    {
+        $fileName = 'lotes-'.now()->format('Y-m-d-His').'.csv';
+        $path = storage_path('app/exports/');
+        if (! File::isDirectory($path)) {
+            File::makeDirectory($path, 0755, true, true);
+        }
+        $filePath = $path.$fileName;
+
+        // CSV é plano: os campos principais do lote (unidades/edificações continuam no Excel/XML/PDF).
+        $data = $lotes->map(fn ($lote) => [
+            'ID' => $lote->sequential_id,
+            'NumeroLote' => $lote->numero_lote,
+            'Quadra' => $lote->quadra->name ?? '-',
+            'Zona' => $lote->zona->sigla ?? '-',
+            'Testada_m' => $lote->main_facade_length ? number_format($lote->main_facade_length, 2, '.', '') : '0.00',
+            'AreaGeo_m2' => $lote->area_geo ? number_format($lote->area_geo, 2, '.', '') : '0.00',
+        ]);
+        SimpleExcelWriter::create($filePath, 'csv')
+            ->addHeader(array_keys($data->first() ?? []))
+            ->addRows($data->toArray());
+
+        return response()->download($filePath)->deleteFileAfterSend(true);
+    }
 }

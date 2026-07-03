@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>SIGWEB — Nuvem de Pontos 3D (João Pinheiro/MG)</title>
+
+    <!--
+        VIEWER POTREE — carrega o dado convertido (Potree 1.7) que está NESTA pasta:
+          public/nuvem-pontos/prefeitura-de-joao-pinheiro/cloud.js  (+ data/)
+
+        A BIBLIOTECA do Potree deve estar em:  public/potree/  (build/ + libs/)
+        → daqui, o caminho relativo para a lib é  ../../potree/
+        Estrutura esperada (release Potree 1.8):
+          public/potree/build/potree/potree.js
+          public/potree/build/potree/potree.css
+          public/potree/libs/jquery/jquery-3.1.1.min.js
+          public/potree/libs/jquery-ui/jquery-ui.min.(js|css)
+          public/potree/libs/other/BinaryHeap.js
+          public/potree/libs/tween/tween.min.js
+          public/potree/libs/d3/d3.js
+          public/potree/libs/proj4/proj4.js
+          public/potree/libs/openlayers3/ol.(js|css)
+          public/potree/libs/i18next/i18next.js
+          public/potree/libs/jstree/jstree.js  (+ themes/mixed/style.css)
+          public/potree/libs/spectrum/spectrum.(js|css)
+          public/potree/libs/plasio/js/laslaz.js
+        Se a versão que você baixar usar nomes/pastas diferentes, ajusto estes caminhos.
+    -->
+
+    <link rel="stylesheet" type="text/css" href="../../potree/build/potree/potree.css">
+    <link rel="stylesheet" type="text/css" href="../../potree/libs/jquery-ui/jquery-ui.min.css">
+    <link rel="stylesheet" type="text/css" href="../../potree/libs/openlayers3/ol.css">
+    <link rel="stylesheet" type="text/css" href="../../potree/libs/spectrum/spectrum.css">
+    <link rel="stylesheet" type="text/css" href="../../potree/libs/jstree/themes/mixed/style.css">
+
+    <style>
+        html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
+    </style>
+</head>
+
+<body>
+    <script src="../../potree/libs/jquery/jquery-3.1.1.min.js"></script>
+    <script src="../../potree/libs/spectrum/spectrum.js"></script>
+    <script src="../../potree/libs/jquery-ui/jquery-ui.min.js"></script>
+    <script src="../../potree/libs/other/BinaryHeap.js"></script>
+    <script src="../../potree/libs/tween/tween.min.js"></script>
+    <script src="../../potree/libs/d3/d3.js"></script>
+    <script src="../../potree/libs/proj4/proj4.js"></script>
+    <script src="../../potree/libs/openlayers3/ol.js"></script>
+    <script src="../../potree/libs/i18next/i18next.js"></script>
+    <script src="../../potree/libs/jstree/jstree.js"></script>
+    <script src="../../potree/build/potree/potree.js"></script>
+    <script src="../../potree/libs/plasio/js/laslaz.js"></script>
+
+    <div class="potree_container" style="position: absolute; width: 100%; height: 100%; left: 0; top: 0;">
+        <div id="potree_render_area">
+            <div id="potree_toolbar"></div>
+        </div>
+        <div id="potree_sidebar_container"></div>
+    </div>
+
+    <script type="text/javascript">
+        // Diagnóstico: confirma que as libs carregaram.
+        console.log("[SIGWEB Potree] Potree=", typeof Potree, " THREE=", typeof THREE, " jQuery=", typeof $);
+
+        window.viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
+
+        viewer.setEDLEnabled(true);          // realce de bordas (Eye-Dome Lighting)
+        viewer.setFOV(60);
+        viewer.setPointBudget(2_000_000);    // LOD: quantos pontos renderizar por vez (397M no disco, streaming)
+        viewer.loadSettingsFromURL();
+        viewer.setBackground("gradient");
+        viewer.setDescription("Nuvem de Pontos 3D — João Pinheiro/MG (LiDAR)");
+
+        // Carrega a GUI lateral com TODAS as ferramentas nativas do Potree:
+        // medição (distância/área/ângulo/altura), perfil/seção, corte (clipping),
+        // filtro por classificação, densidade, marcadores e anotações.
+        viewer.loadGUI(() => {
+            viewer.setLanguage("en"); // o release não traz tradução "pt"; en é a mais completa
+            $("#menu_appearance").next().show();
+            $("#menu_tools").next().show();
+            $("#menu_clipping").next().show();
+            viewer.toggleSidebar();
+        });
+
+        // "Chuta" o Potree a recalcular o tamanho — resolve o caso do iframe/modal
+        // que inicia com dimensão 0 (câmera com aspect NaN → nada renderiza).
+        function kickResize() { try { window.dispatchEvent(new Event("resize")); } catch (e) {} }
+        [50, 250, 600, 1200, 2500].forEach(function (t) { setTimeout(kickResize, t); });
+        if (window.ResizeObserver) {
+            new ResizeObserver(kickResize).observe(document.getElementById("potree_render_area"));
+        }
+
+        // O dado está nesta mesma pasta (Potree 1.7 → cloud.js).
+        // ⚠️ IMPORTANTE: o caminho NÃO pode começar em "cloud.js" — o dispatcher do Potree
+        // testa `path.indexOf("cloud.js") > 0`, então um caminho nu "cloud.js" (índice 0)
+        // é ignorado silenciosamente e a nuvem nunca carrega. Use "./cloud.js".
+        Potree.loadPointCloud("./cloud.js", "João Pinheiro/MG", function (e) {
+            if (!e || !e.pointcloud) {
+                console.error("[SIGWEB Potree] FALHA ao carregar cloud.js:", e);
+                document.body.insertAdjacentHTML("beforeend",
+                    '<div style="position:absolute;top:8px;left:8px;z-index:9999;background:#b00;color:#fff;padding:6px 10px;font:12px sans-serif;border-radius:4px">Falha ao carregar a nuvem (veja o console).</div>');
+                return;
+            }
+            const pointcloud = e.pointcloud;
+            const material = pointcloud.material;
+
+            material.size = 1;
+            material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+            material.shape = Potree.PointShape.SQUARE;
+            // O dado tem COLOR_PACKED → o Potree já começa colorido pela cor RGB do voo.
+            // Na GUI o usuário pode trocar para elevação / classificação / intensidade.
+
+            viewer.scene.addPointCloud(pointcloud);
+            console.log("[SIGWEB Potree] nuvem carregada. bbox=", pointcloud.boundingBox);
+            kickResize();
+            viewer.fitToScreen();
+        });
+    </script>
+</body>
+
+</html>
