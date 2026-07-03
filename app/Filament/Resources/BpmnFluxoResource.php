@@ -40,6 +40,12 @@ class BpmnFluxoResource extends Resource
                             ->label('Fluxo Ativo')
                             ->default(true),
 
+                        // Cor deste fluxo no mapa (camada "Processos Digitais")
+                        Forms\Components\ColorPicker::make('cor')
+                            ->label('Cor no mapa')
+                            ->default('#3b82f6')
+                            ->helperText('Cor com que os lotes deste fluxo são marcados na camada de Processos do mapa.'),
+
                         // Decisão #5 / item 2: modo de seleção de imóvel (processosConceito.md §9.5)
                         Forms\Components\Select::make('modo_imovel')
                             ->label('Seleção de imóvel')
@@ -88,6 +94,9 @@ class BpmnFluxoResource extends Resource
                 Tables\Columns\TextColumn::make('sequential_id')
                     ->label('ID')
                     ->sortable(),
+
+                Tables\Columns\ColorColumn::make('cor')
+                    ->label('Cor'),
 
                 Tables\Columns\TextColumn::make('nome')
                     ->label('Nome do Fluxo')

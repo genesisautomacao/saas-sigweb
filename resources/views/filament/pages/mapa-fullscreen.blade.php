@@ -1436,102 +1436,9 @@
                             </div>
                         </div>
 
-                        {{-- Sub-linha: Status de Coleta (recolore os lotes pelo status_cadastro) --}}
-                        <div data-permission-group="layer:lotes" x-data="{ statusColorOn: false }" class="ml-7 mt-1">
-                            <label
-                                class="flex items-center gap-2 cursor-pointer text-xs text-gray-600 dark:text-gray-300">
-                                <input type="checkbox" x-model="statusColorOn"
-                                    @change="window.dispatchEvent(new CustomEvent('sigweb-toggle-status-color',{detail:{enabled:statusColorOn}}))"
-                                    class="rounded border-gray-300 w-3 h-3">
-                                <span class="flex items-center gap-1">
-                                    <x-heroicon-o-paint-brush class="w-3 h-3" />
-                                    Status de Coleta
-                                </span>
-                            </label>
-                            <div x-show="statusColorOn" x-transition
-                                class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-500 dark:text-gray-400">
-                                <span class="inline-flex items-center gap-1"><span
-                                        style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#10B981"></span>
-                                    Coletado</span>
-                                <span class="inline-flex items-center gap-1"><span
-                                        style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#F59E0B"></span>
-                                    Pendente</span>
-                                <span class="inline-flex items-center gap-1"><span
-                                        style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#EF4444"></span>
-                                    Inconformidade</span>
-                                <span class="inline-flex items-center gap-1"><span
-                                        style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#9CA3AF"></span>
-                                    Não visitado</span>
-                            </div>
-                        </div>
+                        {{-- "Status de Coleta" movido para o acordeon "Coleta de Dados" (abaixo). --}}
 
-                        {{-- Sub-linha: Processos Digitais (recolore lotes pela etapa atual do processo em andamento) --}}
-                        <div data-permission-group="layer:lotes" x-data="{ processosOn: false, legenda: [], aberta: false }" x-init="window.addEventListener('sigweb-processos-legenda', function(e) {
-                            legenda = e.detail.items;
-                            aberta = false
-                        })"
-                            class="ml-7 mt-1">
-                            <label
-                                class="flex items-center gap-2 cursor-pointer text-xs text-gray-600 dark:text-gray-300">
-                                <input type="checkbox" x-model="processosOn"
-                                    @change="window.dispatchEvent(new CustomEvent('sigweb-toggle-processos-color',{detail:{enabled:processosOn}}))"
-                                    class="rounded border-gray-300 w-3 h-3">
-                                <span class="flex items-center gap-1">
-                                    <x-heroicon-o-document-check class="w-3 h-3" />
-                                    Processos Digitais
-                                </span>
-                            </label>
-
-                            {{-- Estado colapsado: dots de cor + "N etapas" (clica para expandir) --}}
-                            <div x-show="processosOn && legenda.length > 0 && !aberta" x-transition
-                                @click="aberta = true"
-                                class="mt-1 flex items-center gap-1.5 cursor-pointer select-none text-[10px] text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-                                <span class="flex items-center gap-1 flex-shrink-0">
-                                    <template x-for="item in legenda" :key="item.cor">
-                                        <span
-                                            :style="'display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
-                                            item.cor"
-                                            :title="item.nome"></span>
-                                    </template>
-                                </span>
-                                <span class="whitespace-nowrap flex-shrink-0 flex items-center gap-0.5">
-                                    <span
-                                        x-text="legenda.length + (legenda.length === 1 ? ' etapa' : ' etapas')"></span>
-                                    <x-heroicon-o-chevron-down class="w-2.5 h-2.5 opacity-60" />
-                                </span>
-                            </div>
-
-                            {{-- Estado expandido: lista completa + botão recolher --}}
-                            <div x-show="processosOn && legenda.length > 0 && aberta" x-transition
-                                class="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
-                                <div class="flex flex-wrap gap-x-3 gap-y-1">
-                                    <template x-for="item in legenda" :key="item.cor">
-                                        <span class="inline-flex items-center gap-1">
-                                            <span
-                                                :style="'display:inline-block;width:10px;height:10px;border-radius:2px;background:' +
-                                                item.cor"></span>
-                                            <span x-text="item.nome"></span>
-                                        </span>
-                                    </template>
-                                    <span class="inline-flex items-center gap-1">
-                                        <span
-                                            style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#d1d5db"></span>
-                                        Sem processo
-                                    </span>
-                                </div>
-                                <button type="button" @click="aberta = false"
-                                    class="mt-0.5 flex items-center gap-0.5 text-[9px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-                                    <x-heroicon-o-chevron-up class="w-2.5 h-2.5" />
-                                    recolher
-                                </button>
-                            </div>
-
-                            {{-- Sem processo em andamento --}}
-                            <div x-show="processosOn && legenda.length === 0" x-transition
-                                class="mt-1 text-[10px] text-gray-400 italic">
-                                Nenhum processo em andamento.
-                            </div>
-                        </div>
+                        {{-- (Toggle antigo de Processos removido — substituído pela camada dedicada "Processos Digitais", acordeon próprio abaixo.) --}}
 
                         <div class="flex items-center justify-between w-full mt-2">
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
@@ -1586,6 +1493,106 @@
                             </label>
                         </div>
 
+                    </div>
+                </div>
+
+                {{-- CAMADA: PROCESSOS DIGITAIS — um toggle por fluxo (só aparece se o tenant tiver fluxos) --}}
+                @if (count($processoFluxos) > 0)
+                    <div data-permission-group="layer:processos"
+                        class="border-b border-gray-100/50 dark:border-gray-700/50">
+                        <button @click="activeTab = activeTab === 'processos' ? '' : 'processos'"
+                            class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                            <span class="flex items-center gap-2">Processos Digitais</span>
+                            <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                                x-bind:class="activeTab === 'processos' ? 'rotate-180' : ''" />
+                        </button>
+                        <div x-show="activeTab === 'processos'" x-collapse
+                            class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden"
+                            x-data="{ fluxosList: @entangle('processoFluxos'), heatmapOn: false }">
+
+                            {{-- Um check por fluxo (mesmo padrão do Zoneamento: swatch de cor + nome) --}}
+                            <template x-for="fluxo in fluxosList" :key="fluxo.id">
+                                <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full" :title="fluxo.nome">
+                                    <input type="checkbox" data-layer="processos" :data-fluxo-id="fluxo.id"
+                                        class="processo-fluxo-toggle rounded border-gray-400 shadow-sm w-4 h-4 flex-shrink-0"
+                                        :style="`color:${fluxo.cor}`">
+                                    <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-2">
+                                        <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10"
+                                            :style="`background-color:${fluxo.cor}`"></div>
+                                        <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300"
+                                            x-text="fluxo.nome"></span>
+                                    </span>
+                                </label>
+                            </template>
+
+                            {{-- Mapa de Calor (densidade dos processos dos fluxos ativos) --}}
+                            <div class="mt-3 pt-3 border-t border-gray-100/60 dark:border-gray-700/40">
+                                <label class="flex items-center space-x-3 cursor-pointer w-full">
+                                    <input type="checkbox" x-model="heatmapOn"
+                                        @change="window.dispatchEvent(new CustomEvent('sigweb-processos-heatmap',{detail:{enabled:heatmapOn}}))"
+                                        class="rounded border-gray-300 text-rose-600 focus:ring-rose-500 w-4 h-4 flex-shrink-0">
+                                    <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-1">
+                                        <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm"
+                                            style="background: radial-gradient(circle, #ef4444, #f59e0b, #3b82f6);"></div>
+                                        <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300">Mapa de
+                                            Calor</span>
+                                    </span>
+                                </label>
+                            </div>
+
+                            <p class="text-[10px] text-gray-400 mt-1 ps-1">O rótulo sobre o lote mostra o fluxo e a etapa
+                                atual; concluídos aparecem com “✓ Concluído”.</p>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- CAMADA: COLETA DE DADOS — status de coleta (camada própria, não depende de "Lotes") + heatmap --}}
+                <div data-permission-group="layer:lotes"
+                    class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'coleta' ? '' : 'coleta'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                        <span class="flex items-center gap-2">Coleta de Dados</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'coleta' ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="activeTab === 'coleta'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden"
+                        x-data="{ heatmapOn: false, statusList: [
+                            { key: 'coletado', nome: 'Coletado', cor: '#10B981' },
+                            { key: 'pendente', nome: 'Pendente', cor: '#F59E0B' },
+                            { key: 'inconformidade', nome: 'Inconformidade', cor: '#EF4444' },
+                            { key: 'nao_visitado', nome: 'Não visitado', cor: '#9CA3AF' },
+                        ] }">
+
+                        {{-- Um toggle por status (mesmo padrão dos fluxos: swatch da cor + nome) --}}
+                        <template x-for="s in statusList" :key="s.key">
+                            <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full" :title="s.nome">
+                                <input type="checkbox" data-layer="coleta" :data-status="s.key"
+                                    class="coleta-status-toggle rounded border-gray-400 shadow-sm w-4 h-4 flex-shrink-0"
+                                    :style="`color:${s.cor}`">
+                                <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-2">
+                                    <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10"
+                                        :style="`background-color:${s.cor}`"></div>
+                                    <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300"
+                                        x-text="s.nome"></span>
+                                </span>
+                            </label>
+                        </template>
+
+                        {{-- Mapa de Calor por status (cada status na sua cor) --}}
+                        <div class="mt-3 pt-3 border-t border-gray-100/60 dark:border-gray-700/40">
+                            <label class="flex items-center space-x-3 cursor-pointer w-full">
+                                <input type="checkbox" x-model="heatmapOn"
+                                    @change="window.dispatchEvent(new CustomEvent('sigweb-coleta-heatmap',{detail:{enabled:heatmapOn}}))"
+                                    class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-1">
+                                    <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm"
+                                        style="background: radial-gradient(circle, #10B981, #F59E0B, #EF4444);"></div>
+                                    <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300">Mapa de
+                                        Calor</span>
+                                </span>
+                            </label>
+                        </div>
                     </div>
                 </div>
 

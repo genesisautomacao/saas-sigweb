@@ -8,6 +8,16 @@ document.addEventListener("DOMContentLoaded", function () {
     // 1. CARREGA AS CONFIGURAÇÕES INJETADAS PELO PHP
     const config = window.mapConfig || {};
     let zonasAtivas = [];
+    // Fluxos de processo ativos na camada "Processos Digitais" (strings dos ids). Mesmo mecanismo do zonasAtivas.
+    let processosFluxosAtivos = [];
+    // Camada "Coleta de Dados" — um toggle por status (mesmo mecanismo dos fluxos de processo).
+    let coletaStatusAtivos = [];
+    const CORES_STATUS_COLETA = {
+        coletado: "#10B981",
+        pendente: "#F59E0B",
+        inconformidade: "#EF4444",
+        nao_visitado: "#9CA3AF",
+    };
 
     // ── EPSG SIRGAS 2000 UTM (zonas brasileiras) ────────────────────
     // Norte: 18N–22N → EPSG 31972–31976
@@ -163,6 +173,88 @@ document.addEventListener("DOMContentLoaded", function () {
                             width: 3,
                         }),
                     }),
+                });
+            },
+        },
+
+        // CAMADA PROCESSOS DIGITAIS — marca o lote com a cor do fluxo + rótulo (fluxo / etapa / Concluído).
+        // Um toggle por fluxo: só desenha features cujo bpmn_fluxo_id está em processosFluxosAtivos.
+        processos: {
+            z: 90,
+            minZoom: 0,
+            style: function (feature, resolution) {
+                const fid = String(feature.get("bpmn_fluxo_id"));
+                if (!processosFluxosAtivos.includes(fid)) return null;
+
+                const cor = feature.get("fluxo_cor") || "#3b82f6";
+                const isConcluido = !!feature.get("is_concluido");
+                let r = 59, g = 130, b = 246;
+                if (/^#[0-9a-fA-F]{6}$/.test(cor)) {
+                    r = parseInt(cor.slice(1, 3), 16);
+                    g = parseInt(cor.slice(3, 5), 16);
+                    b = parseInt(cor.slice(5, 7), 16);
+                }
+
+                const styles = [
+                    new ol.style.Style({
+                        fill: new ol.style.Fill({ color: `rgba(${r},${g},${b},0.35)` }),
+                        stroke: new ol.style.Stroke({
+                            color: cor,
+                            width: 2.5,
+                            lineDash: isConcluido ? [6, 5] : undefined,
+                        }),
+                    }),
+                ];
+
+                const zoom = view.getZoomForResolution(resolution);
+                if (zoom >= 15) {
+                    const fluxoNome = feature.get("fluxo_nome") || "Processo";
+                    const etapaNome = feature.get("etapa_nome") || "";
+                    const rodape = etapaNome + (isConcluido ? "  ✓ Concluído" : "");
+                    styles.push(new ol.style.Style({
+                        text: new ol.style.Text({
+                            text: fluxoNome,
+                            font: "bold 12px Arial, sans-serif",
+                            offsetY: -8,
+                            fill: new ol.style.Fill({ color: "#111827" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            overflow: true,
+                        }),
+                    }));
+                    if (rodape.trim() !== "") {
+                        styles.push(new ol.style.Style({
+                            text: new ol.style.Text({
+                                text: rodape,
+                                font: "10px Arial, sans-serif",
+                                offsetY: 8,
+                                fill: new ol.style.Fill({ color: isConcluido ? "#15803d" : "#374151" }),
+                                stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                                overflow: true,
+                            }),
+                        }));
+                    }
+                }
+                return styles;
+            },
+        },
+
+        // CAMADA COLETA DE DADOS — lotes coloridos por status_cadastro (camada própria/self-contained).
+        coleta: {
+            z: 88,
+            minZoom: 0,
+            style: function (feature) {
+                const st = feature.get("status_cadastro") || "nao_visitado";
+                if (!coletaStatusAtivos.includes(st)) return null; // um toggle por status
+                const cor = CORES_STATUS_COLETA[st] || "#9CA3AF";
+                let r = 156, g = 163, b = 175;
+                if (/^#[0-9a-fA-F]{6}$/.test(cor)) {
+                    r = parseInt(cor.slice(1, 3), 16);
+                    g = parseInt(cor.slice(3, 5), 16);
+                    b = parseInt(cor.slice(5, 7), 16);
+                }
+                return new ol.style.Style({
+                    fill: new ol.style.Fill({ color: `rgba(${r},${g},${b},0.4)` }),
+                    stroke: new ol.style.Stroke({ color: cor, width: 1.5 }),
                 });
             },
         },
@@ -1363,6 +1455,49 @@ document.addEventListener("DOMContentLoaded", function () {
             } else {
                 window.loadedLayers["zonas"].changed();
                 window.loadedLayers["zonas"].setVisible(zonasAtivas.length > 0);
+            }
+        }
+    });
+
+    // Camada PROCESSOS DIGITAIS — um toggle por fluxo (mesmo mecanismo do .zona-toggle).
+    document.addEventListener("change", function (e) {
+        if (e.target && e.target.classList.contains("processo-fluxo-toggle")) {
+            const checkbox = e.target;
+            const fid = checkbox.getAttribute("data-fluxo-id");
+
+            if (checkbox.checked) {
+                if (!processosFluxosAtivos.includes(fid)) processosFluxosAtivos.push(fid);
+            } else {
+                processosFluxosAtivos = processosFluxosAtivos.filter((f) => f !== fid);
+            }
+
+            if (!window.loadedLayers["processos"]) {
+                fetchAndDrawLayer("processos", checkbox);
+                // fetch é assíncrono: re-sincroniza quando a source já estiver populada.
+                setTimeout(() => window.syncProcessosHeatmap && window.syncProcessosHeatmap(), 700);
+            } else {
+                window.loadedLayers["processos"].changed();
+                window.syncProcessosHeatmap && window.syncProcessosHeatmap();
+            }
+        }
+    });
+
+    // Camada COLETA DE DADOS — um toggle por status (mesmo mecanismo do .processo-fluxo-toggle).
+    document.addEventListener("change", function (e) {
+        if (e.target && e.target.classList.contains("coleta-status-toggle")) {
+            const st = e.target.getAttribute("data-status");
+            if (e.target.checked) {
+                if (!coletaStatusAtivos.includes(st)) coletaStatusAtivos.push(st);
+            } else {
+                coletaStatusAtivos = coletaStatusAtivos.filter((s) => s !== st);
+            }
+
+            if (!window.loadedLayers["coleta"]) {
+                fetchAndDrawLayer("coleta", e.target);
+                setTimeout(() => window.syncColetaHeatmap && window.syncColetaHeatmap(), 700);
+            } else {
+                window.loadedLayers["coleta"].changed();
+                window.syncColetaHeatmap && window.syncColetaHeatmap();
             }
         }
     });
@@ -5452,6 +5587,148 @@ document.addEventListener("DOMContentLoaded", function () {
     map.addLayer(heatmapBeneficioLayer);
     map.addLayer(heatmapPcdLayer);
 
+    // Heatmap PROCESSOS DIGITAIS — UMA camada de heatmap por fluxo, cada uma com o
+    // gradiente na cor do fluxo (ol.layer.Heatmap só aceita um gradiente por camada).
+    const heatmapProcessosLayers = {}; // fluxoId -> { layer, source }
+    let modoHeatmapProcessos = false;
+
+    // Gradiente monocromático (transparente → cor do fluxo) a partir do hex.
+    function gradienteHeatmapProcesso(cor) {
+        let r = 59, g = 130, b = 246;
+        if (/^#[0-9a-fA-F]{6}$/.test(cor)) {
+            r = parseInt(cor.slice(1, 3), 16);
+            g = parseInt(cor.slice(3, 5), 16);
+            b = parseInt(cor.slice(5, 7), 16);
+        }
+        return [
+            `rgba(${r},${g},${b},0)`,
+            `rgba(${r},${g},${b},0.35)`,
+            `rgba(${r},${g},${b},0.7)`,
+            `rgb(${r},${g},${b})`,
+        ];
+    }
+
+    // Alterna heatmap x polígonos da camada de processos (fonte única de verdade da visibilidade).
+    window.syncProcessosHeatmap = function () {
+        const layer = window.loadedLayers["processos"];
+        const temAtivos = processosFluxosAtivos.length > 0;
+
+        // Agrupa os pontos por fluxo (só fluxos ativos), preservando a cor de cada fluxo.
+        const pontosPorFluxo = {}; // fid -> { cor, coords: [] }
+        if (modoHeatmapProcessos && layer) {
+            layer.getSource().getFeatures().forEach((f) => {
+                const fid = String(f.get("bpmn_fluxo_id"));
+                if (!processosFluxosAtivos.includes(fid)) return;
+                const geom = f.getGeometry();
+                if (!geom) return;
+                const coord = (geom.getType() === "Polygon" && geom.getInteriorPoint)
+                    ? geom.getInteriorPoint().getCoordinates()
+                    : ol.extent.getCenter(geom.getExtent());
+                if (!pontosPorFluxo[fid]) {
+                    pontosPorFluxo[fid] = { cor: f.get("fluxo_cor") || "#3b82f6", coords: [] };
+                }
+                pontosPorFluxo[fid].coords.push(coord);
+            });
+        }
+
+        // Cria/atualiza a camada de heatmap de cada fluxo ativo (na cor do fluxo).
+        Object.entries(pontosPorFluxo).forEach(([fid, info]) => {
+            let entry = heatmapProcessosLayers[fid];
+            if (!entry) {
+                const source = new ol.source.Vector();
+                const hl = new ol.layer.Heatmap({
+                    source, blur: 28, radius: 18,
+                    gradient: gradienteHeatmapProcesso(info.cor),
+                    zIndex: 9003,
+                });
+                map.addLayer(hl);
+                entry = heatmapProcessosLayers[fid] = { layer: hl, source };
+            } else {
+                entry.layer.setGradient(gradienteHeatmapProcesso(info.cor));
+            }
+            entry.source.clear();
+            info.coords.forEach((c) => entry.source.addFeature(new ol.Feature(new ol.geom.Point(c))));
+            entry.layer.setVisible(true);
+        });
+
+        // Oculta/limpa heatmaps de fluxos que não estão ativos neste momento.
+        Object.keys(heatmapProcessosLayers).forEach((fid) => {
+            if (!pontosPorFluxo[fid]) {
+                heatmapProcessosLayers[fid].source.clear();
+                heatmapProcessosLayers[fid].layer.setVisible(false);
+            }
+        });
+
+        if (layer) layer.setVisible(!modoHeatmapProcessos && temAtivos);
+    };
+
+    window.addEventListener("sigweb-processos-heatmap", function (e) {
+        modoHeatmapProcessos = !!e.detail.enabled;
+        window.syncProcessosHeatmap();
+    });
+
+    // Heatmap COLETA DE DADOS — uma camada por status (cada status na sua cor), self-contained.
+    const heatmapColetaLayers = {}; // status -> { layer, source }
+    let modoHeatmapColeta = false;
+
+    window.syncColetaHeatmap = function () {
+        const layer = window.loadedLayers["coleta"];
+
+        const pontosPorStatus = {}; // status -> coords[]
+        if (modoHeatmapColeta && layer) {
+            layer.getSource().getFeatures().forEach((f) => {
+                const st = f.get("status_cadastro") || "nao_visitado";
+                if (!coletaStatusAtivos.includes(st)) return; // só os status ligados
+                const geom = f.getGeometry();
+                if (!geom) return;
+                const coord = (geom.getType() === "Polygon" && geom.getInteriorPoint)
+                    ? geom.getInteriorPoint().getCoordinates()
+                    : ol.extent.getCenter(geom.getExtent());
+                (pontosPorStatus[st] = pontosPorStatus[st] || []).push(coord);
+            });
+        }
+
+        Object.entries(pontosPorStatus).forEach(([st, coords]) => {
+            const cor = CORES_STATUS_COLETA[st] || "#9CA3AF";
+            let entry = heatmapColetaLayers[st];
+            if (!entry) {
+                const source = new ol.source.Vector();
+                const hl = new ol.layer.Heatmap({
+                    source, blur: 28, radius: 18,
+                    gradient: gradienteHeatmapProcesso(cor),
+                    zIndex: 9004,
+                });
+                map.addLayer(hl);
+                entry = heatmapColetaLayers[st] = { layer: hl, source };
+            }
+            entry.source.clear();
+            coords.forEach((c) => entry.source.addFeature(new ol.Feature(new ol.geom.Point(c))));
+            entry.layer.setVisible(true);
+        });
+
+        Object.keys(heatmapColetaLayers).forEach((st) => {
+            if (!pontosPorStatus[st]) {
+                heatmapColetaLayers[st].source.clear();
+                heatmapColetaLayers[st].layer.setVisible(false);
+            }
+        });
+
+        // Vetor visível só com algum status ligado e heatmap desligado.
+        if (layer) layer.setVisible(coletaStatusAtivos.length > 0 && !modoHeatmapColeta);
+    };
+
+    window.addEventListener("sigweb-coleta-heatmap", function (e) {
+        modoHeatmapColeta = !!e.detail.enabled;
+        // Heatmap dos status ligados: carrega a camada própria se preciso.
+        if (modoHeatmapColeta && coletaStatusAtivos.length > 0 && !window.loadedLayers["coleta"]) {
+            const cb = document.querySelector(".coleta-status-toggle");
+            if (cb) fetchAndDrawLayer("coleta", cb);
+            setTimeout(() => window.syncColetaHeatmap(), 700);
+        } else {
+            window.syncColetaHeatmap();
+        }
+    });
+
     let modoHeatmapAtivo = false;
 
     // Popula as fontes de heatmap com os centroides dos lotes filtrados
@@ -7221,57 +7498,7 @@ document.addEventListener("DOMContentLoaded", function () {
         window.toggleLotesStatusColor(e.detail.enabled);
     });
 
-    // =========================================================================
-    // PROCESSOS DIGITAIS — colore lotes pela etapa atual (cor_mapa de BpmnEtapa)
-    // Lotes sem processo ativo ficam esmaecidos; legenda dinâmica via CustomEvent
-    // =========================================================================
-    window.sigwebProcessosBaseStyle = null;
-
-    window.toggleProcessosColor = function (enabled) {
-        const layerName = "lotes";
-        const layer = window.loadedLayers[layerName];
-        if (!layer) return;
-
-        if (!window.sigwebProcessosBaseStyle) {
-            window.sigwebProcessosBaseStyle = layer.getStyleFunction();
-        }
-
-        if (enabled) {
-            const legendItems = {};
-            layer.getSource().getFeatures().forEach(function (feature) {
-                const cor = feature.get("processo_etapa_cor");
-                const nome = feature.get("processo_etapa_nome");
-                if (cor && nome) legendItems[cor] = nome;
-            });
-            window.dispatchEvent(new CustomEvent("sigweb-processos-legenda", {
-                detail: { items: Object.entries(legendItems).map(([cor, nome]) => ({ cor, nome })) }
-            }));
-
-            layer.setStyle(function (feature) {
-                const cor = feature.get("processo_etapa_cor");
-                if (!cor) {
-                    return new ol.style.Style({
-                        fill: new ol.style.Fill({ color: "rgba(200,200,200,0.10)" }),
-                        stroke: new ol.style.Stroke({ color: "#d1d5db", width: 1 }),
-                    });
-                }
-                const r = parseInt(cor.slice(1, 3), 16);
-                const g = parseInt(cor.slice(3, 5), 16);
-                const b = parseInt(cor.slice(5, 7), 16);
-                return new ol.style.Style({
-                    fill: new ol.style.Fill({ color: "rgba(" + r + "," + g + "," + b + ",0.45)" }),
-                    stroke: new ol.style.Stroke({ color: cor, width: 2.5 }),
-                });
-            });
-        } else {
-            layer.setStyle(window.sigwebProcessosBaseStyle);
-            window.dispatchEvent(new CustomEvent("sigweb-processos-legenda", { detail: { items: [] } }));
-        }
-    };
-
-    window.addEventListener("sigweb-toggle-processos-color", function (e) {
-        window.toggleProcessosColor(e.detail.enabled);
-    });
+    // (toggleProcessosColor removido — substituído pela camada "processos" com um toggle por fluxo.)
 
     // =========================================================================
     // #9 — FERRAMENTA DE TOPONÍMIA (texto livre no mapa)

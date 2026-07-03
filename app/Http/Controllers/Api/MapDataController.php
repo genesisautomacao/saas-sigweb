@@ -404,6 +404,84 @@ class MapDataController extends Controller
                 $data = ['type' => 'FeatureCollection', 'features' => $features];
                 break;
 
+            case 'processos':
+                // Lotes que têm processo digital (em andamento ou concluído), coloridos pela cor
+                // do FLUXO. Self-contained: não depende da camada 'lotes' estar ligada.
+                $rows = DB::table('processos_digitais as p')
+                    ->join('lotes as l', 'l.id', '=', 'p.lote_id')
+                    ->leftJoin('bpmn_fluxos as f', 'f.id', '=', 'p.bpmn_fluxo_id')
+                    ->leftJoin('bpmn_etapas as e', 'e.id', '=', 'p.etapa_atual_id')
+                    ->where('p.tenant_id', $tenantId)
+                    ->whereIn('p.status', ['em_andamento', 'concluido'])
+                    ->whereNull('p.deleted_at')
+                    ->whereNotNull('p.lote_id')
+                    ->whereNotNull('l.geo')
+                    ->orderBy('p.id')
+                    ->selectRaw("p.id, p.codigo_processo, p.bpmn_fluxo_id, p.status,
+                        l.numero_lote,
+                        f.nome as fluxo_nome, COALESCE(f.cor, '#3b82f6') as fluxo_cor,
+                        e.nome as etapa_nome,
+                        ST_AsGeoJSON(l.geo, 6) as geo_json")
+                    ->get();
+
+                $features = [];
+                foreach ($rows as $row) {
+                    $geom = $row->geo_json ? json_decode($row->geo_json) : null;
+                    if (!$geom || empty($geom->coordinates)) {
+                        continue;
+                    }
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'id'              => $row->id,
+                            'layer'           => 'processos',
+                            'codigo_processo' => $row->codigo_processo,
+                            'bpmn_fluxo_id'   => $row->bpmn_fluxo_id,
+                            'fluxo_nome'      => $row->fluxo_nome,
+                            'fluxo_cor'       => $row->fluxo_cor ?: '#3b82f6',
+                            'etapa_nome'      => $row->etapa_nome,
+                            'status'          => $row->status,
+                            'is_concluido'    => $row->status === 'concluido',
+                            'numero_lote'     => $row->numero_lote,
+                        ],
+                        'geometry' => $geom,
+                    ];
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
+            case 'coleta':
+                // Camada de COLETA DE DADOS — lotes coloridos por status_cadastro. Self-contained
+                // (não depende da camada 'lotes' estar carregada).
+                $rows = DB::table('lotes')
+                    ->where('tenant_id', $tenantId)
+                    ->whereNull('deleted_at')
+                    ->whereNotNull('geo')
+                    ->selectRaw("id, numero_lote,
+                        COALESCE(status_cadastro, 'nao_visitado') as status_cadastro,
+                        ST_AsGeoJSON(geo, 6) as geo_json")
+                    ->get();
+
+                $features = [];
+                foreach ($rows as $row) {
+                    $geom = $row->geo_json ? json_decode($row->geo_json) : null;
+                    if (!$geom || empty($geom->coordinates)) {
+                        continue;
+                    }
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'id'              => $row->id,
+                            'layer'           => 'coleta',
+                            'numero_lote'     => $row->numero_lote,
+                            'status_cadastro' => $row->status_cadastro,
+                        ],
+                        'geometry' => $geom,
+                    ];
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
             default:
                 return response()->json(['error' => 'Camada não encontrada'], 404);
         }

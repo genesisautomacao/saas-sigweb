@@ -144,6 +144,8 @@ class MapaFullscreen extends Page
     public ?int $testadaAtivaId = null;
     public ?float $testadaExtensaoCalculada = null;
     public array $zonasTipos = [];
+    // Fluxos BPMN ativos do tenant — um toggle por fluxo na camada "Processos Digitais" do mapa.
+    public array $processoFluxos = [];
     public ?int $cemiterioAtivoId = null;
 
 
@@ -191,6 +193,19 @@ class MapaFullscreen extends Page
                     'name' => $zona->name,
                     'sigla' => $zona->sigla,
                     'rgb' => $zona->rgb,
+                ])
+                ->toArray();
+
+            // Um toggle por fluxo ativo na camada "Processos Digitais" (acordeon só aparece se houver fluxo).
+            $this->processoFluxos = \App\Models\BpmnFluxo::query()
+                ->where('tenant_id', $this->tenantId)
+                ->where('ativo', true)
+                ->orderBy('nome')
+                ->get(['id', 'nome', 'cor'])
+                ->map(fn($f) => [
+                    'id'   => $f->id,
+                    'nome' => $f->nome,
+                    'cor'  => $f->cor ?: '#3b82f6',
                 ])
                 ->toArray();
         }

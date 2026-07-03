@@ -532,6 +532,7 @@ class RoleResource extends Resource
                                         'ver_camada_secoes_logradouro'     => 'Seções de Logradouro',
                                         'ver_camada_quadras'               => 'Quadras',
                                         'ver_camada_lotes'                 => 'Lotes',
+                                        'ver_camada_processos'             => 'Processos Digitais',
                                         'ver_camada_logradouros'           => 'Logradouros / Ruas',
                                         'ver_camada_postes'                => 'Postes / Iluminação',
                                         'ver_camada_arvores'               => 'Árvores',

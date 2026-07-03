@@ -78,8 +78,21 @@ Each `Tenant` has a `modules` JSON column. Active module strings map to resource
 - **PostGIS** is required — spatial columns use `ST_Multi`, `ST_GeomFromGeoJSON`, `ST_AsGeoJSON`. Models with geographic data have a `geo` column with a custom setter/getter (see [app/Models/Lote.php](app/Models/Lote.php)).
 - **`/api/gis-data`** ([app/Http/Controllers/Api/MapDataController.php](app/Http/Controllers/Api/MapDataController.php)): Main endpoint consumed by the map. Takes `tenant_id` and `layer` query params, returns GeoJSON FeatureCollections.
 - **`/api/ogc/{tenant_slug}`** ([app/Http/Controllers/Api/OgcController.php](app/Http/Controllers/Api/OgcController.php)): WFS/WMS interoperability endpoint (OGC standard).
-- **`public/js/gis/mapa-engine.js`**: The main interactive map JS engine (Leaflet-based), used by the internal Filament map page.
+- **`public/js/gis/mapa-engine.js`**: The main interactive map JS engine (**OpenLayers 8.2**, não Leaflet), used by the internal Filament map page. Camadas vetoriais em `layerConfigs` + `fetchAndDrawLayer(layer)` → `window.loadedLayers[layer]`. Heatmaps nativos via `ol.layer.Heatmap`.
 - **`public/js/gis/mapa-cidadao-engine.js`**: Simplified citizen-facing public map.
+
+#### Camada "Processos Digitais" no mapa (um toggle por fluxo + heatmap)
+
+Camada `processos` (gate `ver_camada_processos`) que **marca os lotes que têm processo** (self-contained — não depende da camada `lotes`), colorindo cada lote com a **cor do fluxo** (`bpmn_fluxos.cor`, definida no `BpmnFluxoResource` via `ColorPicker`) e rotulando com **nome do fluxo + etapa atual + "✓ Concluído"**. Inclui processos `em_andamento` e `concluido` com `lote_id`.
+
+- **Backend:** `case 'processos'` em [MapDataController.php](app/Http/Controllers/Api/MapDataController.php) (query `DB::table` juntando `processos_digitais`+`lotes`+`bpmn_fluxos`+`bpmn_etapas`; geometria = polígono do lote; props `bpmn_fluxo_id`, `fluxo_cor`, `fluxo_nome`, `etapa_nome`, `is_concluido`).
+- **UI:** acordeon dedicado abaixo de "Cadastro Base" em [mapa-fullscreen.blade.php](resources/views/filament/pages/mapa-fullscreen.blade.php), **um checkbox por fluxo** (padrão idêntico ao Zoneamento: swatch da cor + nome, via `@entangle('processoFluxos')`). **O acordeon só aparece se o tenant tiver ≥1 fluxo ativo** (`$processoFluxos` em `MapaFullscreen::mount()`). Toggle "Mapa de Calor" adicional.
+- **Engine:** `layerConfigs.processos` (estilo por fluxo, oculta fluxos fora de `processosFluxosAtivos`), handler delegado `.processo-fluxo-toggle` (espelha `.zona-toggle`), `heatmapProcessosLayer`/`syncProcessosHeatmap()` (listener `sigweb-processos-heatmap`).
+- Substituiu o antigo toggle "Processos Digitais" (que recoloria lotes por etapa e dependia da camada `lotes` estar ligada — bug do "Nenhum processo em andamento").
+
+#### Camada "Coleta de Dados" no mapa (status de coleta + heatmap)
+
+Acordeon abaixo de "Processos Digitais" com a camada `coleta` (**self-contained** — não depende da camada `lotes`), colorindo os lotes por `status_cadastro` (coletado=`#10B981`, pendente=`#F59E0B`, inconformidade=`#EF4444`, não visitado=`#9CA3AF`). O toggle **"Status de Coleta"** foi **movido** de baixo de "Lotes" para cá (agora é a própria camada `coleta`, `.coleta-toggle`, não recolore mais a camada `lotes`). Toggle **"Mapa de Calor"** = uma `ol.layer.Heatmap` por status (cada status na sua cor). Backend: `case 'coleta'` em [MapDataController.php](app/Http/Controllers/Api/MapDataController.php) (todos os lotes + `status_cadastro`). Engine: `layerConfigs.coleta`, handler `.coleta-toggle`, `syncColetaHeatmap()` (listener `sigweb-coleta-heatmap`). Gate `data-permission-group="layer:lotes"`.
 - **`MapaFullscreen` page** ([app/Filament/Pages/MapaFullscreen.php](app/Filament/Pages/MapaFullscreen.php)): Livewire-powered Filament page that hosts the map. Logic is split into ~21 traits in `app/Filament/Pages/Traits/Has*Actions.php`, one per GIS entity type.
 - **`SecaoLogradouro`** ([app/Models/SecaoLogradouro.php](app/Models/SecaoLogradouro.php)): LINESTRING/MULTILINESTRING entity — sections of a street with `tipo_pavimentacao` and cached `extensao_geo`. Accessible via `LogradouroResource` RelationManager tab ("Seções") and via standalone `SecaoLogradouroResource`. Map layer `secoes_logradouro` (violet dashed, z=52, minZoom=15). **Dois gates distintos:** camada do mapa = `ver_camada_secoes_logradouro`; recurso CRUD (Policy `SecaoLogradouroPolicy`) = `gerenciar_secoes_logradouro`.
 

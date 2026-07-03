@@ -255,6 +255,7 @@ class PermissionsSeeder extends Seeder
             'ver_camada_loteamentos',
             'ver_camada_quadras',
             'ver_camada_lotes',
+            'ver_camada_processos',
             'ver_camada_logradouros',
             'ver_camada_meio_fios',
             'ver_camada_secoes_logradouro',

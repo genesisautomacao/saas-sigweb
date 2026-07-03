@@ -69,7 +69,7 @@ class EditRole extends EditRecord
 
         $data['permissions_mapa_camadas'] = array_values(array_intersect($permissions, [
             'ver_camada_perimetros', 'ver_camada_setores_fiscais', 'ver_camada_bairros',
-            'ver_camada_loteamentos', 'ver_camada_quadras', 'ver_camada_lotes',
+            'ver_camada_loteamentos', 'ver_camada_quadras', 'ver_camada_lotes', 'ver_camada_processos',
             'ver_camada_logradouros', 'ver_camada_meio_fios', 'ver_camada_secoes_logradouro', 'ver_camada_postes', 'ver_camada_arvores',
             'ver_camada_zonas', 'ver_camada_patrimonio_publico', 'ver_camada_cemiterios',
             'ver_camada_rural_localidades', 'ver_camada_rural_propriedades', 'ver_camada_rural_estradas',
