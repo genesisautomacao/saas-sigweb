@@ -54,7 +54,7 @@ class MensagemChamado extends Model
                 expoToken: $cidadao->expo_push_token,
                 title: 'Atualização do seu chamado '.($chamado->protocolo ?? ''),
                 body: mb_strimwidth($m->texto ?? '', 0, 100, '...'),
-                data: ['tipo' => 'chamado_mensagem', 'chamadoId' => $m->chamado_id],
+                data: ['tipo' => 'mensagem', 'chamado_id' => $m->chamado_id],
             );
         });
     }

@@ -128,7 +128,7 @@ class ChamadoResource extends Resource
             ->action(function (Chamado $record, array $data) {
                 $record->update(['categoria_chamado_id' => $data['categoria_chamado_id']]);
                 $cat = \App\Models\CategoriaChamado::find($data['categoria_chamado_id']);
-                self::notificarCidadao($record, 'Categoria atualizada', "Seu chamado {$record->protocolo} teve a categoria alterada para: {$cat?->nome}."); // 166
+                self::notificarCidadao($record, 'Categoria atualizada', "Seu chamado {$record->protocolo} teve a categoria alterada para: {$cat?->nome}.", 'categoria'); // 166
                 Notification::make()->title('Categoria alterada e cidadão notificado.')->success()->send();
             });
     }
@@ -154,7 +154,7 @@ class ChamadoResource extends Resource
                     'user_id' => Filament::auth()->id(),
                 ]);
                 $fase = FaseChamado::find($data['fase_atual_id']);
-                self::notificarCidadao($record, 'Andamento do chamado', "Seu chamado {$record->protocolo} avançou para a fase: {$fase?->nome}."); // 168
+                self::notificarCidadao($record, 'Andamento do chamado', "Seu chamado {$record->protocolo} avançou para a fase: {$fase?->nome}.", 'fase'); // 168
                 Notification::make()->title('Fase alterada e cidadão notificado.')->success()->send();
             });
     }
@@ -182,7 +182,7 @@ class ChamadoResource extends Resource
             });
     }
 
-    protected static function notificarCidadao(Chamado $chamado, string $title, string $body): void
+    protected static function notificarCidadao(Chamado $chamado, string $title, string $body, string $tipo = 'chamado'): void
     {
         if (! $chamado->user_id) {
             return;
@@ -191,7 +191,8 @@ class ChamadoResource extends Resource
         if (! $cidadao?->expo_push_token) {
             return;
         }
-        app(ExpoPushService::class)->send($cidadao->expo_push_token, $title, $body, ['tipo' => 'chamado', 'chamadoId' => $chamado->id]);
+        // Chaves alinhadas com o app: data.chamado_id (navegação) + data.tipo (fase|categoria|mensagem).
+        app(ExpoPushService::class)->send($cidadao->expo_push_token, $title, $body, ['tipo' => $tipo, 'chamado_id' => $chamado->id]);
     }
 
     /** 162 — tabela → mapa: posiciona/identifica o chamado no mapa. */

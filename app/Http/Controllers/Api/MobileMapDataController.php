@@ -12,12 +12,16 @@ class MobileMapDataController extends Controller
     {
         $request->validate([
             'layer' => 'required|string',
-            'bbox'  => 'nullable|string',
+            'bbox' => 'nullable|string',
         ]);
 
-        $tenantId = $request->user()->tenants()->first()->id;
-        $layer    = $request->query('layer');
-        $bbox     = $this->parseBbox($request->query('bbox'));
+        $tenant = $request->user()->tenants()->first();
+        if (! $tenant) {
+            return response()->json(['error' => 'Usuário sem tenant ativo.'], 403);
+        }
+        $tenantId = $tenant->id;
+        $layer = $request->query('layer');
+        $bbox = $this->parseBbox($request->query('bbox'));
 
         $result = $this->buildLayerQuery($layer, $tenantId, $bbox);
 
@@ -28,10 +32,50 @@ class MobileMapDataController extends Controller
         return response()->json($result);
     }
 
+    /**
+     * GET /api/map/layers — catálogo de camadas que o app pode exibir (item 179).
+     *
+     * Retorna só as camadas "configuradas no SIG WEB" para este tenant:
+     *   1) as camadas base + as dos módulos ativos do tenant;
+     *   2) se o admin curou uma lista em tenant.data['mobile_layers'], restringe a ela.
+     * Cada camada vem com metadados de exibição (label, tipo, cor, visível por padrão,
+     * zoom mínimo) — o app monta o seletor e o estilo direto disto, sem hardcode.
+     */
+    public function layers(Request $request)
+    {
+        $tenant = $request->user()->tenants()->first();
+        $modules = $tenant?->modules ?? [];
+
+        // Camadas servidas por /api/map/data. 'modulo' = null → base (sempre disponível).
+        $catalogo = [
+            ['key' => 'lotes',       'label' => 'Lotes',       'tipo' => 'polygon', 'cor' => '#3388ff', 'modulo' => null,          'visivel_padrao' => true,  'min_zoom' => 15],
+            ['key' => 'quadras',     'label' => 'Quadras',     'tipo' => 'polygon', 'cor' => '#ff7800', 'modulo' => null,          'visivel_padrao' => false, 'min_zoom' => 14],
+            ['key' => 'bairros',     'label' => 'Bairros',     'tipo' => 'polygon', 'cor' => '#8e44ad', 'modulo' => null,          'visivel_padrao' => false, 'min_zoom' => 12],
+            ['key' => 'logradouros', 'label' => 'Logradouros', 'tipo' => 'line',    'cor' => '#7f8c8d', 'modulo' => null,          'visivel_padrao' => false, 'min_zoom' => 15],
+            ['key' => 'zonas',       'label' => 'Zonas',       'tipo' => 'polygon', 'cor' => '#2ecc71', 'modulo' => null,          'visivel_padrao' => false, 'min_zoom' => 13],
+            ['key' => 'arvores',     'label' => 'Árvores',     'tipo' => 'point',   'cor' => '#27ae60', 'modulo' => 'arborizacao', 'visivel_padrao' => true,  'min_zoom' => 16],
+            ['key' => 'postes',      'label' => 'Postes',      'tipo' => 'point',   'cor' => '#f1c40f', 'modulo' => 'iluminacao',  'visivel_padrao' => true,  'min_zoom' => 16],
+        ];
+
+        // 1) só camadas base ou de módulo ativo
+        $disponiveis = array_filter($catalogo, fn ($c) => $c['modulo'] === null || in_array($c['modulo'], $modules));
+
+        // 2) curadoria opcional do admin (SIG WEB → tenant.data['mobile_layers'])
+        $curadoria = data_get($tenant?->data, 'mobile_layers');
+        if (is_array($curadoria) && count($curadoria)) {
+            $disponiveis = array_filter($disponiveis, fn ($c) => in_array($c['key'], $curadoria));
+        }
+
+        return response()->json(['data' => array_values($disponiveis)]);
+    }
+
     private function parseBbox(?string $raw): ?array
     {
-        if (!$raw) return null;
+        if (! $raw) {
+            return null;
+        }
         $parts = array_map('floatval', explode(',', $raw));
+
         return count($parts) === 4 ? $parts : null;
     }
 
@@ -77,17 +121,19 @@ class MobileMapDataController extends Controller
         $features = [];
         foreach ($q->get() as $row) {
             $geom = json_decode($row->geo_json);
-            if (!$geom || empty($geom->coordinates)) continue;
+            if (! $geom || empty($geom->coordinates)) {
+                continue;
+            }
             $features[] = [
                 'type' => 'Feature',
                 'properties' => [
-                    'id'              => $row->id,
-                    'name'            => $row->numero_lote ?? 'S/N',
-                    'codigo'          => $row->code,
-                    'sequential_id'   => $row->sequential_id,
+                    'id' => $row->id,
+                    'name' => $row->numero_lote ?? 'S/N',
+                    'codigo' => $row->code,
+                    'sequential_id' => $row->sequential_id,
                     'status_cadastro' => $row->status_cadastro ?? 'nao_visitado',
-                    'ocupacao'        => $row->ocupacao,
-                    'layer'           => 'lotes',
+                    'ocupacao' => $row->ocupacao,
+                    'layer' => 'lotes',
                 ],
                 'geometry' => $geom,
             ];
@@ -109,18 +155,20 @@ class MobileMapDataController extends Controller
         $features = [];
         foreach ($q->get() as $row) {
             $geom = json_decode($row->geo_json);
-            if (!$geom || empty($geom->coordinates)) continue;
+            if (! $geom || empty($geom->coordinates)) {
+                continue;
+            }
             $features[] = [
                 'type' => 'Feature',
                 'properties' => [
-                    'id'                      => $row->id,
-                    'name'                    => $row->sequential_id ? "Árv. #{$row->sequential_id}" : 'S/N',
-                    'codigo'                  => $row->code,
-                    'sequential_id'           => $row->sequential_id,
-                    'botanical_species'       => $row->botanical_species,
+                    'id' => $row->id,
+                    'name' => $row->sequential_id ? "Árv. #{$row->sequential_id}" : 'S/N',
+                    'codigo' => $row->code,
+                    'sequential_id' => $row->sequential_id,
+                    'botanical_species' => $row->botanical_species,
                     'phytosanitary_condition' => $row->phytosanitary_condition,
-                    'size'                    => $row->size,
-                    'layer'                   => 'arvores',
+                    'size' => $row->size,
+                    'layer' => 'arvores',
                 ],
                 'geometry' => $geom,
             ];
@@ -142,16 +190,18 @@ class MobileMapDataController extends Controller
         $features = [];
         foreach ($q->get() as $row) {
             $geom = json_decode($row->geo_json);
-            if (!$geom || empty($geom->coordinates)) continue;
+            if (! $geom || empty($geom->coordinates)) {
+                continue;
+            }
             $features[] = [
                 'type' => 'Feature',
                 'properties' => [
-                    'id'                   => $row->id,
-                    'name'                 => $row->sequential_id ? "Poste #{$row->sequential_id}" : 'S/N',
-                    'codigo'               => $row->code,
-                    'sequential_id'        => $row->sequential_id,
+                    'id' => $row->id,
+                    'name' => $row->sequential_id ? "Poste #{$row->sequential_id}" : 'S/N',
+                    'codigo' => $row->code,
+                    'sequential_id' => $row->sequential_id,
                     'structural_condition' => $row->structural_condition,
-                    'layer'                => 'postes',
+                    'layer' => 'postes',
                 ],
                 'geometry' => $geom,
             ];
@@ -173,12 +223,14 @@ class MobileMapDataController extends Controller
         $features = [];
         foreach ($q->get() as $row) {
             $geom = json_decode($row->geo_json);
-            if (!$geom || empty($geom->coordinates)) continue;
+            if (! $geom || empty($geom->coordinates)) {
+                continue;
+            }
             $features[] = [
                 'type' => 'Feature',
                 'properties' => [
-                    'id'    => $row->id,
-                    'name'  => $row->name ?? 'S/N',
+                    'id' => $row->id,
+                    'name' => $row->name ?? 'S/N',
                     'layer' => $table,
                 ],
                 'geometry' => $geom,

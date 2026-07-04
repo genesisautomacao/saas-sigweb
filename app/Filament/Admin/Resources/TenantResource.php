@@ -12,10 +12,8 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class TenantResource extends Resource
 {
@@ -24,7 +22,9 @@ class TenantResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
 
     protected static ?string $modelLabel = 'Empresa';
+
     protected static ?string $pluralModelLabel = 'Empresas';
+
     protected static ?string $navigationGroup = 'Gestão do SaaS';
 
     public static function form(Form $form): Form
@@ -40,7 +40,7 @@ class TenantResource extends Resource
                             ->required()
                             ->maxLength(255)
                             ->live(onBlur: true)
-                            ->afterStateUpdated(fn(Set $set, ?string $state) => $set('slug', Str::slug($state))),
+                            ->afterStateUpdated(fn (Set $set, ?string $state) => $set('slug', Str::slug($state))),
 
                         Forms\Components\TextInput::make('slug')
                             ->label('Slug (URL)')
@@ -87,15 +87,15 @@ class TenantResource extends Resource
                             ->label('URL da API do Servidor PEC')
                             ->placeholder('Ex: https://esus.santacecilia.sc.gov.br/api')
                             ->url()
-                            ->hidden(fn(Forms\Get $get) => $get('data.esus_simulacao')) // 🪄 Esconde se for simulação
-                            ->required(fn(Forms\Get $get) => ! $get('data.esus_simulacao')), // 🪄 Obriga só se não for simulação
+                            ->hidden(fn (Forms\Get $get) => $get('data.esus_simulacao')) // 🪄 Esconde se for simulação
+                            ->required(fn (Forms\Get $get) => ! $get('data.esus_simulacao')), // 🪄 Obriga só se não for simulação
 
                         Forms\Components\TextInput::make('data.esus_token')
                             ->label('Token de Acesso (API Key)')
                             ->password()
                             ->revealable()
-                            ->hidden(fn(Forms\Get $get) => $get('data.esus_simulacao'))
-                            ->required(fn(Forms\Get $get) => ! $get('data.esus_simulacao')),
+                            ->hidden(fn (Forms\Get $get) => $get('data.esus_simulacao'))
+                            ->required(fn (Forms\Get $get) => ! $get('data.esus_simulacao')),
                     ])->columns(2),
 
                 // --- SEÇÃO 3: ENDEREÇO E IBGE (MÁGICA DO VIACEP) ---
@@ -107,12 +107,14 @@ class TenantResource extends Resource
                             ->mask('99999-999')
                             ->live(debounce: 500)
                             ->afterStateUpdated(function ($state, callable $set) {
-                                if (blank($state))
+                                if (blank($state)) {
                                     return;
+                                }
 
                                 $cep = preg_replace('/[^0-9]/', '', $state);
-                                if (strlen($cep) !== 8)
+                                if (strlen($cep) !== 8) {
                                     return;
+                                }
 
                                 try {
                                     // 1. Timeout de 4s (Não deixa o sistema travar)
@@ -123,7 +125,7 @@ class TenantResource extends Resource
                                         ->withoutVerifying()
                                         ->get("https://viacep.com.br/ws/{$cep}/json/");
 
-                                    if ($response->successful() && !isset($response['erro'])) {
+                                    if ($response->successful() && ! isset($response['erro'])) {
                                         $set('data.address', $response['logradouro'] ?? null);
                                         $set('data.neighborhood', $response['bairro'] ?? null);
                                         $set('data.city', $response['localidade'] ?? null);
@@ -196,6 +198,23 @@ class TenantResource extends Resource
                             ->default(14)
                             ->minValue(1)
                             ->maxValue(22),
+
+                        // Item 179 (PoC): camadas que o app móvel poderá exibir.
+                        // Lidas por GET /api/map/layers (gravadas em tenant.data['mobile_layers']).
+                        Forms\Components\CheckboxList::make('data.mobile_layers')
+                            ->label('Camadas visíveis no aplicativo móvel')
+                            ->helperText('Selecione quais camadas o app poderá exibir. Se nenhuma for marcada, o app mostra todas as camadas dos módulos ativos.')
+                            ->options([
+                                'lotes' => 'Lotes',
+                                'quadras' => 'Quadras',
+                                'bairros' => 'Bairros',
+                                'logradouros' => 'Logradouros',
+                                'zonas' => 'Zonas',
+                                'arvores' => 'Árvores (módulo Arborização)',
+                                'postes' => 'Postes (módulo Iluminação)',
+                            ])
+                            ->columns(3)
+                            ->columnSpanFull(),
                     ])->columns(3),
 
                 // --- SEÇÃO 5: MÓDULOS ---
@@ -356,7 +375,7 @@ class TenantResource extends Resource
                                 ->maxSize(51200)
                                 ->disk('local')
                                 ->directory('imports/gis')
-                                ->required()
+                                ->required(),
                         ])
                         ->action(function (Tenant $record, array $data) {
 
@@ -364,10 +383,11 @@ class TenantResource extends Resource
                             ini_set('memory_limit', '2048M');
                             set_time_limit(600);
 
-                            $filePath = storage_path('app/private/' . $data['arquivo']);
+                            $filePath = storage_path('app/private/'.$data['arquivo']);
 
-                            if (!file_exists($filePath)) {
+                            if (! file_exists($filePath)) {
                                 \Filament\Notifications\Notification::make()->danger()->title('Arquivo não encontrado no disco!')->send();
+
                                 return;
                             }
 
@@ -375,7 +395,8 @@ class TenantResource extends Resource
                             $json = json_decode(file_get_contents($filePath));
 
                             if (json_last_error() !== JSON_ERROR_NONE) {
-                                \Filament\Notifications\Notification::make()->danger()->title('Erro ao ler JSON: ' . json_last_error_msg())->send();
+                                \Filament\Notifications\Notification::make()->danger()->title('Erro ao ler JSON: '.json_last_error_msg())->send();
+
                                 return;
                             }
 
@@ -383,10 +404,11 @@ class TenantResource extends Resource
 
                             if (empty($features)) {
                                 \Filament\Notifications\Notification::make()->danger()->title('Nenhuma geometria encontrada no arquivo!')->send();
+
                                 return;
                             }
 
-                            $modelClass = "App\\Models\\" . $data['camada'];
+                            $modelClass = 'App\\Models\\'.$data['camada'];
                             $agrupados = [];
 
                             // 1. INTELIGÊNCIA GEOGRÁFICA DE AGRUPAMENTO
@@ -394,22 +416,32 @@ class TenantResource extends Resource
                                 $props = $feature->properties;
                                 $id = $props->id ?? $props->fid ?? uniqid();
 
-                                if (!isset($agrupados[$id])) {
+                                if (! isset($agrupados[$id])) {
                                     $agrupados[$id] = ['props' => $props, 'coords' => [], 'type' => null];
                                 }
 
                                 // Proteção real contra propriedades sem mapa (geometry = null)
-                                if (isset($feature->geometry) && !empty($feature->geometry) && isset($feature->geometry->type)) {
+                                if (isset($feature->geometry) && ! empty($feature->geometry) && isset($feature->geometry->type)) {
                                     $geomType = $feature->geometry->type;
 
                                     if (in_array($geomType, ['Polygon', 'MultiPolygon'])) {
                                         $agrupados[$id]['type'] = 'MultiPolygon';
-                                        if ($geomType === 'Polygon') $agrupados[$id]['coords'][] = $feature->geometry->coordinates;
-                                        else foreach ($feature->geometry->coordinates as $poly) $agrupados[$id]['coords'][] = $poly;
+                                        if ($geomType === 'Polygon') {
+                                            $agrupados[$id]['coords'][] = $feature->geometry->coordinates;
+                                        } else {
+                                            foreach ($feature->geometry->coordinates as $poly) {
+                                                $agrupados[$id]['coords'][] = $poly;
+                                            }
+                                        }
                                     } elseif (in_array($geomType, ['LineString', 'MultiLineString'])) {
                                         $agrupados[$id]['type'] = 'MultiLineString';
-                                        if ($geomType === 'LineString') $agrupados[$id]['coords'][] = $feature->geometry->coordinates;
-                                        else foreach ($feature->geometry->coordinates as $line) $agrupados[$id]['coords'][] = $line;
+                                        if ($geomType === 'LineString') {
+                                            $agrupados[$id]['coords'][] = $feature->geometry->coordinates;
+                                        } else {
+                                            foreach ($feature->geometry->coordinates as $line) {
+                                                $agrupados[$id]['coords'][] = $line;
+                                            }
+                                        }
                                     } elseif ($geomType === 'Point') {
                                         $agrupados[$id]['type'] = 'Point';
                                         $agrupados[$id]['coords'] = $feature->geometry->coordinates;
@@ -422,8 +454,11 @@ class TenantResource extends Resource
 
                                 // Helper para buscar o ID global real no banco com base no ID do JSON (salvo como sequential_id)
                                 $resolveRelacionamento = function ($modelStr, $jsonId) use ($record) {
-                                    if (!$jsonId) return null;
+                                    if (! $jsonId) {
+                                        return null;
+                                    }
                                     $realId = $modelStr::where('tenant_id', $record->id)->where('sequential_id', $jsonId)->value('id');
+
                                     // Se não achar, usa o próprio ID do JSON (fallback de segurança caso o jsonId já seja o ID global)
                                     return $realId ?? $jsonId;
                                 };
@@ -438,10 +473,10 @@ class TenantResource extends Resource
                                     ];
 
                                     // TRATAMENTO DA GEOMETRIA (Preenche ou deixa Nulo para imóveis sem mapa)
-                                    if (!empty($item['type'])) {
+                                    if (! empty($item['type'])) {
                                         $fillData['geo'] = [
                                             'type' => $item['type'],
-                                            'coordinates' => $item['coords']
+                                            'coordinates' => $item['coords'],
                                         ];
                                     } else {
                                         $fillData['geo'] = null;
@@ -454,32 +489,70 @@ class TenantResource extends Resource
                                     }
 
                                     // 3. MAPEAMENTO DINÂMICO
-                                    if (isset($props->distrito)) $fillData['distrito'] = $props->distrito;
-                                    if (isset($props->sigla)) $fillData['sigla'] = $props->sigla;
-                                    if (isset($props->rgb)) $fillData['rgb'] = $props->rgb;
-                                    if (isset($props->setor)) $fillData['setor'] = $props->setor;
+                                    if (isset($props->distrito)) {
+                                        $fillData['distrito'] = $props->distrito;
+                                    }
+                                    if (isset($props->sigla)) {
+                                        $fillData['sigla'] = $props->sigla;
+                                    }
+                                    if (isset($props->rgb)) {
+                                        $fillData['rgb'] = $props->rgb;
+                                    }
+                                    if (isset($props->setor)) {
+                                        $fillData['setor'] = $props->setor;
+                                    }
 
                                     // 🛑 A MÁGICA DOS RELACIONAMENTOS: Traduz o ID do JSON para o ID Real do Banco
-                                    if (isset($props->perimetro_id)) $fillData['perimetro_id'] = $resolveRelacionamento(\App\Models\PerimetroUrbano::class, $props->perimetro_id);
-                                    if (isset($props->bairro_id)) $fillData['bairro_id'] = $resolveRelacionamento(\App\Models\Bairro::class, $props->bairro_id);
-                                    if (isset($props->loteamento_id)) $fillData['loteamento_id'] = $resolveRelacionamento(\App\Models\Loteamento::class, $props->loteamento_id);
-                                    if (isset($props->quadra_id)) $fillData['quadra_id'] = $resolveRelacionamento(\App\Models\Quadra::class, $props->quadra_id);
-                                    if (isset($props->zona_id)) $fillData['zona_id'] = $resolveRelacionamento(\App\Models\Zona::class, $props->zona_id);
-                                    if (isset($props->lote_id)) $fillData['lote_id'] = $resolveRelacionamento(\App\Models\Lote::class, $props->lote_id);
+                                    if (isset($props->perimetro_id)) {
+                                        $fillData['perimetro_id'] = $resolveRelacionamento(\App\Models\PerimetroUrbano::class, $props->perimetro_id);
+                                    }
+                                    if (isset($props->bairro_id)) {
+                                        $fillData['bairro_id'] = $resolveRelacionamento(\App\Models\Bairro::class, $props->bairro_id);
+                                    }
+                                    if (isset($props->loteamento_id)) {
+                                        $fillData['loteamento_id'] = $resolveRelacionamento(\App\Models\Loteamento::class, $props->loteamento_id);
+                                    }
+                                    if (isset($props->quadra_id)) {
+                                        $fillData['quadra_id'] = $resolveRelacionamento(\App\Models\Quadra::class, $props->quadra_id);
+                                    }
+                                    if (isset($props->zona_id)) {
+                                        $fillData['zona_id'] = $resolveRelacionamento(\App\Models\Zona::class, $props->zona_id);
+                                    }
+                                    if (isset($props->lote_id)) {
+                                        $fillData['lote_id'] = $resolveRelacionamento(\App\Models\Lote::class, $props->lote_id);
+                                    }
 
                                     // Demais propriedades
-                                    if (isset($props->numero_lot) || isset($props->numero)) $fillData['numero_lote'] = $props->numero_lot ?? $props->numero;
-                                    if (isset($props->area_geo)) $fillData['area_geo'] = $props->area_geo;
-                                    if (isset($props->main_facade_length)) $fillData['main_facade_length'] = $props->main_facade_length;
-                                    if (isset($props->tipo)) $fillData['tipo'] = $props->tipo;
-                                    if (isset($props->tp_construcao)) $fillData['tp_construcao'] = $props->tp_construcao;
-                                    if (isset($props->caracteristica_construcao)) $fillData['caracteristica_construcao'] = $props->caracteristica_construcao;
-                                    if (isset($props->estado_conservacao)) $fillData['estado_conservacao'] = $props->estado_conservacao;
-                                    if (isset($props->codigo_imovel_tributario)) $fillData['codigo_imovel_tributario'] = $props->codigo_imovel_tributario;
-                                    if (isset($props->inscricao_imobiliaria)) $fillData['inscricao_imobiliaria'] = $props->inscricao_imobiliaria;
+                                    if (isset($props->numero_lot) || isset($props->numero)) {
+                                        $fillData['numero_lote'] = $props->numero_lot ?? $props->numero;
+                                    }
+                                    if (isset($props->area_geo)) {
+                                        $fillData['area_geo'] = $props->area_geo;
+                                    }
+                                    if (isset($props->main_facade_length)) {
+                                        $fillData['main_facade_length'] = $props->main_facade_length;
+                                    }
+                                    if (isset($props->tipo)) {
+                                        $fillData['tipo'] = $props->tipo;
+                                    }
+                                    if (isset($props->tp_construcao)) {
+                                        $fillData['tp_construcao'] = $props->tp_construcao;
+                                    }
+                                    if (isset($props->caracteristica_construcao)) {
+                                        $fillData['caracteristica_construcao'] = $props->caracteristica_construcao;
+                                    }
+                                    if (isset($props->estado_conservacao)) {
+                                        $fillData['estado_conservacao'] = $props->estado_conservacao;
+                                    }
+                                    if (isset($props->codigo_imovel_tributario)) {
+                                        $fillData['codigo_imovel_tributario'] = $props->codigo_imovel_tributario;
+                                    }
+                                    if (isset($props->inscricao_imobiliaria)) {
+                                        $fillData['inscricao_imobiliaria'] = $props->inscricao_imobiliaria;
+                                    }
 
                                     // 4. SALVAR NO BANCO
-                                    $entidade = new $modelClass();
+                                    $entidade = new $modelClass;
 
                                     // 🛑 O PULO DO GATO: Guarda o ID que veio do JSON dentro do "sequential_id".
                                     // Deixamos a coluna primária "id" livre para o PostgreSQL gerar automaticamente e não dar erro Multi-Tenant.
@@ -500,7 +573,7 @@ class TenantResource extends Resource
                                 \Filament\Notifications\Notification::make()
                                     ->success()
                                     ->title('Importação Concluída!')
-                                    ->body(count($agrupados) . " registros foram importados para a camada " . $data['camada'])
+                                    ->body(count($agrupados).' registros foram importados para a camada '.$data['camada'])
                                     ->send();
                             } catch (\Exception $e) {
                                 \Illuminate\Support\Facades\DB::rollBack();

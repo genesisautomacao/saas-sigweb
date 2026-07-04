@@ -104,7 +104,18 @@
       "Bash(git check-ignore *)",
       "Bash(php -l app/Filament/Resources/ChamadoResource/Pages/ViewChamado.php)",
       "Bash(find potree *)",
-      "Bash(./vendor/bin/pint app/Http/Controllers/Api/Concerns/BuildsMobileAuthResponse.php app/Http/Controllers/Api/AuthController.php app/Http/Controllers/Api/CidadaoAuthController.php app/Http/Controllers/Api/ChamadoController.php)"
+      "Bash(./vendor/bin/pint app/Http/Controllers/Api/Concerns/BuildsMobileAuthResponse.php app/Http/Controllers/Api/AuthController.php app/Http/Controllers/Api/CidadaoAuthController.php app/Http/Controllers/Api/ChamadoController.php)",
+      "Bash(php -l app/Http/Controllers/Api/AuthController.php)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/Api/AuthController.php routes/api.php)",
+      "Bash(php -l app/Http/Controllers/Api/MobileMapDataController.php)",
+      "Bash(php -l app/Filament/Admin/Resources/TenantResource.php)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/Api/MobileMapDataController.php app/Filament/Admin/Resources/TenantResource.php routes/api.php)",
+      "Bash(php -l app/Http/Controllers/Api/ChamadoController.php)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/Api/ChamadoController.php app/Http/Controllers/Api/AuthController.php app/Http/Controllers/Api/MobileMapDataController.php routes/api.php)",
+      "Bash(php -l app/Models/MensagemChamado.php)",
+      "Bash(php -l app/Filament/Resources/ChamadoResource.php)",
+      "Bash(./vendor/bin/pint app/Models/MensagemChamado.php app/Filament/Resources/ChamadoResource.php app/Http/Controllers/Api/ChamadoController.php)",
+      "Bash(xargs -n1 basename)"
     ]
   }
 }

@@ -67,6 +67,46 @@ class ChamadoController extends Controller
         return response()->json(['data' => $chamados]);
     }
 
+    /** GET /api/chamados/{id} — detalhe completo (fotos, boletim, lat/lon) para a tela de Detalhe. */
+    public function show(Request $request, int $id)
+    {
+        $tenantId = $this->tenantId($request);
+        if (! $tenantId) {
+            return response()->json(['error' => 'Usuário sem tenant ativo.'], 403);
+        }
+
+        $q = Chamado::query()
+            ->where('tenant_id', $tenantId)
+            ->with(['categoria:id,nome,cor', 'faseAtual:id,nome,cor']);
+
+        // Cidadão só vê o próprio chamado; fiscal (com papel) vê qualquer um do tenant.
+        if (! $this->ehFiscal($request, $tenantId)) {
+            $q->where('user_id', $request->user()->id);
+        }
+
+        $chamado = $q->find($id);
+        if (! $chamado) {
+            return response()->json(['error' => 'Chamado não encontrado.'], 404);
+        }
+
+        $geo = $chamado->geo_json; // {type:'Point', coordinates:[lon,lat]} ou null
+        $fotos = collect($chamado->fotos ?? [])->map(fn ($p) => asset('storage/'.$p))->values()->all();
+
+        return response()->json(['data' => [
+            'id' => $chamado->id,
+            'protocolo' => $chamado->protocolo,
+            'descricao' => $chamado->descricao,
+            'status' => $chamado->status,
+            'lat' => data_get($geo, 'coordinates.1'),
+            'lon' => data_get($geo, 'coordinates.0'),
+            'created_at' => $chamado->created_at,
+            'categoria' => $chamado->categoria,
+            'fase_atual' => $chamado->faseAtual,
+            'respostas_boletim' => $chamado->respostas_boletim,
+            'fotos' => $fotos, // URLs absolutas prontas para exibir
+        ]]);
+    }
+
     /** POST /api/chamados — cria uma solicitação (app). */
     public function store(Request $request)
     {
@@ -82,7 +122,7 @@ class ChamadoController extends Controller
             'lat' => 'nullable|numeric',
             'lon' => 'nullable|numeric',
             'respostas_boletim' => 'nullable|array',
-            'fotos' => 'nullable|array',
+            'fotos' => 'nullable|array|max:5',
             'fotos.*' => 'nullable|string',
         ]);
         if ($validator->fails()) {

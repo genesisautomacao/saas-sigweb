@@ -110,7 +110,17 @@ Guarde `token` (secure storage) e `tenant.map_lat/map_lon/map_zoom` → **centro
 ```
 - Idem Google, validando no Graph do Facebook. Se o Facebook não devolver e-mail, o backend gera um e-mail interno estável (a conta continua única). Sucesso: `200` + payload.
 
-**f) Sessão** — `POST /api/logout` (auth) encerra o token do dispositivo · `GET /api/me` (auth) valida o token no boot do app.
+**f) Sessão** — `POST /api/logout` (auth) encerra o token do dispositivo · `GET /api/me` (auth) valida o token no boot do app **e devolve o perfil** (inclui `telefone`, `cpf` e `data_nascimento` da Pessoa — formato `YYYY-MM-DD` — além de `id/name/email`) para preencher a tela de perfil.
+
+**g) Editar perfil (item 187)** — `PUT /api/me` (auth)
+```json
+// request — envie SÓ os campos que mudaram
+{ "name": "João M.", "email": "novo@exemplo.com", "telefone": "(49) 98888-0000", "cpf": "000.000.000-00",
+  "data_nascimento": "1990-05-20", "password": "novaSenha", "current_password": "senhaAtual" }
+```
+- Atualiza `User` (name/email/senha) **e** a Pessoa do cidadão (telefone/cpf/**data_nascimento**) num só request. Só altera o que for enviado. `data_nascimento` no formato `YYYY-MM-DD`.
+- **Trocar senha exige `current_password`** correta (senão `422 { errors: { current_password: [...] } }`). O app confirma a nova senha na própria tela.
+- `email` é validado como único. Sucesso: `200 { "data": { id, name, email, telefone, cpf, data_nascimento } }`.
 
 ### 4.2. Categorias de chamado — `GET /api/categorias-chamado` (auth)
 ```json
@@ -152,7 +162,7 @@ Devolve os fluxos ativos (com o **boletim/questionário**) para renderizar o for
 - `descricao` **obrigatório**. Envie sempre **categoria + lat/lon + descrição**.
 - `lat`/`lon` = **ponto principal** (pino que o cidadão soltou) → gravado como geometria PostGIS.
 - `respostas_boletim` = objeto **chaveado pelo `label_campo`** do boletim (formatos na seção 5).
-- **`fotos`** = array de **data-URI base64** (mesmo formato das coletas) → o backend salva e associa ao chamado. 1–3 fotos.
+- **`fotos`** = array de **data-URI base64 com prefixo** (`data:image/jpeg;base64,...` — o backend lê o mime do prefixo; **base64 puro sem prefixo é ignorado**). **Máx. 5** por chamado (recomendado 1–3, JPEG ~150–300 KB cada). Não é multipart, é JSON — o limite prático é o `post_max_size` do servidor.
 - `fase_atual_id` e `protocolo` são definidos **pelo servidor**. Não envie.
 - Sucesso: `201 { "data": { ...chamado, "protocolo": "A1B2C3D4" } }`. Validação: `422 { "errors": {...} }`.
 
@@ -168,6 +178,22 @@ Só os chamados **do próprio usuário**, recentes primeiro (até 200):
 ```
 - Cards: **protocolo**, badge da **categoria** (cor vem da lista de 4.2 → mapear por `categoria.id`), badge da **fase** (`fase_atual.nome`), trecho da descrição, data. Pull-to-refresh rechama este endpoint.
 
+### 4.5.1. Detalhe do chamado — `GET /api/chamados/{id}` (auth)
+Payload completo para a tela de **Detalhe** (fotos, respostas do boletim, localização):
+```json
+{ "data": {
+  "id": 88, "protocolo": "A1B2C3D4", "descricao": "...", "status": "aberto",
+  "lat": -26.9658, "lon": -50.4148, "created_at": "...",
+  "categoria":  { "id": 2, "nome": "Lâmpada apagada", "cor": "#f59e0b" },
+  "fase_atual": { "id": 5, "nome": "Aberto", "cor": "#3b82f6" },
+  "respostas_boletim": { "Descreva o problema": "..." },
+  "fotos": ["https://webgis.liderengenharia.eng.br/storage/chamados_fotos/uuid.jpg"]
+} }
+```
+- **`fotos` já vêm como URLs absolutas** prontas para exibir (não precisa concatenar `/storage`).
+- `lat`/`lon` são extraídos do ponto do chamado (podem ser `null` se não houver localização).
+- O cidadão só acessa o **próprio** chamado (senão `404`).
+
 ### 4.6. Chat do chamado — mensagens
 **`GET /api/chamados/{id}/mensagens`** (auth) → **cidadão vê só `publica = true`**:
 ```json
@@ -176,6 +202,25 @@ Só os chamados **do próprio usuário**, recentes primeiro (até 200):
 **`POST /api/chamados/{id}/mensagens`** (auth) — `{ "texto": "Obrigado!" }` → `201 { "data": {...} }`. Mensagem do cidadão é **sempre pública**.
 
 > **Push:** quando a prefeitura muda a fase ou envia mensagem **pública**, o backend dispara um push Expo ao `expo_push_token` do cidadão (inclusive após encerrado). Basta o app ter registrado o token no login/cadastro e tratar a notificação.
+
+### 4.7. Camadas do mapa configuradas no SIG WEB (item 179)
+
+O SIG WEB decide **quais camadas** cada prefeitura mostra no app. Duas rotas (auth):
+
+**`GET /api/map/layers`** — catálogo das camadas que ESTE tenant pode exibir (só as dos módulos ativos + a curadoria feita no SIG WEB):
+```json
+{ "data": [
+  { "key": "lotes",   "label": "Lotes",   "tipo": "polygon", "cor": "#3388ff", "visivel_padrao": true,  "min_zoom": 15 },
+  { "key": "arvores", "label": "Árvores", "tipo": "point",   "cor": "#27ae60", "visivel_padrao": true,  "min_zoom": 16 }
+] }
+```
+- Monte o **seletor de camadas** direto desta lista: `label` no toggle, `cor`/`tipo` no estilo, `visivel_padrao` no estado inicial, `min_zoom` pra decidir quando carregar.
+- **Onde se configura:** SIG WEB → Admin → prefeitura → seção "Configurações Geográficas" → **"Camadas visíveis no aplicativo móvel"**. Se o admin não marcar nada, vêm **todas** as camadas dos módulos ativos.
+
+**`GET /api/map/data?layer={key}&bbox={oeste,sul,leste,norte}`** — GeoJSON (FeatureCollection) da camada. Passe o `bbox` da viewport para trazer só o que está na tela. Cada `Feature` traz `properties.name`, `properties.layer` e a `geometry`.
+- **Fluxo no app:** `GET /map/layers` uma vez (no boot) → usuário liga/desliga cada camada → para cada camada ligada, `GET /map/data?layer=...&bbox=...` ao mover o mapa.
+
+> A base de **Coletas que você copiou já renderiza essas camadas** (é um app de CTM). **Reaproveite** esse código de desenho/estilo e só troque a fonte do seletor para `GET /api/map/layers` (antes era hardcoded ou vinha do `layers` do login).
 
 ---
 
@@ -212,6 +257,7 @@ Regras:
    6. **Enviar** — `POST /api/chamados`. Sucesso → volta pra Home e mostra o **protocolo**.
 5. **Detalhe do Chamado** — cabeçalho (protocolo, categoria, **fase atual** badge, status, data), respostas do boletim, fotos (galeria), e o **Chat** (4.6): mensagens públicas + campo "responder". Atualiza ao abrir e via pull-to-refresh.
 6. **Notificações** — ao receber push, tocar abre o **Detalhe** do chamado (o backend pode mandar `chamado_id` no `data`; se não vier, abra a Home).
+7. **Perfil (item 187)** — carrega `GET /api/me` (nome, e-mail, telefone, CPF), permite editar e salva via `PUT /api/me`. Bloco separado para **trocar senha** (senha atual + nova). Botão **Sair** (`POST /api/logout`).
 
 ---
 
@@ -225,10 +271,17 @@ Regras:
 
 ## 8. Push (Expo) — resumo
 
-- No boot, peça permissão e obtenha o `ExponentPushToken`.
-- Envie-o em **todo** login/cadastro (`expo_push_token`) — o backend salva no usuário.
-- Handler de notificação: ao tocar, navegue ao **Detalhe do Chamado**.
-- O backend dispara push em **mudança de fase** e **mensagem pública** da prefeitura.
+- No boot, peça permissão e obtenha o `ExponentPushToken` (o backend só envia para tokens que começam com `ExponentPushToken[`).
+- Envie-o em **todo** login/cadastro (`expo_push_token`) — o backend salva no usuário (login, register, google, facebook e `PUT /me`).
+- O backend dispara push em **mensagem pública**, **mudança de fase** e **mudança de categoria** da prefeitura.
+
+**Payload do `data` da notificação (chaves fixas):**
+```json
+{ "tipo": "mensagem" | "fase" | "categoria", "chamado_id": 88 }
+```
+- **`chamado_id`** (snake_case) em **todas** as pushes → use para abrir o **Detalhe** ao tocar; se ausente, vá pra Home.
+- **`tipo`**: `"mensagem"` (resposta pública no chat — trate refresh em foreground), `"fase"` (avançou de fase), `"categoria"` (categoria alterada).
+- `title`/`body` já vêm prontos para exibir. `sound: default`, `priority: high`.
 
 ---
 
@@ -269,12 +322,16 @@ Regras:
 | POST | `/api/auth/google` | — | **token** (idToken), **tenant_id\|prefeitura_slug**, expo_push_token? |
 | POST | `/api/auth/facebook` | — | **token** (accessToken), **tenant_id\|prefeitura_slug**, expo_push_token? |
 | POST | `/api/logout` | Bearer | — |
-| GET | `/api/me` | Bearer | — |
+| GET | `/api/me` | Bearer | — (devolve perfil: id, name, email, telefone, cpf, data_nascimento) |
+| PUT | `/api/me` | Bearer | name?, email?, telefone?, cpf?, data_nascimento?, password? (+current_password), expo_push_token? |
 | GET | `/api/categorias-chamado` | Bearer | — |
 | GET | `/api/fluxos-chamado?categoria_id=` | Bearer | — |
 | POST | `/api/chamados` | Bearer | categoria_chamado_id, fluxo_chamado_id?, descricao, lat?, lon?, respostas_boletim?, **fotos[]** |
-| GET | `/api/chamados` | Bearer | — |
+| GET | `/api/chamados` | Bearer | — (lista dos meus chamados) |
+| GET | `/api/chamados/{id}` | Bearer | — (detalhe completo: fotos, boletim, lat/lon) |
 | GET | `/api/chamados/{id}/mensagens` | Bearer | — |
 | POST | `/api/chamados/{id}/mensagens` | Bearer | texto |
+| GET | `/api/map/layers` | Bearer | — (catálogo de camadas do tenant p/ o seletor — item 179) |
+| GET | `/api/map/data?layer=&bbox=` | Bearer | — (GeoJSON da camada) |
 
 > **Nota de contrato:** todos os 4 pontos de entrada de auth (login, register, google, facebook) devolvem **o mesmo payload** `{ token, user, tenant, layers }`. Trate a resposta de auth num único lugar no app.

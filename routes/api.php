@@ -1,18 +1,18 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ArvoreSyncController;
-use App\Http\Controllers\Api\SolicitacaoManutencaoSyncController;
-use App\Http\Controllers\Api\OgcController;
-use App\Http\Controllers\Api\MobileMapDataController;
-use App\Http\Controllers\Api\LoteSyncController;
-use App\Http\Controllers\Api\LoteNearestController;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CadastradorLocationController;
-use App\Http\Controllers\Api\ProductividadeController;
-use App\Http\Controllers\Api\MensagemController;
 use App\Http\Controllers\Api\ChamadoController;
 use App\Http\Controllers\Api\CidadaoAuthController;
+use App\Http\Controllers\Api\LoteNearestController;
+use App\Http\Controllers\Api\LoteSyncController;
+use App\Http\Controllers\Api\MensagemController;
+use App\Http\Controllers\Api\MobileMapDataController;
+use App\Http\Controllers\Api\OgcController;
+use App\Http\Controllers\Api\ProductividadeController;
+use App\Http\Controllers\Api\SolicitacaoManutencaoSyncController;
+use Illuminate\Support\Facades\Route;
 
 // Rota OGC Interoperability (WFS/WMS) com isolamento SaaS via Slug
 Route::get('/ogc/{tenant_slug}', [OgcController::class, 'handle']);
@@ -31,6 +31,7 @@ Route::post('/auth/facebook', [CidadaoAuthController::class, 'facebook']);    //
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/me', [AuthController::class, 'me']);
+    Route::put('/me', [AuthController::class, 'updateMe']); // editar perfil (item 187)
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // Arborização (offline-first)
@@ -41,11 +42,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sync/manutencoes/pull', [SolicitacaoManutencaoSyncController::class, 'pull']);
     Route::post('/sync/manutencoes/push', [SolicitacaoManutencaoSyncController::class, 'push']);
 
-    // Camadas do Mapa Mobile (GeoJSON por layer, com bbox opcional)
-    Route::get('/map/data', [MobileMapDataController::class, 'index']);
+    // Camadas do Mapa Mobile
+    Route::get('/map/layers', [MobileMapDataController::class, 'layers']); // catálogo configurado no SIG WEB (item 179)
+    Route::get('/map/data', [MobileMapDataController::class, 'index']);    // GeoJSON por layer, com bbox opcional
 
     // Lotes CTM (offline-first — pull com ficha completa, push com boletim de campo)
-    Route::get('/sync/lotes/pull',  [LoteSyncController::class, 'pull']);
+    Route::get('/sync/lotes/pull', [LoteSyncController::class, 'pull']);
     Route::post('/sync/lotes/push', [LoteSyncController::class, 'push']);
 
     // Imóvel mais próximo não visitado (GPS do cadastrador)
@@ -69,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/fluxos-chamado', [ChamadoController::class, 'fluxos']); // fluxo + boletim (G1)
     Route::get('/chamados', [ChamadoController::class, 'index']);
     Route::post('/chamados', [ChamadoController::class, 'store']);
+    Route::get('/chamados/{id}', [ChamadoController::class, 'show']); // detalhe completo
     Route::get('/chamados/{id}/mensagens', [ChamadoController::class, 'mensagens']);
     Route::post('/chamados/{id}/mensagens', [ChamadoController::class, 'enviarMensagem']);
 });
