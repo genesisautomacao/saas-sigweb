@@ -18,7 +18,7 @@ class FonteWmsResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-globe-alt';
 
-    protected static ?string $navigationGroup = 'Administração';
+    protected static ?string $navigationGroup = 'WMS';
 
     protected static ?string $modelLabel = 'Fonte WMS';
 

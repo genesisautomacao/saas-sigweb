@@ -8,10 +8,10 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -19,9 +19,6 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use Filament\View\PanelsRenderHook;
-
-use Filament\Navigation\NavigationItem;
 
 class AppPanelProvider extends PanelProvider
 {
@@ -37,14 +34,31 @@ class AppPanelProvider extends PanelProvider
             ->profile()
             ->colors([
                 'primary' => Color::hex('#00628b'),
-                'secondary' => Color::Hex('#000122')
+                'secondary' => Color::Hex('#000122'),
             ])
 
-            //configs adicionais do grupo
-            /* ->navigationGroups([
-                \Filament\Navigation\NavigationGroup::make('Configurações')
-                    ->collapsed(),
-            ]) */
+            // Ordem dos grupos da sidebar. No Filament, grupo NÃO listado vai para o fim
+            // (sort = count(lista)), por isso todos são enumerados. 'WMS' fica logo acima de 'Configurações'.
+            ->navigationGroups([
+                'Módulo Administrativo',
+                'Módulo Imobiliário',
+                'Coleta cadastral',
+                'Consultas de Viabilidade',
+                'Gestão Tributária (PGV)',
+                'Iluminação Pública',
+                'Meio Ambiente',
+                'Cadastro Rural',
+                'Gestão de Cemitérios',
+                'Patrimônios Públicos',
+                'Manutenção e Serviços',
+                'Estoque e Almoxarifado',
+                'Módulo Social',
+                'Processos Digitais',
+                'App de Chamados',
+                'WMS',
+                'Configurações',
+                'Ajuda',
+            ])
 
             /* Link externo na sidebar */
             ->navigationItems([
@@ -58,7 +72,7 @@ class AppPanelProvider extends PanelProvider
             // 🛑 GATILHO PARA A BARRA DE BUSCA NO MENU LATERAL
             ->renderHook(
                 PanelsRenderHook::SIDEBAR_NAV_START,
-                fn() => view('filament.components.sidebar-search')
+                fn () => view('filament.components.sidebar-search')
             )
 
             // 1. SIDEBAR RETRÁTIL (Cria o ícone do menu hamburger e encolhe a barra)
@@ -71,12 +85,11 @@ class AppPanelProvider extends PanelProvider
             ->favicon(asset('assets/images/favicon.png'))
 
             // 4. LOGO DA NAVBAR (Substitui o texto "Laravel")
-            ->brandLogo(fn() => view('filament.components.logo'))
+            ->brandLogo(fn () => view('filament.components.logo'))
 
-            //->brandLogo(asset('assets/images/logo.png'))
-            //->darkModeBrandLogo(asset('assets/images/logo-light.png'))
-            //->brandLogoHeight('2.5rem') // Ajuste a altura para não ficar gigante
-
+            // ->brandLogo(asset('assets/images/logo.png'))
+            // ->darkModeBrandLogo(asset('assets/images/logo-light.png'))
+            // ->brandLogoHeight('2.5rem') // Ajuste a altura para não ficar gigante
 
             ->tenant(Tenant::class, slugAttribute: 'slug')
             // --- CORREÇÃO AQUI: Acionando o Middleware do Spatie a cada requisição ---
@@ -93,8 +106,8 @@ class AppPanelProvider extends PanelProvider
 
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                //Widgets\AccountWidget::class,
-                //Widgets\FilamentInfoWidget::class,
+                // Widgets\AccountWidget::class,
+                // Widgets\FilamentInfoWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

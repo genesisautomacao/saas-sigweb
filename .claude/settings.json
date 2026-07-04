@@ -115,7 +115,17 @@
       "Bash(php -l app/Models/MensagemChamado.php)",
       "Bash(php -l app/Filament/Resources/ChamadoResource.php)",
       "Bash(./vendor/bin/pint app/Models/MensagemChamado.php app/Filament/Resources/ChamadoResource.php app/Http/Controllers/Api/ChamadoController.php)",
-      "Bash(xargs -n1 basename)"
+      "Bash(xargs -n1 basename)",
+      "Bash(php -l app/Services/Exports/ChamadoExportService.php)",
+      "Bash(php -l app/Filament/Resources/ChamadoResource/Pages/ListChamados.php)",
+      "Bash(./vendor/bin/pint app/Services/Exports/ChamadoExportService.php app/Filament/Resources/ChamadoResource/Pages/ListChamados.php)",
+      "Bash(./vendor/bin/pint app/Filament/Resources/CategoriaWmsResource.php app/Filament/Resources/FonteWmsResource.php app/Providers/Filament/AppPanelProvider.php)",
+      "Bash(php -l app/Filament/Pages/Traits/HasPatrimonioPublicoActions.php)",
+      "Bash(./vendor/bin/pint app/Filament/Pages/Traits/HasPatrimonioPublicoActions.php)",
+      "Bash(grep -nE 'public.*$tenantId|$tenantId =|tenantId\\\\b' app/Filament/Pages/MapaFullscreen.php)",
+      "Bash(grep -oiE \".{20}\\(altimetr|perfil\\)[^;]{0,40}\" resources/views/filament/pages/mapa-fullscreen.blade.php)",
+      "Bash(grep -oiE \".{10}\\(street\\)[^;]{0,40}\" resources/views/filament/pages/mapa-fullscreen.blade.php)",
+      "Bash(grep -rilE \"anota.{0,3}\\(pdf|documento\\)|pdf.?annot|anexo.?anota\" app/)"
     ]
   }
 }

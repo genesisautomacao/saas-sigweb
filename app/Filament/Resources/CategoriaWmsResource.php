@@ -18,7 +18,7 @@ class CategoriaWmsResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?string $navigationGroup = 'Administração';
+    protected static ?string $navigationGroup = 'WMS';
 
     protected static ?string $modelLabel = 'Categoria WMS';
 
