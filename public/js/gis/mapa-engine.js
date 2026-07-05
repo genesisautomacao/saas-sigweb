@@ -2807,6 +2807,15 @@ document.addEventListener("DOMContentLoaded", function () {
                             featureCloneOriginalLayer =
                                 clickedFeature.get("layer"); // Salva de onde veio (ex: 'setores_fiscais')
 
+                            // Item 043: guarda as 2 origens NO rascunho para apagá-las ao salvar o unido.
+                            featureUnida.set("unirOrigens", {
+                                plural: clickedFeature.get("layer"),
+                                ids: [
+                                    window.cadFeatureToUnite.get("id"),
+                                    clickedFeature.get("id"),
+                                ].filter((x) => x != null),
+                            });
+
                             cadSource.clear();
                             cadSource.addFeature(featureUnida);
 
@@ -3282,9 +3291,32 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // NOVO: GERENCIADOR DE ÍMÃ UNIVERSAL (SNAP)
     let activeSnaps = [];
+    // Fonte auxiliar de midpoints — snap ao MEIO de cada segmento (item 031).
+    const midpointSnapSource = new ol.source.Vector();
+
+    // Midpoints de todos os segmentos de uma geometria (linha/polígono) — item 031.
+    function segmentMidpoints(geometry) {
+        const mids = [];
+        const t = geometry.getType();
+        const ring = (coords) => {
+            for (let i = 0; i < coords.length - 1; i++) {
+                const a = coords[i],
+                    b = coords[i + 1];
+                if (a && b && a.length >= 2 && b.length >= 2) {
+                    mids.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+                }
+            }
+        };
+        if (t === "LineString") ring(geometry.getCoordinates());
+        else if (t === "MultiLineString" || t === "Polygon")
+            geometry.getCoordinates().forEach(ring);
+        else if (t === "MultiPolygon")
+            geometry.getCoordinates().forEach((poly) => poly.forEach(ring));
+        return mids;
+    }
 
     window.enableUniversalSnap = function () {
-        window.disableUniversalSnap(); // Limpa resquícios anteriores
+        window.disableUniversalSnap(); // Limpa resquícios anteriores (inclui midpoints)
 
         // Varre todas as camadas carregadas no objeto global
         Object.keys(window.loadedLayers).forEach((layerName) => {
@@ -3292,19 +3324,46 @@ document.addEventListener("DOMContentLoaded", function () {
 
             // Aplica o ímã APENAS nas camadas que o usuário ligou no menu lateral
             if (layer && layer.getVisible()) {
+                // Snap a vértices + arestas = FIM de linha/ponto (endpoint) — item 031.
                 const snap = new ol.interaction.Snap({
                     source: layer.getSource(),
                     pixelTolerance: 12, // Força do ímã (aumentei um pouco para facilitar)
                 });
                 map.addInteraction(snap);
                 activeSnaps.push(snap);
+
+                // Alimenta os midpoints (MEIO de linha) — item 031.
+                // Guarda de performance: pula camadas gigantes (o snap de vértice/aresta continua).
+                const feats = layer.getSource().getFeatures();
+                if (feats.length <= 3000) {
+                    feats.forEach((f) => {
+                        const geom = f.getGeometry();
+                        if (!geom) return;
+                        segmentMidpoints(geom).forEach((mid) => {
+                            midpointSnapSource.addFeature(
+                                new ol.Feature(new ol.geom.Point(mid)),
+                            );
+                        });
+                    });
+                }
             }
         });
+
+        // Um único Snap para TODOS os midpoints (meio de linha/polilinha) — item 031.
+        if (midpointSnapSource.getFeatures().length > 0) {
+            const midSnap = new ol.interaction.Snap({
+                source: midpointSnapSource,
+                pixelTolerance: 12,
+            });
+            map.addInteraction(midSnap);
+            activeSnaps.push(midSnap);
+        }
     };
 
     window.disableUniversalSnap = function () {
         activeSnaps.forEach((snap) => map.removeInteraction(snap));
         activeSnaps = [];
+        midpointSnapSource.clear();
     };
 
     // =========================================================================
@@ -3327,6 +3386,15 @@ document.addEventListener("DOMContentLoaded", function () {
         zIndex: 10006, // Topo absoluto
     });
     map.addLayer(ortogonalGuideLayer);
+
+    // Item 033: torna as linhas-guia FUNCIONAIS (alvo de snap), não só ilustrativas.
+    // A fonte fica vazia fora do modo ortogonal, então este snap é inócuo quando não há guias.
+    map.addInteraction(
+        new ol.interaction.Snap({
+            source: window.ortogonalGuideSource,
+            pixelTolerance: 10,
+        }),
+    );
 
     window.atualizarGuiasOrtogonais = function (centerCoord) {
         if (!window.isOrtogonalActive || !centerCoord) {
@@ -4141,6 +4209,27 @@ document.addEventListener("DOMContentLoaded", function () {
                     });
                     cadSource.clear();
                 }
+
+                // Item 043: se este rascunho veio de uma UNIÃO, apaga os 2 artefatos de origem
+                // (o resultado unido vira o novo registro). Soft-delete no backend = recuperável.
+                const unirOrigens = featureEmEdicao.get("unirOrigens");
+                if (unirOrigens && unirOrigens.ids && unirOrigens.ids.length) {
+                    const lyr = window.loadedLayers[unirOrigens.plural];
+                    if (lyr) {
+                        const src = lyr.getSource();
+                        unirOrigens.ids.forEach((oid) => {
+                            const feat = src
+                                .getFeatures()
+                                .find((f) => f.get("id") == oid);
+                            if (feat) src.removeFeature(feat);
+                        });
+                    }
+                    Livewire.dispatch("excluirArtefatosUnir", {
+                        plural: unirOrigens.plural,
+                        ids: unirOrigens.ids,
+                    });
+                }
+
                 encerrarModoEdicao();
                 return; // Encerra o salvamento aqui!
             }

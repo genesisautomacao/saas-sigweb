@@ -16,7 +16,12 @@ class ExpoPushService
      */
     public function send(string $expoToken, string $title, string $body, array $data = []): bool
     {
-        if (empty($expoToken) || !str_starts_with($expoToken, 'ExponentPushToken[')) {
+        if (empty($expoToken) || ! str_starts_with($expoToken, 'ExponentPushToken[')) {
+            // Antes falhava em silêncio — agora deixa rastro (token não salvo / FCM cru).
+            Log::warning('ExpoPush: token ausente ou inválido (não começa com "ExponentPushToken[").', [
+                'token' => $expoToken !== '' ? substr($expoToken, 0, 24).'…' : '(vazio)',
+            ]);
+
             return false;
         }
 
@@ -25,25 +30,52 @@ class ExpoPushService
                 ->acceptJson()
                 ->asJson()
                 ->post(self::ENDPOINT, [
-                    'to'       => $expoToken,
-                    'title'    => $title,
-                    'body'     => $body,
-                    'data'     => $data,
-                    'sound'    => 'default',
+                    'to' => $expoToken,
+                    'title' => $title,
+                    'body' => $body,
+                    'data' => $data,
+                    'sound' => 'default',
                     'priority' => 'high',
                 ]);
 
-            if (!$response->successful()) {
-                Log::warning('ExpoPush não retornou sucesso', [
+            if (! $response->successful()) {
+                Log::warning('ExpoPush: HTTP não-2xx da Expo.', [
                     'status' => $response->status(),
-                    'body'   => $response->body(),
+                    'body' => $response->body(),
                 ]);
+
                 return false;
             }
 
+            // A Expo devolve HTTP 200 MESMO quando a entrega falha: o status real vem no "ticket".
+            // Mensagem única → {"data": {"status": "ok"|"error", ...}}; às vezes vem como lista.
+            $ticket = $response->json('data');
+            if (is_array($ticket) && array_is_list($ticket)) {
+                $ticket = $ticket[0] ?? [];
+            }
+            $status = is_array($ticket) ? ($ticket['status'] ?? null) : null;
+
+            if ($status === 'error') {
+                // Ex.: DeviceNotRegistered (token velho) | InvalidCredentials/MismatchSenderId (FCM não configurado no EAS).
+                Log::warning('ExpoPush: ticket com erro (entrega falhou).', [
+                    'error' => $ticket['details']['error'] ?? null,
+                    'message' => $ticket['message'] ?? null,
+                    'ticket' => $ticket,
+                ]);
+
+                return false;
+            }
+
+            // Rastro de sucesso (antes não logava nada — impossível confirmar disparo).
+            Log::info('ExpoPush: enviado.', [
+                'ticket_id' => is_array($ticket) ? ($ticket['id'] ?? null) : null,
+                'status' => $status,
+            ]);
+
             return true;
         } catch (\Throwable $e) {
-            Log::warning('ExpoPush falhou', ['message' => $e->getMessage()]);
+            Log::warning('ExpoPush falhou (exceção).', ['message' => $e->getMessage()]);
+
             return false;
         }
     }

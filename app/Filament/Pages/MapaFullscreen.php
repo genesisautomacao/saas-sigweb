@@ -2,164 +2,203 @@
 
 namespace App\Filament\Pages;
 
-use Filament\Forms;
-use Filament\Actions\Action;
-
-use App\Filament\Pages\Traits\HasLoteActions;
-use App\Filament\Pages\Traits\HasToponimiaActions;
-use App\Filament\Pages\Traits\HasEdificacaoActions;
-use \App\Filament\Pages\Traits\HasLogradouroActions;
-use App\Filament\Pages\Traits\HasPosteActions;
+use App\Filament\Pages\Traits\HasAreaReurbActions;
 use App\Filament\Pages\Traits\HasArvoreActions;
+use App\Filament\Pages\Traits\HasBairroActions;
 use App\Filament\Pages\Traits\HasCemiterioActions;
-use App\Filament\Pages\Traits\HasQuadraCemiterioActions;
-use App\Filament\Pages\Traits\HasLogradouroCemiterioActions;
+use App\Filament\Pages\Traits\HasEdificacaoActions;
 use App\Filament\Pages\Traits\HasJazigoActions;
-use \App\Filament\Pages\Traits\HasSetorFiscalActions;
-use App\Filament\Pages\Traits\HasRuralLocalidadeActions;
-use App\Filament\Pages\Traits\HasRuralPropriedadeActions;
+use App\Filament\Pages\Traits\HasLogradouroActions;
+use App\Filament\Pages\Traits\HasLogradouroCemiterioActions;
+use App\Filament\Pages\Traits\HasLoteActions;
+use App\Filament\Pages\Traits\HasLoteamentoActions;
+use App\Filament\Pages\Traits\HasMeioFioActions;
+use App\Filament\Pages\Traits\HasPatrimonioPublicoActions;
+use App\Filament\Pages\Traits\HasPerimetroUrbanoActions;
+use App\Filament\Pages\Traits\HasPgvMotorActions;
+use App\Filament\Pages\Traits\HasPontoPanoramicoActions;
+use App\Filament\Pages\Traits\HasPosteActions;
+use App\Filament\Pages\Traits\HasQuadraActions;
+use App\Filament\Pages\Traits\HasQuadraCemiterioActions;
 use App\Filament\Pages\Traits\HasRuralEstradaActions;
 use App\Filament\Pages\Traits\HasRuralHidrografiaActions;
+use App\Filament\Pages\Traits\HasRuralLocalidadeActions;
 use App\Filament\Pages\Traits\HasRuralPonteActions;
 use App\Filament\Pages\Traits\HasRuralPontoInteresseActions;
-use App\Filament\Pages\Traits\HasBairroActions;
-use App\Filament\Pages\Traits\HasLoteamentoActions;
-use App\Filament\Pages\Traits\HasQuadraActions;
-use App\Filament\Pages\Traits\HasZonaActions;
-use App\Filament\Pages\Traits\HasPontoPanoramicoActions;
-use App\Filament\Pages\Traits\HasPerimetroUrbanoActions;
-use App\Filament\Pages\Traits\HasMeioFioActions;
+use App\Filament\Pages\Traits\HasRuralPropriedadeActions;
 use App\Filament\Pages\Traits\HasSecaoLogradouroActions;
-use App\Filament\Pages\Traits\HasAreaReurbActions;
-use App\Filament\Pages\Traits\HasPatrimonioPublicoActions;
+use App\Filament\Pages\Traits\HasSetorFiscalActions;
 use App\Filament\Pages\Traits\HasTestadaActions;
-use App\Filament\Pages\Traits\HasPgvMotorActions;
-
-use App\Models\Lote;
-use App\Models\Edificacao;
-use App\Models\Zona;
-use App\Models\Quadra;
-use App\Models\Poste;
+use App\Filament\Pages\Traits\HasToponimiaActions;
+use App\Filament\Pages\Traits\HasZonaActions;
 use App\Models\AreaReurb;
-use App\Models\PatrimonioPublico;
 use App\Models\Arvore;
 use App\Models\Cemiterio;
-use App\Models\QuadraCemiterio;
-use App\Models\LogradouroCemiterio;
+use App\Models\Edificacao;
 use App\Models\Jazigo;
-use Filament\Pages\Page;
+use App\Models\LogradouroCemiterio;
+use App\Models\Lote;
+use App\Models\PatrimonioPublico;
+use App\Models\Poste;
+use App\Models\Quadra;
+use App\Models\QuadraCemiterio;
+use App\Models\Zona;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
-use Livewire\Attributes\On;
+use Filament\Forms;
 use Filament\Notifications\Notification;
+use Filament\Pages\Page;
 use Illuminate\Support\Facades\DB;
-
+use Livewire\Attributes\On;
 
 class MapaFullscreen extends Page
 {
+    use HasAreaReurbActions;
+    use HasArvoreActions;
+    use HasBairroActions;
+    use HasCemiterioActions;
+    use HasEdificacaoActions;
+    use HasJazigoActions;
+    use HasLogradouroActions;
+    use HasLogradouroCemiterioActions;
     // Injetando as gavetas de lógica (Traits)
     use HasLoteActions;
-    use HasToponimiaActions;
-    use HasEdificacaoActions;
-    use HasLogradouroActions;
+    use HasLoteamentoActions;
+    use HasMeioFioActions;
+    use HasPatrimonioPublicoActions;
+    use HasPerimetroUrbanoActions;
+    use HasPgvMotorActions;
+    use HasPontoPanoramicoActions;
     use HasPosteActions;
-    use HasArvoreActions;
-    use HasCemiterioActions;
+    use HasQuadraActions;
     use HasQuadraCemiterioActions;
-    use HasLogradouroCemiterioActions;
-    use HasJazigoActions;
-    use HasSetorFiscalActions;
-    use HasRuralLocalidadeActions;
-    use HasRuralPropriedadeActions;
     use HasRuralEstradaActions;
     use HasRuralHidrografiaActions;
+    use HasRuralLocalidadeActions;
     use HasRuralPonteActions;
     use HasRuralPontoInteresseActions;
-    use HasBairroActions;
-    use HasLoteamentoActions;
-    use HasQuadraActions;
-    use HasZonaActions;
-    use HasPontoPanoramicoActions;
-    use HasPerimetroUrbanoActions;
-    use HasMeioFioActions;
+    use HasRuralPropriedadeActions;
     use HasSecaoLogradouroActions;
-    use HasAreaReurbActions;
-    use HasPatrimonioPublicoActions;
+    use HasSetorFiscalActions;
     use HasTestadaActions;
-    use HasPgvMotorActions;
+    use HasToponimiaActions;
+    use HasZonaActions;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
+
     protected static ?string $navigationLabel = 'Mapa Interativo';
+
     protected static ?string $title = 'SIGWEB - Mapa Interativo';
+
     protected static ?string $slug = 'mapa-interativo';
 
     protected static string $layout = 'filament-panels::components.layout.base';
+
     protected static string $view = 'filament.pages.mapa-fullscreen';
 
     // Propriedades de Estado do Mapa
     public float $mapLat = -26.9658952;
+
     public float $mapLon = -50.4182571;
+
     public int $mapZoom = 14;
+
     public int $tenantId = 0;
+
     public string $tenantSlug = '';
 
     // Propriedades do Lote Ativo
     public ?int $loteAtivoId = null;
+
     public ?int $unidadeAtivaId = null;
+
     public ?string $loteAtivoNome = null;
+
     public ?string $loteSequentialId = null;
+
     public bool $showFicha = false;
+
     public float $loteAreaGeo = 0.0;
+
     public float $loteAreaConstruida = 0.0;
+
     public float $loteAreaCadastrada = 0.0;
+
     public float $loteEdifCadastrada = 0.0;
+
     public float $loteFacePrincipal = 0.0;
 
     // Dados de vistoria de campo (Antônio Carlos PoC)
     public ?string $loteStatusCadastro = null;
+
     public ?string $loteOcupacao = null;
+
     public ?string $loteSituacaoQuadra = null;
+
     public ?string $loteColetadoPor = null;
+
     public ?string $loteColetadoEm = null;
+
     public array $loteProcessosAbertos = [];
 
     /* desmembramento */
     public ?int $loteParaDesmembrarId = null;
+
     public ?string $linhaDeCorteGeoJson = null;
+
     public array $previewDesmembramento = [];
 
     /* unificação */
     public ?int $lotePrincipalToUnifyId = null;
+
     public ?int $loteSecundarioToUnifyId = null;
+
     public array $previewUnificacao = [];
 
     // Propriedades de Rascunho e Edificação
     public ?array $geometriaRascunho = null;
+
     public ?int $quadraRascunhoId = null;
+
     public ?int $zonaRascunhoId = null;
+
     public bool $mostrarEdificacoesLoteAtivo = false;
+
     public ?int $edificacaoAtivaId = null;
 
     // Propriedades de Testadas
     public bool $mostrarTestadasLoteAtivo = false;
+
     public ?int $testadaAtivaId = null;
+
     public ?float $testadaExtensaoCalculada = null;
+
     public array $zonasTipos = [];
+
     // Fluxos BPMN ativos do tenant — um toggle por fluxo na camada "Processos Digitais" do mapa.
     public array $processoFluxos = [];
+
     // Fontes WMS persistidas agrupadas por categoria (mapas temáticos hierarquizados — item PoC 022).
     public array $wmsCategorias = [];
-    public ?int $cemiterioAtivoId = null;
 
+    public ?int $cemiterioAtivoId = null;
 
     // Propriedades da Numeração Automática
     public ?int $numLogradouroId = null;
+
     public ?string $numLogradouroNome = null;
+
     public ?string $numDrawnLine = null;
+
     public bool $previewNumeracaoAtivo = false;
+
     public array $resultadosNumeracao = [];
+
     // Config persistida para permitir recálculo (inverter lados / ajustes manuais)
     public string $numLadoPar = 'right';
+
     public int $numInicialPar = 2;
+
     public int $numInicialImpar = 1;
 
     /* altimetria */
@@ -167,10 +206,12 @@ class MapaFullscreen extends Page
 
     // Propriedades do PGV
     public ?int $setorFiscalAtivoId = null;
+
     public bool $previewPgvAtivo = false;
+
     public array $resultadosPgv = [];
 
-    //Rural
+    // Rural
     public ?int $ruralLocalidadePreSelecionadaId = null;
 
     // Filtro
@@ -190,7 +231,7 @@ class MapaFullscreen extends Page
             $this->zonasTipos = Zona::query()->where('tenant_id', $this->tenantId)
                 ->select('id', 'name', 'sigla', 'rgb')
                 ->get()
-                ->map(fn($zona) => [
+                ->map(fn ($zona) => [
                     'id' => $zona->id,
                     'name' => $zona->name,
                     'sigla' => $zona->sigla,
@@ -204,10 +245,10 @@ class MapaFullscreen extends Page
                 ->where('ativo', true)
                 ->orderBy('nome')
                 ->get(['id', 'nome', 'cor'])
-                ->map(fn($f) => [
-                    'id'   => $f->id,
+                ->map(fn ($f) => [
+                    'id' => $f->id,
                     'nome' => $f->nome,
-                    'cor'  => $f->cor ?: '#3b82f6',
+                    'cor' => $f->cor ?: '#3b82f6',
                 ])
                 ->toArray();
 
@@ -222,7 +263,7 @@ class MapaFullscreen extends Page
      */
     private function montarArvoreWms(): array
     {
-        if (!\Illuminate\Support\Facades\Schema::hasTable('fontes_wms')) {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('fontes_wms')) {
             return [];
         }
 
@@ -243,12 +284,12 @@ class MapaFullscreen extends Page
 
         $fontesPorCat = $fontes->groupBy('categoria_wms_id');
 
-        $mapFonte = fn($f) => [
-            'id'        => $f->id,
-            'nome'      => $f->nome,
-            'url'       => $f->url,
-            'camadas'   => $f->camadas,
-            'formato'   => $f->formato ?: 'image/png',
+        $mapFonte = fn ($f) => [
+            'id' => $f->id,
+            'nome' => $f->nome,
+            'url' => $f->url,
+            'camadas' => $f->camadas,
+            'formato' => $f->formato ?: 'image/png',
             'opacidade' => $f->opacidade ?? 100,
         ];
 
@@ -256,9 +297,9 @@ class MapaFullscreen extends Page
 
         $adicionar = function ($cat, $nivel) use (&$adicionar, &$resultado, $categorias, $fontesPorCat, $mapFonte) {
             $resultado[] = [
-                'id'     => $cat->id,
-                'nome'   => $cat->nome,
-                'nivel'  => $nivel,
+                'id' => $cat->id,
+                'nome' => $cat->nome,
+                'nivel' => $nivel,
                 'fontes' => ($fontesPorCat->get($cat->id) ?? collect())->map($mapFonte)->values()->toArray(),
             ];
             foreach ($categorias->where('pai_id', $cat->id) as $filho) {
@@ -272,7 +313,7 @@ class MapaFullscreen extends Page
 
         // Fontes sem categoria → grupo "Sem categoria".
         $semCat = ($fontesPorCat->get(null) ?? collect())->map($mapFonte)->values()->toArray();
-        if (!empty($semCat)) {
+        if (! empty($semCat)) {
             $resultado[] = ['id' => 0, 'nome' => 'Sem categoria', 'nivel' => 0, 'fontes' => $semCat];
         }
 
@@ -313,12 +354,12 @@ class MapaFullscreen extends Page
 
         // Dados de vistoria de campo
         $this->loteStatusCadastro = $lote?->status_cadastro;
-        $this->loteOcupacao       = $lote?->ocupacao;
+        $this->loteOcupacao = $lote?->ocupacao;
         $this->loteSituacaoQuadra = $lote?->situacao_quadra;
-        $this->loteColetadoPor    = $lote?->coletado_por_id
+        $this->loteColetadoPor = $lote?->coletado_por_id
             ? \App\Models\User::query()->find($lote->coletado_por_id)?->name
             : null;
-        $this->loteColetadoEm     = $lote?->coletado_em?->format('d/m/Y H:i');
+        $this->loteColetadoEm = $lote?->coletado_em?->format('d/m/Y H:i');
 
         // Processos digitais em aberto vinculados a este lote
         $this->loteProcessosAbertos = \App\Models\ProcessoDigital::query()
@@ -327,12 +368,12 @@ class MapaFullscreen extends Page
             ->whereIn('status', ['em_andamento', 'rascunho', 'pendente_correcao'])
             ->orderByDesc('created_at')
             ->get()
-            ->map(fn($p) => [
+            ->map(fn ($p) => [
                 'codigo_processo' => $p->codigo_processo ?? '—',
-                'fluxo_nome'      => $p->fluxo?->nome ?? '—',
-                'etapa_nome'      => $p->etapaAtual?->nome ?? 'Aguardando Triagem',
-                'status'          => $p->status,
-                'created_at'      => $p->created_at?->format('d/m/Y H:i'),
+                'fluxo_nome' => $p->fluxo?->nome ?? '—',
+                'etapa_nome' => $p->etapaAtual?->nome ?? 'Aguardando Triagem',
+                'status' => $p->status,
+                'created_at' => $p->created_at?->format('d/m/Y H:i'),
             ])
             ->toArray();
 
@@ -348,7 +389,7 @@ class MapaFullscreen extends Page
     public function interceptarDesenho($entityType, $geoJson)
     {
         if (is_array($geoJson) && isset($geoJson['type']) && $geoJson['type'] === 'Polygon') {
-            if (!empty($geoJson['coordinates'][0])) {
+            if (! empty($geoJson['coordinates'][0])) {
                 $primeiroPonto = $geoJson['coordinates'][0][0];
                 $ultimoPonto = end($geoJson['coordinates'][0]);
 
@@ -362,7 +403,7 @@ class MapaFullscreen extends Page
         $this->geometriaRascunho = $geoJson;
 
         // 🛡️ BÔNUS: Já envelopamos no ST_MakeValid para evitar erros de "quina torcida" na criação
-        $polyWKT = "ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326))";
+        $polyWKT = "ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326))";
         $centroidWKT = "ST_Centroid($polyWKT)";
 
         if ($entityType === 'lote') {
@@ -374,13 +415,15 @@ class MapaFullscreen extends Page
             if ($sobreposicao) {
                 Notification::make()->title('Conflito Espacial')->danger()->send();
                 $this->dispatch('limpar-rascunho-mapa');
+
                 return;
             }
 
             $quadra = Quadra::query()->where('tenant_id', $this->tenantId)->whereRaw("ST_Intersects(geo, $centroidWKT)")->first();
-            if (!$quadra) {
+            if (! $quadra) {
                 Notification::make()->title('Fora de Quadra')->danger()->send();
                 $this->dispatch('limpar-rascunho-mapa');
+
                 return;
             }
 
@@ -394,11 +437,12 @@ class MapaFullscreen extends Page
                 ->whereRaw("ST_Area(ST_Difference($polyWKT, geo)::geography) <= 0.1")
                 ->exists();
 
-            if (!$contido) {
+            if (! $contido) {
                 Notification::make()->title('Erro de Topologia')
                     ->body('A edificação invadiu a rua ou o lote vizinho além do limite permitido.')
                     ->danger()->send();
                 $this->dispatch('limpar-rascunho-mapa');
+
                 return;
             }
 
@@ -406,7 +450,7 @@ class MapaFullscreen extends Page
             $this->mountAction('criarEdificacao');
         } elseif ($entityType === 'logradouro') {
             // Pré-calcula a extensão da LineString para exibir no Placeholder do modal de criação
-            $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
             $ext = DB::selectOne("SELECT ST_Length({$lineWKT}::geography) AS metros");
             $this->logradouroExtensaoCalculada = $ext?->metros ? round((float) $ext->metros, 2) : null;
 
@@ -425,7 +469,7 @@ class MapaFullscreen extends Page
                 ->whereRaw("ST_Intersects(geo, $centroidWKT)")
                 ->first();
 
-            if (!$cemiterio) {
+            if (! $cemiterio) {
                 \Filament\Notifications\Notification::make()
                     ->title('Fora do Cemitério!')
                     ->body('A quadra deve ser desenhada DENTRO da área de um cemitério já existente.')
@@ -433,6 +477,7 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('limpar-rascunho-mapa');
+
                 return; // Aborta e nem abre a modal!
             }
 
@@ -447,7 +492,7 @@ class MapaFullscreen extends Page
                 ->whereRaw("ST_Intersects(geo, $polyWKT)") // Usa $polyWKT (que no caso da rua é a LineString)
                 ->first();
 
-            if (!$cemiterio) {
+            if (! $cemiterio) {
                 \Filament\Notifications\Notification::make()
                     ->title('Fora do Cemitério!')
                     ->body('As ruas internas devem ser desenhadas dentro de um cemitério cadastrado.')
@@ -455,6 +500,7 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('limpar-rascunho-mapa');
+
                 return;
             }
 
@@ -467,7 +513,7 @@ class MapaFullscreen extends Page
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->first();
 
-            if (!$quadra) {
+            if (! $quadra) {
                 \Filament\Notifications\Notification::make()
                     ->title('Fora da Quadra!')
                     ->body('O Jazigo deve ser desenhado DENTRO dos limites de uma Quadra de Cemitério.')
@@ -475,6 +521,7 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('limpar-rascunho-mapa');
+
                 return;
             }
 
@@ -497,6 +544,7 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('limpar-rascunho-mapa');
+
                 return;
             }
 
@@ -510,14 +558,14 @@ class MapaFullscreen extends Page
             $this->mountAction('criarRuralLocalidadeAction');
         } elseif ($entityType === 'rural_propriedade') {
 
-            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
 
             // 🛑 REGRA 1: Tenta achar uma localidade que cubra 100% da propriedade desenhada (com 1m² de tolerância de borda)
             $localidade = \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Area(ST_Difference($polyWKT, geo::geometry)::geography) <= 1.0")
                 ->first();
 
-            if (!$localidade) {
+            if (! $localidade) {
                 \Filament\Notifications\Notification::make()
                     ->title('Limites Vazados!')
                     ->body('A Propriedade Rural deve ser desenhada inteiramente DENTRO de uma Localidade existente, sem vazar para fora.')
@@ -525,6 +573,7 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('limpar-rascunho-mapa');
+
                 return; // Aborta e nem abre a modal!
             }
 
@@ -534,7 +583,7 @@ class MapaFullscreen extends Page
             $this->mountAction('criarRuralPropriedade');
         } elseif ($entityType === 'rural_estrada') {
 
-            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
 
             // 🛑 REGRA INTELIGENTE: Pega a localidade onde o primeiro ponto da estrada tocou
             $localidade = \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)
@@ -542,13 +591,13 @@ class MapaFullscreen extends Page
                 ->first();
 
             // Se o usuário começou a desenhar de fora pra dentro, procura qualquer localidade que a linha corte
-            if (!$localidade) {
+            if (! $localidade) {
                 $localidade = \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)
                     ->whereRaw("ST_Intersects(geo, $polyWKT)")
                     ->first();
             }
 
-            if (!$localidade) {
+            if (! $localidade) {
                 \Filament\Notifications\Notification::make()
                     ->title('Estrada Desconectada!')
                     ->body('Uma estrada precisa passar ou fazer fronteira com pelo menos uma Localidade rural cadastrada.')
@@ -556,6 +605,7 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('limpar-rascunho-mapa');
+
                 return;
             }
 
@@ -563,14 +613,14 @@ class MapaFullscreen extends Page
             $this->mountAction('criarRuralEstrada');
         } elseif (str_starts_with($entityType, 'rural_hidro_')) {
 
-            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
 
             // Intersecta com qualquer localidade (rios e lagos cruzam fronteiras)
             $localidade = \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->first();
 
-            if (!$localidade) {
+            if (! $localidade) {
                 \Filament\Notifications\Notification::make()
                     ->title('Fora de Localidade!')
                     ->body('A hidrografia deve estar contida ou cruzar uma Localidade rural cadastrada no sistema.')
@@ -578,6 +628,7 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('limpar-rascunho-mapa');
+
                 return;
             }
 
@@ -586,14 +637,14 @@ class MapaFullscreen extends Page
 
         } elseif ($entityType === 'rural_ponte') {
 
-            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
 
             // REGRA 1: Verifica em qual Localidade o ponto caiu
             $localidade = \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->first();
 
-            if (!$localidade) {
+            if (! $localidade) {
                 \Filament\Notifications\Notification::make()
                     ->title('Fora de Localidade!')
                     ->body('A ponte deve ser registrada dentro dos limites de uma Localidade rural cadastrada.')
@@ -601,6 +652,7 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('limpar-rascunho-mapa');
+
                 return;
             }
 
@@ -615,13 +667,13 @@ class MapaFullscreen extends Page
             $this->mountAction('criarRuralPonte');
         } elseif ($entityType === 'rural_ponto_interesse') {
 
-            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
 
             $localidade = \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->first();
 
-            if (!$localidade) {
+            if (! $localidade) {
                 \Filament\Notifications\Notification::make()
                     ->title('Fora de Localidade!')
                     ->body('Um Ponto de Interesse deve estar inserido dentro dos limites de uma Localidade / Distrito rural.')
@@ -629,6 +681,7 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('limpar-rascunho-mapa');
+
                 return;
             }
 
@@ -652,7 +705,7 @@ class MapaFullscreen extends Page
 
             // Meio-fio / Calçada — linha livre. Pré-detecta o logradouro mais próximo
             // (operador KNN <-> do PostGIS) e calcula a extensão para exibir no form.
-            $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
 
             $logradouro = DB::selectOne(
                 "SELECT id FROM logradouros
@@ -669,11 +722,11 @@ class MapaFullscreen extends Page
             $this->mountAction('criarMeioFio');
         } elseif ($entityType === 'secao_logradouro') {
 
-            $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
 
             // Se vier do contexto de um logradouro (botão "Nova Seção" no modal),
             // usa o pré-selecionado. Só faz KNN se não houver pré-seleção.
-            if (!$this->secaoLogradouroLogradouroPreSelecionadoId) {
+            if (! $this->secaoLogradouroLogradouroPreSelecionadoId) {
                 $logradouro = DB::selectOne(
                     "SELECT id FROM logradouros
                      WHERE tenant_id = ? AND geo IS NOT NULL AND deleted_at IS NULL
@@ -690,7 +743,7 @@ class MapaFullscreen extends Page
             $this->mountAction('criarSecaoLogradouro');
         } elseif ($entityType === 'testada') {
 
-            $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
             $ext = DB::selectOne("SELECT ST_Length({$lineWKT}::geography) AS metros");
             $this->testadaExtensaoCalculada = $ext?->metros ? round((float) $ext->metros, 2) : null;
 
@@ -703,7 +756,7 @@ class MapaFullscreen extends Page
             $this->mountAction('criarLoteamento');
         } elseif ($entityType === 'quadra') {
 
-            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
 
             // 1. Procura o Bairro que contém a quadra (com 1m² de tolerância de borda)
             $bairro = \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)
@@ -716,7 +769,7 @@ class MapaFullscreen extends Page
                 ->first();
 
             // REGRA: Tem que estar DENTRO de pelo menos um dos dois!
-            if (!$bairro && !$loteamento) {
+            if (! $bairro && ! $loteamento) {
                 \Filament\Notifications\Notification::make()
                     ->title('Fora dos Limites!')
                     ->body('Uma Quadra deve ser desenhada inteiramente DENTRO de um Bairro ou Loteamento existente.')
@@ -724,6 +777,7 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('limpar-rascunho-mapa');
+
                 return;
             }
 
@@ -768,7 +822,7 @@ class MapaFullscreen extends Page
     {
         $lote = Lote::query()->where('id', $id)->where('tenant_id', $this->tenantId)->first();
         if ($lote) {
-            $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
+            $polyWKT = "ST_GeomFromGeoJSON('".json_encode($geoJson)."')";
             $sobreposicao = Lote::query()->where('tenant_id', $this->tenantId)->where('id', '!=', $id)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->whereRaw("ST_Area(ST_Intersection(geo, $polyWKT)::geography) > 0.1")
@@ -777,12 +831,13 @@ class MapaFullscreen extends Page
             if ($sobreposicao) {
                 Notification::make()->title('Edição Cancelada')->danger()->send();
                 $this->dispatch('desfazer-edicao-geometria');
+
                 return;
             }
 
             $lote->update(['geo' => $geoJson]);
-            DB::statement("UPDATE lotes SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$lote->id]);
-            DB::statement("UPDATE unidade_imobiliarias SET geo = (SELECT ST_PointOnSurface(geo) FROM lotes WHERE id = ?) WHERE lote_id = ?", [$lote->id, $lote->id]);
+            DB::statement('UPDATE lotes SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$lote->id]);
+            DB::statement('UPDATE unidade_imobiliarias SET geo = (SELECT ST_PointOnSurface(geo) FROM lotes WHERE id = ?) WHERE lote_id = ?', [$lote->id, $lote->id]);
 
             Notification::make()->title('Geometria Atualizada!')->success()->send();
         }
@@ -793,15 +848,16 @@ class MapaFullscreen extends Page
     {
         $edif = Edificacao::query()->find($id);
         if ($edif) {
-            $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
+            $polyWKT = "ST_GeomFromGeoJSON('".json_encode($geoJson)."')";
             // Substituímos o ST_Within pelo ST_Difference com tolerância
-            if (!Lote::query()->where('id', $edif->lote_id)->whereRaw("ST_Area(ST_Difference($polyWKT, geo)::geography) <= 0.1")->exists()) {
+            if (! Lote::query()->where('id', $edif->lote_id)->whereRaw("ST_Area(ST_Difference($polyWKT, geo)::geography) <= 0.1")->exists()) {
                 Notification::make()->title('Erro Topológico')->danger()->send();
                 $this->dispatch('desfazer-edicao-geometria');
+
                 return;
             }
             $edif->update(['geo' => $geoJson]);
-            DB::statement("UPDATE edificacoes SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$edif->id]);
+            DB::statement('UPDATE edificacoes SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$edif->id]);
             $this->loteAreaConstruida = (float) Edificacao::query()->where('lote_id', $this->loteAtivoId)->sum('area_geo');
             Notification::make()->title('Geometria Atualizada!')->success()->send();
             $this->mostrarEdificacoesLoteAtivo = false;
@@ -912,10 +968,11 @@ class MapaFullscreen extends Page
             $area->update(['geo' => $geoJson]);
             try {
                 DB::statement(
-                    "UPDATE areas_reurb SET area_geo = ST_Area(geo::geography) WHERE id = ?",
+                    'UPDATE areas_reurb SET area_geo = ST_Area(geo::geography) WHERE id = ?',
                     [$area->id]
                 );
-            } catch (\Throwable) {}
+            } catch (\Throwable) {
+            }
             Notification::make()->title('Polígono REURB Atualizado!')->success()->send();
         }
     }
@@ -953,7 +1010,7 @@ class MapaFullscreen extends Page
         $cemiterio = Cemiterio::query()->find($id);
         if ($cemiterio) {
             $cemiterio->update(['geo' => $geoJson]);
-            DB::statement("UPDATE cemiterios SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$cemiterio->id]);
+            DB::statement('UPDATE cemiterios SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$cemiterio->id]);
             \Filament\Notifications\Notification::make()->title('Polígono Atualizado!')->success()->send();
 
             // NÃO PRECISA DISPARAR NADA AQUI!
@@ -974,14 +1031,14 @@ class MapaFullscreen extends Page
     {
         $quadra = QuadraCemiterio::query()->find($id);
         if ($quadra) {
-            $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
+            $polyWKT = "ST_GeomFromGeoJSON('".json_encode($geoJson)."')";
 
             // 🛑 MÁGICA TOPOLÓGICA: Impede de mover a quadra pra fora do cemitério dela
             $contido = \App\Models\Cemiterio::query()->where('id', $quadra->cemiterio_id)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->exists();
 
-            if (!$contido) {
+            if (! $contido) {
                 \Filament\Notifications\Notification::make()
                     ->title('Erro Topológico')
                     ->body('Você não pode mover esta quadra para fora do cemitério ao qual ela pertence.')
@@ -989,11 +1046,12 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('desfazer-edicao-geometria'); // Manda o JS voltar o polígono pro lugar
+
                 return;
             }
 
             $quadra->update(['geo' => $geoJson]);
-            DB::statement("UPDATE quadras_cemiterio SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$quadra->id]);
+            DB::statement('UPDATE quadras_cemiterio SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$quadra->id]);
             \Filament\Notifications\Notification::make()->title('Polígono da Quadra Atualizado!')->success()->send();
         }
     }
@@ -1010,15 +1068,16 @@ class MapaFullscreen extends Page
     {
         $logradouro = LogradouroCemiterio::query()->find($id);
         if ($logradouro) {
-            $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
+            $polyWKT = "ST_GeomFromGeoJSON('".json_encode($geoJson)."')";
 
             $contido = \App\Models\Cemiterio::query()->where('id', $logradouro->cemiterio_id)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->exists();
 
-            if (!$contido) {
+            if (! $contido) {
                 \Filament\Notifications\Notification::make()->title('Erro Topológico')->body('A rua não pode ser movida para fora do cemitério.')->danger()->send();
                 $this->dispatch('desfazer-edicao-geometria');
+
                 return;
             }
 
@@ -1039,21 +1098,22 @@ class MapaFullscreen extends Page
     {
         $jazigo = Jazigo::query()->find($id);
         if ($jazigo) {
-            $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
+            $polyWKT = "ST_GeomFromGeoJSON('".json_encode($geoJson)."')";
 
             // 🛑 Impede de mover o jazigo para fora da quadra dele
             $contido = \App\Models\QuadraCemiterio::query()->where('id', $jazigo->quadra_cemiterio_id)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->exists();
 
-            if (!$contido) {
+            if (! $contido) {
                 \Filament\Notifications\Notification::make()->title('Erro Topológico')->body('Você não pode mover este jazigo para fora da sua respectiva quadra.')->danger()->send();
                 $this->dispatch('desfazer-edicao-geometria');
+
                 return;
             }
 
             $jazigo->update(['geo' => $geoJson]);
-            DB::statement("UPDATE jazigos SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$jazigo->id]);
+            DB::statement('UPDATE jazigos SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$jazigo->id]);
             \Filament\Notifications\Notification::make()->title('Polígono do Jazigo Atualizado!')->success()->send();
         }
     }
@@ -1074,8 +1134,8 @@ class MapaFullscreen extends Page
         return \Filament\Actions\Action::make('configurarNumeracaoAction')
             ->hiddenLabel()
             ->modalHeading('Gerador de Numeração Predial')
-            ->modalDescription(fn() => 'Configurando a métrica para: ' . $this->numLogradouroNome
-                . '. O ponto de partida é o 1º ponto do trajeto que você desenhou no mapa.')
+            ->modalDescription(fn () => 'Configurando a métrica para: '.$this->numLogradouroNome
+                .'. O ponto de partida é o 1º ponto do trajeto que você desenhou no mapa.')
             ->modalSubmitActionLabel('Calcular Prévia no Mapa')
             ->modalIcon('heroicon-o-hashtag')
             ->form([
@@ -1111,7 +1171,7 @@ class MapaFullscreen extends Page
                 $this->numInicialImpar = (int) $data['numero_inicial_impar'];
 
                 // 🛑 A MÁGICA: USA O TRAJETO DESENHADO PELO USUÁRIO!
-                $lotes = DB::select("
+                $lotes = DB::select('
                     WITH drawn_line AS (
                         SELECT ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) AS geom
                     )
@@ -1144,9 +1204,9 @@ class MapaFullscreen extends Page
                     -- A distância do POLÍGONO do lote até a linha desenhada deve ser menor que 15m.
                     -- Isso pega apenas quem faz divisa com o trajeto e NUNCA pega o vizinho de trás!
                     AND ST_DWithin(l.geo::geography, d.geom::geography, 15)
-                ", [
+                ', [
                     $this->numDrawnLine,
-                    $this->tenantId
+                    $this->tenantId,
                 ]);
 
                 $this->resultadosNumeracao = [];
@@ -1167,14 +1227,14 @@ class MapaFullscreen extends Page
                     $isPar = ($this->numLadoPar === 'right' && $isRight) || ($this->numLadoPar === 'left' && $isLeft);
 
                     $this->resultadosNumeracao[] = [
-                        'lote_id'      => $l->id,
+                        'lote_id' => $l->id,
                         'numero_atual' => $l->numero_atual ?: 'S/N',
-                        'novo_numero'  => 0,
-                        'distancia'    => $dist,
-                        'is_par'       => $isPar,
-                        'excluido'     => false,
-                        'manual'       => false,
-                        'geo'          => json_decode($l->centroid_geo, true),
+                        'novo_numero' => 0,
+                        'distancia' => $dist,
+                        'is_par' => $isPar,
+                        'excluido' => false,
+                        'manual' => false,
+                        'geo' => json_decode($l->centroid_geo, true),
                     ];
                 }
 
@@ -1198,16 +1258,16 @@ class MapaFullscreen extends Page
     private function recomputarNumeros(): void
     {
         foreach ($this->resultadosNumeracao as $i => $res) {
-            if (!empty($res['manual'])) {
+            if (! empty($res['manual'])) {
                 continue; // respeita override manual do usuário
             }
             $base = $res['is_par'] ? $this->numInicialPar : $this->numInicialImpar;
-            $num  = $base + (int) $res['distancia'];
+            $num = $base + (int) $res['distancia'];
 
             // Garante a paridade correta do lado
             if ($res['is_par'] && $num % 2 !== 0) {
                 $num += 1;
-            } elseif (!$res['is_par'] && $num % 2 === 0) {
+            } elseif (! $res['is_par'] && $num % 2 === 0) {
                 $num += 1;
             }
 
@@ -1223,7 +1283,7 @@ class MapaFullscreen extends Page
         $this->numLadoPar = $this->numLadoPar === 'right' ? 'left' : 'right';
 
         foreach ($this->resultadosNumeracao as $i => $res) {
-            $this->resultadosNumeracao[$i]['is_par'] = !$res['is_par'];
+            $this->resultadosNumeracao[$i]['is_par'] = ! $res['is_par'];
             $this->resultadosNumeracao[$i]['manual'] = false; // recalcula do zero
         }
 
@@ -1242,7 +1302,7 @@ class MapaFullscreen extends Page
     {
         foreach ($this->resultadosNumeracao as $i => $res) {
             if ($res['lote_id'] === $loteId) {
-                $this->resultadosNumeracao[$i]['excluido'] = !($res['excluido'] ?? false);
+                $this->resultadosNumeracao[$i]['excluido'] = ! ($res['excluido'] ?? false);
                 break;
             }
         }
@@ -1261,15 +1321,15 @@ class MapaFullscreen extends Page
             ->modalDescription('Ajuste manualmente o número de qualquer parcela. A faixa sugerida mostra os números disponíveis conforme a distância no trajeto.')
             ->modalSubmitActionLabel('Aplicar ajustes no mapa')
             ->modalWidth('3xl')
-            ->fillForm(fn() => [
+            ->fillForm(fn () => [
                 'itens' => collect($this->resultadosNumeracao)
-                    ->reject(fn($r) => $r['excluido'] ?? false)
-                    ->map(fn($r) => [
-                        'lote_id'      => $r['lote_id'],
+                    ->reject(fn ($r) => $r['excluido'] ?? false)
+                    ->map(fn ($r) => [
+                        'lote_id' => $r['lote_id'],
                         'numero_atual' => $r['numero_atual'],
-                        'lado'         => $r['is_par'] ? 'Par' : 'Ímpar',
-                        'faixa'        => $this->faixaSugerida($r),
-                        'novo_numero'  => $r['novo_numero'],
+                        'lado' => $r['is_par'] ? 'Par' : 'Ímpar',
+                        'faixa' => $this->faixaSugerida($r),
+                        'novo_numero' => $r['novo_numero'],
                     ])->values()->all(),
             ])
             ->form([
@@ -1309,10 +1369,11 @@ class MapaFullscreen extends Page
      */
     private function faixaSugerida(array $r): string
     {
-        $n  = (int) $r['novo_numero'];
+        $n = (int) $r['novo_numero'];
         $lo = max($r['is_par'] ? 2 : 1, $n - 8);
         $hi = $n + 8;
-        return $lo . ' – ' . $hi;
+
+        return $lo.' – '.$hi;
     }
 
     /**
@@ -1332,7 +1393,7 @@ class MapaFullscreen extends Page
                 ->where('id', $res['lote_id'])
                 ->update([
                     'numero_predial_antigo' => DB::raw('numero_logradouro'),
-                    'numero_logradouro'     => (string) $res['novo_numero'],
+                    'numero_logradouro' => (string) $res['novo_numero'],
                 ]);
             $count++;
         }
@@ -1367,19 +1428,20 @@ class MapaFullscreen extends Page
             Notification::make()->title('Nenhuma divergência')
                 ->body('Todos os números gerados coincidem com o número anterior.')
                 ->success()->send();
+
             return;
         }
 
-        $dados = array_map(fn($r) => [
+        $dados = array_map(fn ($r) => [
             'lote_id' => $r->id,
-            'atual'   => $r->atual ?: 'S/N',
-            'gerado'  => $r->gerado,
-            'geo'     => json_decode($r->geo_json, true),
+            'atual' => $r->atual ?: 'S/N',
+            'gerado' => $r->gerado,
+            'geo' => json_decode($r->geo_json, true),
         ], $rows);
 
         $this->dispatch('mostrar-divergencias-numeracao', dados: $dados);
 
-        Notification::make()->title(count($dados) . ' divergência(s) encontrada(s)')
+        Notification::make()->title(count($dados).' divergência(s) encontrada(s)')
             ->body('As parcelas em vermelho têm número gerado diferente do cadastro atual.')
             ->warning()->send();
     }
@@ -1400,13 +1462,13 @@ class MapaFullscreen extends Page
             'imagemMapa' => $imagemBase64,
             'dados' => $dados,
             'rua' => $rua,
-            'data' => now()->format('d/m/Y H:i')
+            'data' => now()->format('d/m/Y H:i'),
         ]);
 
         // Retorna o download direto na tela
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->stream();
-        }, 'relatorio-numeracao-' . \Illuminate\Support\Str::slug($rua) . '.pdf');
+        }, 'relatorio-numeracao-'.\Illuminate\Support\Str::slug($rua).'.pdf');
     }
 
     /**
@@ -1417,14 +1479,15 @@ class MapaFullscreen extends Page
     {
         $apiKey = env('GOOGLE_MAPS_API_KEY');
 
-        if (!$apiKey) {
+        if (! $apiKey) {
             \Filament\Notifications\Notification::make()->title('Aviso')->body('A chave GOOGLE_MAPS_API_KEY não está configurada no .env.')->warning()->send();
+
             return;
         }
 
         // Formata os pontos para a URL da API do Google (Lat,Lon|Lat,Lon...)
         $pathStr = collect($coords)->map(function ($c) {
-            return $c[1] . ',' . $c[0]; // O Google exige a Latitude primeiro
+            return $c[1].','.$c[0]; // O Google exige a Latitude primeiro
         })->implode('|');
 
         // Pedimos 100 pontos de amostragem para o gráfico ficar com uma curva bem realista
@@ -1568,7 +1631,7 @@ class MapaFullscreen extends Page
         $this->linhaDeCorteGeoJson = json_encode($linhaCorte);
 
         // 1. VALIDAÇÃO RIGOROSA: A linha cruza alguma edificação DESTE LOTE? (ST_Intersects)
-        $conflito = DB::selectOne("
+        $conflito = DB::selectOne('
             WITH linha AS (
                 SELECT ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) AS geom
             )
@@ -1578,7 +1641,7 @@ class MapaFullscreen extends Page
             AND e.lote_id = ? -- Otimização: Testa apenas as casas do lote que está sendo cortado
             AND ST_Intersects(e.geo::geometry, l.geom)
             LIMIT 1
-        ", [$this->linhaDeCorteGeoJson, $this->tenantId, $this->loteParaDesmembrarId]);
+        ', [$this->linhaDeCorteGeoJson, $this->tenantId, $this->loteParaDesmembrarId]);
 
         if ($conflito) {
             \Filament\Notifications\Notification::make()
@@ -1587,11 +1650,12 @@ class MapaFullscreen extends Page
                 ->danger()
                 ->persistent()
                 ->send();
+
             return;
         }
 
         // 2. A MÁGICA DO CORTE: Extrai o polígono puro e fatia usando a Linha (ST_Split)
-        $fatias = DB::select("
+        $fatias = DB::select('
             WITH linha AS (
                 SELECT ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) AS geom
             ),
@@ -1610,7 +1674,7 @@ class MapaFullscreen extends Page
                 ST_AsGeoJSON(parte) as geojson,
                 ST_Area(parte::geography) as area_m2
             FROM cortado
-        ", [$this->linhaDeCorteGeoJson, $this->loteParaDesmembrarId]);
+        ', [$this->linhaDeCorteGeoJson, $this->loteParaDesmembrarId]);
 
         // Se a linha não atravessou o lote de um lado ao outro, não dividiu.
         if (count($fatias) < 2) {
@@ -1619,12 +1683,13 @@ class MapaFullscreen extends Page
                 ->body('A linha não dividiu o lote. Inicie o traço FORA do lote e dê os dois cliques finais do outro lado, FORA do lote.')
                 ->warning()
                 ->send();
+
             return;
         }
 
         // 3. Organiza os pedaços: o MAIOR pedaço fica como Lote Original, o menor vira Lote Novo
         $arrayFatias = json_decode(json_encode($fatias), true);
-        usort($arrayFatias, fn($a, $b) => $b['area_m2'] <=> $a['area_m2']);
+        usort($arrayFatias, fn ($a, $b) => $b['area_m2'] <=> $a['area_m2']);
 
         $this->previewDesmembramento = $arrayFatias;
 
@@ -1640,11 +1705,11 @@ class MapaFullscreen extends Page
         // 🛑 CORREÇÃO: O nome da Action agora bate exatamente com a chamada do mountAction!
         return \Filament\Actions\Action::make('confirmarDesmembramentoAction')
             ->modalHeading('Confirmar Desmembramento de Lote')
-            ->modalDescription(fn() => new \Illuminate\Support\HtmlString(
-                "O sistema fatiou a geometria perfeitamente.<br><br>" .
-                    "🔸 <b>Lote Original (Área Remanescente):</b> " . number_format($this->previewDesmembramento[0]['area_m2'] ?? 0, 2, ',', '.') . " m²<br>" .
-                    "🔹 <b>Novo Lote Gerado (Desmembrado):</b> " . number_format($this->previewDesmembramento[1]['area_m2'] ?? 0, 2, ',', '.') . " m²<br><br>" .
-                    "Deseja gravar as alterações no banco de dados e redistribuir as edificações?"
+            ->modalDescription(fn () => new \Illuminate\Support\HtmlString(
+                'O sistema fatiou a geometria perfeitamente.<br><br>'.
+                    '🔸 <b>Lote Original (Área Remanescente):</b> '.number_format($this->previewDesmembramento[0]['area_m2'] ?? 0, 2, ',', '.').' m²<br>'.
+                    '🔹 <b>Novo Lote Gerado (Desmembrado):</b> '.number_format($this->previewDesmembramento[1]['area_m2'] ?? 0, 2, ',', '.').' m²<br><br>'.
+                    'Deseja gravar as alterações no banco de dados e redistribuir as edificações?'
             ))
             ->modalSubmitActionLabel('✂️ Confirmar Corte')
             ->color('warning')
@@ -1664,7 +1729,7 @@ class MapaFullscreen extends Page
                 $novoLote = $loteOriginal->replicate();
                 $novoLote->sequential_id = null;
                 $novoLote->code = (string) \Illuminate\Support\Str::uuid();
-                $novoLote->numero_lote = ($loteOriginal->numero_lote ?? 'S/N') . ' (Desmembrado)';
+                $novoLote->numero_lote = ($loteOriginal->numero_lote ?? 'S/N').' (Desmembrado)';
 
                 // 🛑 CORREÇÃO AQUI TAMBÉM
                 $novoLote->geo = json_decode($parteDesmembrada['geojson'], true);
@@ -1679,7 +1744,7 @@ class MapaFullscreen extends Page
                 ]);
 
                 // 4. ATUALIZAÇÃO MÁGICA DAS EDIFICAÇÕES:
-                DB::statement("
+                DB::statement('
                     UPDATE edificacoes
                     SET lote_id = ?
                     WHERE lote_id = ?
@@ -1687,7 +1752,7 @@ class MapaFullscreen extends Page
                         ST_SetSRID(ST_GeomFromGeoJSON(?), 4326),
                         ST_Centroid(geo::geometry)
                     )
-                ", [$novoLote->id, $loteOriginal->id, $parteDesmembrada['geojson']]);
+                ', [$novoLote->id, $loteOriginal->id, $parteDesmembrada['geojson']]);
 
                 \Filament\Notifications\Notification::make()->title('Desmembramento Concluído!')->success()->send();
 
@@ -1710,33 +1775,34 @@ class MapaFullscreen extends Page
         $this->loteSecundarioToUnifyId = $loteSecundarioId;
 
         // 1. VALIDAÇÃO ESPACIAL: Eles encostam um no outro? (ST_Intersects pega as divisas que se tocam)
-        $vizinhos = DB::selectOne("
+        $vizinhos = DB::selectOne('
             SELECT ST_Intersects(l1.geo::geometry, l2.geo::geometry) as sao_vizinhos
             FROM lotes l1, lotes l2
             WHERE l1.id = ? AND l2.id = ?
-        ", [$lotePrincipalId, $loteSecundarioId]);
+        ', [$lotePrincipalId, $loteSecundarioId]);
 
-        if (!$vizinhos || !$vizinhos->sao_vizinhos) {
+        if (! $vizinhos || ! $vizinhos->sao_vizinhos) {
             \Filament\Notifications\Notification::make()
                 ->title('Ação Inválida 🛑')
                 ->body('Os lotes selecionados não fazem divisa um com o outro! Só é possível unificar lotes lindeiros (vizinhos).')
                 ->danger()->send();
+
             return;
         }
 
         // 2. A SOLDA GEOMÉTRICA: Une os polígonos e soma as áreas
-        $uniao = DB::selectOne("
+        $uniao = DB::selectOne('
             WITH poly1 AS (SELECT geo::geometry as geom FROM lotes WHERE id = ?),
                  poly2 AS (SELECT geo::geometry as geom FROM lotes WHERE id = ?)
             SELECT
                 ST_AsGeoJSON(ST_Union(poly1.geom, poly2.geom)) as geojson,
                 ST_Area(ST_Union(poly1.geom, poly2.geom)::geography) as nova_area
             FROM poly1, poly2
-        ", [$lotePrincipalId, $loteSecundarioId]);
+        ', [$lotePrincipalId, $loteSecundarioId]);
 
         $this->previewUnificacao = [
             'geojson' => $uniao->geojson,
-            'nova_area' => $uniao->nova_area
+            'nova_area' => $uniao->nova_area,
         ];
 
         // 3. Abre a Modal pedindo o novo código
@@ -1756,17 +1822,17 @@ class MapaFullscreen extends Page
                 $novaArea = number_format($this->previewUnificacao['nova_area'] ?? 0, 2, ',', '.');
 
                 return new \Illuminate\Support\HtmlString(
-                    "O Lote <b>{$lote2->numero_lote}</b> será anexado/absorvido pelo Lote Principal <b>{$lote1->numero_lote}</b>.<br><br>" .
-                        "✅ <b>Nova Área Total:</b> {$novaArea} m²<br>" .
-                        "✅ Todas as casas e unidades imobiliárias do lote secundário serão migradas automaticamente.<br><br>" .
-                        "Por favor, confirme o número final para esta nova grande parcela territorial:"
+                    "O Lote <b>{$lote2->numero_lote}</b> será anexado/absorvido pelo Lote Principal <b>{$lote1->numero_lote}</b>.<br><br>".
+                        "✅ <b>Nova Área Total:</b> {$novaArea} m²<br>".
+                        '✅ Todas as casas e unidades imobiliárias do lote secundário serão migradas automaticamente.<br><br>'.
+                        'Por favor, confirme o número final para esta nova grande parcela territorial:'
                 );
             })
             ->form([
                 \Filament\Forms\Components\TextInput::make('novo_numero_lote')
                     ->label('Número do Lote Unificado')
                     ->required()
-                    ->default(fn() => \App\Models\Lote::query()->find($this->lotePrincipalToUnifyId)->numero_lote),
+                    ->default(fn () => \App\Models\Lote::query()->find($this->lotePrincipalToUnifyId)->numero_lote),
             ])
             ->modalSubmitActionLabel('🔗 Confirmar Unificação')
             ->color('success')
@@ -1802,11 +1868,52 @@ class MapaFullscreen extends Page
                 $this->dispatch('adicionar-lote-mapa', [
                     'id' => $lotePrincipal->id,
                     'numero_lote' => $lotePrincipal->numero_lote,
-                    'geo' => json_decode($this->previewUnificacao['geojson'])
+                    'geo' => json_decode($this->previewUnificacao['geojson']),
                 ]);
 
                 $this->fecharFicha();
             });
+    }
+
+    /**
+     * Item 043: após unir 2 artefatos no CAD (o resultado unido vira um novo registro),
+     * apaga os 2 de origem. Soft-delete = recuperável na lixeira. O engine envia a camada
+     * (plural) e os IDs de origem que ele já removeu visualmente do mapa.
+     */
+    #[On('excluirArtefatosUnir')]
+    public function excluirArtefatosUnir($plural, $ids)
+    {
+        $modelMap = [
+            'quadras' => \App\Models\Quadra::class,
+            'bairros' => \App\Models\Bairro::class,
+            'zonas' => \App\Models\Zona::class,
+            'loteamentos' => \App\Models\Loteamento::class,
+            'perimetros' => \App\Models\PerimetroUrbano::class,
+            'setores_fiscais' => \App\Models\SetorFiscal::class,
+            'areas_reurb' => \App\Models\AreaReurb::class,
+            'patrimonio_publicos' => \App\Models\PatrimonioPublico::class,
+            'lotes' => \App\Models\Lote::class,
+        ];
+
+        $model = $modelMap[$plural] ?? null;
+        $ids = array_filter((array) $ids);
+
+        if (! $model || empty($ids)) {
+            return;
+        }
+
+        $qtd = $model::query()
+            ->where('tenant_id', $this->tenantId)
+            ->whereIn('id', $ids)
+            ->delete(); // soft-delete (recuperável)
+
+        if ($qtd > 0) {
+            Notification::make()
+                ->title('União concluída')
+                ->body("{$qtd} artefato(s) de origem removido(s).")
+                ->success()
+                ->send();
+        }
     }
 
     /**
@@ -1830,13 +1937,13 @@ class MapaFullscreen extends Page
                 if (file_exists($caminhoFisico)) {
                     // O voo de drone existe! Carrega o dado real da prefeitura.
                     $demoUrl = asset("{$pastaMunicipio}/index.html");
-                    $mensagem = "Visualizando dados reais de escaneamento a laser do município.";
-                    $corAviso = "emerald"; // Fica verdinho
+                    $mensagem = 'Visualizando dados reais de escaneamento a laser do município.';
+                    $corAviso = 'emerald'; // Fica verdinho
                 } else {
                     // A prefeitura ainda não contratou o voo. Carrega a demonstração da PoC.
                     $demoUrl = 'https://potree.github.io/potree/examples/annotations.html';
-                    $mensagem = "Nuvem de pontos do município não detectada. Exibindo ambiente 3D de demonstração.";
-                    $corAviso = "blue"; // Fica azul
+                    $mensagem = 'Nuvem de pontos do município não detectada. Exibindo ambiente 3D de demonstração.';
+                    $corAviso = 'blue'; // Fica azul
                 }
 
                 $bladeView = <<<'BLADE'
@@ -1856,7 +1963,7 @@ class MapaFullscreen extends Page
                 return new \Illuminate\Support\HtmlString(\Illuminate\Support\Facades\Blade::render($bladeView, [
                     'demoUrl' => $demoUrl,
                     'mensagem' => $mensagem,
-                    'corAviso' => $corAviso
+                    'corAviso' => $corAviso,
                 ]));
             });
     }
@@ -1873,7 +1980,7 @@ class MapaFullscreen extends Page
     {
         $setor = \App\Models\SetorFiscal::query()->find($id);
         if ($setor) {
-            $polyWKT = "ST_GeomFromGeoJSON('" . json_encode($geoJson) . "')";
+            $polyWKT = "ST_GeomFromGeoJSON('".json_encode($geoJson)."')";
 
             // Validação de sobreposição com tolerância de 5m² para edição com Ímã (Ignorando a si mesmo)
             $sobreposicao = \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)
@@ -1890,11 +1997,12 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('desfazer-edicao-geometria');
+
                 return;
             }
 
             $setor->update(['geo' => $geoJson]);
-            DB::statement("UPDATE setores_fiscais SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$setor->id]);
+            DB::statement('UPDATE setores_fiscais SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$setor->id]);
             \Filament\Notifications\Notification::make()->title('Geometria do Setor Atualizada!')->success()->send();
         }
     }
@@ -1927,7 +2035,7 @@ class MapaFullscreen extends Page
                 $bairros = $data['bairros'] ?? [];
 
                 // MÁGICA POSTGIS: Pega os Lotes, cruza com o Setor Fiscal que ele cai dentro, e junta com a Tabela de Preços
-                $query = "
+                $query = '
                     SELECT
                         l.id as lote_id,
                         ST_AsGeoJSON(ST_Centroid(l.geo)) as centroid_geo,
@@ -1940,12 +2048,12 @@ class MapaFullscreen extends Page
                     JOIN setores_fiscais s ON ST_Intersects(ST_Centroid(l.geo), s.geo)
                     JOIN pgv_parametros p ON s.pgv_parametro_id = p.id
                     WHERE l.tenant_id = ? AND l.deleted_at IS NULL
-                ";
+                ';
 
                 $bindings = [$this->tenantId];
 
                 // Filtro opcional por bairro
-                if (!empty($bairros)) {
+                if (! empty($bairros)) {
                     $placeholders = implode(',', array_fill(0, count($bairros), '?'));
                     $query .= " AND l.quadra_id IN (SELECT id FROM quadras WHERE bairro_id IN ($placeholders))";
                     $bindings = array_merge($bindings, $bairros);
@@ -1967,13 +2075,14 @@ class MapaFullscreen extends Page
                         'valor_terreno' => $valorTerreno,
                         'valor_edificacao' => $valorEdificacao,
                         'valor_total' => $total,
-                        'valor_formatado' => 'R$ ' . number_format($total, 2, ',', '.'),
-                        'geo' => json_decode($l->centroid_geo)
+                        'valor_formatado' => 'R$ '.number_format($total, 2, ',', '.'),
+                        'geo' => json_decode($l->centroid_geo),
                     ];
                 }
 
                 if (count($this->resultadosPgv) === 0) {
                     Notification::make()->title('Sem resultados')->body('Nenhum lote cruzou com os Setores Fiscais cadastrados.')->warning()->send();
+
                     return;
                 }
 
@@ -2026,7 +2135,7 @@ class MapaFullscreen extends Page
         $reg = \App\Models\RuralLocalidade::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
-            DB::statement("UPDATE rural_localidades SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]);
+            DB::statement('UPDATE rural_localidades SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$reg->id]);
             Notification::make()->title('Geometria da Localidade Atualizada!')->success()->send();
         }
     }
@@ -2043,7 +2152,7 @@ class MapaFullscreen extends Page
     {
         $reg = \App\Models\RuralPropriedade::query()->find($id);
         if ($reg) {
-            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326)";
+            $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
 
             // 🛑 REGRA 3: Verifica se o polígono arrastado continua dentro da sua localidade base
             $validacao = DB::selectOne("
@@ -2060,11 +2169,12 @@ class MapaFullscreen extends Page
                     ->danger()->send();
 
                 $this->dispatch('desfazer-edicao-geometria');
+
                 return;
             }
 
             $reg->update(['geo' => $geoJson]);
-            DB::statement("UPDATE rural_propriedades SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]);
+            DB::statement('UPDATE rural_propriedades SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$reg->id]);
             \Filament\Notifications\Notification::make()->title('Geometria da Propriedade Atualizada!')->success()->send();
         }
     }
@@ -2083,7 +2193,7 @@ class MapaFullscreen extends Page
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
             // O recalculo mágico de distância em metros sempre que a linha for puxada para o lado
-            DB::statement("UPDATE rural_estradas SET extensao_geo = ST_Length(geo::geography) WHERE id = ?", [$reg->id]);
+            DB::statement('UPDATE rural_estradas SET extensao_geo = ST_Length(geo::geography) WHERE id = ?', [$reg->id]);
             Notification::make()->title('Traçado da Estrada Atualizado!')->success()->send();
         }
     }
@@ -2156,7 +2266,7 @@ class MapaFullscreen extends Page
 
             // Tenta atualizar a área (ignora silenciosamente se a coluna area_geo não existir em bairros)
             try {
-                DB::statement("UPDATE bairros SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]);
+                DB::statement('UPDATE bairros SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$reg->id]);
             } catch (\Exception $e) {
             }
 
@@ -2293,7 +2403,7 @@ class MapaFullscreen extends Page
 
             // Tenta atualizar a área via PostGIS
             try {
-                DB::statement("UPDATE loteamentos SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]);
+                DB::statement('UPDATE loteamentos SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$reg->id]);
             } catch (\Exception $e) {
             }
 
@@ -2314,7 +2424,7 @@ class MapaFullscreen extends Page
     {
         $reg = \App\Models\Quadra::query()->find($id);
         if ($reg) {
-            $polyWKT = "ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($geoJson) . "'), 4326))";
+            $polyWKT = "ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326))";
 
             // 🛑 NOVA REGRA TOPOLÓGICA: A Quadra não pode abandonar seus lotes!
             // Verifica se algum lote desta quadra ficará de fora da nova geometria (Tolerância de 1m²)
@@ -2335,6 +2445,7 @@ class MapaFullscreen extends Page
                     ->send();
 
                 $this->dispatch('desfazer-edicao-geometria');
+
                 return;
             }
 
@@ -2348,9 +2459,10 @@ class MapaFullscreen extends Page
                 ->whereRaw("ST_Area(ST_Difference($polyWKT, geo::geometry)::geography) <= 1.0")
                 ->first();
 
-            if (!$bairro && !$loteamento) {
+            if (! $bairro && ! $loteamento) {
                 \Filament\Notifications\Notification::make()->title('Fora dos Limites!')->body('A Quadra foi arrastada para fora de um Bairro/Loteamento.')->danger()->send();
                 $this->dispatch('desfazer-edicao-geometria');
+
                 return;
             }
 
@@ -2364,7 +2476,7 @@ class MapaFullscreen extends Page
             ]);
 
             try {
-                DB::statement("UPDATE quadras SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$reg->id]);
+                DB::statement('UPDATE quadras SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$reg->id]);
             } catch (\Exception $e) {
             }
             \Filament\Notifications\Notification::make()->title('Limites e Vínculos Atualizados!')->success()->send();
@@ -2378,7 +2490,7 @@ class MapaFullscreen extends Page
     public function processarCorteGenerico($polygonGeoJson, $lineGeoJson, $layerOrigem)
     {
         // A MÁGICA DO CORTE: Extrai o polígono puro e fatia usando a Linha (ST_Split)
-        $fatias = DB::select("
+        $fatias = DB::select('
             WITH linha AS (
                 SELECT ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) AS geom
             ),
@@ -2397,7 +2509,7 @@ class MapaFullscreen extends Page
                 ST_AsGeoJSON(parte) as geojson,
                 ST_Area(parte::geography) as area_m2
             FROM cortado
-        ", [json_encode($lineGeoJson), json_encode($polygonGeoJson)]);
+        ', [json_encode($lineGeoJson), json_encode($polygonGeoJson)]);
 
         // Se a linha não atravessou de um lado ao outro, o banco não consegue cortar!
         if (count($fatias) < 2) {
@@ -2408,12 +2520,13 @@ class MapaFullscreen extends Page
                 ->send();
 
             $this->dispatch('cancelar-corte-generico');
+
             return;
         }
 
         // Organiza do maior pedaço para o menor
         $arrayFatias = json_decode(json_encode($fatias), true);
-        usort($arrayFatias, fn($a, $b) => $b['area_m2'] <=> $a['area_m2']);
+        usort($arrayFatias, fn ($a, $b) => $b['area_m2'] <=> $a['area_m2']);
 
         // Devolve os pedaços cortados para o JavaScript exibir na vitrine
         $this->dispatch('mostrar-fatias-corte', fatias: $arrayFatias, layerOrigem: $layerOrigem);
@@ -2438,7 +2551,7 @@ class MapaFullscreen extends Page
                         'atributo' => 'Por Atributo (Texto / Número)',
                         'espacial' => 'Cruzamento Espacial (Ex: Lotes dentro de Bairro)',
                         'desenho' => 'Desenhar Área no Mapa (Polígono / Retângulo)',
-                        'intervalo' => 'Tematização por Intervalo (Classes)'
+                        'intervalo' => 'Tematização por Intervalo (Classes)',
                     ])
                     ->default('atributo')
                     ->live()
@@ -2451,42 +2564,42 @@ class MapaFullscreen extends Page
                     Forms\Components\Select::make('layer')
                         ->label('Camada / Entidade')
                         ->options([
-                            'lotes'              => 'Lotes Urbanos',
-                            'edificacoes'        => 'Edificações',
-                            'logradouros'        => 'Logradouros',
-                            'quadras'            => 'Quadras',
-                            'bairros'            => 'Bairros',
-                            'loteamentos'        => 'Loteamentos',
-                            'zonas'              => 'Zonas Urbanas',
+                            'lotes' => 'Lotes Urbanos',
+                            'edificacoes' => 'Edificações',
+                            'logradouros' => 'Logradouros',
+                            'quadras' => 'Quadras',
+                            'bairros' => 'Bairros',
+                            'loteamentos' => 'Loteamentos',
+                            'zonas' => 'Zonas Urbanas',
                             'perimetros_urbanos' => 'Distritos / Limites',
-                            'arvores'            => 'Árvores (Arborização)',
-                            'postes'             => 'Postes / Iluminação',
-                            'cemiterios'         => 'Cemitérios',
+                            'arvores' => 'Árvores (Arborização)',
+                            'postes' => 'Postes / Iluminação',
+                            'cemiterios' => 'Cemitérios',
                             'rural_propriedades' => 'Propriedades Rurais (CAR)',
-                            'rural_estradas'     => 'Estradas Rurais',
-                            'rural_pontes'       => 'Pontes Rurais',
-                            'rural_localidades'  => 'Localidades Rurais',
+                            'rural_estradas' => 'Estradas Rurais',
+                            'rural_pontes' => 'Pontes Rurais',
+                            'rural_localidades' => 'Localidades Rurais',
                         ])
                         ->live()
-                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
                     Forms\Components\Select::make('field')
                         ->label('Atributo (Campo de Busca)')
-                        ->options(fn(Forms\Get $get): array => match ($get('layer')) {
-                            'lotes'              => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)', 'numero_lote' => 'Número do Lote', 'status_cadastro' => 'Status de Coleta'],
-                            'edificacoes'        => ['area_geo' => 'Área Construída (m²)', 'tipo' => 'Finalidade / Uso', 'tp_construcao' => 'Material', 'estado_conservacao' => 'Conservação', 'pavimento' => 'Pavimentos'],
-                            'arvores'            => ['botanical_species' => 'Espécie Botânica', 'size' => 'Porte', 'phytosanitary_condition' => 'Condição Fitossanitária', 'general_state' => 'Estado Geral', 'trunk_diameter_dap' => 'DAP (cm)', 'total_height' => 'Altura Total (m)', 'risk_potential' => 'Potencial de Risco'],
-                            'postes'             => ['structural_condition' => 'Condição Estrutural', 'luminaire_type' => 'Tipo de Luminária', 'lamp_power' => 'Potência da Lâmpada', 'height' => 'Altura (m)'],
-                            'cemiterios'         => ['name' => 'Nome', 'area_geo' => 'Área (m²)'],
-                            'zonas'              => ['name' => 'Nome', 'sigla' => 'Sigla'],
+                        ->options(fn (Forms\Get $get): array => match ($get('layer')) {
+                            'lotes' => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)', 'numero_lote' => 'Número do Lote', 'status_cadastro' => 'Status de Coleta'],
+                            'edificacoes' => ['area_geo' => 'Área Construída (m²)', 'tipo' => 'Finalidade / Uso', 'tp_construcao' => 'Material', 'estado_conservacao' => 'Conservação', 'pavimento' => 'Pavimentos'],
+                            'arvores' => ['botanical_species' => 'Espécie Botânica', 'size' => 'Porte', 'phytosanitary_condition' => 'Condição Fitossanitária', 'general_state' => 'Estado Geral', 'trunk_diameter_dap' => 'DAP (cm)', 'total_height' => 'Altura Total (m)', 'risk_potential' => 'Potencial de Risco'],
+                            'postes' => ['structural_condition' => 'Condição Estrutural', 'luminaire_type' => 'Tipo de Luminária', 'lamp_power' => 'Potência da Lâmpada', 'height' => 'Altura (m)'],
+                            'cemiterios' => ['name' => 'Nome', 'area_geo' => 'Área (m²)'],
+                            'zonas' => ['name' => 'Nome', 'sigla' => 'Sigla'],
                             'perimetros_urbanos' => ['name' => 'Nome', 'distrito' => 'Distrito'],
-                            'loteamentos'        => ['name' => 'Nome'],
+                            'loteamentos' => ['name' => 'Nome'],
                             'rural_propriedades' => ['area_geo' => 'Área em m² (area_geo)', 'codigo_car' => 'Código CAR'],
-                            'rural_estradas'     => ['extensao_geo' => 'Extensão (m)', 'tipo_pavimento' => 'Tipo de Pavimento', 'condicao_trafego' => 'Condição'],
-                            'rural_pontes'       => ['capacidade_carga_toneladas' => 'Capacidade (Toneladas)', 'material_construcao' => 'Material'],
-                            default              => ['name' => 'Nome / Número'],
+                            'rural_estradas' => ['extensao_geo' => 'Extensão (m)', 'tipo_pavimento' => 'Tipo de Pavimento', 'condicao_trafego' => 'Condição'],
+                            'rural_pontes' => ['capacidade_carga_toneladas' => 'Capacidade (Toneladas)', 'material_construcao' => 'Material'],
+                            default => ['name' => 'Nome / Número'],
                         })
-                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
                     Forms\Components\Select::make('operator')
                         ->label('Condição (Operador)')
@@ -2500,12 +2613,12 @@ class MapaFullscreen extends Page
                             '!=' => 'Diferente de (!=)',
                         ])
                         ->default('=')
-                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
                     Forms\Components\TextInput::make('value')
                         ->label('Valor da Condição')
                         ->placeholder('Ex: 250, Asfalto, Boa...')
-                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
                     // 🎨 ESTILIZAÇÃO DA TEMATIZAÇÃO (cor + transparência do fundo, cor + espessura da borda)
                     Forms\Components\Grid::make(2)->schema([
@@ -2539,7 +2652,7 @@ class MapaFullscreen extends Page
                             ->suffix('px'),
                     ])->columnSpanFull(),
 
-                ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
+                ])->visible(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
                 // -------------------------------------------------------------
                 // BLOCO 2: CRUZAMENTO ESPACIAL
@@ -2555,7 +2668,7 @@ class MapaFullscreen extends Page
                             'arvores' => 'Arborização',
                             'rural_propriedades' => 'Propriedades Rurais (CAR)',
                         ])
-                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
 
                     Forms\Components\Select::make('spatial_operator')
                         ->label('Qual a relação topológica?')
@@ -2564,7 +2677,7 @@ class MapaFullscreen extends Page
                             'ST_Intersects' => 'Que tocam / Cruzam com',
                         ])
                         ->default('ST_Intersects')
-                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
 
                     Forms\Components\Select::make('spatial_reference_layer')
                         ->label('Qual a área de referência?')
@@ -2575,16 +2688,19 @@ class MapaFullscreen extends Page
                             'zonas' => 'Zonas Urbanas',
                             'perimetros_urbanos' => 'Distritos / Limites',
                             'rural_localidades' => 'Localidades Rurais',
-                            'cemiterios' => 'Cemitérios'
+                            'cemiterios' => 'Cemitérios',
                         ])
                         ->live()
-                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
 
                     Forms\Components\Select::make('spatial_reference_id')
                         ->label('Escolha o local específico')
                         ->options(function (Forms\Get $get) {
                             $refLayer = $get('spatial_reference_layer');
-                            if (!$refLayer) return [];
+                            if (! $refLayer) {
+                                return [];
+                            }
+
                             return match ($refLayer) {
                                 'quadras' => \App\Models\Quadra::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'bairros' => \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
@@ -2598,7 +2714,7 @@ class MapaFullscreen extends Page
                         })
                         ->searchable()
                         ->multiple()
-                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
 
                     // 🎨 NOVO CAMPO: Definição de cor para Tematização (Fica fora dos grupos para aparecer em todos)
                     Forms\Components\ColorPicker::make('cor_tematizacao')
@@ -2607,7 +2723,7 @@ class MapaFullscreen extends Page
                         ->helperText('Escolha a cor para destacar os resultados no mapa.')
                         ->required(),
 
-                ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+                ])->visible(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
 
                 // -------------------------------------------------------------
                 // BLOCO 3: DESENHO LIVRE (A EXIGÊNCIA NOVA!)
@@ -2624,7 +2740,7 @@ class MapaFullscreen extends Page
                             'arvores' => 'Arborização',
                             'rural_propriedades' => 'Propriedades Rurais (CAR)',
                         ])
-                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
 
                     // 👈 Novo campo adicionado abaixo
                     Forms\Components\Toggle::make('draw_within')
@@ -2641,7 +2757,7 @@ class MapaFullscreen extends Page
                         ])
                         ->default('Polygon')
                         ->live()
-                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
 
                     Forms\Components\TextInput::make('raio_metros')
                         ->label('Raio do Buffer (em metros)')
@@ -2651,8 +2767,8 @@ class MapaFullscreen extends Page
                         ->maxValue(50000)
                         ->default(100)
                         ->suffix('m')
-                        ->required(fn(Forms\Get $get) => $get('tipo_filtro') === 'desenho' && $get('draw_shape') === 'BufferCircular')
-                        ->visible(fn(Forms\Get $get) => $get('draw_shape') === 'BufferCircular'),
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'desenho' && $get('draw_shape') === 'BufferCircular')
+                        ->visible(fn (Forms\Get $get) => $get('draw_shape') === 'BufferCircular'),
 
                     // 🎨 NOVO CAMPO: Definição de cor para Tematização (Fica fora dos grupos para aparecer em todos)
                     Forms\Components\ColorPicker::make('cor_tematizacao')
@@ -2661,8 +2777,7 @@ class MapaFullscreen extends Page
                         ->helperText('Escolha a cor para destacar os resultados no mapa.')
                         ->required(),
 
-                ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
-
+                ])->visible(fn (Forms\Get $get) => $get('tipo_filtro') === 'desenho'),
 
                 // -------------------------------------------------------------
                 // BLOCO 4: INTERVALO DE CLASSES (NOVIDADE!)
@@ -2671,32 +2786,32 @@ class MapaFullscreen extends Page
                     Forms\Components\Select::make('interval_layer')
                         ->label('Camada para Análise')
                         ->options([
-                            'lotes'              => 'Lotes Urbanos',
-                            'edificacoes'        => 'Edificações',
-                            'arvores'            => 'Árvores',
-                            'postes'             => 'Postes',
-                            'cemiterios'         => 'Cemitérios',
-                            'quadras'            => 'Quadras',
-                            'bairros'            => 'Bairros',
+                            'lotes' => 'Lotes Urbanos',
+                            'edificacoes' => 'Edificações',
+                            'arvores' => 'Árvores',
+                            'postes' => 'Postes',
+                            'cemiterios' => 'Cemitérios',
+                            'quadras' => 'Quadras',
+                            'bairros' => 'Bairros',
                             'rural_propriedades' => 'Propriedades Rurais',
-                            'rural_estradas'     => 'Estradas Rurais',
-                            'rural_pontes'       => 'Pontes Rurais',
+                            'rural_estradas' => 'Estradas Rurais',
+                            'rural_pontes' => 'Pontes Rurais',
                         ])
                         ->live()
                         ->default('lotes'),
 
                     Forms\Components\Select::make('interval_attribute')
                         ->label('Atributo Numérico (Escala)')
-                        ->options(fn(Forms\Get $get): array => match ($get('interval_layer')) {
-                            'arvores'            => ['trunk_diameter_dap' => 'DAP (cm)', 'total_height' => 'Altura Total (m)', 'canopy_diameter' => 'Diâmetro da Copa (m)', 'risk_potential' => 'Potencial de Risco'],
-                            'postes'             => ['height' => 'Altura (m)', 'lamp_quantity' => 'Quantidade de Lâmpadas'],
-                            'cemiterios'         => ['area_geo' => 'Área em m²'],
-                            'quadras'            => ['area_geo' => 'Área em m²'],
-                            'bairros'            => ['area_geo' => 'Área em m²'],
+                        ->options(fn (Forms\Get $get): array => match ($get('interval_layer')) {
+                            'arvores' => ['trunk_diameter_dap' => 'DAP (cm)', 'total_height' => 'Altura Total (m)', 'canopy_diameter' => 'Diâmetro da Copa (m)', 'risk_potential' => 'Potencial de Risco'],
+                            'postes' => ['height' => 'Altura (m)', 'lamp_quantity' => 'Quantidade de Lâmpadas'],
+                            'cemiterios' => ['area_geo' => 'Área em m²'],
+                            'quadras' => ['area_geo' => 'Área em m²'],
+                            'bairros' => ['area_geo' => 'Área em m²'],
                             'rural_propriedades' => ['area_geo' => 'Área em m²'],
-                            'rural_estradas'     => ['extensao_geo' => 'Extensão (m)'],
-                            'rural_pontes'       => ['capacidade_carga_toneladas' => 'Capacidade (Toneladas)'],
-                            default              => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)'],
+                            'rural_estradas' => ['extensao_geo' => 'Extensão (m)'],
+                            'rural_pontes' => ['capacidade_carga_toneladas' => 'Capacidade (Toneladas)'],
+                            default => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)'],
                         })
                         ->default('area_geo'),
 
@@ -2713,7 +2828,7 @@ class MapaFullscreen extends Page
                             ->label('Cor Final (maior valor)')
                             ->default('#800026'),
                     ]),
-                ])->visible(fn(Forms\Get $get) => $get('tipo_filtro') === 'intervalo'),
+                ])->visible(fn (Forms\Get $get) => $get('tipo_filtro') === 'intervalo'),
 
             ])
             ->action(function (array $data) {
@@ -2785,8 +2900,8 @@ class MapaFullscreen extends Page
                     Forms\Components\Select::make('area_type')
                         ->label('Tipo de Área')
                         ->options([
-                            'bairros'            => 'Bairro',
-                            'setores_fiscais'    => 'Setor Fiscal',
+                            'bairros' => 'Bairro',
+                            'setores_fiscais' => 'Setor Fiscal',
                             'perimetros_urbanos' => 'Distrito',
                         ])
                         ->default('bairros')
@@ -2797,14 +2912,17 @@ class MapaFullscreen extends Page
                         ->label('Área de Interesse')
                         ->options(function (Forms\Get $get): array {
                             $tipo = $get('area_type');
-                            if (!$tipo) return ['all' => 'Todas'];
+                            if (! $tipo) {
+                                return ['all' => 'Todas'];
+                            }
                             $opts = ['all' => '— Todas —'];
                             $rows = match ($tipo) {
-                                'bairros'            => \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
-                                'setores_fiscais'    => \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)->orderBy('nome')->pluck('nome', 'id'),
+                                'bairros' => \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
+                                'setores_fiscais' => \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)->orderBy('nome')->pluck('nome', 'id'),
                                 'perimetros_urbanos' => \App\Models\PerimetroUrbano::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
-                                default              => collect([]),
+                                default => collect([]),
                             };
+
                             return $opts + $rows->toArray();
                         })
                         ->default('all')
@@ -2816,7 +2934,7 @@ class MapaFullscreen extends Page
                     Forms\Components\Select::make('target_layer')
                         ->label('Camada de Análise')
                         ->options([
-                            'lotes'       => 'Lotes Urbanos',
+                            'lotes' => 'Lotes Urbanos',
                             'edificacoes' => 'Edificações',
                             'logradouros' => 'Logradouros',
                         ])
@@ -2828,10 +2946,10 @@ class MapaFullscreen extends Page
                         ->label('Agrupar por')
                         ->options(function (Forms\Get $get): array {
                             return match ($get('target_layer')) {
-                                'lotes'       => ['zona_id' => 'Zona Urbana', 'area_faixa' => 'Faixa de Área'],
+                                'lotes' => ['zona_id' => 'Zona Urbana', 'area_faixa' => 'Faixa de Área'],
                                 'edificacoes' => ['tipo' => 'Tipo de Uso', 'tp_construcao' => 'Tipo de Construção', 'estado_conservacao' => 'Estado de Conservação'],
                                 'logradouros' => ['name' => 'Nome do Logradouro'],
-                                default       => [],
+                                default => [],
                             };
                         })
                         ->required(),
@@ -2864,7 +2982,7 @@ class MapaFullscreen extends Page
         $this->zonasTipos = \App\Models\Zona::query()->where('tenant_id', $this->tenantId)
             ->select('id', 'name', 'sigla', 'rgb')
             ->get()
-            ->map(fn($zona) => [
+            ->map(fn ($zona) => [
                 'id' => $zona->id,
                 'name' => $zona->name,
                 'sigla' => $zona->sigla,
@@ -2888,7 +3006,7 @@ class MapaFullscreen extends Page
             $zona->update(['geo' => $geoJson]);
 
             try {
-                \Illuminate\Support\Facades\DB::statement("UPDATE zonas SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$zona->id]);
+                \Illuminate\Support\Facades\DB::statement('UPDATE zonas SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$zona->id]);
             } catch (\Exception $e) {
             }
 
@@ -2916,7 +3034,7 @@ class MapaFullscreen extends Page
     public function salvarEnquadramento(float $lat, float $lon, int $zoom): void
     {
         $tenant = Filament::getTenant();
-        if (!$tenant) {
+        if (! $tenant) {
             return;
         }
 
