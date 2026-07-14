@@ -3,16 +3,119 @@
 namespace App\Filament\Resources\ProcessoDigitalResource\Pages;
 
 use App\Filament\Resources\ProcessoDigitalResource;
+use App\Models\ProcessoAnexo;
+use App\Services\Processo\ProcessoChecklistService;
 use App\Services\Processo\ProcessoFormService;
-use Filament\Resources\Pages\ViewRecord;
+use Filament\Actions\Action;
+use Filament\Forms;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
-use Illuminate\Support\HtmlString;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\HtmlString;
 
 class ViewProcessoDigital extends ViewRecord
 {
     protected static string $resource = ProcessoDigitalResource::class;
+
+    /**
+     * "Avançar Processo" também DENTRO do processo — o analista aprova/reprova os anexos
+     * no checklist e julga a etapa sem voltar para a lista. Mesmo schema/execução da ação
+     * da Caixa de Entrada (ProcessoDigitalResource::avancarProcessoForm/executarAvancarProcesso).
+     */
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('avancar_processo')
+                ->label('Avançar Processo')
+                ->icon('heroicon-o-paper-airplane')
+                ->color('success')
+                ->modalHeading('Avançar Processo')
+                ->modalSubmitActionLabel('Confirmar')
+                ->visible(fn () => ProcessoDigitalResource::podeAvancarProcesso($this->record))
+                ->fillForm(fn () => ['dados_formulario' => $this->record->dados_formulario ?? []])
+                ->form(fn () => ProcessoDigitalResource::avancarProcessoForm($this->record))
+                ->action(function (array $data, Action $action) {
+                    if (! ProcessoDigitalResource::executarAvancarProcesso($this->record, $data)) {
+                        $action->halt(); // guard do checklist — mantém o modal aberto
+                    }
+
+                    $this->record->refresh();
+                }),
+        ];
+    }
+
+    /**
+     * PD-2 — aprova um anexo individual do checklist (wire:click na blade processo-anexos).
+     */
+    public function aprovarAnexo(int $anexoId): void
+    {
+        $anexo = ProcessoAnexo::find($anexoId);
+
+        if (! $anexo || ! ProcessoChecklistService::podeAnalisar($anexo, $this->record)) {
+            Notification::make()
+                ->danger()
+                ->title('Não foi possível aprovar')
+                ->body('Este documento não está disponível para análise nesta etapa.')
+                ->send();
+
+            return;
+        }
+
+        ProcessoChecklistService::marcar($anexo, 'aprovado', null, \Filament\Facades\Filament::auth()->id());
+
+        Notification::make()
+            ->success()
+            ->title('Documento aprovado')
+            ->body($anexo->nome_arquivo)
+            ->send();
+    }
+
+    /**
+     * PD-2 — reprova um anexo individual com observação obrigatória
+     * (mountAction('reprovarAnexo', { anexoId }) na blade processo-anexos).
+     */
+    public function reprovarAnexoAction(): Action
+    {
+        return Action::make('reprovarAnexo')
+            ->modalHeading('Reprovar documento')
+            ->modalDescription(function (array $arguments) {
+                $anexo = ProcessoAnexo::find($arguments['anexoId'] ?? null);
+
+                return $anexo?->nome_arquivo;
+            })
+            ->modalSubmitActionLabel('Reprovar')
+            ->modalWidth('lg')
+            ->form([
+                Forms\Components\Textarea::make('observacao')
+                    ->label('Motivo da reprovação')
+                    ->helperText('O cidadão verá exatamente este texto ao corrigir o documento.')
+                    ->required()
+                    ->rows(3),
+            ])
+            ->action(function (array $data, array $arguments) {
+                $anexo = ProcessoAnexo::find($arguments['anexoId'] ?? null);
+
+                if (! $anexo || ! ProcessoChecklistService::podeAnalisar($anexo, $this->record)) {
+                    Notification::make()
+                        ->danger()
+                        ->title('Não foi possível reprovar')
+                        ->body('Este documento não está disponível para análise nesta etapa.')
+                        ->send();
+
+                    return;
+                }
+
+                ProcessoChecklistService::marcar($anexo, 'reprovado', $data['observacao'], \Filament\Facades\Filament::auth()->id());
+
+                Notification::make()
+                    ->success()
+                    ->title('Documento reprovado')
+                    ->body('Ao reprovar a etapa, o motivo irá junto no parecer para o cidadão.')
+                    ->send();
+            });
+    }
 
     /**
      * Exclui uma CÓPIA ANOTADA deste processo (item 222). Só permite `tipo_anexo = 'anotado'`
@@ -28,6 +131,7 @@ class ViewProcessoDigital extends ViewRecord
                 ->title('Não foi possível excluir')
                 ->body('Só é possível excluir cópias anotadas deste processo.')
                 ->send();
+
             return;
         }
 
@@ -48,7 +152,7 @@ class ViewProcessoDigital extends ViewRecord
         return $infolist
             ->schema([
                 Infolists\Components\Grid::make(3)->schema([
-                    
+
                     // --- COLUNA DA ESQUERDA (Dados do Cidadão e Formulário) ---
                     Infolists\Components\Group::make()->schema([
                         Infolists\Components\Section::make('Informações do Solicitante')

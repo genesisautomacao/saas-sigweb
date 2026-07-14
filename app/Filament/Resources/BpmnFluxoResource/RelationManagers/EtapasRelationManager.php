@@ -2,10 +2,10 @@
 
 namespace App\Filament\Resources\BpmnFluxoResource\RelationManagers;
 
+use App\Models\Setor;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
-use App\Models\Setor;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -13,7 +13,9 @@ use Filament\Tables\Table;
 class EtapasRelationManager extends RelationManager
 {
     protected static string $relationship = 'etapas';
+
     protected static ?string $recordTitleAttribute = 'nome';
+
     protected static ?string $title = 'Configuração das Etapas (Regras e Formulários)';
 
     public function form(Form $form): Form
@@ -71,6 +73,14 @@ class EtapasRelationManager extends RelationManager
                                     ->default(0)
                                     ->helperText('Tempo previsto para conclusão desta fase.'),
 
+                                // PD-1 — em qual etapa do solicitante o requerimento assinado é exigido.
+                                // Sem nenhuma etapa marcada, vale a 1ª etapa do fluxo (abertura).
+                                Forms\Components\Toggle::make('exige_requerimento')
+                                    ->label('Exigir requerimento assinado ao concluir esta etapa')
+                                    ->visible(fn (Get $get) => $get('executor') === 'solicitante')
+                                    ->helperText('Só tem efeito se o fluxo tiver "Requerimento Assinado" ativado. Use quando as variáveis do requerimento ({{campo:...}}) forem preenchidas nesta etapa, e não na abertura.')
+                                    ->columnSpanFull(),
+
                                 // Item 5 — afunilamento por usuário dentro do setor.
                                 // Vazio = todos os usuários do setor; preenchido = apenas os escolhidos.
                                 Forms\Components\Select::make('usuarios_autorizados')
@@ -80,9 +90,10 @@ class EtapasRelationManager extends RelationManager
                                     ->visible(fn (Get $get) => $get('executor') === 'analista')
                                     ->options(function (Get $get) {
                                         $setorId = $get('setor_id');
-                                        if (!$setorId) {
+                                        if (! $setorId) {
                                             return [];
                                         }
+
                                         return Setor::with('users')->find($setorId)?->users->pluck('name', 'id')->toArray() ?? [];
                                     })
                                     ->helperText('Deixe vazio para permitir a TODOS os usuários do setor. Preencha para restringir a usuários específicos.'),
@@ -103,7 +114,7 @@ class EtapasRelationManager extends RelationManager
                                                 Forms\Components\TextInput::make('label_campo')->label('Título do Campo')->required(),
                                                 Forms\Components\Toggle::make('obrigatorio')->label('Preenchimento Obrigatório?')->default(false),
                                             ]),
-                                            
+
                                         // 2. CHECKBOX
                                         Forms\Components\Builder\Block::make('checkbox')
                                             ->label('Múltipla Escolha (Checkbox)')
@@ -113,7 +124,7 @@ class EtapasRelationManager extends RelationManager
                                                 Forms\Components\TagsInput::make('opcoes')->label('Opções (Aperte Enter para separar)')->required(),
                                                 Forms\Components\Toggle::make('obrigatorio')->label('Obrigatório?')->default(false),
                                             ]),
-                                            
+
                                         // 3. MAPA (COORDENADA)
                                         Forms\Components\Builder\Block::make('mapa')
                                             ->label('Seleção de Posição no Mapa')
@@ -122,7 +133,7 @@ class EtapasRelationManager extends RelationManager
                                                 Forms\Components\TextInput::make('label_campo')->label('Instrução (Ex: Marque o poste com defeito)')->required(),
                                                 Forms\Components\Toggle::make('obrigatorio')->label('Obrigatório?')->default(false),
                                             ]),
-                                            
+
                                         // 4. MÁSCARAS (CPF/TELEFONE)
                                         Forms\Components\Builder\Block::make('documento')
                                             ->label('Campo com Máscara (CPF/Tel)')
@@ -181,6 +192,7 @@ class EtapasRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make()
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['tenant_id'] = \Filament\Facades\Filament::getTenant()->id;
+
                         return $data;
                     }),
             ])

@@ -25,28 +25,31 @@ class ProcessoFormService
     /** Prefixo do state path das respostas de uma etapa dentro de `dados_formulario`. */
     public static function chaveEtapa(int $etapaId): string
     {
-        return 'etapa_' . $etapaId;
+        return 'etapa_'.$etapaId;
     }
 
     /**
      * Monta os componentes Filament do formulário de uma etapa.
      *
      * @param  bool  $disabled  Trava os campos (item 129/220 — B16) ou modo leitura.
+     * @param  ?ProcessoDigital  $processo  PD-2 — quando informado, os campos 'arquivo' refletem o
+     *                                      checklist de análise: anexo APROVADO fica travado; REPROVADO
+     *                                      mostra o motivo e exige substituição.
      * @return array<\Filament\Forms\Components\Component>
      */
-    public static function camposDaEtapa(?BpmnEtapa $etapa, bool $disabled = false, bool $forcarOpcional = false): array
+    public static function camposDaEtapa(?BpmnEtapa $etapa, bool $disabled = false, bool $forcarOpcional = false, ?ProcessoDigital $processo = null): array
     {
-        if (!$etapa || empty($etapa->campos_formulario)) {
+        if (! $etapa || empty($etapa->campos_formulario)) {
             return [];
         }
 
-        $prefixo = 'dados_formulario.' . self::chaveEtapa($etapa->id) . '.';
+        $prefixo = 'dados_formulario.'.self::chaveEtapa($etapa->id).'.';
 
-        return collect($etapa->campos_formulario)->map(function ($campo) use ($prefixo, $disabled, $forcarOpcional) {
+        return collect($etapa->campos_formulario)->map(function ($campo) use ($prefixo, $disabled, $forcarOpcional, $etapa, $processo) {
             $tipo = $campo['type'] ?? 'texto';
             $dados = $campo['data'] ?? [];
-            $nome = $prefixo . Str::slug($dados['label_campo'] ?? 'campo');
-            $obrigatorio = !$disabled && !$forcarOpcional && ($dados['obrigatorio'] ?? false);
+            $nome = $prefixo.Str::slug($dados['label_campo'] ?? 'campo');
+            $obrigatorio = ! $disabled && ! $forcarOpcional && ($dados['obrigatorio'] ?? false);
 
             if ($tipo === 'texto') {
                 return Forms\Components\TextInput::make($nome)
@@ -57,6 +60,7 @@ class ProcessoFormService
 
             if ($tipo === 'checkbox') {
                 $opcoes = $dados['opcoes'] ?? [];
+
                 return Forms\Components\CheckboxList::make($nome)
                     ->label($dados['label_campo'] ?? 'Opções')
                     ->options(array_combine($opcoes, $opcoes) ?: [])
@@ -73,7 +77,7 @@ class ProcessoFormService
                     ->view('filament.forms.components.mapa-ponto')
                     ->viewData(['disabled' => $disabled])
                     ->required($obrigatorio)
-                    ->dehydrated(!$disabled);
+                    ->dehydrated(! $disabled);
             }
 
             if ($tipo === 'documento') {
@@ -94,8 +98,9 @@ class ProcessoFormService
 
             if ($tipo === 'arquivo') {
                 // Upload nomeado (item 3) — vira ProcessoAnexo no salvamento (salvarRespostaEtapa).
-                return Forms\Components\FileUpload::make($nome)
-                    ->label($dados['label_campo'] ?? 'Arquivo')
+                $label = $dados['label_campo'] ?? 'Arquivo';
+                $upload = Forms\Components\FileUpload::make($nome)
+                    ->label($label)
                     ->required($obrigatorio)
                     ->disabled($disabled)
                     ->directory('processos_anexos')
@@ -103,6 +108,25 @@ class ProcessoFormService
                     ->maxSize(5120)
                     ->downloadable()
                     ->openable();
+
+                // PD-2 — correção por item: reflete o checklist de análise do anexo deste campo.
+                if ($processo) {
+                    $anexo = ProcessoChecklistService::ultimoAnexoDoCampo($processo, $etapa->id, Str::slug($label), $label);
+
+                    if ($anexo?->status_analise === 'aprovado') {
+                        // disabled + dehydrated(true): trava a troca SEM apagar o path já salvo
+                        // em dados_formulario (dehydrated(false) apagaria o valor no save).
+                        $upload->disabled()->dehydrated(true)
+                            ->helperText('✅ Documento aprovado pela prefeitura — não é necessário reenviar.');
+                    } elseif ($anexo?->status_analise === 'reprovado') {
+                        $upload->required(! $disabled)
+                            ->hint('Documento reprovado')
+                            ->hintColor('danger')
+                            ->helperText('Motivo da reprovação: '.($anexo->observacao_analise ?: 'documento incorreto').' — anexe a versão corrigida.');
+                    }
+                }
+
+                return $upload;
             }
 
             return null;
@@ -115,7 +139,7 @@ class ProcessoFormService
      */
     public static function salvarRespostaEtapa(ProcessoDigital $processo, ?BpmnEtapa $etapa, int $usuarioId): void
     {
-        if (!$etapa) {
+        if (! $etapa) {
             return;
         }
 
@@ -148,7 +172,8 @@ class ProcessoFormService
             }
 
             $label = $campo['data']['label_campo'] ?? 'Arquivo';
-            $caminho = data_get($dados, Str::slug($label));
+            $slug = Str::slug($label);
+            $caminho = data_get($dados, $slug);
             if (is_array($caminho)) {
                 $caminho = $caminho[0] ?? null;
             }
@@ -163,14 +188,21 @@ class ProcessoFormService
                 continue;
             }
 
+            // PD-2 — substituição de arquivo vira NOVA VERSÃO na cadeia do campo
+            // (status_analise nasce 'pendente' pelo default — o item reprovado "reseta").
+            $anterior = ProcessoChecklistService::ultimoAnexoDoCampo($processo, $etapa->id, $slug, $label);
+
             ProcessoAnexo::create([
                 'tenant_id' => $processo->tenant_id,
                 'processo_digital_id' => $processo->id,
                 'etapa_id' => $etapa->id,
+                'campo_slug' => $slug,
                 'usuario_id' => $usuarioId,
-                'nome_arquivo' => $label . ' — ' . basename($caminho),
+                'nome_arquivo' => $label.' — '.basename($caminho),
                 'caminho_arquivo' => $caminho,
                 'tipo_anexo' => 'formulario',
+                'versao' => $anterior ? $anterior->versao + 1 : 1,
+                'anexo_origem_id' => $anterior?->cadeiaId(),
             ]);
         }
     }
@@ -205,6 +237,8 @@ class ProcessoFormService
                     : 'Encaminhado automaticamente após o preenchimento do solicitante.',
                 'status_parecer' => 'encaminhado',
             ]);
+
+            $statusParecer = 'encaminhado';
         } else {
             $processo->update(['status' => 'concluido', 'etapa_retorno_id' => null]);
 
@@ -217,7 +251,12 @@ class ProcessoFormService
                 'parecer' => 'Processo finalizado após o preenchimento do solicitante.',
                 'status_parecer' => 'concluido',
             ]);
+
+            $statusParecer = 'concluido';
         }
+
+        // Notifica o cidadão por e-mail (best-effort — nunca quebra a tramitação).
+        ProcessoNotificacaoService::notificarTransicao($processo, $statusParecer, null);
     }
 
     /**
@@ -269,7 +308,7 @@ class ProcessoFormService
             // Reprovar: o analista ESCOLHE para onde devolver; marca o retorno = a etapa dele
             // (para o processo voltar direto a ele quando a pendência for resolvida).
             $destino = $etapaDestinoId ? BpmnEtapa::find($etapaDestinoId) : null;
-            if (!$destino) {
+            if (! $destino) {
                 // fallback: etapa anterior por ordem
                 $destino = BpmnEtapa::where('bpmn_fluxo_id', $processo->bpmn_fluxo_id)
                     ->when($atual, fn ($q) => $q->where('ordem', '<', $atual->ordem ?? 0))
@@ -296,6 +335,9 @@ class ProcessoFormService
             'parecer' => $parecer ?: '(sem parecer)',
             'status_parecer' => $statusParecer,
         ]);
+
+        // Notifica o cidadão por e-mail (best-effort — nunca quebra a tramitação).
+        ProcessoNotificacaoService::notificarTransicao($processo, $statusParecer, $parecer);
     }
 
     /**
@@ -304,7 +346,7 @@ class ProcessoFormService
      */
     public static function dadosImovel($loteId): ?array
     {
-        if (!$loteId) {
+        if (! $loteId) {
             return null;
         }
 
@@ -312,7 +354,7 @@ class ProcessoFormService
             ->with(['quadra.loteamento', 'unidadesImobiliarias'])
             ->find($loteId);
 
-        if (!$lote) {
+        if (! $lote) {
             return null;
         }
 
@@ -324,7 +366,7 @@ class ProcessoFormService
             'numero_lote' => $lote->numero_lote,
             'quadra' => $lote->quadra?->name,
             'loteamento' => $lote->quadra?->loteamento?->name,
-            'localizacao' => $localizacao !== '' ? $localizacao : ($lote->cep ? ('CEP ' . $lote->cep) : null),
+            'localizacao' => $localizacao !== '' ? $localizacao : ($lote->cep ? ('CEP '.$lote->cep) : null),
             'unidades' => $lote->unidadesImobiliarias->map(fn ($u) => [
                 'inscricao' => $u->inscricao_imobiliaria,
                 'cadastro' => $u->codigo_imovel_tributario,
@@ -337,13 +379,13 @@ class ProcessoFormService
     {
         $d = self::dadosImovel($loteId);
 
-        if (!$d) {
+        if (! $d) {
             return '<span class="text-gray-500 italic">Nenhum imóvel selecionado.</span>';
         }
 
         $linha = fn ($rotulo, $valor) => '<div class="flex justify-between gap-4 py-0.5 border-b border-gray-100 dark:border-gray-800">'
-            . '<span class="text-gray-500">' . e($rotulo) . '</span>'
-            . '<span class="font-medium text-right">' . e($valor ?: '—') . '</span></div>';
+            .'<span class="text-gray-500">'.e($rotulo).'</span>'
+            .'<span class="font-medium text-right">'.e($valor ?: '—').'</span></div>';
 
         $html = '<div class="text-sm rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-0.5">';
         $html .= $linha('Número do Lote', $d['numero_lote']);
@@ -351,13 +393,13 @@ class ProcessoFormService
         $html .= $linha('Loteamento', $d['loteamento']);
         $html .= $linha('Localização', $d['localizacao']);
 
-        if (!empty($d['unidades'])) {
+        if (! empty($d['unidades'])) {
             $html .= '<div class="pt-2 mt-1"><div class="text-gray-500 mb-1">Unidades Imobiliárias</div>';
             foreach ($d['unidades'] as $u) {
                 $html .= '<div class="pl-2 mb-1">'
-                    . $linha('Inscrição Imobiliária', $u['inscricao'])
-                    . $linha('Cadastro Imobiliário', $u['cadastro'])
-                    . '</div>';
+                    .$linha('Inscrição Imobiliária', $u['inscricao'])
+                    .$linha('Cadastro Imobiliário', $u['cadastro'])
+                    .'</div>';
             }
             $html .= '</div>';
         }
@@ -376,8 +418,8 @@ class ProcessoFormService
 
         $html = '';
         foreach ($etapas as $etapa) {
-            $respostas = $dados['etapa_' . $etapa->id] ?? null;
-            if (empty($respostas) || !is_array($respostas)) {
+            $respostas = $dados['etapa_'.$etapa->id] ?? null;
+            if (empty($respostas) || ! is_array($respostas)) {
                 continue;
             }
 
@@ -396,7 +438,7 @@ class ProcessoFormService
                     continue; // arquivos aparecem na seção "Documentos"
                 }
                 $label = $labels[$slug] ?? $slug;
-                $linhas .= '<li><span class="font-medium">' . e($label) . ':</span> ' . e(self::formatarValorResposta($valor)) . '</li>';
+                $linhas .= '<li><span class="font-medium">'.e($label).':</span> '.e(self::formatarValorResposta($valor)).'</li>';
             }
 
             if ($linhas === '') {
@@ -404,8 +446,8 @@ class ProcessoFormService
             }
 
             $html .= '<div class="mb-4 rounded-lg border border-gray-200 dark:border-gray-700 p-3">';
-            $html .= '<div class="font-bold text-primary-600 mb-2">' . e($etapa->nome) . '</div>';
-            $html .= '<ul class="space-y-1 text-sm">' . $linhas . '</ul></div>';
+            $html .= '<div class="font-bold text-primary-600 mb-2">'.e($etapa->nome).'</div>';
+            $html .= '<ul class="space-y-1 text-sm">'.$linhas.'</ul></div>';
         }
 
         return $html !== '' ? $html : '<span class="text-gray-500 italic">Nenhuma resposta registrada.</span>';
@@ -439,12 +481,12 @@ class ProcessoFormService
             $usuario = $t->responsavel?->name ?? 'Sistema';
 
             $html .= '<div style="position:relative; margin-left:5px; border-left:2px solid #e5e7eb; padding-left:20px; padding-bottom:16px;">';
-            $html .= '<span style="position:absolute; left:-7px; top:2px; width:12px; height:12px; border-radius:9999px; background:' . $cor . '; border:2px solid #ffffff;"></span>';
-            $html .= '<div style="font-size:11px; color:#9ca3af;">' . e($data) . '</div>';
-            $html .= '<div style="margin-top:2px; font-size:13px;"><span style="display:inline-block; padding:1px 8px; border-radius:6px; color:#ffffff; font-size:11px; background:' . $cor . ';">' . e($lbl) . '</span> <strong>' . e($origem) . ' &rarr; ' . e($destino) . '</strong></div>';
-            $html .= '<div style="font-size:11px; color:#9ca3af;">por ' . e($usuario) . '</div>';
+            $html .= '<span style="position:absolute; left:-7px; top:2px; width:12px; height:12px; border-radius:9999px; background:'.$cor.'; border:2px solid #ffffff;"></span>';
+            $html .= '<div style="font-size:11px; color:#9ca3af;">'.e($data).'</div>';
+            $html .= '<div style="margin-top:2px; font-size:13px;"><span style="display:inline-block; padding:1px 8px; border-radius:6px; color:#ffffff; font-size:11px; background:'.$cor.';">'.e($lbl).'</span> <strong>'.e($origem).' &rarr; '.e($destino).'</strong></div>';
+            $html .= '<div style="font-size:11px; color:#9ca3af;">por '.e($usuario).'</div>';
             if ($t->parecer) {
-                $html .= '<div style="font-size:13px; margin-top:2px; color:#374151;">' . e($t->parecer) . '</div>';
+                $html .= '<div style="font-size:13px; margin-top:2px; color:#374151;">'.e($t->parecer).'</div>';
             }
             $html .= '</div>';
         }
@@ -453,23 +495,51 @@ class ProcessoFormService
         return $html;
     }
 
-    /** Lista de documentos anexados ao processo (apenas leitura/download). */
+    /** Lista de documentos anexados ao processo (apenas leitura/download), com o status da análise (PD-2). */
     public static function documentosHtml(ProcessoDigital $processo): string
     {
-        $anexos = ProcessoAnexo::where('processo_digital_id', $processo->id)->orderBy('id')->get();
+        // PD-1 — o 'requerimento_gerado' é artefato intermediário (fica no banco p/ auditoria,
+        // mas não polui a lista): só o requerimento ASSINADO pelo solicitante aparece.
+        $anexos = ProcessoAnexo::where('processo_digital_id', $processo->id)
+            ->where('tipo_anexo', '!=', 'requerimento_gerado')
+            ->orderBy('id')
+            ->get();
 
         if ($anexos->isEmpty()) {
             return '<span class="text-gray-500 italic">Nenhum documento anexado.</span>';
         }
 
+        $analisaveis = ProcessoChecklistService::anexosAnalisaveis($processo);
+        $analisaveisIds = $analisaveis->pluck('id');
+        $ultimas = ProcessoChecklistService::ultimasVersoes($analisaveis);
+
         $html = '<ul class="space-y-2">';
         foreach ($anexos as $anexo) {
             $url = \Illuminate\Support\Facades\Storage::url($anexo->caminho_arquivo);
             $icone = str_ends_with(strtolower($anexo->nome_arquivo), '.pdf') ? '📕' : '🖼️';
-            $tag = $anexo->tipo_anexo === 'anotado'
-                ? " <span class='text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-800'>anotado v{$anexo->versao}</span>"
-                : '';
-            $html .= "<li><a href='{$url}' target='_blank' class='text-primary-600 hover:text-primary-800 underline font-medium'>{$icone} " . e($anexo->nome_arquivo) . "</a>{$tag}</li>";
+
+            $tag = match ($anexo->tipo_anexo) {
+                'anotado' => " <span class='text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-800'>anotado v{$anexo->versao}</span>",
+                'requerimento_gerado' => " <span class='text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-800'>requerimento gerado v{$anexo->versao}</span>",
+                'requerimento_assinado' => " <span class='text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800'>assinado v{$anexo->versao}</span>",
+                default => '',
+            };
+
+            // PD-2 — badge do checklist: só a última versão da cadeia carrega o status vigente
+            if ($analisaveisIds->contains($anexo->id)) {
+                if (! $ultimas->contains($anexo->id)) {
+                    $tag .= " <span class='text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600'>substituído</span>";
+                } else {
+                    $tag .= match ($anexo->status_analise) {
+                        'aprovado' => " <span class='text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-800'>✔ aprovado</span>",
+                        'reprovado' => " <span class='text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-800'>✖ reprovado</span>"
+                            .($anexo->observacao_analise ? " <span class='text-xs text-red-700'>".e($anexo->observacao_analise).'</span>' : ''),
+                        default => " <span class='text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600'>aguardando análise</span>",
+                    };
+                }
+            }
+
+            $html .= "<li><a href='{$url}' target='_blank' class='text-primary-600 hover:text-primary-800 underline font-medium'>{$icone} ".e($anexo->nome_arquivo)."</a>{$tag}</li>";
         }
         $html .= '</ul>';
 
@@ -480,10 +550,12 @@ class ProcessoFormService
     {
         if (is_array($valor)) {
             if (isset($valor['lat'], $valor['lon'])) {
-                return number_format((float) $valor['lat'], 5) . ', ' . number_format((float) $valor['lon'], 5);
+                return number_format((float) $valor['lat'], 5).', '.number_format((float) $valor['lon'], 5);
             }
+
             return implode(', ', array_map(fn ($v) => is_scalar($v) ? (string) $v : json_encode($v), $valor));
         }
+
         return (string) $valor;
     }
 }

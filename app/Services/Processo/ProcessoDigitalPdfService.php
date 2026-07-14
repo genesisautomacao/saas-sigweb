@@ -61,6 +61,7 @@ class ProcessoDigitalPdfService
         }
 
         $documentos = ProcessoAnexo::where('processo_digital_id', $processo->id)
+            ->where('tipo_anexo', '!=', 'requerimento_gerado')
             ->orderBy('id')
             ->get()
             ->map(fn ($a) => [

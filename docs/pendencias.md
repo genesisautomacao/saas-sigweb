@@ -1,6 +1,6 @@
-# Backlog de Pendências — SIGWEB
-> Fonte de verdade para todas as implementações futuras.
-> Ao concluir um item: marcar `[x]`, adicionar `**Concluído em:** YYYY-MM-DD` e atualizar os contadores abaixo.
+# Backlog de Pendências — SIGWEB (PoC Nova Esperança do Sul/RS)
+
+> ⚠️ **ARQUIVO HISTÓRICO — NÃO USAR COMO BACKLOG.** A PoC de Nova Esperança do Sul/RS foi **vencida**; este arquivo é mantido apenas como registro. A fonte de verdade atual é **[pendenciasTangara.md](pendenciasTangara.md)** (PoC Tangará/SC).
 
 **Contexto:** Checklist gerado a partir da análise de conformidade da PoC de Nova Esperança do Sul/RS (260 itens).
 **Meta:** ≥ 90% dos itens cobertos (≥ 234/260). Meta atingida ao final do Sprint C1.

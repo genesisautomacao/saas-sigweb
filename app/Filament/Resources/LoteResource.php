@@ -371,6 +371,8 @@ class LoteResource extends Resource
                         if (!isset($data['percentual'])) return null;
                         return 'Divergência > ' . $data['percentual'] . '%';
                     }),
+
+                Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
                 Tables\Actions\Action::make('ver_no_mapa')
@@ -397,7 +399,24 @@ class LoteResource extends Resource
                     ->action(fn (Lote $record) => app(NotificacaoIrregularidadeService::class)->generatePdf($record)),
 
                 Tables\Actions\EditAction::make(),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    // Exclusão em lote (soft-delete — recuperável). Requer LotePolicy::deleteAny.
+                    Tables\Actions\DeleteBulkAction::make(),
+                    // Exclusão definitiva + restauração da lixeira (SoftDeletes).
+                    Tables\Actions\ForceDeleteBulkAction::make(),
+                    Tables\Actions\RestoreBulkAction::make(),
+                ]),
             ]);
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        // Remove só o SoftDeletingScope para o TrashedFilter / Restore / ForceDelete
+        // conseguirem enxergar os lotes na lixeira. O escopo de tenant continua ativo.
+        return parent::getEloquentQuery()
+            ->withoutGlobalScopes([\Illuminate\Database\Eloquent\SoftDeletingScope::class]);
     }
 
     public static function getRelations(): array

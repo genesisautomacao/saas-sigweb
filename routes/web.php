@@ -1,9 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\MapDataController;
-
-
+use Illuminate\Support\Facades\Route;
 
 /* Route::get('/', function () {
     return view('welcome');
@@ -23,10 +21,10 @@ Route::get('/api/mapa/estatisticas', [MapDataController::class, 'getEstatisticas
 
 // Exportação de camada em Shapefile (.zip) — TR Tangará Intranet #30
 Route::middleware(['web', 'auth'])->get('/api/mapa/export-shp', function (\Illuminate\Http\Request $request) {
-    $layer    = (string) $request->query('layer');
+    $layer = (string) $request->query('layer');
     $tenantId = (int) $request->query('tenant_id');
 
-    if (!$layer || !$tenantId) {
+    if (! $layer || ! $tenantId) {
         abort(400, 'Parâmetros layer e tenant_id são obrigatórios.');
     }
 
@@ -40,19 +38,23 @@ Route::get('/cidadao/lotes-geojson', [\App\Http\Controllers\CidadaoMapController
 Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/processo-anexo/{anexo}/anotar', [\App\Http\Controllers\ProcessoAnexoController::class, 'anotar'])->name('processo-anexo.anotar');
     Route::post('/processo-anexo/{anexo}/anotar', [\App\Http\Controllers\ProcessoAnexoController::class, 'salvar'])->name('processo-anexo.salvar');
+
+    // PD-1 — download do requerimento em PDF (gera a partir do template do fluxo)
+    Route::get('/processo/{processo}/requerimento', [\App\Http\Controllers\ProcessoRequerimentoController::class, 'gerar'])->name('processo.requerimento.gerar');
 });
 
 // Seletor público de prefeitura — usado quando o cidadão acessa o mapa anonimamente
 // e precisa escolher de qual município quer ver os dados.
 Route::get('/mapa-publico', function () {
     $tenants = \App\Models\Tenant::orderBy('name')->get(['id', 'slug', 'name']);
+
     return view('mapa-publico-selecionar-cidade', ['tenants' => $tenants]);
 })->name('mapa.publico.selecionar');
 
 // Atalho legado: redireciona para o seletor (ou direto para o mapa se vier com slug)
 Route::get('/mapa-anonimo/{tenantSlug?}', function (?string $tenantSlug = null) {
     return $tenantSlug
-        ? redirect('/cidadao/mapa-publico?t=' . urlencode($tenantSlug))
+        ? redirect('/cidadao/mapa-publico?t='.urlencode($tenantSlug))
         : redirect('/mapa-publico');
 })->name('mapa.anonimo');
 
@@ -66,9 +68,11 @@ Route::get('/gis/{tenantSlug}/map-permissions', function (\Illuminate\Http\Reque
     }
 
     $tenant = \App\Models\Tenant::where('slug', $tenantSlug)->first();
-    if (! $tenant) abort(404);
+    if (! $tenant) {
+        abort(404);
+    }
 
-    $userId   = auth()->id();
+    $userId = auth()->id();
     $tenantId = $tenant->id;
 
     // Bypass total para Master e Manager (raw query — evita cache Spatie)
@@ -117,11 +121,10 @@ Route::get('/gis/{tenantSlug}/map-permissions', function (\Illuminate\Http\Reque
     if ($anyToolbarPerm) {
         $toolbar = [
             'criar_artefatos' => $permNames->contains('toolbar_criar_artefatos'),
-            'ferramentas'     => $permNames->contains('toolbar_ferramentas'),
-            'filtros'         => $permNames->contains('toolbar_filtros'),
+            'ferramentas' => $permNames->contains('toolbar_ferramentas'),
+            'filtros' => $permNames->contains('toolbar_filtros'),
         ];
     }
 
     return response()->json(['bypass' => false, 'layers' => $layers, 'toolbar' => $toolbar]);
 })->middleware(['web', 'auth'])->name('gis.map-permissions');
-

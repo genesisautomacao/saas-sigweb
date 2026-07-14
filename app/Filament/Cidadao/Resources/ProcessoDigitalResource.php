@@ -3,13 +3,13 @@
 namespace App\Filament\Cidadao\Resources;
 
 use App\Filament\Cidadao\Resources\ProcessoDigitalResource\Pages;
-use App\Models\ProcessoDigital;
-use App\Models\BpmnFluxo;
 use App\Models\BpmnEtapa;
+use App\Models\BpmnFluxo;
+use App\Models\ProcessoDigital;
 use App\Services\Processo\ProcessoFormService;
 use Filament\Forms;
-use Filament\Forms\Get;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -20,16 +20,39 @@ class ProcessoDigitalResource extends Resource
 {
     // No painel Cidadão, qualquer usuário autenticado pode ver e criar seus
     // próprios processos. A trava real está no modifyQueryUsing (requerente_id).
-    public static function canViewAny(): bool { return Auth::check(); }
-    public static function canCreate(): bool { return Auth::check(); }
-    public static function canView($record): bool { return Auth::id() === $record->requerente_id; }
-    public static function canEdit($record): bool { return Auth::id() === $record->requerente_id; }
-    public static function canDelete($record): bool { return false; }
+    public static function canViewAny(): bool
+    {
+        return Auth::check();
+    }
+
+    public static function canCreate(): bool
+    {
+        return Auth::check();
+    }
+
+    public static function canView($record): bool
+    {
+        return Auth::id() === $record->requerente_id;
+    }
+
+    public static function canEdit($record): bool
+    {
+        return Auth::id() === $record->requerente_id;
+    }
+
+    public static function canDelete($record): bool
+    {
+        return false;
+    }
+
     protected static ?string $model = ProcessoDigital::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-folder-open';
+
     protected static ?string $modelLabel = 'Meu Processo';
+
     protected static ?string $pluralModelLabel = 'Meus Processos';
+
     protected static ?string $navigationLabel = 'Meus Processos';
 
     /** Estados em que o cidadão pode editar o formulário (item 129/220 — B16). */
@@ -42,7 +65,7 @@ class ProcessoDigitalResource extends Resource
             return BpmnEtapa::find($record->etapa_atual_id);
         }
 
-        if (!$fluxoId) {
+        if (! $fluxoId) {
             return null;
         }
 
@@ -74,105 +97,105 @@ class ProcessoDigitalResource extends Resource
     protected static function schemaCriacao(): array
     {
         return [
-                Forms\Components\Wizard::make([
-                    // PASSO 1: O QUE O CIDADÃO QUER? (bloqueado após a abertura)
-                    Forms\Components\Wizard\Step::make('Tipo de Pedido')
-                        ->icon('heroicon-o-document-magnifying-glass')
-                        ->schema([
-                            Forms\Components\Select::make('bpmn_fluxo_id')
-                                ->label('Qual serviço deseja solicitar?')
-                                // Item 4 — só os fluxos ativos da prefeitura (tenant) do cidadão logado
-                                ->options(fn () => BpmnFluxo::query()
-                                    ->where('ativo', true)
-                                    ->when(
-                                        Auth::user()?->tenants->first()?->id,
-                                        fn ($q, $tid) => $q->where('tenant_id', $tid)
-                                    )
-                                    ->pluck('nome', 'id'))
-                                ->required()
-                                ->reactive()
-                                ->disabled(fn (?ProcessoDigital $record) => filled($record)) // não muda o tipo depois de aberto
-                                ->helperText('Ex: Aprovação de Projeto, REURB, Habite-se.'),
-                        ]),
+            Forms\Components\Wizard::make([
+                // PASSO 1: O QUE O CIDADÃO QUER? (bloqueado após a abertura)
+                Forms\Components\Wizard\Step::make('Tipo de Pedido')
+                    ->icon('heroicon-o-document-magnifying-glass')
+                    ->schema([
+                        Forms\Components\Select::make('bpmn_fluxo_id')
+                            ->label('Qual serviço deseja solicitar?')
+                            // Item 4 — só os fluxos ativos da prefeitura (tenant) do cidadão logado
+                            ->options(fn () => BpmnFluxo::query()
+                                ->where('ativo', true)
+                                ->when(
+                                    Auth::user()?->tenants->first()?->id,
+                                    fn ($q, $tid) => $q->where('tenant_id', $tid)
+                                )
+                                ->pluck('nome', 'id'))
+                            ->required()
+                            ->reactive()
+                            ->disabled(fn (?ProcessoDigital $record) => filled($record)) // não muda o tipo depois de aberto
+                            ->helperText('Ex: Aprovação de Projeto, REURB, Habite-se.'),
+                    ]),
 
-                    // PASSO 2: SELEÇÃO DO IMÓVEL — depende do modo_imovel do fluxo (item 2)
-                    Forms\Components\Wizard\Step::make('Localização do Imóvel')
-                        ->icon('heroicon-o-map')
-                        ->visible(fn (Get $get, ?ProcessoDigital $record) => self::modoImovel($get, $record) !== 'nenhum')
-                        ->schema(function (Get $get, ?ProcessoDigital $record) {
-                            $modo = self::modoImovel($get, $record);
-                            $disabled = !self::podeEditar($record);
-                            $campos = [];
+                // PASSO 2: SELEÇÃO DO IMÓVEL — depende do modo_imovel do fluxo (item 2)
+                Forms\Components\Wizard\Step::make('Localização do Imóvel')
+                    ->icon('heroicon-o-map')
+                    ->visible(fn (Get $get, ?ProcessoDigital $record) => self::modoImovel($get, $record) !== 'nenhum')
+                    ->schema(function (Get $get, ?ProcessoDigital $record) {
+                        $modo = self::modoImovel($get, $record);
+                        $disabled = ! self::podeEditar($record);
+                        $campos = [];
 
-                            if ($modo === 'mapa') {
-                                $campos[] = Forms\Components\Placeholder::make('dica_mapa')
-                                    ->hiddenLabel()
-                                    ->content(new \Illuminate\Support\HtmlString('
+                        if ($modo === 'mapa') {
+                            $campos[] = Forms\Components\Placeholder::make('dica_mapa')
+                                ->hiddenLabel()
+                                ->content(new \Illuminate\Support\HtmlString('
                                         <div class="p-4 mb-4 text-sm text-blue-800 rounded-lg bg-blue-50 dark:bg-gray-800 dark:text-blue-400" role="alert">
                                           <span class="font-medium">Instrução:</span> Navegue pelo mapa e clique em cima do seu Lote/Terreno.
                                         </div>
                                     '));
 
-                                $campos[] = Forms\Components\ViewField::make('lote_id')
-                                    ->hiddenLabel()
-                                    ->view('filament.forms.components.mapa-selecao-lote')
-                                    ->required()
-                                    ->disabled($disabled)
-                                    ->helperText('Obrigatório clicar num lote para avançar.');
-                            } elseif ($modo === 'busca') {
-                                $campos[] = Forms\Components\Select::make('lote_id')
-                                    ->label('Buscar imóvel (nº do lote ou código tributário)')
-                                    ->required()
-                                    ->disabled($disabled)
-                                    ->searchable()
-                                    ->live()
-                                    ->getSearchResultsUsing(fn (string $search) => self::buscarLotes($search))
-                                    ->getOptionLabelUsing(fn ($value) => self::rotuloLotePorId($value))
-                                    ->helperText('Digite o número do lote ou o código tributário e selecione.');
-                            }
+                            $campos[] = Forms\Components\ViewField::make('lote_id')
+                                ->hiddenLabel()
+                                ->view('filament.forms.components.mapa-selecao-lote')
+                                ->required()
+                                ->disabled($disabled)
+                                ->helperText('Obrigatório clicar num lote para avançar.');
+                        } elseif ($modo === 'busca') {
+                            $campos[] = Forms\Components\Select::make('lote_id')
+                                ->label('Buscar imóvel (nº do lote ou código tributário)')
+                                ->required()
+                                ->disabled($disabled)
+                                ->searchable()
+                                ->live()
+                                ->getSearchResultsUsing(fn (string $search) => self::buscarLotes($search))
+                                ->getOptionLabelUsing(fn ($value) => self::rotuloLotePorId($value))
+                                ->helperText('Digite o número do lote ou o código tributário e selecione.');
+                        }
 
-                            // Ficha do imóvel selecionado (itens 130/141/221) — em ambos os modos
-                            $campos[] = Forms\Components\Placeholder::make('dados_imovel')
-                                ->label('Dados do Imóvel Selecionado')
-                                ->visible(fn (Get $get) => filled($get('lote_id')))
-                                ->content(fn (Get $get) => new \Illuminate\Support\HtmlString(
-                                    ProcessoFormService::dadosImovelHtml($get('lote_id'))
-                                ));
+                        // Ficha do imóvel selecionado (itens 130/141/221) — em ambos os modos
+                        $campos[] = Forms\Components\Placeholder::make('dados_imovel')
+                            ->label('Dados do Imóvel Selecionado')
+                            ->visible(fn (Get $get) => filled($get('lote_id')))
+                            ->content(fn (Get $get) => new \Illuminate\Support\HtmlString(
+                                ProcessoFormService::dadosImovelHtml($get('lote_id'))
+                            ));
 
-                            return $campos;
-                        }),
+                        return $campos;
+                    }),
 
-                    // PASSO 3: O FORMULÁRIO DA ETAPA ATUAL (abertura = 1ª etapa; retorno = etapa atual)
-                    Forms\Components\Wizard\Step::make('Formulário / Documentação')
-                        ->icon('heroicon-o-paper-clip')
-                        ->schema(function (Get $get, ?ProcessoDigital $record) {
-                            $etapa = self::etapaDoFormulario($record, $get('bpmn_fluxo_id'));
-                            $disabled = !self::podeEditar($record);
+                // PASSO 3: O FORMULÁRIO DA ETAPA ATUAL (abertura = 1ª etapa; retorno = etapa atual)
+                Forms\Components\Wizard\Step::make('Formulário / Documentação')
+                    ->icon('heroicon-o-paper-clip')
+                    ->schema(function (Get $get, ?ProcessoDigital $record) {
+                        $etapa = self::etapaDoFormulario($record, $get('bpmn_fluxo_id'));
+                        $disabled = ! self::podeEditar($record);
 
-                            $schema = [];
+                        $schema = [];
 
-                            // Item 3 — os documentos agora são campos de upload NOMEADOS do formulário
-                            // da etapa (ex.: "Foto do CPF", "Escritura"). Não há mais anexos soltos.
-                            $campos = ProcessoFormService::camposDaEtapa($etapa, $disabled);
-                            if (!empty($campos)) {
-                                $schema[] = Forms\Components\Section::make('Preenchimento Exigido')
-                                    ->description($etapa?->nome ? "Etapa: {$etapa->nome}" : 'Preencha os dados solicitados pela prefeitura.')
-                                    ->schema($campos)
-                                    ->columns(2);
-                            } else {
-                                $schema[] = Forms\Components\Placeholder::make('sem_campos')
-                                    ->hiddenLabel()
-                                    ->content('Esta etapa não exige preenchimento adicional. Clique em "Enviar para Análise".');
-                            }
+                        // Item 3 — os documentos agora são campos de upload NOMEADOS do formulário
+                        // da etapa (ex.: "Foto do CPF", "Escritura"). Não há mais anexos soltos.
+                        $campos = ProcessoFormService::camposDaEtapa($etapa, $disabled);
+                        if (! empty($campos)) {
+                            $schema[] = Forms\Components\Section::make('Preenchimento Exigido')
+                                ->description($etapa?->nome ? "Etapa: {$etapa->nome}" : 'Preencha os dados solicitados pela prefeitura.')
+                                ->schema($campos)
+                                ->columns(2);
+                        } else {
+                            $schema[] = Forms\Components\Placeholder::make('sem_campos')
+                                ->hiddenLabel()
+                                ->content('Esta etapa não exige preenchimento adicional. Clique em "Enviar para Análise".');
+                        }
 
-                            return $schema;
-                        }),
-                ])
-                    // Item 6 — o botão de envio só aparece na ÚLTIMA etapa do wizard
-                    ->submitAction(new \Illuminate\Support\HtmlString(
-                        '<button type="submit" wire:loading.attr="disabled" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-70">Enviar para Análise</button>'
-                    ))
-                    ->columnSpanFull(),
+                        return $schema;
+                    }),
+            ])
+                // Item 6 — o botão de envio só aparece na ÚLTIMA etapa do wizard
+                ->submitAction(new \Illuminate\Support\HtmlString(
+                    '<button type="submit" wire:loading.attr="disabled" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-70">Enviar para Análise</button>'
+                ))
+                ->columnSpanFull(),
         ];
     }
 
@@ -212,32 +235,127 @@ class ProcessoDigitalResource extends Resource
                 ]),
 
             Forms\Components\Section::make('Preenchimento da Etapa Atual')
-                ->description(fn (?ProcessoDigital $record) => 'Etapa: ' . ($record?->etapaAtual?->nome ?? '—'))
+                ->description(fn (?ProcessoDigital $record) => 'Etapa: '.($record?->etapaAtual?->nome ?? '—'))
                 ->schema(function (?ProcessoDigital $record) {
                     $etapa = $record?->etapaAtual;
-                    $disabled = !self::podeEditar($record);
-                    $campos = ProcessoFormService::camposDaEtapa($etapa, $disabled);
+                    $disabled = ! self::podeEditar($record);
+                    $campos = ProcessoFormService::camposDaEtapa($etapa, $disabled, false, $record);
 
-                    return !empty($campos) ? $campos : [
+                    return ! empty($campos) ? $campos : [
                         Forms\Components\Placeholder::make('sem_campos')
                             ->hiddenLabel()
                             ->content('Esta etapa não exige preenchimento adicional. Clique em "Enviar para Análise".'),
                     ];
                 })
                 ->columns(2),
+
+            // PD-1 (fase 1) — o requerimento só é gerado DEPOIS dos dados salvos, senão as
+            // variáveis {{campo:...}} sairiam vazias no PDF. Aqui, só o aviso do próximo passo.
+            Forms\Components\Placeholder::make('requerimento_aviso_fase1')
+                ->hiddenLabel()
+                ->visible(fn (?ProcessoDigital $record) => $record !== null
+                    && self::podeEditar($record)
+                    && $record->precisaRequerimentoAssinado()
+                    && ! self::etapaFormularioRespondida($record))
+                ->content(new \Illuminate\Support\HtmlString(
+                    '<div class="p-4 text-sm text-blue-800 rounded-lg bg-blue-50 dark:bg-gray-800 dark:text-blue-400" role="alert">'
+                    .'📄 <span class="font-medium">Este serviço exige um requerimento assinado.</span> '
+                    .'Preencha os dados e anexos acima e clique em <strong>"Enviar para Análise"</strong> — '
+                    .'na sequência, o requerimento será gerado já preenchido para você assinar e anexar.'
+                    .'</div>'
+                ))
+                ->columnSpanFull(),
+
+            // PD-1 (fase 2) — dados da etapa já salvos: gerar → assinar → anexar o PDF assinado.
+            Forms\Components\Section::make('Requerimento da Prefeitura')
+                ->icon('heroicon-o-document-text')
+                ->description('Última pendência: gere o requerimento (já preenchido com os dados enviados), assine e anexe abaixo.')
+                ->visible(fn (?ProcessoDigital $record) => $record !== null
+                    && self::podeEditar($record)
+                    && $record->precisaRequerimentoAssinado()
+                    && self::etapaFormularioRespondida($record))
+                ->schema([
+                    Forms\Components\Placeholder::make('requerimento_instrucoes')
+                        ->hiddenLabel()
+                        ->content(fn (?ProcessoDigital $record) => new \Illuminate\Support\HtmlString(
+                            self::requerimentoInstrucoesHtml($record)
+                        ))
+                        ->columnSpanFull(),
+
+                    Forms\Components\FileUpload::make('requerimento_assinado_upload')
+                        ->label('Requerimento assinado (PDF)')
+                        ->helperText('Anexe aqui o requerimento gerado acima, já assinado (digitalizado ou com assinatura digital).')
+                        ->acceptedFileTypes(['application/pdf'])
+                        ->directory('processos_anexos')
+                        ->maxSize(10240)
+                        ->required()
+                        ->columnSpanFull(),
+                ]),
         ];
+    }
+
+    /**
+     * PD-1 — a etapa atual já teve o formulário respondido/salvo? (fase 1 → fase 2 do
+     * requerimento). Etapa sem campos conta como respondida — não há o que preencher antes.
+     */
+    protected static function etapaFormularioRespondida(?ProcessoDigital $record): bool
+    {
+        if (! $record || ! $record->etapaAtual) {
+            return false;
+        }
+
+        if (empty($record->etapaAtual->campos_formulario)) {
+            return true;
+        }
+
+        return filled(data_get($record->dados_formulario, ProcessoFormService::chaveEtapa($record->etapa_atual_id)));
+    }
+
+    /** PD-1 — instruções (gerar → assinar → anexar) + alerta se o assinado anterior foi reprovado. */
+    protected static function requerimentoInstrucoesHtml(?ProcessoDigital $record): string
+    {
+        if (! $record) {
+            return '';
+        }
+
+        $url = route('processo.requerimento.gerar', $record);
+
+        $html = '<div class="text-sm space-y-2">'
+            .'<ol class="list-decimal pl-5 space-y-1">'
+            .'<li>Clique em <strong>Gerar Requerimento</strong> e baixe o PDF já preenchido com os dados que você enviou.</li>'
+            .'<li><strong>Assine</strong> o documento (à mão e digitalize, ou com a sua assinatura digital).</li>'
+            .'<li><strong>Anexe o PDF assinado</strong> no campo abaixo e clique em "Enviar para Análise".</li>'
+            .'</ol>'
+            .'<a href="'.e($url).'" target="_blank" class="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500">'
+            .'📄 Gerar Requerimento (PDF)</a>'
+            .'</div>';
+
+        // Cruzamento com PD-2: o analista reprovou o requerimento assinado → mostra o motivo
+        $ultimoAssinado = $record->anexos()
+            ->where('tipo_anexo', 'requerimento_assinado')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($ultimoAssinado && $ultimoAssinado->status_analise === 'reprovado') {
+            $motivo = $ultimoAssinado->observacao_analise ?: 'Reenvie o requerimento assinado corrigido.';
+            $html .= '<div class="mt-3 p-3 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 border border-red-300">'
+                .'<strong>O requerimento assinado anterior foi reprovado:</strong> '.e($motivo)
+                .'</div>';
+        }
+
+        return $html;
     }
 
     /** Resumo read-only do processo (protocolo, serviço, fase, imóvel) para a tela de correção. */
     protected static function resumoHtml(?ProcessoDigital $record): string
     {
-        if (!$record) {
+        if (! $record) {
             return '';
         }
 
         $linha = fn ($rotulo, $valor) => '<div class="flex justify-between gap-4 py-0.5">'
-            . '<span class="text-gray-500">' . e($rotulo) . '</span>'
-            . '<span class="font-medium text-right">' . e($valor ?: '—') . '</span></div>';
+            .'<span class="text-gray-500">'.e($rotulo).'</span>'
+            .'<span class="font-medium text-right">'.e($valor ?: '—').'</span></div>';
 
         $html = '<div class="text-sm space-y-0.5">';
         $html .= $linha('Protocolo', $record->codigo_processo);
@@ -246,7 +364,7 @@ class ProcessoDigitalResource extends Resource
         $html .= '</div>';
 
         if ($record->lote_id) {
-            $html .= '<div class="mt-2">' . ProcessoFormService::dadosImovelHtml($record->lote_id) . '</div>';
+            $html .= '<div class="mt-2">'.ProcessoFormService::dadosImovelHtml($record->lote_id).'</div>';
         }
 
         return $html;
@@ -261,7 +379,7 @@ class ProcessoDigitalResource extends Resource
         }
 
         $fluxoId = $get('bpmn_fluxo_id');
-        if (!$fluxoId) {
+        if (! $fluxoId) {
             return 'mapa';
         }
 
@@ -291,12 +409,12 @@ class ProcessoDigitalResource extends Resource
     {
         $cad = optional($lote->unidadesImobiliarias->first())->codigo_imovel_tributario;
 
-        return 'Lote ' . ($lote->numero_lote ?? 'S/N') . ($cad ? " — Cód. {$cad}" : '');
+        return 'Lote '.($lote->numero_lote ?? 'S/N').($cad ? " — Cód. {$cad}" : '');
     }
 
     protected static function rotuloLotePorId($value): ?string
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 

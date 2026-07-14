@@ -1,5 +1,7 @@
 # Backlog de Pendências 2 — SIGWEB (Balanço Corrigido + Plano para 91%)
 
+> ⚠️ **ARQUIVO HISTÓRICO — NÃO USAR COMO BACKLOG.** A PoC de Nova Esperança do Sul/RS foi **vencida**; este arquivo é mantido apenas como registro. A fonte de verdade atual é **[pendenciasTangara.md](pendenciasTangara.md)** (PoC Tangará/SC).
+
 > **Criado em:** 2026-07-03
 > **Origem:** Checagem avançada cruzando o **PDF da PoC de Nova Esperança do Sul/RS (Anexo III, 260 itens)** × [pendencias.md](pendencias.md) × código-fonte real.
 > **Motivo de existir (separado do `pendencias.md`):** o arquivo original declara ~85% contabilizando parte do **App de Chamados do Cidadão** e sobreposições de infraestrutura BPMN/Manutenção como "cobertas". Sob a orientação de negócio confirmada — **o App de Chamados NÃO tem backend nem frontend** — esses itens (Módulos XV + XVI) voltam para ❌, e o número real cai. Este arquivo registra o **balanço honesto** e o **plano de ação para 91%**.

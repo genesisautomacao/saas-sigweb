@@ -523,8 +523,8 @@ class TenantResource extends Resource
                                     }
 
                                     // Demais propriedades
-                                    if (isset($props->numero_lot) || isset($props->numero)) {
-                                        $fillData['numero_lote'] = $props->numero_lot ?? $props->numero;
+                                    if (isset($props->numero_lote) || isset($props->numero_lot) || isset($props->numero)) {
+                                        $fillData['numero_lote'] = $props->numero_lote ?? $props->numero_lot ?? $props->numero;
                                     }
                                     if (isset($props->area_geo)) {
                                         $fillData['area_geo'] = $props->area_geo;
@@ -580,6 +580,68 @@ class TenantResource extends Resource
                                 \Filament\Notifications\Notification::make()
                                     ->danger()->title('Erro no Banco de Dados')
                                     ->body($e->getMessage())->send();
+                            }
+                        }),
+
+                    // --- AÇÃO: RECALCULAR ÁREAS/EXTENSÕES VIA POSTGIS ---
+                    // Complemento do importador GIS: preenche area_geo/extensao_geo
+                    // chamando o comando gis:recalcular-metadata para o tenant da linha.
+                    Tables\Actions\Action::make('recalcular_gis')
+                        ->label('Recalcular Áreas (GIS)')
+                        ->icon('heroicon-o-calculator')
+                        ->color('info')
+                        ->form([
+                            Forms\Components\Select::make('entidade')
+                                ->label('Entidade')
+                                ->placeholder('Todas as entidades')
+                                ->helperText('Deixe em branco para recalcular todas.')
+                                ->options([
+                                    'perimetros_urbanos' => 'Perímetros Urbanos',
+                                    'zonas' => 'Zonas',
+                                    'bairros' => 'Bairros',
+                                    'loteamentos' => 'Loteamentos',
+                                    'quadras' => 'Quadras',
+                                    'lotes' => 'Lotes',
+                                    'logradouros' => 'Logradouros',
+                                    'secoes_logradouro' => 'Seções de Logradouro',
+                                    'meio_fios' => 'Meio-fios',
+                                ]),
+                            Forms\Components\Toggle::make('force')
+                                ->label('Sobrescrever valores existentes')
+                                ->helperText('Desligado: calcula só registros com área/extensão vazia (seguro após importação). Ligado: recalcula tudo a partir da geometria atual.')
+                                ->default(false),
+                        ])
+                        ->modalHeading('Recalcular áreas e extensões via PostGIS')
+                        ->modalDescription('Calcula area_geo (polígonos) e extensao_geo (linhas) a partir da geometria dos registros desta prefeitura.')
+                        ->modalSubmitActionLabel('Recalcular')
+                        ->action(function (Tenant $record, array $data) {
+                            $params = ['--tenant' => $record->slug];
+
+                            if (! empty($data['entidade'])) {
+                                $params['--entidade'] = $data['entidade'];
+                            }
+                            if (! empty($data['force'])) {
+                                $params['--force'] = true;
+                            }
+
+                            $exitCode = \Illuminate\Support\Facades\Artisan::call('gis:recalcular-metadata', $params);
+                            $output = \Illuminate\Support\Facades\Artisan::output();
+
+                            // Mostra só o resumo na notificação (o detalhe por tabela fica no output do comando)
+                            preg_match('/Total atualizado: .+/u', $output, $match);
+
+                            if ($exitCode === 0) {
+                                Notification::make()
+                                    ->success()
+                                    ->title('Recálculo concluído!')
+                                    ->body($match[0] ?? trim($output))
+                                    ->send();
+                            } else {
+                                Notification::make()
+                                    ->danger()
+                                    ->title('Falha no recálculo')
+                                    ->body(trim($output) ?: 'Verifique os logs do sistema.')
+                                    ->send();
                             }
                         }),
 

@@ -6,14 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Backlog de Pendências
 
-O arquivo [pendencias.md](pendencias.md) é a fonte de verdade para todas as implementações futuras deste projeto. **Todo agente deve:**
+O arquivo [docs/pendenciasTangara.md](docs/pendenciasTangara.md) é a fonte de verdade para todas as implementações futuras deste projeto (backlog da **PoC de Tangará/SC** — análise de conformidade item-a-item em [docs/PocTangara_plano.md](docs/PocTangara_plano.md)). **Todo agente deve:**
 
-1. **Consultar `pendencias.md` antes de iniciar qualquer implementação** para entender o escopo, a prioridade e os detalhes técnicos da tarefa.
-2. **Ao concluir uma pendência, atualizar `pendencias.md` imediatamente:**
-   - Trocar o emoji de status do item pelo ✅ (ex: `#### ~~P1 — ...~~` com riscado no título, ou inserir `**Status: ✅ Concluído**` logo abaixo do título da pendência).
+1. **Consultar `docs/pendenciasTangara.md` antes de iniciar qualquer implementação** para entender o escopo, a prioridade e os detalhes técnicos da tarefa.
+2. **Ao concluir uma pendência, atualizar `docs/pendenciasTangara.md` imediatamente:**
+   - Trocar o emoji de status do item pelo ✅ (ex: `#### ~~T1.1 — ...~~` com riscado no título, ou inserir `**Status:** ✅ Concluído` logo abaixo do título da pendência).
    - Registrar a data de conclusão: `**Concluído em:** YYYY-MM-DD`.
    - Atualizar os contadores da tabela de conformidade no topo do arquivo se aplicável.
-3. **Nunca implementar algo fora do backlog sem antes registrar a intenção em `pendencias.md`** — novas tarefas identificadas durante o desenvolvimento devem ser adicionadas ao arquivo antes de serem executadas.
+3. **Nunca implementar algo fora do backlog sem antes registrar a intenção em `docs/pendenciasTangara.md`** — novas tarefas identificadas durante o desenvolvimento devem ser adicionadas ao arquivo antes de serem executadas.
+
+> ⚠️ **Backlogs históricos (NÃO usar):** `docs/pendencias.md` e `docs/pendencias2.md` pertencem à PoC de Nova Esperança do Sul/RS, **já vencida**. São mantidos apenas como registro histórico — itens, contadores e sprints deles não valem mais como pendência de trabalho.
 
 ## Commands
 
@@ -71,7 +73,22 @@ Each `Tenant` has a `modules` JSON column. Active module strings map to resource
 | `social` | Pessoa-Social, CadastroSocial (Família), TipoRenda, TipoEntidade, Entidade, ServiçoSocial, Programa, Evento, InformaçãoSocial, Empreendimento, Painel Social |
 | `bpmn` | BpmnFluxo, ProcessoDigital |
 
-> **Processos Digitais (BPMN) — material de estudo:** [processosConceito.md](processosConceito.md) — o motor de processos é **único e configurável por fluxos BPMN**: "Aprovação de Projeto" (XIII), "Habite-se" (XIV) e "REURB" (XVIII) são **fluxos-semente do mesmo motor**, não módulos separados. Documenta a arquitetura do **fluxo híbrido** (cada `BpmnEtapa` declara `executor` [solicitante|analista] + formulário próprio; respostas por etapa em `processo_respostas`; roteamento livre via tramitação), o vínculo **User↔Pessoa** (`pessoas.user_id`), a entidade **`Setor`** (swimlanes) e o plano de execução em ondas. Ler antes de mexer no motor de processos.
+> **Processos Digitais (BPMN) — material de estudo:** [docs/processosConceito.md](docs/processosConceito.md) — o motor de processos é **único e configurável por fluxos BPMN**: "Aprovação de Projeto" (XIII), "Habite-se" (XIV) e "REURB" (XVIII) são **fluxos-semente do mesmo motor**, não módulos separados. Documenta a arquitetura do **fluxo híbrido** (cada `BpmnEtapa` declara `executor` [solicitante|analista] + formulário próprio; respostas por etapa em `processo_respostas`; roteamento livre via tramitação), o vínculo **User↔Pessoa** (`pessoas.user_id`), a entidade **`Setor`** (swimlanes) e o plano de execução em ondas. Ler antes de mexer no motor de processos.
+
+> **Requerimento assinado (PD-1) + Checklist por anexo (PD-2)** — extensões do motor (2026-07-14, implantação Bom Princípio/RS):
+> - **PD-1:** `bpmn_fluxos.exige_requerimento` (toggle) + `template_requerimento` (RichEditor no `BpmnFluxoResource` com placeholders `{{nome}} {{cpf}} {{rg}} {{telefone}} {{email}} {{endereco}} {{protocolo}} {{fluxo}} {{data}} {{data_extenso}} {{municipio}} {{lote}} {{quadra}} {{loteamento}} {{endereco_imovel}} {{inscricao}} {{campo:slug}}`). Substituição **segura** via `preg_replace_callback` + `e()` em [RequerimentoPdfService](app/Services/Processo/RequerimentoPdfService.php) — **nunca `Blade::render`** (RCE); chave desconhecida sai literal. A **etapa em que o requerimento é exigido é configurável**: toggle `exige_requerimento` na `BpmnEtapa` (visível só em etapas do solicitante, no `EtapasRelationManager`) — `BpmnFluxo::etapaRequerimento()` resolve a etapa marcada (1ª por ordem) com **fallback para a 1ª etapa do fluxo** (caso de uso: etapa 0 = só abertura, variáveis preenchidas depois). Na etapa do requerimento o processo fica `aguardando_solicitante` e **não avança**, em **duas fases**: primeiro o cidadão preenche/anexa os campos do formulário da etapa e envia (salva os dados — a seção do requerimento fica oculta até aí, via `etapaFormularioRespondida()`, senão as `{{campo:...}}` sairiam vazias no PDF); só então aparece a seção "Requerimento da Prefeitura" (abaixo do formulário): o cidadão gera o PDF (rota `processo.requerimento.gerar` → [ProcessoRequerimentoController](app/Http/Controllers/ProcessoRequerimentoController.php), blade `pdf/requerimento-template.blade.php` com linha de assinatura; persiste anexo `requerimento_gerado` — **oculto das listas de documentos**, que só exibem o assinado), assina fora do sistema e anexa o assinado (anexo `requerimento_assinado`, versionado via `versao`/`anexo_origem_id`). O gate `ProcessoDigital::precisaRequerimentoAssinado()` (checado no `afterCreate`/`afterSave` das pages do painel cidadão) dispara **na etapa do requerimento** quando nunca assinado, e em **qualquer etapa do solicitante** quando o assinado foi reprovado no checklist (reassinatura na correção) — a lógica de roteamento do `ProcessoFormService` fica intocada. Os `{{campo:slug}}` resolvem de **todas as etapas já respondidas** (slug repetido: vale a etapa mais adiante).
+> - ⚠️ **Save parcial do cidadão:** `Form::getState()` do Filament parte do `validate()` e devolve **só os caminhos com componente na tela** (= a etapa atual). Por isso o `EditProcessoDigital::mutateFormDataBeforeSave` faz `array_replace($record->dados_formulario, $data['dados_formulario'])` — sem esse merge, cada save do cidadão apagaria as respostas das outras etapas (e os `{{campo:slug}}` do requerimento). Snapshots em `processo_respostas` são a fonte de recuperação caso ocorra perda.
+> - **PD-2:** análise **por anexo** em `processo_anexos` (`status_analise` pendente|aprovado|reprovado, `observacao_analise`, `analisado_por_id`/`analisado_em`, `campo_slug` = vínculo robusto campo↔anexo). [ProcessoChecklistService](app/Services/Processo/ProcessoChecklistService.php) centraliza tudo (analisáveis = `ProcessoAnexo::TIPOS_ANALISAVEIS` enviados pelo requerente; só a **última versão** de cada cadeia conta). UI do analista = botões inline em `processo-anexos.blade.php` (métodos `aprovarAnexo()` + action `reprovarAnexo` na `ViewProcessoDigital` do painel app). O modal "Avançar Processo" mostra o resumo do checklist, **bloqueia aprovar a etapa com item reprovado** (`$action->halt()`) e, na reprova, concatena os itens reprovados ao parecer (flui p/ tramitação + e-mail). Na correção, `camposDaEtapa(..., $processo)` **trava** o campo de anexo aprovado (⚠️ `disabled()->dehydrated(true)` — nunca `dehydrated(false)`, que apagaria o path do `dados_formulario`) e exige substituir o reprovado; a substituição cria nova versão que nasce `pendente` de novo.
+
+### Notificações Transacionais por E-mail (Resend)
+
+Disparo automático de e-mails ao **cidadão (requerente)** a cada transição relevante do seu **Processo Digital (BPMN)**, via **Resend** com credenciais **globais** (uma vez, no painel Admin) válidas para todas as tenants.
+
+- **Credenciais globais (super usuário):** model [ApiSetting](app/Models/ApiSetting.php) (`api_settings`: `name` único + `data` JSON KeyValue, **não** escopado por tenant) + [ApiSettingResource](app/Filament/Admin/Resources/ApiSettingResource.php) no painel `/admin`, grupo "Configurações Globais". Cadastrar `name = "Resend"` com as chaves `RESEND_API_KEY`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`. O [AppServiceProvider::boot()](app/Providers/AppServiceProvider.php) injeta a config do Resend (`mail.default=resend`, `mail.mailers.resend.api_key`, `resend.api_key`, `mail.from.*`) a partir dessa linha (guardado por `Schema::hasTable`; sem a linha, o mailer segue `log`/env — nada quebra). Pacote: `resend/resend-laravel`. **O padrão `ApiSetting` é genérico** — reusável p/ AWS S3/WhatsApp/etc. no futuro.
+- **Motor de disparo:** [ProcessoNotificacaoService::notificarTransicao($processo, $statusParecer, $parecer)](app/Services/Processo/ProcessoNotificacaoService.php) — **best-effort** (nunca lança; falha vira `Log::warning`). Chamado ao fim de `avancarProximaEtapa()` e `julgarEtapa()` em [ProcessoFormService.php](app/Services/Processo/ProcessoFormService.php), os **dois únicos pontos** por onde toda transição passa (cada uma grava 1 `ProcessoTramitacao` → 1 e-mail no máx., sem duplicar). Decide o e-mail pela matriz `status` resultante + `status_parecer`:
+  - `aguardando_solicitante` → **ação necessária** · `pendente_correcao` → **correção** (inclui o parecer) · `em_andamento`+`aprovado` → **aprovada/avançou** · `concluido` → **concluído**. `em_andamento`+`encaminhado`/`reprovado` → **nenhum** e-mail (bounce interno entre analistas / envio recém-feito pelo cidadão).
+- **Notification:** [ProcessoDigitalNotification](app/Notifications/ProcessoDigitalNotification.php) (canal `mail`, **envio síncrono** — inline na requisição, **sem `ShouldQueue`/worker**, como o `ExpoPushService`) — guarda só o `processoId`, re-busca com `withoutGlobalScopes()` no `toMail`, remetente = domínio Resend + **nome da prefeitura** (`from-name = tenant->name`), view branded [emails/processo-notificacao.blade.php](resources/views/emails/processo-notificacao.blade.php) (cor `data['color']` + logo do tenant), botão → `ProcessoDigitalResource::getUrl('view', ['record'=>id], panel:'cidadao')`. Guardas: só envia se `requerente->isCidadao()` + tem e-mail.
+- **Operacional:** envio síncrono → **não precisa de worker de fila** (o `notify()` é best-effort no `ProcessoNotificacaoService`; adiciona ~300-500ms à ação). Para enfileirar no futuro: `implements ShouldQueue` + `use Queueable` na Notification + rodar um worker (`queue:work`/`composer run dev`). ⚠️ Em views de e-mail **não** use a variável `$message` (reservada pelo Laravel = `Illuminate\Mail\Message`) — a view usa `$corpo`.
 
 ### GIS / Mapping
 
@@ -156,6 +173,7 @@ Faz upsert em `unidades_imobiliarias.dados_tributarios` por `inscricao_imobiliar
 ### Key Conventions
 
 - All Filament forms use Portuguese field labels and entity names (Brazil-specific).
+- **Exclusão em lote no `LoteResource`:** `bulkActions` com `DeleteBulkAction` + `ForceDeleteBulkAction` + `RestoreBulkAction` (`Lote` usa `SoftDeletes` → delete recuperável, gerenciável pelo `TrashedFilter`; `getEloquentQuery()` remove só o `SoftDeletingScope`, mantém o de tenant). A `LotePolicy` expõe `deleteAny`/`restore`/`restoreAny`/`forceDelete`/`forceDeleteAny` (todas checam `delete_lotes`); Master/Manager mantêm bypass via `Gate::before`. FK `unidade_imobiliarias.lote_id`/`edificacoes.lote_id` = `cascadeOnDelete` só dispara no **force delete** (hard delete); soft delete preserva os filhos.
 - Sequential IDs per tenant are managed by the `HasTenantSequentialId` trait.
 - PDF generation uses `barryvdh/laravel-dompdf`.
 - Export Services (`app/Services/Exports/*ExportService.php`) follow a 3-method convention: `exportToExcel()` (Spatie SimpleExcel — `addNewSheetAndMakeItCurrent()` for multi-sheet workbooks), `exportToPdf()` (DomPDF + blade view), and `exportToXml()` (raw `SimpleXMLElement`, returned via `streamDownload` with `Content-Type: application/xml`). `LoteExportService` nests `unidadesImobiliarias`/`edificacoes` (via `lote_id`) in all three formats — XML as child elements, Excel as separate sheets, PDF via `pdf/lote-detalhado-report.blade.php` (per-lote block with sub-tables). `QuadraExportService`/`LogradouroExportService`/`LoteamentoExportService`/`BairroExportService` also expose `exportToXml()`. **Os 4 formatos XLS/PDF/CSV/XML** estão completos no núcleo imobiliário (`Lote`, `Quadra`, `Bairro`, `Logradouro`, `Loteamento` — item 015) e no `Produto` (item 053) — cada um com os 4 botões no `ActionGroup` da List page. Iluminação/Arborização/Rural (`Poste`, `Arvore`, `SolicitacaoManutencao`, `OrdemServico`, e os 6 `Rural*ExportService`) ganharam **`exportToCsv()` + `exportToXml()`** (padrão helper `linha()` + `SimpleExcelWriter::create($path,'csv')` + `SimpleXMLElement`) para atender os 4 formatos XLS/PDF/CSV/XML dos itens 060/076/251 — `RuralPropriedadeExportService` inclui `codigo_incra`/`codigo_car`/`codigo_sigef` (251b). The export menu (Filament `ActionGroup` in each `List*` page) exposes "Exportar Excel" / "Exportar PDF" / "Exportar CSV" / "Exportar XML".
@@ -353,7 +371,7 @@ Módulo `social`, grupo "Módulo Social". Entidade central `CadastroSocial` = a 
 
 ### Metadados geométricos cacheados (`area_geo` / `extensao_geo`)
 
-Oito entidades têm coluna **read-only** populada via PostGIS, atualizada automaticamente após criação ou edição de geometria:
+Nove entidades têm coluna **read-only** populada via PostGIS, atualizada automaticamente após criação ou edição de geometria:
 
 | Entidade | Coluna | Função PostGIS |
 |---|---|---|
@@ -362,6 +380,7 @@ Oito entidades têm coluna **read-only** populada via PostGIS, atualizada automa
 | `bairros` | `area_geo` | `ST_Area(geo::geography)` |
 | `loteamentos` | `area_geo` | `ST_Area(geo::geography)` |
 | `quadras` | `area_geo` | `ST_Area(geo::geography)` |
+| `lotes` | `area_geo` | `ST_Area(geo::geography)` |
 | `logradouros` | `extensao_geo` | `ST_Length(geo::geography)` |
 | `secoes_logradouro` | `extensao_geo` | `ST_Length(geo::geography)` |
 | `meio_fios` | `extensao_geo` | `ST_Length(geo::geography)` |
@@ -370,7 +389,7 @@ Mostradas read-only no Filament Resource (Form `disabled()->dehydrated(false)` +
 
 **Backfill / recálculo manual:**
 ```bash
-# Recalcula apenas onde está NULL (idempotente, todos os tenants, todas as 8 entidades)
+# Recalcula apenas onde está NULL (idempotente, todos os tenants, todas as 9 entidades)
 php artisan gis:recalcular-metadata
 
 # Filtra por tenant ou entidade
@@ -379,6 +398,8 @@ php artisan gis:recalcular-metadata --tenant=tangara --entidade=bairros
 # Sobrescreve todos os valores existentes (use após mudança de SRID, p. ex.)
 php artisan gis:recalcular-metadata --force
 ```
+
+O mesmo recálculo está disponível no painel Admin sem terminal: `TenantResource` → ação **"Recalcular Áreas (GIS)"** (entidade opcional + toggle "sobrescrever" = `--force`; executa `Artisan::call('gis:recalcular-metadata', ['--tenant' => $record->slug])` e notifica o total atualizado). Útil logo após o "Importar Mapa (GIS)", que não traz `area_geo` quando o GeoJSON não tem essa propriedade.
 
 A `Planta de Quadra` (`pdf.planta-quadra`) exibe a área da quadra (`$quadra->area_geo`) tanto no bloco de identificação quanto como card destacado ao lado das áreas dos lotes e das edificações.
 
@@ -455,7 +476,7 @@ A `Planta de Quadra` (`pdf.planta-quadra`) exibe a área da quadra (`$quadra->ar
 - **Mapa (162/163):** camada `chamados` (POINT colorido pela `categoria.cor`) — `case 'chamados'` em `MapDataController` + `layerConfigs.chamados` no `mapa-engine.js` + toggle "Chamados (App)" no painel. "Ver no Mapa" (tabela→mapa) via `?layer=chamados&focus_lat/lon`; clique no ponto (mapa→tabela) dispara `abrirChamado` → `MapaFullscreen::abrirChamado()` redireciona ao View do chamado.
 - **Impressão (174):** `ChamadoPdfService` + `pdf/chamado.blade.php` (mini-mapa via `StaticMapService`, mensagens públicas, respostas do boletim, histórico de fases).
 - **API (superfície completa p/ o app do cidadão — Módulo XVI):** `ChamadoController` sob `auth:sanctum` — `GET /api/categorias-chamado` (cidadão sem papel não vê `privada` — 159/189), `GET /api/fluxos-chamado?categoria_id=` (fluxo + `boletim` p/ o app renderizar o questionário), `GET/POST /api/chamados` (o `store` aceita `fotos[]` base64 → `chamados_fotos/` no disco público, via `salvarImagemBase64`), `GET /api/chamados/{id}` (detalhe completo p/ a tela de Detalhe — lat/lon do `geo_json`, `respostas_boletim`, `fotos` como URLs absolutas, categoria/fase com `cor`; cidadão só vê o próprio, fiscal vê qualquer), `GET/POST /api/chamados/{id}/mensagens` (cidadão vê/manda só públicas).
-- **Auth do cidadão no app (3 tipos de login exigidos pelo edital) — `CidadaoAuthController` (rotas PÚBLICAS):** `GET /api/prefeituras` (picker de cidade), `POST /api/cidadao/register` (e-mail/senha — espelha `RegisterCidadao`: cria `User tipo=cidadao` + `tenants()->attach` + `Pessoa` dedup por CPF), `POST /api/auth/google` (valida o `idToken` em `oauth2.googleapis.com/tokeninfo`), `POST /api/auth/facebook` (valida o `accessToken` no Graph; gera e-mail sintético se o FB não devolver). **Todos** (login/register/google/facebook) devolvem o **mesmo payload** `{token,user,tenant,layers}` via trait **`BuildsMobileAuthResponse`** (usado também pelo `AuthController::login`). `register`/`google`/`facebook` exigem `tenant_id` **ou** `prefeitura_slug`. Config opcional `services.google.client_id`/`services.facebook.*` (`.env`: `GOOGLE_CLIENT_ID`, `FACEBOOK_CLIENT_ID/SECRET`) reforça a checagem do `aud`. **Instruções completas do app em [appChamados.md](appChamados.md).**
+- **Auth do cidadão no app (3 tipos de login exigidos pelo edital) — `CidadaoAuthController` (rotas PÚBLICAS):** `GET /api/prefeituras` (picker de cidade), `POST /api/cidadao/register` (e-mail/senha — espelha `RegisterCidadao`: cria `User tipo=cidadao` + `tenants()->attach` + `Pessoa` dedup por CPF), `POST /api/auth/google` (valida o `idToken` em `oauth2.googleapis.com/tokeninfo`), `POST /api/auth/facebook` (valida o `accessToken` no Graph; gera e-mail sintético se o FB não devolver). **Todos** (login/register/google/facebook) devolvem o **mesmo payload** `{token,user,tenant,layers}` via trait **`BuildsMobileAuthResponse`** (usado também pelo `AuthController::login`). `register`/`google`/`facebook` exigem `tenant_id` **ou** `prefeitura_slug`. Config opcional `services.google.client_id`/`services.facebook.*` (`.env`: `GOOGLE_CLIENT_ID`, `FACEBOOK_CLIENT_ID/SECRET`) reforça a checagem do `aud`. **Instruções completas do app em [docs/appChamados.md](docs/appChamados.md).**
 - **Perfil no app (item 187) — `AuthController`:** `GET /api/me` devolve o perfil (agora inclui `telefone`/`cpf`/`data_nascimento` da Pessoa do tenant ativo — `data_nascimento` ← `pessoas.birth_date`, normalizado p/ `Y-m-d` via `fmtDate()` — além de `id/name/email`); `PUT /api/me` edita perfil — atualiza `User` (name/email/senha) **e** a `Pessoa` do tenant (telefone/cpf/birth_date) num só request, só nos campos enviados; troca de senha exige `current_password` correta. Usa `User::pessoaNoTenant()`.
 - **Seed:** `ChamadoExemploSeeder` (`CHAMADO_SEED_TENANT=<slug> php artisan db:seed --class=ChamadoExemploSeeder`) — 4 categorias (pai/filho + 1 privada), 1 fluxo/3 fases/boletim, 4 chamados com geo + mensagens. Idempotente.
 
@@ -566,7 +587,7 @@ Após confronto com `check_final.pdf`, status final:
 
 Motor de avaliação em massa que estende o simulador PGV simples (área × valor m²) com regressão linear, cálculo por face de quadra e simulação de IPTU. Módulo `pgv`, grupo Filament **"Gestão Tributária (PGV)"**.
 
-> **Material de estudo:** [pgvConceito.md](pgvConceito.md) — documento conceitual do módulo (a ideia central, os 3 estágios do cálculo, glossário item-a-item do menu "Gestão Tributária (PGV)" com o papel de cada cadastro na conta, quadro-resumo, onde os resultados aparecem ligados ao lote e as lacunas conhecidas). Ler antes de mexer no motor PGV.
+> **Material de estudo:** [docs/pgvConceito.md](docs/pgvConceito.md) — documento conceitual do módulo (a ideia central, os 3 estágios do cálculo, glossário item-a-item do menu "Gestão Tributária (PGV)" com o papel de cada cadastro na conta, quadro-resumo, onde os resultados aparecem ligados ao lote e as lacunas conhecidas). Ler antes de mexer no motor PGV.
 
 ### Entidades (todas `BelongsToTenant` + `HasTenantSequentialId` + `SoftDeletes`, exceto `PgvConfiguracao`)
 

@@ -4,12 +4,12 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\BpmnFluxoResource\Pages;
 use App\Models\BpmnFluxo;
+use App\Traits\HasTenantModule;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use App\Traits\HasTenantModule;
 
 class BpmnFluxoResource extends Resource
 {
@@ -20,9 +20,13 @@ class BpmnFluxoResource extends Resource
     protected static ?string $model = BpmnFluxo::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-path-rounded-square';
+
     protected static ?string $modelLabel = 'Fluxo de Processo (BPMN)';
+
     protected static ?string $pluralModelLabel = 'Fluxos BPMN';
+
     protected static ?string $navigationGroup = 'Processos Digitais';
+
     protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
@@ -35,7 +39,7 @@ class BpmnFluxoResource extends Resource
                             ->label('Nome do Processo (Ex: Aprovação REURB)')
                             ->required()
                             ->maxLength(255),
-                            
+
                         Forms\Components\Toggle::make('ativo')
                             ->label('Fluxo Ativo')
                             ->default(true),
@@ -51,8 +55,8 @@ class BpmnFluxoResource extends Resource
                             ->label('Seleção de imóvel')
                             ->options([
                                 'nenhum' => 'Sem necessidade de imóvel',
-                                'mapa'   => 'Mostrar mapa para localização do imóvel',
-                                'busca'  => 'Seleção de imóvel por busca (nº do lote / código tributário)',
+                                'mapa' => 'Mostrar mapa para localização do imóvel',
+                                'busca' => 'Seleção de imóvel por busca (nº do lote / código tributário)',
                             ])
                             ->default('mapa')
                             ->required()
@@ -64,6 +68,56 @@ class BpmnFluxoResource extends Resource
                             ->rows(2)
                             ->columnSpanFull(),
                     ])->columns(2),
+
+                // PD-1 — requerimento assinado antes da análise
+                Forms\Components\Section::make('Requerimento Assinado')
+                    ->description('Se ativado, o cidadão gera o requerimento em PDF (a partir do template abaixo), assina e anexa o PDF assinado — só então o processo segue. Por padrão isso acontece na abertura (1ª etapa); para exigir em outro momento, marque "Exigir requerimento assinado" na etapa do solicitante desejada (aba Etapas abaixo) — útil quando as variáveis do template são preenchidas depois da abertura.')
+                    ->schema([
+                        Forms\Components\Toggle::make('exige_requerimento')
+                            ->label('Exigir requerimento assinado antes da análise')
+                            ->live()
+                            ->columnSpanFull(),
+
+                        Forms\Components\RichEditor::make('template_requerimento')
+                            ->label('Template do Requerimento')
+                            ->visible(fn (Forms\Get $get) => (bool) $get('exige_requerimento'))
+                            ->required(fn (Forms\Get $get) => (bool) $get('exige_requerimento'))
+                            ->disableToolbarButtons(['attachFiles'])
+                            ->helperText('Variáveis do solicitante: {{nome}} {{cpf}} {{rg}} {{telefone}} {{email}} {{endereco}} · do processo: {{protocolo}} {{fluxo}} {{data}} {{data_extenso}} {{municipio}} · do imóvel: {{lote}} {{quadra}} {{loteamento}} {{endereco_imovel}} {{inscricao}} · dos formulários das etapas: {{campo:slug-do-campo}} (ver lista abaixo — a variável só sai preenchida se a etapa já tiver sido respondida quando o requerimento for gerado). Variável desconhecida sai literal no PDF.')
+                            ->columnSpanFull(),
+
+                        Forms\Components\Placeholder::make('placeholders_formulario')
+                            ->label('Variáveis disponíveis dos formulários das etapas')
+                            ->visible(fn (Forms\Get $get, ?BpmnFluxo $record) => (bool) $get('exige_requerimento') && $record !== null)
+                            ->content(function (?BpmnFluxo $record) {
+                                $etapas = $record?->etapas()->orderBy('ordem')->orderBy('id')->get() ?? collect();
+
+                                $blocos = $etapas->map(function ($etapa) {
+                                    $itens = collect($etapa->campos_formulario ?? [])
+                                        ->filter(fn ($c) => ! in_array($c['type'] ?? '', ['arquivo', 'mapa']))
+                                        ->map(function ($c) {
+                                            $label = $c['data']['label_campo'] ?? 'Campo';
+
+                                            return '<li><code>{{campo:'.e(\Illuminate\Support\Str::slug($label)).'}}</code> — '.e($label).'</li>';
+                                        });
+
+                                    if ($itens->isEmpty()) {
+                                        return null;
+                                    }
+
+                                    return '<div class="mb-2"><span class="font-medium">'.e($etapa->nome)
+                                        .($etapa->exige_requerimento ? ' <span class="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">requerimento exigido aqui</span>' : '')
+                                        .'</span><ul class="text-sm space-y-0.5 pl-4">'.$itens->implode('').'</ul></div>';
+                                })->filter();
+
+                                return new \Illuminate\Support\HtmlString($blocos->isEmpty()
+                                    ? '<span class="text-gray-500 italic">As etapas do fluxo ainda não têm campos de texto/seleção.</span>'
+                                    : $blocos->implode(''));
+                            })
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible()
+                    ->collapsed(fn (?BpmnFluxo $record) => ! $record?->exige_requerimento),
 
                 Forms\Components\Section::make('Editor Visual BPMN')
                     ->description('Desenhe o fluxo arrastando os elementos. Cada tarefa (caixa) representará uma etapa do processo digital.')

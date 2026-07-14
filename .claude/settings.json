@@ -125,7 +125,8 @@
       "Bash(grep -nE 'public.*$tenantId|$tenantId =|tenantId\\\\b' app/Filament/Pages/MapaFullscreen.php)",
       "Bash(grep -oiE \".{20}\\(altimetr|perfil\\)[^;]{0,40}\" resources/views/filament/pages/mapa-fullscreen.blade.php)",
       "Bash(grep -oiE \".{10}\\(street\\)[^;]{0,40}\" resources/views/filament/pages/mapa-fullscreen.blade.php)",
-      "Bash(grep -rilE \"anota.{0,3}\\(pdf|documento\\)|pdf.?annot|anexo.?anota\" app/)"
+      "Bash(grep -rilE \"anota.{0,3}\\(pdf|documento\\)|pdf.?annot|anexo.?anota\" app/)",
+      "Bash(php -l app/Notifications/ProcessoDigitalNotification.php)"
     ]
   }
 }
