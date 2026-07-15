@@ -83,7 +83,7 @@ class BpmnFluxoResource extends Resource
                             ->visible(fn (Forms\Get $get) => (bool) $get('exige_requerimento'))
                             ->required(fn (Forms\Get $get) => (bool) $get('exige_requerimento'))
                             ->disableToolbarButtons(['attachFiles'])
-                            ->helperText('Variáveis do solicitante: {{nome}} {{cpf}} {{rg}} {{telefone}} {{email}} {{endereco}} · do processo: {{protocolo}} {{fluxo}} {{data}} {{data_extenso}} {{municipio}} · do imóvel: {{lote}} {{quadra}} {{loteamento}} {{endereco_imovel}} {{inscricao}} · dos formulários das etapas: {{campo:slug-do-campo}} (ver lista abaixo — a variável só sai preenchida se a etapa já tiver sido respondida quando o requerimento for gerado). Variável desconhecida sai literal no PDF.')
+                            ->helperText('Variáveis do solicitante: {{nome}} {{cpf}} {{rg}} {{telefone}} {{email}} {{endereco}} · do processo: {{protocolo}} {{fluxo}} {{data}} {{data_extenso}} {{municipio}} · do imóvel: {{lote}} {{quadra}} {{loteamento}} {{endereco_imovel}} {{inscricao}} · dos formulários das etapas: {{campo:slug-do-campo}} (ver lista abaixo — a variável só sai preenchida se a etapa já tiver sido respondida quando o requerimento for gerado). Trecho condicional: {{#se campo:estado-civil = Casado}} ...texto com {{campo:nome-do-conjuge}}... {{/se}} — o trecho só entra no PDF se a condição valer (operadores: =, != e contem; sem aninhar blocos). Variável desconhecida sai literal no PDF.')
                             ->columnSpanFull(),
 
                         Forms\Components\Placeholder::make('placeholders_formulario')

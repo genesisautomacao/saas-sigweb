@@ -58,6 +58,28 @@ class RequerimentoPdfService
         $template = (string) $processo->fluxo?->template_requerimento;
         $valores = $this->placeholders($processo);
 
+        // PD-3 — blocos condicionais ANTES dos placeholders:
+        //   {{#se campo:estado-civil = Casado}} ...texto com {{campo:nome-do-conjuge}}... {{/se}}
+        // Operadores: = / == (igual), != (diferente), contem (substring). Comparação
+        // case-insensitive; sem aninhamento de blocos. Condição falsa → o trecho sai do PDF.
+        $template = preg_replace_callback(
+            '/\{\{\s*#se\s+([a-z0-9:_.\-]+)\s*(!=|==|=|contem)\s*(.*?)\s*\}\}(.*?)\{\{\s*\/se\s*\}\}/isu',
+            function ($m) use ($valores) {
+                $atual = mb_strtolower(trim((string) ($valores[mb_strtolower($m[1])] ?? '')));
+                // O RichEditor pode envolver o valor esperado em tags — compara só o texto.
+                $esperado = mb_strtolower(trim(strip_tags($m[3])));
+
+                $ok = match ($m[2]) {
+                    '!=' => $atual !== $esperado,
+                    'contem' => $esperado !== '' && str_contains($atual, $esperado),
+                    default => $atual === $esperado,
+                };
+
+                return $ok ? $m[4] : '';
+            },
+            $template
+        );
+
         return preg_replace_callback(
             '/\{\{\s*([a-z0-9:_.\-]+)\s*\}\}/i',
             function ($match) use ($valores) {

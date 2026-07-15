@@ -113,6 +113,7 @@ class EtapasRelationManager extends RelationManager
                                             ->schema([
                                                 Forms\Components\TextInput::make('label_campo')->label('Título do Campo')->required(),
                                                 Forms\Components\Toggle::make('obrigatorio')->label('Preenchimento Obrigatório?')->default(false),
+                                                ...self::camposCondicao(),
                                             ]),
 
                                         // 2. CHECKBOX
@@ -123,6 +124,19 @@ class EtapasRelationManager extends RelationManager
                                                 Forms\Components\TextInput::make('label_campo')->label('Pergunta')->required(),
                                                 Forms\Components\TagsInput::make('opcoes')->label('Opções (Aperte Enter para separar)')->required(),
                                                 Forms\Components\Toggle::make('obrigatorio')->label('Obrigatório?')->default(false),
+                                                ...self::camposCondicao(),
+                                            ]),
+
+                                        // 2b. SELEÇÃO ÚNICA (PD-3) — escolha mutuamente exclusiva (ex.: Estado Civil).
+                                        // É o gatilho ideal para a exibição condicional de outros campos.
+                                        Forms\Components\Builder\Block::make('selecao')
+                                            ->label('Seleção Única (Select)')
+                                            ->icon('heroicon-m-chevron-up-down')
+                                            ->schema([
+                                                Forms\Components\TextInput::make('label_campo')->label('Título do Campo (Ex: Estado Civil)')->required(),
+                                                Forms\Components\TagsInput::make('opcoes')->label('Opções (Aperte Enter para separar — Ex: Solteiro, Casado)')->required(),
+                                                Forms\Components\Toggle::make('obrigatorio')->label('Obrigatório?')->default(false),
+                                                ...self::camposCondicao(),
                                             ]),
 
                                         // 3. MAPA (COORDENADA)
@@ -132,6 +146,7 @@ class EtapasRelationManager extends RelationManager
                                             ->schema([
                                                 Forms\Components\TextInput::make('label_campo')->label('Instrução (Ex: Marque o poste com defeito)')->required(),
                                                 Forms\Components\Toggle::make('obrigatorio')->label('Obrigatório?')->default(false),
+                                                ...self::camposCondicao(),
                                             ]),
 
                                         // 4. MÁSCARAS (CPF/TELEFONE)
@@ -147,6 +162,7 @@ class EtapasRelationManager extends RelationManager
                                                         'telefone' => 'Telefone / Celular',
                                                     ])->required(),
                                                 Forms\Components\Toggle::make('obrigatorio')->label('Obrigatório?')->default(false),
+                                                ...self::camposCondicao(),
                                             ]),
 
                                         // 5. UPLOAD DE ARQUIVO (documento nomeado) — item 3
@@ -158,6 +174,7 @@ class EtapasRelationManager extends RelationManager
                                                     ->label('Nome do documento (ex.: Foto do CPF, Escritura, Habite-se)')
                                                     ->required(),
                                                 Forms\Components\Toggle::make('obrigatorio')->label('Obrigatório?')->default(false),
+                                                ...self::camposCondicao(),
                                             ]),
                                     ])
                                     ->addActionLabel('Adicionar Novo Campo')
@@ -165,6 +182,53 @@ class EtapasRelationManager extends RelationManager
                             ]),
                     ])->columnSpanFull(),
             ]);
+    }
+
+    /**
+     * PD-3 — exibição condicional: par de seletores anexado a TODOS os blocos do construtor.
+     * "Mostrar somente se o campo [X] tiver o valor [Y]" — o gatilho é um campo Seleção Única
+     * ou Múltipla Escolha DA MESMA ETAPA. Campo oculto não é validado nem exigido.
+     * O vínculo é pelo slug do rótulo do gatilho: renomear o gatilho depois quebra a regra.
+     */
+    protected static function camposCondicao(): array
+    {
+        return [
+            Forms\Components\Fieldset::make('Exibição condicional (opcional)')
+                ->schema([
+                    Forms\Components\Select::make('visivel_se_campo')
+                        ->label('Mostrar somente se o campo...')
+                        ->placeholder('Sempre visível')
+                        ->live()
+                        ->options(function (Get $get) {
+                            // '../../' = todos os itens do Builder (os campos desta etapa)
+                            return collect($get('../../') ?? [])
+                                ->filter(fn ($item) => in_array($item['type'] ?? '', ['selecao', 'checkbox']))
+                                ->mapWithKeys(function ($item) {
+                                    $label = $item['data']['label_campo'] ?? null;
+
+                                    return filled($label) ? [\Illuminate\Support\Str::slug($label) => $label] : [];
+                                })
+                                ->toArray();
+                        })
+                        ->helperText('Gatilhos possíveis: campos "Seleção Única" e "Múltipla Escolha" desta etapa.'),
+
+                    Forms\Components\Select::make('visivel_se_valor')
+                        ->label('...tiver o valor')
+                        ->visible(fn (Get $get) => filled($get('visivel_se_campo')))
+                        ->required(fn (Get $get) => filled($get('visivel_se_campo')))
+                        ->options(function (Get $get) {
+                            $slugAlvo = $get('visivel_se_campo');
+                            $gatilho = collect($get('../../') ?? [])
+                                ->first(fn ($item) => \Illuminate\Support\Str::slug($item['data']['label_campo'] ?? '') === $slugAlvo);
+
+                            $opcoes = $gatilho['data']['opcoes'] ?? [];
+
+                            return array_combine($opcoes, $opcoes) ?: [];
+                        }),
+                ])
+                ->columns(2)
+                ->columnSpanFull(),
+        ];
     }
 
     public function table(Table $table): Table

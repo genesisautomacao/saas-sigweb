@@ -214,6 +214,14 @@ Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unid
 - Na correção, o cidadão só substitui os anexos reprovados (aprovados ficam travados); substituição = nova versão e o item volta a `pendente`;
 - Vínculo campo↔anexo por nova coluna `campo_slug`.
 
+#### PD-3 — Campos condicionais no construtor de formulário + blocos condicionais no requerimento
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-14
+
+- Novo tipo de campo **"Seleção Única"** (select — ex.: Estado Civil) no construtor de formulário das etapas;
+- **Exibição condicional** em qualquer campo: "Mostrar somente se o campo [X] tiver o valor [Y]" (gatilho = Seleção Única ou Múltipla Escolha, mesma etapa; campo oculto não é validado nem exigido);
+- **Blocos condicionais no template do requerimento**: `{{#se campo:estado-civil = Casado}} ...texto com {{campo:nome-do-conjuge}}... {{/se}}` (operadores `=`, `!=` e `contem`).
+
 ---
 
 ## Pontos fortes a destacar na demonstração

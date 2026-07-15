@@ -51,55 +51,61 @@ class ProcessoFormService
             $nome = $prefixo.Str::slug($dados['label_campo'] ?? 'campo');
             $obrigatorio = ! $disabled && ! $forcarOpcional && ($dados['obrigatorio'] ?? false);
 
+            $component = null;
+
             if ($tipo === 'texto') {
-                return Forms\Components\TextInput::make($nome)
+                $component = Forms\Components\TextInput::make($nome)
                     ->label($dados['label_campo'] ?? 'Campo')
                     ->required($obrigatorio)
                     ->disabled($disabled);
-            }
-
-            if ($tipo === 'checkbox') {
+            } elseif ($tipo === 'selecao') {
+                // PD-3 — escolha única (ex.: Estado Civil); live() para as condições reagirem na hora.
                 $opcoes = $dados['opcoes'] ?? [];
 
-                return Forms\Components\CheckboxList::make($nome)
+                $component = Forms\Components\Select::make($nome)
+                    ->label($dados['label_campo'] ?? 'Seleção')
+                    ->options(array_combine($opcoes, $opcoes) ?: [])
+                    ->required($obrigatorio)
+                    ->disabled($disabled)
+                    ->native(false)
+                    ->live();
+            } elseif ($tipo === 'checkbox') {
+                $opcoes = $dados['opcoes'] ?? [];
+
+                $component = Forms\Components\CheckboxList::make($nome)
                     ->label($dados['label_campo'] ?? 'Opções')
                     ->options(array_combine($opcoes, $opcoes) ?: [])
                     ->required($obrigatorio)
                     ->disabled($disabled)
                     ->default([])
+                    ->live() // PD-3 — pode ser gatilho de condição
                     ->formatStateUsing(fn ($state) => $state === null ? [] : (is_array($state) ? $state : [$state]));
-            }
-
-            if ($tipo === 'mapa') {
+            } elseif ($tipo === 'mapa') {
                 // Item 125/210 — seletor de POSIÇÃO no mapa (ponto), distinto da seleção do imóvel.
-                return Forms\Components\ViewField::make($nome)
+                $component = Forms\Components\ViewField::make($nome)
                     ->label($dados['label_campo'] ?? 'Posição no mapa')
                     ->view('filament.forms.components.mapa-ponto')
                     ->viewData(['disabled' => $disabled])
                     ->required($obrigatorio)
                     ->dehydrated(! $disabled);
-            }
-
-            if ($tipo === 'documento') {
-                $input = Forms\Components\TextInput::make($nome)
+            } elseif ($tipo === 'documento') {
+                $component = Forms\Components\TextInput::make($nome)
                     ->label($dados['label_campo'] ?? 'Documento')
                     ->required($obrigatorio)
                     ->disabled($disabled);
 
                 if (($dados['mascara'] ?? '') === 'cpf') {
-                    return $input->mask('999.999.999-99');
+                    $component->mask('999.999.999-99');
+                } else {
+                    // Telefone híbrido: aceita 8 dígitos (fixo) e 9 dígitos (celular) — item 5
+                    $component->mask(RawJs::make(<<<'JS'
+                        $input.length > 14 ? '(99) 99999-9999' : '(99) 9999-9999'
+                        JS));
                 }
-
-                // Telefone híbrido: aceita 8 dígitos (fixo) e 9 dígitos (celular) — item 5
-                return $input->mask(RawJs::make(<<<'JS'
-                    $input.length > 14 ? '(99) 99999-9999' : '(99) 9999-9999'
-                    JS));
-            }
-
-            if ($tipo === 'arquivo') {
+            } elseif ($tipo === 'arquivo') {
                 // Upload nomeado (item 3) — vira ProcessoAnexo no salvamento (salvarRespostaEtapa).
                 $label = $dados['label_campo'] ?? 'Arquivo';
-                $upload = Forms\Components\FileUpload::make($nome)
+                $component = Forms\Components\FileUpload::make($nome)
                     ->label($label)
                     ->required($obrigatorio)
                     ->disabled($disabled)
@@ -116,20 +122,38 @@ class ProcessoFormService
                     if ($anexo?->status_analise === 'aprovado') {
                         // disabled + dehydrated(true): trava a troca SEM apagar o path já salvo
                         // em dados_formulario (dehydrated(false) apagaria o valor no save).
-                        $upload->disabled()->dehydrated(true)
+                        $component->disabled()->dehydrated(true)
                             ->helperText('✅ Documento aprovado pela prefeitura — não é necessário reenviar.');
                     } elseif ($anexo?->status_analise === 'reprovado') {
-                        $upload->required(! $disabled)
+                        $component->required(! $disabled)
                             ->hint('Documento reprovado')
                             ->hintColor('danger')
                             ->helperText('Motivo da reprovação: '.($anexo->observacao_analise ?: 'documento incorreto').' — anexe a versão corrigida.');
                     }
                 }
-
-                return $upload;
             }
 
-            return null;
+            if (! $component) {
+                return null;
+            }
+
+            // PD-3 — exibição condicional: "mostrar somente se o campo X tiver o valor Y".
+            // Campo oculto no Filament não é validado nem desidratado — o obrigatório só vale visível.
+            $condCampo = $dados['visivel_se_campo'] ?? null;
+            $condValor = $dados['visivel_se_valor'] ?? null;
+            if (filled($condCampo) && filled($condValor)) {
+                $caminhoGatilho = $prefixo.$condCampo;
+
+                $component->visible(function (Forms\Get $get) use ($caminhoGatilho, $condValor) {
+                    $atual = $get($caminhoGatilho);
+
+                    return is_array($atual)
+                        ? in_array($condValor, $atual)          // gatilho checkbox: contém a opção
+                        : (string) $atual === (string) $condValor; // gatilho seleção única: igual
+                });
+            }
+
+            return $component;
         })->filter()->values()->all();
     }
 
