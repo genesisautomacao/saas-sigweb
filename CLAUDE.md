@@ -180,6 +180,8 @@ Faz upsert em `unidades_imobiliarias.dados_tributarios` por `inscricao_imobiliar
 
 - All Filament forms use Portuguese field labels and entity names (Brazil-specific).
 - **Timezone `America/Sao_Paulo`** (config/app.php, sobreponível via `APP_TIMEZONE`) desde 2026-07-22 — antes era UTC, então **timestamps gravados antes dessa data estão em UTC no banco** (exibem +3h); registros novos são gravados/exibidos no horário de Brasília.
+- **Traduções pt-BR em `lang/pt_BR/`** (validation/auth/passwords/pagination) — sem essa pasta, o locale `pt_BR` caía no inglês nas mensagens de validação. O `:attribute` recebe o label do Filament.
+- **Uploads do módulo de processos: 20MB** (`maxSize(20480)` em `camposDaEtapa` tipo `arquivo` e no requerimento assinado — plantas grandes). O `config/livewire.php` já permite 50MB no upload temporário; **em produção, `upload_max_filesize`/`post_max_size` do PHP e `client_max_body_size` do nginx precisam comportar ≥ 20M**.
 - **Exclusão em lote no `LoteResource`:** `bulkActions` com `DeleteBulkAction` + `ForceDeleteBulkAction` + `RestoreBulkAction` (`Lote` usa `SoftDeletes` → delete recuperável, gerenciável pelo `TrashedFilter`; `getEloquentQuery()` remove só o `SoftDeletingScope`, mantém o de tenant). A `LotePolicy` expõe `deleteAny`/`restore`/`restoreAny`/`forceDelete`/`forceDeleteAny` (todas checam `delete_lotes`); Master/Manager mantêm bypass via `Gate::before`. FK `unidade_imobiliarias.lote_id`/`edificacoes.lote_id` = `cascadeOnDelete` só dispara no **force delete** (hard delete); soft delete preserva os filhos.
 - Sequential IDs per tenant are managed by the `HasTenantSequentialId` trait.
 - PDF generation uses `barryvdh/laravel-dompdf`.

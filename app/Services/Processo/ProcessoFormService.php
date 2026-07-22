@@ -146,7 +146,7 @@ class ProcessoFormService
                     ->disabled($disabled)
                     ->directory('processos_anexos')
                     ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
-                    ->maxSize(5120)
+                    ->maxSize(20480) // 20MB — plantas/projetos grandes (Livewire aceita até 50MB; ver config/livewire.php)
                     ->downloadable()
                     ->openable();
 

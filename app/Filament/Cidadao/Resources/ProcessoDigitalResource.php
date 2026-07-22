@@ -317,7 +317,7 @@ class ProcessoDigitalResource extends Resource
                         ->helperText('Anexe aqui o requerimento gerado acima, já assinado (digitalizado ou com assinatura digital).')
                         ->acceptedFileTypes(['application/pdf'])
                         ->directory('processos_anexos')
-                        ->maxSize(10240)
+                        ->maxSize(20480) // 20MB — requerimento com plantas digitalizadas
                         ->required()
                         ->columnSpanFull(),
                 ]),
