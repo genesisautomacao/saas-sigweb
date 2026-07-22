@@ -35,9 +35,12 @@ class ProcessoFormService
      * @param  ?ProcessoDigital  $processo  PD-2 — quando informado, os campos 'arquivo' refletem o
      *                                      checklist de análise: anexo APROVADO fica travado; REPROVADO
      *                                      mostra o motivo e exige substituição.
+     * @param  bool  $somenteReprovados  Na correção: renderiza APENAS os campos de arquivo cujo anexo
+     *                                   foi reprovado no checklist (foco na pendência). Sem nenhum item
+     *                                   reprovado nesta etapa, a etapa inteira aparece (reprova geral).
      * @return array<\Filament\Forms\Components\Component>
      */
-    public static function camposDaEtapa(?BpmnEtapa $etapa, bool $disabled = false, bool $forcarOpcional = false, ?ProcessoDigital $processo = null): array
+    public static function camposDaEtapa(?BpmnEtapa $etapa, bool $disabled = false, bool $forcarOpcional = false, ?ProcessoDigital $processo = null, bool $somenteReprovados = false): array
     {
         if (! $etapa || empty($etapa->campos_formulario)) {
             return [];
@@ -45,7 +48,27 @@ class ProcessoFormService
 
         $prefixo = 'dados_formulario.'.self::chaveEtapa($etapa->id).'.';
 
-        return collect($etapa->campos_formulario)->map(function ($campo) use ($prefixo, $disabled, $forcarOpcional, $etapa, $processo) {
+        $definicoes = collect($etapa->campos_formulario);
+
+        // PD-2 — correção focada: havendo QUALQUER item reprovado no checklist, o cidadão vê
+        // apenas os campos com anexo reprovado desta etapa — pode resultar em NENHUM campo
+        // (ex.: só o requerimento assinado foi reprovado; a seção dele orienta o reenvio).
+        // Sem nenhum item reprovado (reprova geral via parecer), a etapa inteira aparece.
+        // Os valores dos demais campos permanecem no state (fill do record) — as condições de
+        // visibilidade (PD-3) continuam avaliando gatilhos mesmo sem o componente na tela.
+        if ($somenteReprovados && $processo && ProcessoChecklistService::reprovadosPendentes($processo)->isNotEmpty()) {
+            $definicoes = $definicoes->filter(function ($campo) use ($processo, $etapa) {
+                if (($campo['type'] ?? '') !== 'arquivo') {
+                    return false;
+                }
+                $label = $campo['data']['label_campo'] ?? 'Arquivo';
+                $anexo = ProcessoChecklistService::ultimoAnexoDoCampo($processo, $etapa->id, Str::slug($label), $label);
+
+                return $anexo?->status_analise === 'reprovado';
+            })->values();
+        }
+
+        return $definicoes->map(function ($campo) use ($prefixo, $disabled, $forcarOpcional, $etapa, $processo) {
             $tipo = $campo['type'] ?? 'texto';
             $dados = $campo['data'] ?? [];
             $nome = $prefixo.Str::slug($dados['label_campo'] ?? 'campo');
@@ -72,9 +95,13 @@ class ProcessoFormService
             } elseif ($tipo === 'checkbox') {
                 $opcoes = $dados['opcoes'] ?? [];
 
-                $component = Forms\Components\CheckboxList::make($nome)
+                // Múltipla escolha como Select multiple — o CheckboxList apresentava bug de
+                // seleção (marcar uma opção marcava todas) com o state path aninhado.
+                $component = Forms\Components\Select::make($nome)
                     ->label($dados['label_campo'] ?? 'Opções')
                     ->options(array_combine($opcoes, $opcoes) ?: [])
+                    ->multiple()
+                    ->native(false)
                     ->required($obrigatorio)
                     ->disabled($disabled)
                     ->default([])
@@ -94,8 +121,16 @@ class ProcessoFormService
                     ->required($obrigatorio)
                     ->disabled($disabled);
 
-                if (($dados['mascara'] ?? '') === 'cpf') {
+                $mascara = $dados['mascara'] ?? '';
+                if ($mascara === 'cpf') {
                     $component->mask('999.999.999-99');
+                } elseif ($mascara === 'cnpj') {
+                    $component->mask('99.999.999/9999-99');
+                } elseif ($mascara === 'cpf_cnpj') {
+                    // Dinâmica: CPF (11 dígitos) vira CNPJ (14) ao passar do 12º dígito
+                    $component->mask(RawJs::make(<<<'JS'
+                        $input.length > 14 ? '99.999.999/9999-99' : '999.999.999-99'
+                        JS))->maxLength(18);
                 } else {
                     // Telefone híbrido: aceita 8 dígitos (fixo) e 9 dígitos (celular) — item 5
                     $component->mask(RawJs::make(<<<'JS'

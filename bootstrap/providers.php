@@ -5,5 +5,4 @@ return [
     App\Providers\Filament\AdminPanelProvider::class,
     App\Providers\Filament\AppPanelProvider::class,
     App\Providers\Filament\CidadaoPanelProvider::class,
-    App\Providers\Filament\PortalPanelProvider::class,
 ];

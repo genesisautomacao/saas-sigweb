@@ -2,18 +2,25 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\DB;
+use App\Models\ApiSetting;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
-use App\Models\ApiSetting;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // "Esqueci minha senha" em PT-BR, com a marca do município e envio SÍNCRONO.
+        // O Filament resolve a notification via container (RequestPasswordReset::request()
+        // faz app(ResetPassword::class, ['token' => ...])) — este bind troca a original
+        // (ShouldQueue — presa na fila sem worker) pela nossa versão inline via Resend.
+        $this->app->bind(
+            \Filament\Notifications\Auth\ResetPassword::class,
+            \App\Notifications\ResetSenhaNotification::class,
+        );
     }
 
     public function boot(): void
@@ -50,7 +57,7 @@ class AppServiceProvider extends ServiceProvider
             if (Schema::hasTable('api_settings')) {
                 $resend = ApiSetting::query()->where('name', 'Resend')->first();
 
-                if ($resend && !empty($resend->data)) {
+                if ($resend && ! empty($resend->data)) {
                     $data = $resend->data;
 
                     Config::set('mail.default', 'resend');

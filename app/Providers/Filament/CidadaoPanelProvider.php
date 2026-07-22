@@ -9,9 +9,7 @@ use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
-use Filament\View\PanelsRenderHook;
 use Filament\Widgets;
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -27,7 +25,9 @@ class CidadaoPanelProvider extends PanelProvider
         return $panel
             ->id('cidadao')
             ->path('cidadao') // A rota será seudominio.com/cidadao
-            ->login() // Terá ecrã de login
+            // PT-1 — login sem o link "registre-se" (o Portal /portal/{slug} é a porta de entrada;
+            // o cadastro continua ativo em /cidadao/register?prefeitura={slug})
+            ->login(\App\Filament\Cidadao\Pages\Auth\LoginCidadao::class)
             ->registration(\App\Filament\Cidadao\Pages\Auth\RegisterCidadao::class)
             ->passwordReset() // Recuperação de senha
             ->profile() // Editar o próprio perfil (nome, email, etc)
@@ -41,9 +41,10 @@ class CidadaoPanelProvider extends PanelProvider
             // 3. FAVICON (O ícone da aba do navegador)
             ->favicon(asset('assets/images/favicon.png'))
 
-            // 4. LOGO DA NAVBAR (Substitui o texto "Laravel")
-            ->brandLogo(fn() => view('filament.components.logo'))
-            
+            // 4. LOGO — brasão do MUNICÍPIO (usuário logado ou ?prefeitura= na URL de
+            //    login/cadastro vindas do Portal); fallback = logo padrão do SIGWEB (PT-1)
+            ->brandLogo(fn () => view('filament.components.logo-cidadao'))
+
             ->discoverResources(in: app_path('Filament/Cidadao/Resources'), for: 'App\\Filament\\Cidadao\\Resources')
             ->discoverPages(in: app_path('Filament/Cidadao/Pages'), for: 'App\\Filament\\Cidadao\\Pages')
             ->pages([
@@ -66,36 +67,9 @@ class CidadaoPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 AuthenticateCidadaoComMapaPublico::class,
-            ])
-
-            // Botão "Acessar mapa sem cadastro" abaixo do formulário de login/cadastro
-            ->renderHook(
-                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
-                fn (): string => Blade::render(<<<'BLADE'
-                    <div class="fi-section-content p-4 mt-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-center">
-                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                            Quer apenas consultar o mapa?
-                        </p>
-                        <a href="/mapa-publico"
-                           class="inline-flex items-center justify-center gap-2 font-semibold text-primary-600 hover:text-primary-700 text-sm">
-                            Acessar mapa sem cadastro →
-                        </a>
-                    </div>
-                BLADE)
-            )
-            ->renderHook(
-                PanelsRenderHook::AUTH_REGISTER_FORM_AFTER,
-                fn (): string => Blade::render(<<<'BLADE'
-                    <div class="fi-section-content p-4 mt-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-center">
-                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                            Quer apenas consultar o mapa?
-                        </p>
-                        <a href="/mapa-publico"
-                           class="inline-flex items-center justify-center gap-2 font-semibold text-primary-600 hover:text-primary-700 text-sm">
-                            Acessar mapa sem cadastro →
-                        </a>
-                    </div>
-                BLADE)
-            );
+            ]);
+        // PT-1 — removidos os render hooks "Acessar mapa sem cadastro" do login/registro:
+        // eles levavam ao seletor de município (/mapa-publico), o que confunde agora que o
+        // Portal (/portal/{slug}) já entrega o mapa do município certo sem cadastro.
     }
 }

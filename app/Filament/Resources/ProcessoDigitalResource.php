@@ -266,8 +266,8 @@ class ProcessoDigitalResource extends Resource
                                 .($item->observacao_analise ? ': '.e($item->observacao_analise) : '').'</div>';
                         }
 
-                        if ($r['reprovados'] > 0) {
-                            $html .= '<div class="text-xs text-gray-500">Com documentos reprovados, a etapa só pode ser REPROVADA (a lista acima segue junto no parecer).</div>';
+                        if ($r['pendentes'] > 0 || $r['reprovados'] > 0) {
+                            $html .= '<div class="text-xs text-gray-500">A etapa só pode ser APROVADA com todos os documentos aprovados — analise os pendentes na seção "Documentos e PDFs". Com documento reprovado, reprove a etapa (a lista segue junto no parecer).</div>';
                         }
 
                         return new \Illuminate\Support\HtmlString($html.'</div>');
@@ -321,16 +321,23 @@ class ProcessoDigitalResource extends Resource
             return true;
         }
 
-        // PD-2 — guard: não se aprova a etapa com documentos reprovados no checklist.
-        if ($data['decisao'] === 'aprovado'
-            && \App\Services\Processo\ProcessoChecklistService::reprovadosPendentes($record)->isNotEmpty()) {
-            \Filament\Notifications\Notification::make()
-                ->danger()
-                ->title('Há documentos reprovados no checklist')
-                ->body('Reprove a etapa devolvendo ao cidadão, ou reavalie os documentos na seção "Documentos e PDFs" antes de aprovar.')
-                ->send();
+        // PD-2 — guard: a etapa só pode ser APROVADA com o checklist completo — todo documento
+        // analisável precisa estar APROVADO (pendente ou reprovado bloqueiam). Reprovar a etapa
+        // continua permitido em qualquer situação (é a devolução ao cidadão).
+        if ($data['decisao'] === 'aprovado') {
+            $resumo = \App\Services\Processo\ProcessoChecklistService::resumoContadores($record);
 
-            return false;
+            if ($resumo['pendentes'] > 0 || $resumo['reprovados'] > 0) {
+                \Filament\Notifications\Notification::make()
+                    ->danger()
+                    ->title('Checklist de documentos incompleto')
+                    ->body("Há {$resumo['pendentes']} documento(s) aguardando análise e {$resumo['reprovados']} reprovado(s). "
+                        .'Analise cada documento na seção "Documentos e PDFs" — a etapa só pode ser aprovada com todos os documentos aprovados. '
+                        .'Se houver documento incorreto, reprove a etapa para devolver ao cidadão.')
+                    ->send();
+
+                return false;
+            }
         }
 
         // 1. Salva o que o analista preencheu/anexou nesta etapa (se houver)

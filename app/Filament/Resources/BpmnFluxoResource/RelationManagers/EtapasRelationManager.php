@@ -116,9 +116,9 @@ class EtapasRelationManager extends RelationManager
                                                 ...self::camposCondicao(),
                                             ]),
 
-                                        // 2. CHECKBOX
+                                        // 2. MÚLTIPLA ESCOLHA (type 'checkbox' mantido por compat; renderiza Select multiple)
                                         Forms\Components\Builder\Block::make('checkbox')
-                                            ->label('Múltipla Escolha (Checkbox)')
+                                            ->label('Múltipla Escolha')
                                             ->icon('heroicon-m-list-bullet')
                                             ->schema([
                                                 Forms\Components\TextInput::make('label_campo')->label('Pergunta')->required(),
@@ -159,6 +159,8 @@ class EtapasRelationManager extends RelationManager
                                                     ->label('Tipo de Máscara')
                                                     ->options([
                                                         'cpf' => 'CPF',
+                                                        'cnpj' => 'CNPJ',
+                                                        'cpf_cnpj' => 'CPF ou CNPJ (máscara dinâmica)',
                                                         'telefone' => 'Telefone / Celular',
                                                     ])->required(),
                                                 Forms\Components\Toggle::make('obrigatorio')->label('Obrigatório?')->default(false),

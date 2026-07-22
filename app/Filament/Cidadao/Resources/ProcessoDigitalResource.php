@@ -239,12 +239,26 @@ class ProcessoDigitalResource extends Resource
                 ->schema(function (?ProcessoDigital $record) {
                     $etapa = $record?->etapaAtual;
                     $disabled = ! self::podeEditar($record);
-                    $campos = ProcessoFormService::camposDaEtapa($etapa, $disabled, false, $record);
 
-                    return ! empty($campos) ? $campos : [
+                    // Na correção com itens reprovados no checklist, mostra SÓ os campos
+                    // reprovados (foco na pendência); reprova geral → etapa inteira.
+                    $somenteReprovados = $record?->status === 'pendente_correcao';
+                    $campos = ProcessoFormService::camposDaEtapa($etapa, $disabled, false, $record, $somenteReprovados);
+
+                    if (! empty($campos)) {
+                        return $campos;
+                    }
+
+                    // Nenhum campo a exibir: se há item reprovado fora do formulário desta etapa
+                    // (ex.: requerimento assinado), orienta; senão, é uma etapa sem formulário.
+                    $temReprovados = $record && \App\Services\Processo\ProcessoChecklistService::reprovadosPendentes($record)->isNotEmpty();
+
+                    return [
                         Forms\Components\Placeholder::make('sem_campos')
                             ->hiddenLabel()
-                            ->content('Esta etapa não exige preenchimento adicional. Clique em "Enviar para Análise".'),
+                            ->content($temReprovados
+                                ? 'Atenda ao item reprovado indicado nesta página (ex.: reenvie o requerimento assinado na seção abaixo) e clique em "Enviar para Análise".'
+                                : 'Esta etapa não exige preenchimento adicional. Clique em "Enviar para Análise".'),
                     ];
                 })
                 ->columns(2),

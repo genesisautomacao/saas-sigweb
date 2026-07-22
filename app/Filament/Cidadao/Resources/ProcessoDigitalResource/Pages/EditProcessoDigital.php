@@ -33,13 +33,18 @@ class EditProcessoDigital extends EditRecord
         unset($data['requerimento_assinado_upload']);
 
         // ⚠️ O Form::getState() do Filament parte do validate() e devolve SÓ os caminhos que têm
-        // componente na tela — aqui, apenas a etapa ATUAL. Substituir o JSON inteiro apagaria as
-        // respostas das demais etapas (e os {{campo:slug}} do requerimento). Merge por etapa:
-        // as chaves das outras etapas são preservadas; a etapa atual entra por cima, completa.
-        $data['dados_formulario'] = array_replace(
-            $this->record->dados_formulario ?? [],
-            $data['dados_formulario'] ?? [],
-        );
+        // componente na tela — que pode ser até um SUBCONJUNTO da etapa atual (correção focada
+        // nos reprovados). Merge em DOIS níveis: preserva as outras etapas E, dentro da etapa,
+        // preserva os campos que não estavam na tela (substituir a etapa inteira os apagaria).
+        $existente = $this->record->dados_formulario ?? [];
+
+        foreach (($data['dados_formulario'] ?? []) as $chaveEtapa => $valores) {
+            $existente[$chaveEtapa] = is_array($valores)
+                ? array_replace($existente[$chaveEtapa] ?? [], $valores)
+                : $valores;
+        }
+
+        $data['dados_formulario'] = $existente;
 
         return $data;
     }

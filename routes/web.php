@@ -43,6 +43,10 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/processo/{processo}/requerimento', [\App\Http\Controllers\ProcessoRequerimentoController::class, 'gerar'])->name('processo.requerimento.gerar');
 });
 
+// PT-1 — Portal de links do município: landing pública que a prefeitura usa como
+// destino no site oficial (login cidadão, cadastro, mapa anônimo, vídeo tutorial).
+Route::get('/portal/{tenant_slug}', [\App\Http\Controllers\PortalMunicipioController::class, 'show'])->name('portal.municipio');
+
 // Seletor público de prefeitura — usado quando o cidadão acessa o mapa anonimamente
 // e precisa escolher de qual município quer ver os dados.
 Route::get('/mapa-publico', function () {

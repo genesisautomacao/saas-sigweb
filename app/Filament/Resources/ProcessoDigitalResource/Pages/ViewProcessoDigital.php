@@ -73,6 +73,33 @@ class ViewProcessoDigital extends ViewRecord
     }
 
     /**
+     * PD-2 — desfaz a análise de um anexo (volta para 'pendente'). Só existe para corrigir
+     * um clique errado: após a decisão, os botões Aprovar/Reprovar somem da lista.
+     */
+    public function desfazerAnaliseAnexo(int $anexoId): void
+    {
+        $anexo = ProcessoAnexo::find($anexoId);
+
+        if (! $anexo || ! ProcessoChecklistService::podeAnalisar($anexo, $this->record)) {
+            Notification::make()
+                ->danger()
+                ->title('Não foi possível desfazer')
+                ->body('Este documento não está disponível para análise nesta etapa.')
+                ->send();
+
+            return;
+        }
+
+        ProcessoChecklistService::marcar($anexo, 'pendente', null, \Filament\Facades\Filament::auth()->id());
+
+        Notification::make()
+            ->success()
+            ->title('Análise desfeita')
+            ->body($anexo->nome_arquivo.' voltou para "aguardando análise".')
+            ->send();
+    }
+
+    /**
      * PD-2 — reprova um anexo individual com observação obrigatória
      * (mountAction('reprovarAnexo', { anexoId }) na blade processo-anexos).
      */
@@ -185,7 +212,7 @@ class ViewProcessoDigital extends ViewRecord
                             ]),
                     ])->columnSpan(2),
 
-                    // --- COLUNA DA DIREITA (Localização e Anexos) ---
+                    // --- COLUNA DA DIREITA (Localização) ---
                     Infolists\Components\Group::make()->schema([
                         Infolists\Components\Section::make('Imóvel Vinculado')
                             ->icon('heroicon-o-map-pin')
@@ -196,18 +223,20 @@ class ViewProcessoDigital extends ViewRecord
                                     ->html()
                                     ->state(fn ($record) => new HtmlString(ProcessoFormService::dadosImovelHtml($record->lote_id))),
                             ]),
-
-                        Infolists\Components\Section::make('Documentos e PDFs')
-                            ->icon('heroicon-o-paper-clip')
-                            ->schema([
-                                // ViewEntry (blade) em vez de TextEntry->html(): o sanitizador do Filament
-                                // removeria o wire:click/<button> do "Excluir". A blade não é sanitizada.
-                                Infolists\Components\ViewEntry::make('anexos')
-                                    ->hiddenLabel()
-                                    ->view('filament.infolists.processo-anexos'),
-                            ]),
                     ])->columnSpan(1),
                 ]),
+
+                // Documentos em LARGURA TOTAL — cada anexo numa linha: nome/badges à esquerda,
+                // ações (Aprovar/Reprovar do checklist PD-2, Anotar…) à direita.
+                Infolists\Components\Section::make('Documentos e PDFs')
+                    ->icon('heroicon-o-paper-clip')
+                    ->schema([
+                        // ViewEntry (blade) em vez de TextEntry->html(): o sanitizador do Filament
+                        // removeria o wire:click/<button> do "Excluir". A blade não é sanitizada.
+                        Infolists\Components\ViewEntry::make('anexos')
+                            ->hiddenLabel()
+                            ->view('filament.infolists.processo-anexos'),
+                    ]),
 
                 // Item 216 — histórico de fases com todas as interações
                 Infolists\Components\Section::make('Histórico de Tramitação')

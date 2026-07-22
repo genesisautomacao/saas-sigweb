@@ -65,7 +65,9 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Fuso do Brasil (UTC-3, sem horário de verão desde 2019). Sobreponível por ambiente
+    // via APP_TIMEZONE. Timestamps antigos (gravados sob UTC) permanecem como foram salvos.
+    'timezone' => env('APP_TIMEZONE', 'America/Sao_Paulo'),
 
     /*
     |--------------------------------------------------------------------------

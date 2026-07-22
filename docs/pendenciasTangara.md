@@ -210,7 +210,7 @@ Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unid
 **Concluído em:** 2026-07-14
 
 - Aprovar/reprovar cada anexo individualmente (`processo_anexos.status_analise` + `observacao_analise` + auditoria de quem/quando), apenas para anexos (`formulario` e `requerimento_assinado`) — campos de formulário ficam de fora;
-- O analista marca os itens e julga a etapa normalmente; aprovar a etapa com item reprovado é bloqueado; reprovar concatena a lista de itens reprovados ao parecer (flui para tramitação e e-mail);
+- O analista marca os itens e julga a etapa normalmente; aprovar a etapa exige o checklist COMPLETO (item pendente ou reprovado bloqueia); reprovar concatena a lista de itens reprovados ao parecer (flui para tramitação e e-mail);
 - Na correção, o cidadão só substitui os anexos reprovados (aprovados ficam travados); substituição = nova versão e o item volta a `pendente`;
 - Vínculo campo↔anexo por nova coluna `campo_slug`.
 
@@ -221,6 +221,28 @@ Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unid
 - Novo tipo de campo **"Seleção Única"** (select — ex.: Estado Civil) no construtor de formulário das etapas;
 - **Exibição condicional** em qualquer campo: "Mostrar somente se o campo [X] tiver o valor [Y]" (gatilho = Seleção Única ou Múltipla Escolha, mesma etapa; campo oculto não é validado nem exigido);
 - **Blocos condicionais no template do requerimento**: `{{#se campo:estado-civil = Casado}} ...texto com {{campo:nome-do-conjuge}}... {{/se}}` (operadores `=`, `!=` e `contem`).
+
+#### PT-1 — Página Portal de links por município (`/portal/{slug}`)
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-14
+
+- Landing pública responsiva por tenant (brasão + cor do município) para a prefeitura usar como link no site oficial;
+- 4 botões: login do painel cidadão (`/cidadao/login`), cadastro (`/cidadao/register?prefeitura={slug}`), mapa público anônimo (`/cidadao/mapa-publico?t={slug}`) e vídeo tutorial global (URL em `ApiSetting name='Portal'`, chave `VIDEO_TUTORIAL_URL`, nova aba; botão oculto sem config);
+- Action "Link do Portal" no `TenantResource` (admin) + remoção do provider fantasma `PortalPanelProvider` do bootstrap;
+- Login do cidadão "limpo" (page custom `LoginCidadao` sem o link "registre-se" + remoção dos hooks "Acessar mapa sem cadastro") — os atalhos levavam ao seletor de município; a porta de entrada agora é o Portal. Rotas de registro/mapa seguem ativas;
+- Registro sem o link "Trocar" prefeitura (passo 2) — a prefeitura vem fixada da URL do Portal; faixa mostra só o nome (sem o rótulo "Prefeitura"); o link "faça login na sua conta" carrega o `?prefeitura=` para o login manter o brasão;
+- Brasão do município no login/cadastro/navbar do painel cidadão (`logo-cidadao.blade.php`; login do Portal passa `?prefeitura={slug}`; fallback = logo SIGWEB);
+- Reset de senha em PT-BR com a marca do município e envio SÍNCRONO via Resend (`ResetSenhaNotification` + bind no container — a notification original do Filament é ShouldQueue e ficava presa na fila sem worker).
+
+#### PD-4 — Refinamentos de cadastro e processos (CPF/CNPJ, múltipla escolha, correção focada, layout de documentos)
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-14
+
+- Cadastro do cidadão com **CPF ou CNPJ** (máscara dinâmica; CNPJ → `Pessoa type=juridica`, dedup por `cnpj`);
+- Construtor de campos: máscaras **CNPJ** e **CPF ou CNPJ (dinâmica)** no bloco "Campo com Máscara";
+- "Múltipla Escolha" renderiza como **Select multiple** (bug do CheckboxList: marcar uma opção marcava todas);
+- Correção focada: com itens reprovados no checklist, o cidadão vê **só os campos reprovados** (merge do save aprofundado para 2 níveis — etapa + campo — para não apagar o restante); reprovado fora do formulário (ex.: requerimento assinado) → nenhum campo da etapa, só a seção do item; botões do checklist só em item pendente (decidido → "↺ desfazer");
+- Documentos na View do analista em **largura total**, um anexo por linha com Aprovar/Reprovar/Anotar na mesma linha.
 
 ---
 

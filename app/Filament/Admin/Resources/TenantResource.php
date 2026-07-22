@@ -275,6 +275,15 @@ class TenantResource extends Resource
 
                     Tables\Actions\DeleteAction::make(),
 
+                    // PT-1 — landing pública de links do município (para o site da prefeitura)
+                    Tables\Actions\Action::make('link_portal')
+                        ->label('Link do Portal')
+                        ->icon('heroicon-o-link')
+                        ->color('info')
+                        ->url(fn (Tenant $record) => url('/portal/'.$record->slug))
+                        ->openUrlInNewTab()
+                        ->tooltip('Abre a página de links do município — é este endereço que a prefeitura divulga no site oficial.'),
+
                     // 🟢 BOTÃO DE SINCRONIZAÇÃO E-SUS
                     Tables\Actions\Action::make('syncEsus')
                         ->label('Sincronizar e-SUS')

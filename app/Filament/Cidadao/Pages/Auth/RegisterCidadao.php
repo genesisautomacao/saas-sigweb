@@ -2,11 +2,11 @@
 
 namespace App\Filament\Cidadao\Pages\Auth;
 
-use Filament\Pages\Auth\Register as BaseRegister;
 use App\Filament\Concerns\HasTenantFirstRegistration;
-use Filament\Forms\Components\TextInput;
-use Filament\Support\RawJs;
 use App\Models\Pessoa;
+use Filament\Forms\Components\TextInput;
+use Filament\Pages\Auth\Register as BaseRegister;
+use Filament\Support\RawJs;
 use Illuminate\Database\Eloquent\Model;
 
 class RegisterCidadao extends BaseRegister
@@ -22,13 +22,17 @@ class RegisterCidadao extends BaseRegister
                 $this->getNameFormComponent(),
                 $this->getEmailFormComponent(),
 
-                // CPF e telefone alimentam a Pessoa vinculada (não são colunas de users).
+                // CPF/CNPJ e telefone alimentam a Pessoa vinculada (não são colunas de users).
                 // Necessários aos itens 136/147/214/219. Ver processosConceito.md §9.1.
-                TextInput::make('cpf')
-                    ->label('CPF')
+                // Máscara dinâmica: CPF (11 dígitos) vira CNPJ (14) ao passar do 12º dígito —
+                // o solicitante pode ser pessoa jurídica (ex.: responsável técnico/empresa).
+                TextInput::make('cpf_cnpj')
+                    ->label('CPF ou CNPJ')
                     ->required()
-                    ->mask('999.999.999-99')
-                    ->maxLength(14),
+                    ->mask(RawJs::make(<<<'JS'
+                        $input.length > 14 ? '99.999.999/9999-99' : '999.999.999-99'
+                        JS))
+                    ->maxLength(18),
                 TextInput::make('telefone')
                     ->label('Telefone / Celular')
                     ->required()
@@ -56,9 +60,13 @@ class RegisterCidadao extends BaseRegister
     {
         // A prefeitura vem da URL (passo 1), não do formulário.
         $tenantId = $this->tenantSelecionadoId;
-        $cpf = $data['cpf'] ?? null;
+        $documento = $data['cpf_cnpj'] ?? null;
         $telefone = $data['telefone'] ?? null;
-        unset($data['cpf'], $data['telefone']);
+        unset($data['cpf_cnpj'], $data['telefone']);
+
+        // CPF (11 dígitos) = pessoa física · CNPJ (14) = pessoa jurídica
+        $ehCnpj = strlen(preg_replace('/\D/', '', (string) $documento)) > 11;
+        $colunaDocumento = $ehCnpj ? 'cnpj' : 'cpf';
 
         // Marca como CIDADÃO — não pode acessar o painel da prefeitura nem aparecer na Equipe.
         $data['tipo'] = 'cidadao';
@@ -70,11 +78,11 @@ class RegisterCidadao extends BaseRegister
         $user->tenants()->attach($tenantId);
 
         // 4. Cria/vincula a Pessoa no tenant escolhido (o cidadão é User + Pessoa).
-        //    Dedup por CPF dentro do tenant. tenant_id explícito: o registro roda
+        //    Dedup por CPF/CNPJ dentro do tenant. tenant_id explícito: o registro roda
         //    SEM tenant no contexto Filament. Ver processosConceito.md §9.1.
         $pessoa = Pessoa::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
-            ->where('cpf', $cpf)
+            ->where($colunaDocumento, $documento)
             ->first();
 
         if ($pessoa) {
@@ -86,13 +94,13 @@ class RegisterCidadao extends BaseRegister
             }
             $pessoa->save();
         } else {
-            $pessoa = new Pessoa();
+            $pessoa = new Pessoa;
             $pessoa->tenant_id = $tenantId;
             $pessoa->user_id = $user->id;
             $pessoa->name = $user->name;
-            $pessoa->cpf = $cpf;
+            $pessoa->{$colunaDocumento} = $documento;
             $pessoa->telefone = $telefone;
-            $pessoa->type = 'fisica';
+            $pessoa->type = $ehCnpj ? 'juridica' : 'fisica';
             $pessoa->save();
         }
 

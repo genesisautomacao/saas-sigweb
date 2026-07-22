@@ -78,19 +78,35 @@ trait HasTenantFirstRegistration
         ];
     }
 
-    /** Faixa read-only no passo 2 mostrando a prefeitura escolhida, com link para trocar. */
+    /**
+     * Faixa read-only no passo 2 mostrando a prefeitura escolhida (só o nome, sem rótulo).
+     * PT-1: sem link "Trocar" — a porta de entrada é o Portal do município
+     * (/portal/{slug}), que já traz a prefeitura certa na URL.
+     */
     protected function faixaPrefeituraSelecionada(): Placeholder
     {
         $tenant = $this->getTenantSelecionado();
 
         return Placeholder::make('prefeitura_atual')
-            ->label('Prefeitura')
+            ->hiddenLabel()
             ->content(new HtmlString(
-                '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
-                . '<span style="font-weight:600;">' . e($tenant?->name ?? '—') . '</span>'
-                . '<a href="' . e($this->urlRegistro()) . '" style="font-size:12px;color:#2563eb;text-decoration:underline;">Trocar</a>'
-                . '</div>'
+                '<span style="font-weight:600;">'.e($tenant?->name ?? '—').'</span>'
             ));
+    }
+
+    /**
+     * PT-1 — o link "faça login na sua conta" carrega a prefeitura da URL, para a tela
+     * de login manter o brasão do município (sem o param, cairia na logo padrão).
+     */
+    public function loginAction(): Action
+    {
+        $action = parent::loginAction();
+
+        if ($this->prefeituraDefinida()) {
+            $action->url(filament()->getLoginUrl(['prefeitura' => $this->prefeitura]));
+        }
+
+        return $action;
     }
 
     public function register(): ?RegistrationResponse
@@ -117,10 +133,10 @@ trait HasTenantFirstRegistration
             ->label($this->prefeituraDefinida() ? 'Cadastrar' : 'Continuar');
     }
 
-    public function getSubheading(): string | Htmlable | null
+    public function getSubheading(): string|Htmlable|null
     {
         if ($this->prefeituraDefinida()) {
-            return new HtmlString('Cadastro para <strong>' . e($this->getTenantSelecionado()?->name) . '</strong>');
+            return new HtmlString('Cadastro para <strong>'.e($this->getTenantSelecionado()?->name).'</strong>');
         }
 
         return 'Primeiro, selecione a sua prefeitura.';
