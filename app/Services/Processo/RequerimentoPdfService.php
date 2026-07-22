@@ -61,24 +61,32 @@ class RequerimentoPdfService
         // PD-3 — blocos condicionais ANTES dos placeholders:
         //   {{#se campo:estado-civil = Casado}} ...texto com {{campo:nome-do-conjuge}}... {{/se}}
         // Operadores: = / == (igual), != (diferente), contem (substring). Comparação
-        // case-insensitive; sem aninhamento de blocos. Condição falsa → o trecho sai do PDF.
-        $template = preg_replace_callback(
-            '/\{\{\s*#se\s+([a-z0-9:_.\-]+)\s*(!=|==|=|contem)\s*(.*?)\s*\}\}(.*?)\{\{\s*\/se\s*\}\}/isu',
-            function ($m) use ($valores) {
-                $atual = mb_strtolower(trim((string) ($valores[mb_strtolower($m[1])] ?? '')));
-                // O RichEditor pode envolver o valor esperado em tags — compara só o texto.
-                $esperado = mb_strtolower(trim(strip_tags($m[3])));
+        // case-insensitive. Condição falsa → o trecho sai do PDF.
+        // ANINHAMENTO suportado: o padrão só casa blocos SEM {{#se}} interno (os mais
+        // profundos) e o loop repete até estabilizar — resolve de dentro para fora.
+        $callback = function ($m) use ($valores) {
+            $normalizar = fn (string $texto) => mb_strtolower(trim(str_replace("\u{00A0}", ' ', html_entity_decode(strip_tags($texto), ENT_QUOTES, 'UTF-8'))));
 
-                $ok = match ($m[2]) {
-                    '!=' => $atual !== $esperado,
-                    'contem' => $esperado !== '' && str_contains($atual, $esperado),
-                    default => $atual === $esperado,
-                };
+            $atual = $normalizar((string) ($valores[mb_strtolower($m[1])] ?? ''));
+            // O RichEditor pode envolver o valor esperado em tags/entidades — compara só o texto.
+            $esperado = $normalizar($m[3]);
 
-                return $ok ? $m[4] : '';
-            },
-            $template
-        );
+            $ok = match ($m[2]) {
+                '!=' => $atual !== $esperado,
+                'contem' => $esperado !== '' && str_contains($atual, $esperado),
+                default => $atual === $esperado,
+            };
+
+            return $ok ? $m[4] : '';
+        };
+
+        // Valor esperado = [^}]*? — NÃO pode atravessar o "}}" do abridor (com (.*?) o
+        // backtracking engolia texto até um fechamento interno e quebrava o aninhamento).
+        $padrao = '/\{\{\s*#se\s+([a-z0-9:_.\-]+)\s*(!=|==|=|contem)\s*([^}]*?)\s*\}\}((?:(?!\{\{\s*#se\s).)*?)\{\{\s*\/se\s*\}\}/isu';
+
+        do {
+            $template = preg_replace_callback($padrao, $callback, $template, -1, $substituicoes);
+        } while ($substituicoes > 0);
 
         return preg_replace_callback(
             '/\{\{\s*([a-z0-9:_.\-]+)\s*\}\}/i',
