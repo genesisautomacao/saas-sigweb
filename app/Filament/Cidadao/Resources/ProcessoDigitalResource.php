@@ -114,6 +114,22 @@ class ProcessoDigitalResource extends Resource
                                 ->pluck('nome', 'id'))
                             ->required()
                             ->reactive()
+                            // ⚠️ Semeia os caminhos de estado dos campos da 1ª etapa: os componentes
+                            // do passo 3 NASCEM depois do mount (dependem do fluxo escolhido) e os
+                            // campos não-nativos (Select/Choices, via $entangle do Livewire) NÃO
+                            // sincronizam com caminho inexistente no state — a seleção ficava só no
+                            // navegador e a validação via null ("field is required").
+                            ->afterStateUpdated(function (Forms\Set $set, $state) {
+                                $etapa = self::etapaDoFormulario(null, $state);
+
+                                foreach (($etapa?->campos_formulario ?? []) as $campo) {
+                                    $slug = \Illuminate\Support\Str::slug($campo['data']['label_campo'] ?? 'campo');
+                                    $set(
+                                        'dados_formulario.etapa_'.$etapa->id.'.'.$slug,
+                                        ($campo['type'] ?? '') === 'checkbox' ? [] : null,
+                                    );
+                                }
+                            })
                             ->disabled(fn (?ProcessoDigital $record) => filled($record)) // não muda o tipo depois de aberto
                             ->helperText('Ex: Aprovação de Projeto, REURB, Habite-se.'),
                     ]),
