@@ -85,6 +85,53 @@ class ProcessoChecklistService
             ->values();
     }
 
+    /**
+     * PD-5 — anexos PENDENTES que impedem a APROVAÇÃO da etapa atual, conforme o modo
+     * `aprovacao_anexos` da etapa (do analista):
+     * - 'nao_exige' → nenhum (pendentes passam);
+     * - 'novos'     → só os anexos vinculados às etapas do SOLICITANTE posteriores à última
+     *                 etapa de análise antes da atual (ex.: o comprovante anexado na volta);
+     * - 'todos'     → todos os pendentes do processo (análise final; default).
+     * Reprovados NÃO entram aqui — eles bloqueiam SEMPRE, via reprovadosPendentes().
+     */
+    public static function pendentesExigidos(ProcessoDigital $processo): Collection
+    {
+        $etapaAtual = $processo->etapaAtual;
+        $modo = $etapaAtual?->aprovacao_anexos ?? 'todos';
+
+        if ($modo === 'nao_exige') {
+            return collect();
+        }
+
+        $anexos = self::anexosAnalisaveis($processo);
+        $ultimas = self::ultimasVersoes($anexos);
+        $pendentes = $anexos->filter(fn (ProcessoAnexo $a) => $ultimas->contains($a->id) && $a->status_analise === 'pendente');
+
+        if ($modo !== 'novos' || ! $etapaAtual) {
+            return $pendentes->values(); // 'todos'
+        }
+
+        // 'novos': janela = etapas do solicitante entre a análise anterior (por ordem) e a atual.
+        $ordemAtual = (int) $etapaAtual->ordem;
+
+        $ordemAnaliseAnterior = (int) (\App\Models\BpmnEtapa::withoutGlobalScopes()
+            ->where('bpmn_fluxo_id', $processo->bpmn_fluxo_id)
+            ->where('executor', 'analista')
+            ->where('ordem', '<', $ordemAtual)
+            ->max('ordem') ?? -1);
+
+        $etapasJanela = \App\Models\BpmnEtapa::withoutGlobalScopes()
+            ->where('bpmn_fluxo_id', $processo->bpmn_fluxo_id)
+            ->where('executor', 'solicitante')
+            ->where('ordem', '>', $ordemAnaliseAnterior)
+            ->where('ordem', '<', $ordemAtual)
+            ->pluck('id');
+
+        return $pendentes
+            ->filter(fn (ProcessoAnexo $a) => $etapasJanela->contains($a->etapa_id))
+            ->values();
+    }
+
     /** Sufixo do parecer com os itens reprovados (flui para tramitação + e-mail de correção). */
     public static function resumoReprovados(ProcessoDigital $processo): ?string
     {

@@ -244,6 +244,14 @@ Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unid
 - Correção focada: com itens reprovados no checklist, o cidadão vê **só os campos reprovados** (merge do save aprofundado para 2 níveis — etapa + campo — para não apagar o restante); reprovado fora do formulário (ex.: requerimento assinado) → nenhum campo da etapa, só a seção do item; botões do checklist só em item pendente (decidido → "↺ desfazer");
 - Documentos na View do analista em **largura total**, um anexo por linha com Aprovar/Reprovar/Anotar na mesma linha.
 
+#### PD-5 — Exigência de aprovação de anexos configurável por etapa
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-22
+
+- Nova config `bpmn_etapas.aprovacao_anexos` (etapas do analista): **`nao_exige`** (aprova a etapa mesmo com anexos pendentes), **`novos`** (exige aprovar só os anexos enviados desde a última etapa de análise — ex.: comprovante de pagamento no Financeiro) e **`todos`** (exige o checklist completo do processo — ex.: análise final da Engenharia; default = comportamento atual);
+- Documento **reprovado bloqueia sempre**, em qualquer modo (devolver ao cidadão ou desfazer a reprova);
+- Caso de uso (Aprovação de Projeto Bom Princípio): Financeiro 1ª passagem `nao_exige` → cidadão paga/anexa comprovante → Financeiro `novos` aprova só o comprovante → Engenharia `todos` aprova os documentos iniciais e conclui.
+
 ---
 
 ## Pontos fortes a destacar na demonstração

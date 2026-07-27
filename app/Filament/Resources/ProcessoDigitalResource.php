@@ -266,8 +266,20 @@ class ProcessoDigitalResource extends Resource
                                 .($item->observacao_analise ? ': '.e($item->observacao_analise) : '').'</div>';
                         }
 
-                        if ($r['pendentes'] > 0 || $r['reprovados'] > 0) {
-                            $html .= '<div class="text-xs text-gray-500">A etapa só pode ser APROVADA com todos os documentos aprovados — analise os pendentes na seção "Documentos e PDFs". Com documento reprovado, reprove a etapa (a lista segue junto no parecer).</div>';
+                        // PD-5 — orientação conforme o modo de exigência da etapa
+                        $modo = $record->etapaAtual?->aprovacao_anexos ?? 'todos';
+                        $exigidos = \App\Services\Processo\ProcessoChecklistService::pendentesExigidos($record)->count();
+
+                        if ($r['reprovados'] > 0) {
+                            $html .= '<div class="text-xs text-gray-500">Documento REPROVADO bloqueia a aprovação da etapa — reprove a etapa (devolve ao cidadão, com a lista no parecer) ou desfaça a reprova.</div>';
+                        }
+
+                        if ($modo === 'nao_exige' && $r['pendentes'] > 0) {
+                            $html .= '<div class="text-xs text-gray-500">Esta etapa NÃO exige a aprovação dos anexos — os pendentes não impedem aprovar.</div>';
+                        } elseif ($modo === 'novos' && $r['pendentes'] > 0) {
+                            $html .= '<div class="text-xs text-gray-500">Esta etapa exige aprovar os anexos NOVOS desde a última análise'.($exigidos > 0 ? " ({$exigidos} pendente(s) exigido(s))" : ' (nenhum pendente exigido)').'; os demais pendentes não bloqueiam.</div>';
+                        } elseif ($modo === 'todos' && $r['pendentes'] > 0) {
+                            $html .= '<div class="text-xs text-gray-500">Esta etapa exige TODOS os documentos do processo aprovados — analise os pendentes na seção "Documentos e PDFs".</div>';
                         }
 
                         return new \Illuminate\Support\HtmlString($html.'</div>');
@@ -321,19 +333,29 @@ class ProcessoDigitalResource extends Resource
             return true;
         }
 
-        // PD-2 — guard: a etapa só pode ser APROVADA com o checklist completo — todo documento
-        // analisável precisa estar APROVADO (pendente ou reprovado bloqueiam). Reprovar a etapa
-        // continua permitido em qualquer situação (é a devolução ao cidadão).
+        // PD-2/PD-5 — guard da APROVAÇÃO da etapa:
+        // - documento REPROVADO bloqueia SEMPRE (devolver ao cidadão ou desfazer a reprova);
+        // - documentos PENDENTES bloqueiam conforme o modo `aprovacao_anexos` da etapa
+        //   (nao_exige | novos [desde a última análise] | todos). Reprovar a etapa é sempre livre.
         if ($data['decisao'] === 'aprovado') {
-            $resumo = \App\Services\Processo\ProcessoChecklistService::resumoContadores($record);
+            $reprovados = \App\Services\Processo\ProcessoChecklistService::reprovadosPendentes($record);
+            $pendentesExigidos = \App\Services\Processo\ProcessoChecklistService::pendentesExigidos($record);
 
-            if ($resumo['pendentes'] > 0 || $resumo['reprovados'] > 0) {
+            if ($reprovados->isNotEmpty() || $pendentesExigidos->isNotEmpty()) {
+                $motivos = [];
+                if ($reprovados->isNotEmpty()) {
+                    $motivos[] = $reprovados->count().' documento(s) REPROVADO(s) — reprove a etapa para devolver ao cidadão, ou desfaça a reprova';
+                }
+                if ($pendentesExigidos->isNotEmpty()) {
+                    $motivos[] = 'esta etapa exige a aprovação de '.$pendentesExigidos->count().' documento(s) ainda pendente(s): '
+                        .$pendentesExigidos->pluck('nome_arquivo')->take(3)->implode('; ')
+                        .($pendentesExigidos->count() > 3 ? '…' : '');
+                }
+
                 \Filament\Notifications\Notification::make()
                     ->danger()
                     ->title('Checklist de documentos incompleto')
-                    ->body("Há {$resumo['pendentes']} documento(s) aguardando análise e {$resumo['reprovados']} reprovado(s). "
-                        .'Analise cada documento na seção "Documentos e PDFs" — a etapa só pode ser aprovada com todos os documentos aprovados. '
-                        .'Se houver documento incorreto, reprove a etapa para devolver ao cidadão.')
+                    ->body('Não é possível aprovar a etapa: '.implode(' · ', $motivos).'. Analise os documentos na seção "Documentos e PDFs".')
                     ->send();
 
                 return false;

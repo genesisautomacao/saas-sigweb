@@ -73,6 +73,21 @@ class EtapasRelationManager extends RelationManager
                                     ->default(0)
                                     ->helperText('Tempo previsto para conclusão desta fase.'),
 
+                                // PD-5 — o que esta etapa (do analista) exige do checklist de anexos
+                                // para poder ser APROVADA. Reprovado bloqueia sempre, em qualquer modo.
+                                Forms\Components\Select::make('aprovacao_anexos')
+                                    ->label('Aprovação dos anexos para aprovar a etapa')
+                                    ->options([
+                                        'nao_exige' => 'Não exigir (aprova mesmo com anexos pendentes)',
+                                        'novos' => 'Exigir só os anexos novos desde a última análise (ex.: comprovante)',
+                                        'todos' => 'Exigir TODOS os anexos do processo aprovados (análise final)',
+                                    ])
+                                    ->default('todos')
+                                    ->native(false)
+                                    ->visible(fn (Get $get) => $get('executor') === 'analista')
+                                    ->helperText('Documento REPROVADO bloqueia a aprovação da etapa em qualquer modo — devolva ao cidadão ou desfaça a reprova.')
+                                    ->columnSpanFull(),
+
                                 // PD-1 — em qual etapa do solicitante o requerimento assinado é exigido.
                                 // Sem nenhuma etapa marcada, vale a 1ª etapa do fluxo (abertura).
                                 Forms\Components\Toggle::make('exige_requerimento')
