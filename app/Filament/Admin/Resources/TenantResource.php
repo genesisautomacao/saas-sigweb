@@ -182,14 +182,18 @@ class TenantResource extends Resource
                 Forms\Components\Section::make('Configurações Geográficas (SIGWEB)')
                     ->icon('heroicon-o-globe-americas')
                     ->schema([
+                        // dehydrateStateUsing: TextInput numeric() entrega STRING — grava como
+                        // NÚMERO no JSON tenant.data (o app mobile/react-native-maps exige número).
                         Forms\Components\TextInput::make('data.map_lat')
                             ->label('Latitude Central')
                             ->numeric()
+                            ->dehydrateStateUsing(fn ($state) => is_numeric($state) ? (float) $state : null)
                             ->helperText('Ex: -26.9658952'),
 
                         Forms\Components\TextInput::make('data.map_lon')
                             ->label('Longitude Central')
                             ->numeric()
+                            ->dehydrateStateUsing(fn ($state) => is_numeric($state) ? (float) $state : null)
                             ->helperText('Ex: -50.4182571'),
 
                         Forms\Components\TextInput::make('data.map_zoom')
@@ -197,7 +201,8 @@ class TenantResource extends Resource
                             ->numeric()
                             ->default(14)
                             ->minValue(1)
-                            ->maxValue(22),
+                            ->maxValue(22)
+                            ->dehydrateStateUsing(fn ($state) => is_numeric($state) ? (int) $state : null),
 
                         // Item 179 (PoC): camadas que o app móvel poderá exibir.
                         // Lidas por GET /api/map/layers (gravadas em tenant.data['mobile_layers']).

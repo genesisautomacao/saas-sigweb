@@ -46,9 +46,12 @@ trait BuildsMobileAuthResponse
                 'name' => $tenant?->name,
                 'city' => $data['city'] ?? null,
                 'state' => $data['state'] ?? null,
-                'map_lat' => $data['map_lat'] ?? null,
-                'map_lon' => $data['map_lon'] ?? null,
-                'map_zoom' => $data['map_zoom'] ?? null,
+                // Sempre NÚMERO no payload: em tenant.data (JSON) esses valores podem ter sido
+                // gravados como string (digitados no Admin) ou número (Salvar Enquadramento do
+                // mapa) — o app (react-native-maps) exige número.
+                'map_lat' => isset($data['map_lat']) && is_numeric($data['map_lat']) ? (float) $data['map_lat'] : null,
+                'map_lon' => isset($data['map_lon']) && is_numeric($data['map_lon']) ? (float) $data['map_lon'] : null,
+                'map_zoom' => isset($data['map_zoom']) && is_numeric($data['map_zoom']) ? (int) $data['map_zoom'] : null,
             ],
             'layers' => $layers,
         ];
