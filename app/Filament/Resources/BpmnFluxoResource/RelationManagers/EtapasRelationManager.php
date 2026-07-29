@@ -182,15 +182,30 @@ class EtapasRelationManager extends RelationManager
                                                 ...self::camposCondicao(),
                                             ]),
 
-                                        // 5. UPLOAD DE ARQUIVO (documento nomeado) — item 3
+                                        // 5. UPLOAD DE ARQUIVO (documento nomeado) — item 3 / PD-6 (múltiplo)
                                         Forms\Components\Builder\Block::make('arquivo')
                                             ->label('Upload de Arquivo (documento nomeado)')
                                             ->icon('heroicon-m-paper-clip')
                                             ->schema([
                                                 Forms\Components\TextInput::make('label_campo')
-                                                    ->label('Nome do documento (ex.: Foto do CPF, Escritura, Habite-se)')
+                                                    ->label('Nome do documento (ex.: Foto do CPF, Escritura, Plantas do Projeto)')
                                                     ->required(),
                                                 Forms\Components\Toggle::make('obrigatorio')->label('Obrigatório?')->default(false),
+
+                                                // PD-6 — upload múltiplo: cada arquivo vira um anexo próprio
+                                                // no checklist (aprovado/reprovado individualmente).
+                                                Forms\Components\Toggle::make('multiplo')
+                                                    ->label('Permitir vários arquivos neste campo?')
+                                                    ->helperText('Ex.: "Plantas do Projeto" com N folhas. Cada arquivo é analisado individualmente no checklist.')
+                                                    ->live()
+                                                    ->default(false),
+                                                Forms\Components\TextInput::make('max_arquivos')
+                                                    ->label('Máximo de arquivos')
+                                                    ->numeric()
+                                                    ->default(10)
+                                                    ->minValue(2)
+                                                    ->visible(fn (Get $get) => (bool) $get('multiplo')),
+
                                                 ...self::camposCondicao(),
                                             ]),
                                     ])

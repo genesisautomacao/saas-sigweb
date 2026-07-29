@@ -62,9 +62,10 @@ class ProcessoFormService
                     return false;
                 }
                 $label = $campo['data']['label_campo'] ?? 'Arquivo';
-                $anexo = ProcessoChecklistService::ultimoAnexoDoCampo($processo, $etapa->id, Str::slug($label), $label);
 
-                return $anexo?->status_analise === 'reprovado';
+                // PD-6 — campo múltiplo: entra na correção se QUALQUER arquivo dele foi reprovado.
+                return ProcessoChecklistService::anexosVigentesDoCampo($processo, $etapa->id, Str::slug($label), $label)
+                    ->contains(fn ($a) => $a->status_analise === 'reprovado');
             })->values();
         }
 
@@ -139,7 +140,10 @@ class ProcessoFormService
                 }
             } elseif ($tipo === 'arquivo') {
                 // Upload nomeado (item 3) — vira ProcessoAnexo no salvamento (salvarRespostaEtapa).
+                // PD-6 — 'multiplo': N arquivos no mesmo campo, cada um vira um anexo próprio.
                 $label = $dados['label_campo'] ?? 'Arquivo';
+                $multiplo = (bool) ($dados['multiplo'] ?? false);
+
                 $component = Forms\Components\FileUpload::make($nome)
                     ->label($label)
                     ->required($obrigatorio)
@@ -150,20 +154,34 @@ class ProcessoFormService
                     ->downloadable()
                     ->openable();
 
-                // PD-2 — correção por item: reflete o checklist de análise do anexo deste campo.
-                if ($processo) {
-                    $anexo = ProcessoChecklistService::ultimoAnexoDoCampo($processo, $etapa->id, Str::slug($label), $label);
+                if ($multiplo) {
+                    $component->multiple()->maxFiles(max(2, (int) ($dados['max_arquivos'] ?? 10)));
+                }
 
-                    if ($anexo?->status_analise === 'aprovado') {
+                // PD-2 — correção por item: reflete o checklist de análise do(s) anexo(s) do campo.
+                // Campo múltiplo: trava só com TODOS aprovados; reprovado em QUALQUER arquivo → corrigir.
+                if ($processo) {
+                    $anexosCampo = ProcessoChecklistService::anexosVigentesDoCampo($processo, $etapa->id, Str::slug($label), $label);
+                    $reprovados = $anexosCampo->where('status_analise', 'reprovado');
+
+                    if ($anexosCampo->isNotEmpty() && $reprovados->isEmpty()
+                        && $anexosCampo->every(fn ($a) => $a->status_analise === 'aprovado')) {
                         // disabled + dehydrated(true): trava a troca SEM apagar o path já salvo
                         // em dados_formulario (dehydrated(false) apagaria o valor no save).
                         $component->disabled()->dehydrated(true)
-                            ->helperText('✅ Documento aprovado pela prefeitura — não é necessário reenviar.');
-                    } elseif ($anexo?->status_analise === 'reprovado') {
+                            ->helperText($anexosCampo->count() > 1
+                                ? '✅ Todos os arquivos deste campo foram aprovados — não é necessário reenviar.'
+                                : '✅ Documento aprovado pela prefeitura — não é necessário reenviar.');
+                    } elseif ($reprovados->isNotEmpty()) {
+                        $motivos = $reprovados
+                            ->map(fn ($a) => basename($a->caminho_arquivo).': '.($a->observacao_analise ?: 'documento incorreto'))
+                            ->implode(' · ');
+
                         $component->required(! $disabled)
-                            ->hint('Documento reprovado')
+                            ->hint($reprovados->count() > 1 ? 'Arquivos reprovados' : 'Documento reprovado')
                             ->hintColor('danger')
-                            ->helperText('Motivo da reprovação: '.($anexo->observacao_analise ?: 'documento incorreto').' — anexe a versão corrigida.');
+                            ->helperText('Motivo da reprovação — '.$motivos.'. '
+                                .($multiplo ? 'Remova o(s) arquivo(s) reprovado(s) e anexe a versão corrigida.' : 'Anexe a versão corrigida.'));
                     }
                 }
             }
@@ -232,37 +250,63 @@ class ProcessoFormService
 
             $label = $campo['data']['label_campo'] ?? 'Arquivo';
             $slug = Str::slug($label);
-            $caminho = data_get($dados, $slug);
-            if (is_array($caminho)) {
-                $caminho = $caminho[0] ?? null;
-            }
-            if (empty($caminho)) {
-                continue;
-            }
+            $multiplo = (bool) ($campo['data']['multiplo'] ?? false);
 
-            $existe = ProcessoAnexo::where('processo_digital_id', $processo->id)
-                ->where('caminho_arquivo', $caminho)
-                ->exists();
-            if ($existe) {
-                continue;
+            // Estado do FileUpload: string (único) ou array de paths (múltiplo)
+            $valor = data_get($dados, $slug);
+            $caminhos = array_values(array_filter(is_array($valor) ? $valor : [$valor]));
+
+            // Campo ÚNICO sem múltiplo: mantém o comportamento original (1º path + cadeia de versões)
+            if (! $multiplo) {
+                $caminhos = array_slice($caminhos, 0, 1);
             }
 
-            // PD-2 — substituição de arquivo vira NOVA VERSÃO na cadeia do campo
-            // (status_analise nasce 'pendente' pelo default — o item reprovado "reseta").
-            $anterior = ProcessoChecklistService::ultimoAnexoDoCampo($processo, $etapa->id, $slug, $label);
+            foreach ($caminhos as $caminho) {
+                $existe = ProcessoAnexo::where('processo_digital_id', $processo->id)
+                    ->where('caminho_arquivo', $caminho)
+                    ->exists();
+                if ($existe) {
+                    continue;
+                }
 
-            ProcessoAnexo::create([
-                'tenant_id' => $processo->tenant_id,
-                'processo_digital_id' => $processo->id,
-                'etapa_id' => $etapa->id,
-                'campo_slug' => $slug,
-                'usuario_id' => $usuarioId,
-                'nome_arquivo' => $label.' — '.basename($caminho),
-                'caminho_arquivo' => $caminho,
-                'tipo_anexo' => 'formulario',
-                'versao' => $anterior ? $anterior->versao + 1 : 1,
-                'anexo_origem_id' => $anterior?->cadeiaId(),
-            ]);
+                // PD-2 — campo único: substituição vira NOVA VERSÃO na cadeia do campo.
+                // PD-6 — campo múltiplo: cada arquivo é um anexo independente (sem cadeia);
+                // em ambos, status_analise nasce 'pendente' pelo default.
+                $anterior = $multiplo ? null : ProcessoChecklistService::ultimoAnexoDoCampo($processo, $etapa->id, $slug, $label);
+
+                ProcessoAnexo::create([
+                    'tenant_id' => $processo->tenant_id,
+                    'processo_digital_id' => $processo->id,
+                    'etapa_id' => $etapa->id,
+                    'campo_slug' => $slug,
+                    'usuario_id' => $usuarioId,
+                    'nome_arquivo' => $label.' — '.basename($caminho),
+                    'caminho_arquivo' => $caminho,
+                    'tipo_anexo' => 'formulario',
+                    'versao' => $anterior ? $anterior->versao + 1 : 1,
+                    'anexo_origem_id' => $anterior?->cadeiaId(),
+                ]);
+            }
+
+            // PD-6 — reconciliação do campo múltiplo: arquivo REMOVIDO da lista pelo cidadão
+            // (ex.: trocou a folha reprovada) é soft-deletado — sai do checklist e deixa de
+            // bloquear. Anexos APROVADOS nunca são removidos (o campo aprovado fica travado).
+            if ($multiplo) {
+                ProcessoAnexo::withoutGlobalScopes()
+                    ->where('processo_digital_id', $processo->id)
+                    ->where('etapa_id', $etapa->id)
+                    ->where('tipo_anexo', 'formulario')
+                    ->whereNull('deleted_at')
+                    ->where(function ($q) use ($slug, $label) {
+                        $q->where('campo_slug', $slug)
+                            ->orWhere(fn ($legado) => $legado->whereNull('campo_slug')->where('nome_arquivo', 'like', $label.' — %'));
+                    })
+                    ->whereNotIn('caminho_arquivo', $caminhos ?: ['—nenhum—'])
+                    ->where('status_analise', '!=', 'aprovado')
+                    ->get()
+                    ->each
+                    ->delete();
+            }
         }
     }
 

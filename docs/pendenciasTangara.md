@@ -252,6 +252,14 @@ Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unid
 - Documento **reprovado bloqueia sempre**, em qualquer modo (devolver ao cidadão ou desfazer a reprova);
 - Caso de uso (Aprovação de Projeto Bom Princípio): Financeiro 1ª passagem `nao_exige` → cidadão paga/anexa comprovante → Financeiro `novos` aprova só o comprovante → Engenharia `todos` aprova os documentos iniciais e conclui.
 
+#### PD-6 — Upload múltiplo no construtor de formulário das etapas
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-23
+
+- Toggle "Permitir vários arquivos" (+ máximo configurável) no bloco "Upload de Arquivo" do construtor;
+- Cada arquivo vira um `ProcessoAnexo` próprio (aprovável/reprovável individualmente no checklist PD-2);
+- No campo múltiplo não há cadeia de versões: arquivo removido pelo cidadão (não aprovado) é soft-deletado na sincronização; travamento do campo na correção = todos aprovados; reprovado em qualquer arquivo exige substituição.
+
 ---
 
 ## Pontos fortes a destacar na demonstração

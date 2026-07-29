@@ -172,6 +172,27 @@ class ProcessoChecklistService
      */
     public static function ultimoAnexoDoCampo(ProcessoDigital $processo, int $etapaId, string $slug, string $label): ?ProcessoAnexo
     {
+        return self::consultaAnexosDoCampo($processo, $etapaId, $slug, $label)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * PD-6 — TODOS os anexos vigentes (última versão de cada cadeia) de um campo 'arquivo'.
+     * Campo múltiplo: cada arquivo é uma cadeia própria → devolve N linhas. Campo único:
+     * devolve a última versão da cadeia (1 linha). Base do travamento/aviso na correção.
+     */
+    public static function anexosVigentesDoCampo(ProcessoDigital $processo, int $etapaId, string $slug, string $label): Collection
+    {
+        $todos = self::consultaAnexosDoCampo($processo, $etapaId, $slug, $label)->orderBy('id')->get();
+        $ultimas = self::ultimasVersoes($todos);
+
+        return $todos->filter(fn (ProcessoAnexo $a) => $ultimas->contains($a->id))->values();
+    }
+
+    /** Query base dos anexos de um campo (match forte por campo_slug + fallback legado). */
+    protected static function consultaAnexosDoCampo(ProcessoDigital $processo, int $etapaId, string $slug, string $label)
+    {
         return ProcessoAnexo::withoutGlobalScopes()
             ->where('processo_digital_id', $processo->id)
             ->where('etapa_id', $etapaId)
@@ -180,8 +201,6 @@ class ProcessoChecklistService
             ->where(function ($q) use ($slug, $label) {
                 $q->where('campo_slug', $slug)
                     ->orWhere(fn ($legado) => $legado->whereNull('campo_slug')->where('nome_arquivo', 'like', $label.' — %'));
-            })
-            ->orderByDesc('id')
-            ->first();
+            });
     }
 }
