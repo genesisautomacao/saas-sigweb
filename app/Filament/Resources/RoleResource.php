@@ -15,9 +15,13 @@ class RoleResource extends Resource
     protected static ?string $model = Role::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-shield-check';
+
     protected static ?string $modelLabel = 'Papel de Acesso';
+
     protected static ?string $pluralModelLabel = 'Papéis de Acesso';
+
     protected static ?string $navigationGroup = 'Configurações';
+
     protected static ?int $navigationSort = 34;
 
     public static function form(Form $form): Form
@@ -33,6 +37,7 @@ class RoleResource extends Resource
                         ignoreRecord: true,
                         modifyRuleUsing: function (\Illuminate\Validation\Rules\Unique $rule) {
                             $tenant = \Filament\Facades\Filament::getTenant();
+
                             return $rule->where('tenant_id', $tenant?->id);
                         }
                     ),
@@ -131,9 +136,9 @@ class RoleResource extends Resource
                                 Forms\Components\CheckboxList::make('permissions_pontos_panoramicos')
                                     ->label('Gestão de Imagens 360º')
                                     ->options([
-                                        'view_pontos_panoramicos'   => 'Visualizar Pontos 360º',
+                                        'view_pontos_panoramicos' => 'Visualizar Pontos 360º',
                                         'create_pontos_panoramicos' => 'Criar Pontos 360º',
-                                        'edit_pontos_panoramicos'   => 'Editar Pontos 360º',
+                                        'edit_pontos_panoramicos' => 'Editar Pontos 360º',
                                         'delete_pontos_panoramicos' => 'Excluir Pontos 360º',
                                     ])
                                     ->bulkToggleable(),
@@ -206,14 +211,14 @@ class RoleResource extends Resource
                                     ->label('Cada permissão libera visualizar, criar, editar e excluir a entidade')
                                     ->options([
                                         'gerenciar_estabelecimentos' => 'Gerenciar Estabelecimentos',
-                                        'gerenciar_fabricantes'      => 'Gerenciar Fabricantes',
-                                        'gerenciar_fornecedores'     => 'Gerenciar Fornecedores',
-                                        'gerenciar_unidade_medidas'  => 'Gerenciar Unidades de Medida',
-                                        'gerenciar_embalagens'       => 'Gerenciar Embalagens',
+                                        'gerenciar_fabricantes' => 'Gerenciar Fabricantes',
+                                        'gerenciar_fornecedores' => 'Gerenciar Fornecedores',
+                                        'gerenciar_unidade_medidas' => 'Gerenciar Unidades de Medida',
+                                        'gerenciar_embalagens' => 'Gerenciar Embalagens',
                                         'gerenciar_familia_produtos' => 'Gerenciar Famílias de Produto',
-                                        'gerenciar_tipo_estoques'    => 'Gerenciar Tipos de Estoque',
+                                        'gerenciar_tipo_estoques' => 'Gerenciar Tipos de Estoque',
                                         'gerenciar_operacao_internas' => 'Gerenciar Operações Internas',
-                                        'gerenciar_lote_estoques'    => 'Gerenciar Lotes / Séries',
+                                        'gerenciar_lote_estoques' => 'Gerenciar Lotes / Séries',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(3),
@@ -322,6 +327,21 @@ class RoleResource extends Resource
                                     ->columns(4),
                             ])->columns(1)->columnSpanFull(),
 
+                        // CAIXA 12b: COLETA CADASTRAL (R67)
+                        // A integração tributária NÃO tem permissão de prefeitura: o de/para
+                        // é parametrizado por sistema no painel /admin do SaaS (R67-5 revisada).
+                        Forms\Components\Fieldset::make('Coleta Cadastral (campos e regiões)')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_coleta')
+                                    ->hiddenLabel()
+                                    ->options([
+                                        'gerenciar_campos_customizados' => 'Campos do Município (customizados e padrão)',
+                                        'gerenciar_atribuicoes_coleta' => 'Atribuições de Região (cadastradores)',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(2),
+                            ])->columns(1)->columnSpanFull(),
+
                         // CAIXA 13: CADASTRO SOCIAL
                         Forms\Components\Fieldset::make('Módulo: Cadastro Social')
                             ->schema([
@@ -396,7 +416,7 @@ class RoleResource extends Resource
                                     ->columns(4),
                             ])->columns(1)->columnSpanFull(),
 
-                        //CAIXA 15: PATRIMÔNIOS PÚBLICOS
+                        // CAIXA 15: PATRIMÔNIOS PÚBLICOS
                         Forms\Components\Fieldset::make('Módulo de Patrimônios Públicos')
                             ->schema([
                                 Forms\Components\CheckboxList::make('permissions_patrimonio')
@@ -422,18 +442,18 @@ class RoleResource extends Resource
                                 Forms\Components\CheckboxList::make('permissions_bpmn')
                                     ->label('Fluxos BPMN e Processos')
                                     ->options([
-                                        'view_bpmn_fluxos'          => 'Ver Fluxos BPMN',
-                                        'create_bpmn_fluxos'        => 'Criar Fluxos BPMN',
-                                        'edit_bpmn_fluxos'          => 'Editar Fluxos BPMN',
-                                        'delete_bpmn_fluxos'        => 'Excluir Fluxos BPMN',
-                                        'view_processos_digitais'   => 'Ver Processos Digitais (Caixa de Entrada)',
+                                        'view_bpmn_fluxos' => 'Ver Fluxos BPMN',
+                                        'create_bpmn_fluxos' => 'Criar Fluxos BPMN',
+                                        'edit_bpmn_fluxos' => 'Editar Fluxos BPMN',
+                                        'delete_bpmn_fluxos' => 'Excluir Fluxos BPMN',
+                                        'view_processos_digitais' => 'Ver Processos Digitais (Caixa de Entrada)',
                                         'create_processos_digitais' => 'Criar Processos Digitais',
-                                        'edit_processos_digitais'   => 'Editar Processos Digitais',
+                                        'edit_processos_digitais' => 'Editar Processos Digitais',
                                         'delete_processos_digitais' => 'Excluir Processos Digitais',
                                         // Motor de Processos — permissões adicionais
-                                        'gerenciar_setores'         => 'Gerenciar Setores / Departamentos',
-                                        'view_todos_processos'      => 'Ver TODOS os processos (ignora o filtro por setor)',
-                                        'view_processos_progresso'  => 'Ver Progresso dos Processos (dashboard)',
+                                        'gerenciar_setores' => 'Gerenciar Setores / Departamentos',
+                                        'view_todos_processos' => 'Ver TODOS os processos (ignora o filtro por setor)',
+                                        'view_processos_progresso' => 'Ver Progresso dos Processos (dashboard)',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(2),
@@ -445,19 +465,19 @@ class RoleResource extends Resource
                                 Forms\Components\CheckboxList::make('permissions_viabilidade')
                                     ->label('CNAEs, Regras de Zoneamento e Parâmetros Urbanísticos')
                                     ->options([
-                                        'view_cnaes'                 => 'Ver CNAEs e Atividades',
-                                        'create_cnaes'               => 'Criar CNAEs',
-                                        'edit_cnaes'                 => 'Editar CNAEs',
-                                        'delete_cnaes'               => 'Excluir CNAEs',
-                                        'view_regras_zoneamento'     => 'Ver Regras de Zoneamento',
-                                        'create_regras_zoneamento'   => 'Criar Regras de Zoneamento',
-                                        'edit_regras_zoneamento'     => 'Editar Regras de Zoneamento',
-                                        'delete_regras_zoneamento'   => 'Excluir Regras de Zoneamento',
-                                        'view_parametros_urbanos'    => 'Ver Parâmetros de Loteamento',
-                                        'create_parametros_urbanos'  => 'Criar Parâmetros de Loteamento',
-                                        'edit_parametros_urbanos'    => 'Editar Parâmetros de Loteamento',
-                                        'delete_parametros_urbanos'  => 'Excluir Parâmetros de Loteamento',
-                                        'view_viabilidade_emissoes'  => 'Ver Histórico de Emissões',
+                                        'view_cnaes' => 'Ver CNAEs e Atividades',
+                                        'create_cnaes' => 'Criar CNAEs',
+                                        'edit_cnaes' => 'Editar CNAEs',
+                                        'delete_cnaes' => 'Excluir CNAEs',
+                                        'view_regras_zoneamento' => 'Ver Regras de Zoneamento',
+                                        'create_regras_zoneamento' => 'Criar Regras de Zoneamento',
+                                        'edit_regras_zoneamento' => 'Editar Regras de Zoneamento',
+                                        'delete_regras_zoneamento' => 'Excluir Regras de Zoneamento',
+                                        'view_parametros_urbanos' => 'Ver Parâmetros de Loteamento',
+                                        'create_parametros_urbanos' => 'Criar Parâmetros de Loteamento',
+                                        'edit_parametros_urbanos' => 'Editar Parâmetros de Loteamento',
+                                        'delete_parametros_urbanos' => 'Excluir Parâmetros de Loteamento',
+                                        'view_viabilidade_emissoes' => 'Ver Histórico de Emissões',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(2),
@@ -469,17 +489,17 @@ class RoleResource extends Resource
                                 Forms\Components\CheckboxList::make('permissions_pgv')
                                     ->label('Parâmetros PGV, Setores Fiscais e Histórico de Valores')
                                     ->options([
-                                        'view_pgv_parametros'          => 'Ver Parâmetros Base (PGV)',
-                                        'create_pgv_parametros'        => 'Criar Parâmetros Base',
-                                        'edit_pgv_parametros'          => 'Editar Parâmetros Base',
-                                        'delete_pgv_parametros'        => 'Excluir Parâmetros Base',
-                                        'view_setores_fiscais'         => 'Ver Setores Fiscais',
-                                        'create_setores_fiscais'       => 'Criar Setores Fiscais',
-                                        'edit_setores_fiscais'         => 'Editar Setores Fiscais',
-                                        'delete_setores_fiscais'       => 'Excluir Setores Fiscais',
-                                        'view_lote_valor_historicos'   => 'Ver Valores Venais (Histórico)',
+                                        'view_pgv_parametros' => 'Ver Parâmetros Base (PGV)',
+                                        'create_pgv_parametros' => 'Criar Parâmetros Base',
+                                        'edit_pgv_parametros' => 'Editar Parâmetros Base',
+                                        'delete_pgv_parametros' => 'Excluir Parâmetros Base',
+                                        'view_setores_fiscais' => 'Ver Setores Fiscais',
+                                        'create_setores_fiscais' => 'Criar Setores Fiscais',
+                                        'edit_setores_fiscais' => 'Editar Setores Fiscais',
+                                        'delete_setores_fiscais' => 'Excluir Setores Fiscais',
+                                        'view_lote_valor_historicos' => 'Ver Valores Venais (Histórico)',
                                         'create_lote_valor_historicos' => 'Criar Valores Venais',
-                                        'edit_lote_valor_historicos'   => 'Editar Valores Venais',
+                                        'edit_lote_valor_historicos' => 'Editar Valores Venais',
                                         'delete_lote_valor_historicos' => 'Excluir Valores Venais',
                                     ])
                                     ->bulkToggleable()
@@ -492,11 +512,11 @@ class RoleResource extends Resource
                                 Forms\Components\CheckboxList::make('permissions_pgv_avaliacao')
                                     ->label('Cada permissão libera visualizar, criar, editar e excluir a entidade')
                                     ->options([
-                                        'gerenciar_pgv_amostras'      => 'Gerenciar Amostras de Mercado',
-                                        'gerenciar_pgv_polos'         => 'Gerenciar Pólos Valorizantes',
-                                        'gerenciar_pgv_cubs'          => 'Gerenciar Tabela CUB',
-                                        'gerenciar_pgv_depreciacoes'  => 'Gerenciar Depreciação',
-                                        'gerenciar_face_quadras'      => 'Gerenciar Faces de Quadra',
+                                        'gerenciar_pgv_amostras' => 'Gerenciar Amostras de Mercado',
+                                        'gerenciar_pgv_polos' => 'Gerenciar Pólos Valorizantes',
+                                        'gerenciar_pgv_cubs' => 'Gerenciar Tabela CUB',
+                                        'gerenciar_pgv_depreciacoes' => 'Gerenciar Depreciação',
+                                        'gerenciar_face_quadras' => 'Gerenciar Faces de Quadra',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(2),
@@ -508,11 +528,11 @@ class RoleResource extends Resource
                                 Forms\Components\CheckboxList::make('permissions_administracao')
                                     ->label('Acesso às páginas de administração')
                                     ->options([
-                                        'view_auditoria'          => 'Auditoria (Histórico de Operações)',
+                                        'view_auditoria' => 'Auditoria (Histórico de Operações)',
                                         'view_monitoramento_campo' => 'Monitoramento de Campo (GPS)',
-                                        'view_produtividade'      => 'Relatório de Produtividade',
-                                        'view_mensagens'          => 'Mensagens (Chat Supervisor ↔ Cadastrador)',
-                                        'gerenciar_wms'           => 'Gerenciar Camadas WMS (fontes e categorias)',
+                                        'view_produtividade' => 'Relatório de Produtividade',
+                                        'view_mensagens' => 'Mensagens (Chat Supervisor ↔ Cadastrador)',
+                                        'gerenciar_wms' => 'Gerenciar Camadas WMS (fontes e categorias)',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(2),
@@ -524,9 +544,9 @@ class RoleResource extends Resource
                                 Forms\Components\CheckboxList::make('permissions_chamados')
                                     ->label('Gestão de chamados, fluxos e categorias')
                                     ->options([
-                                        'gerenciar_chamados'            => 'Gerenciar Chamados (solicitações)',
-                                        'gerenciar_fluxos_chamado'      => 'Gerenciar Fluxos de Trabalho + Fases',
-                                        'gerenciar_categorias_chamado'  => 'Gerenciar Categorias de Chamado',
+                                        'gerenciar_chamados' => 'Gerenciar Chamados (solicitações)',
+                                        'gerenciar_fluxos_chamado' => 'Gerenciar Fluxos de Trabalho + Fases',
+                                        'gerenciar_categorias_chamado' => 'Gerenciar Categorias de Chamado',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(2),
@@ -539,29 +559,29 @@ class RoleResource extends Resource
                                     ->label('Camadas visíveis no mapa interativo')
                                     ->helperText('Deixe vazio = sem restrição (todos veem). Marque para liberar acesso por camada.')
                                     ->options([
-                                        'ver_camada_perimetros'            => 'Distritos / Limites',
-                                        'ver_camada_setores_fiscais'       => 'Setores Fiscais',
-                                        'ver_camada_bairros'               => 'Bairros',
-                                        'ver_camada_loteamentos'           => 'Loteamentos',
-                                        'ver_camada_meio_fios'             => 'Meio-fio / Calçada',
-                                        'ver_camada_secoes_logradouro'     => 'Seções de Logradouro',
-                                        'ver_camada_quadras'               => 'Quadras',
-                                        'ver_camada_lotes'                 => 'Lotes',
-                                        'ver_camada_processos'             => 'Processos Digitais',
-                                        'ver_camada_logradouros'           => 'Logradouros / Ruas',
-                                        'ver_camada_postes'                => 'Postes / Iluminação',
-                                        'ver_camada_arvores'               => 'Árvores',
-                                        'ver_camada_zonas'                 => 'Zonas de Uso (PGV)',
-                                        'ver_camada_patrimonio_publico'    => 'Patrimônio Público',
-                                        'ver_camada_cemiterios'            => 'Cemitérios',
-                                        'ver_camada_rural_localidades'     => 'Localidades Rurais',
-                                        'ver_camada_rural_propriedades'    => 'Propriedades Rurais',
-                                        'ver_camada_rural_estradas'        => 'Estradas Rurais',
-                                        'ver_camada_rural_hidrografias'    => 'Hidrografia (Rios)',
-                                        'ver_camada_rural_pontes'          => 'Pontes',
+                                        'ver_camada_perimetros' => 'Distritos / Limites',
+                                        'ver_camada_setores_fiscais' => 'Setores Fiscais',
+                                        'ver_camada_bairros' => 'Bairros',
+                                        'ver_camada_loteamentos' => 'Loteamentos',
+                                        'ver_camada_meio_fios' => 'Meio-fio / Calçada',
+                                        'ver_camada_secoes_logradouro' => 'Seções de Logradouro',
+                                        'ver_camada_quadras' => 'Quadras',
+                                        'ver_camada_lotes' => 'Lotes',
+                                        'ver_camada_processos' => 'Processos Digitais',
+                                        'ver_camada_logradouros' => 'Logradouros / Ruas',
+                                        'ver_camada_postes' => 'Postes / Iluminação',
+                                        'ver_camada_arvores' => 'Árvores',
+                                        'ver_camada_zonas' => 'Zonas de Uso (PGV)',
+                                        'ver_camada_patrimonio_publico' => 'Patrimônio Público',
+                                        'ver_camada_cemiterios' => 'Cemitérios',
+                                        'ver_camada_rural_localidades' => 'Localidades Rurais',
+                                        'ver_camada_rural_propriedades' => 'Propriedades Rurais',
+                                        'ver_camada_rural_estradas' => 'Estradas Rurais',
+                                        'ver_camada_rural_hidrografias' => 'Hidrografia (Rios)',
+                                        'ver_camada_rural_pontes' => 'Pontes',
                                         'ver_camada_rural_pontos_interesse' => 'Pontos de Interesse',
-                                        'ver_camada_pontos_panoramicos'    => 'Pontos Panorâmicos 360°',
-                                        'ver_camada_toponimias'            => 'Toponímias / Textos',
+                                        'ver_camada_pontos_panoramicos' => 'Pontos Panorâmicos 360°',
+                                        'ver_camada_toponimias' => 'Toponímias / Textos',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(4),
@@ -575,8 +595,8 @@ class RoleResource extends Resource
                                     ->helperText('Deixe vazio = sem restrição. A pesquisa é sempre visível.')
                                     ->options([
                                         'toolbar_criar_artefatos' => 'Criar Artefatos (Lotes, Quadras, Ruas...)',
-                                        'toolbar_ferramentas'     => 'Ferramentas (Medição, Impressão, Exportação)',
-                                        'toolbar_filtros'         => 'Filtros e Estatísticas',
+                                        'toolbar_ferramentas' => 'Ferramentas (Medição, Impressão, Exportação)',
+                                        'toolbar_filtros' => 'Filtros e Estatísticas',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(3),
@@ -601,14 +621,14 @@ class RoleResource extends Resource
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Criado em')
                     ->dateTime('d/m/Y H:i')
-                    ->sortable()
+                    ->sortable(),
             ])
             ->filters([])
             ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\EditAction::make(),
                     Tables\Actions\DeleteAction::make()
-                        ->hidden(fn(\App\Models\Role $record) => in_array($record->name, ['Master', 'Manager'])),
+                        ->hidden(fn (\App\Models\Role $record) => in_array($record->name, ['Master', 'Manager'])),
                 ])->tooltip('Ações'),
             ])
             ->bulkActions([
@@ -618,7 +638,7 @@ class RoleResource extends Resource
                 ]),
             ])
             ->checkIfRecordIsSelectableUsing(
-                fn(\App\Models\Role $record): bool => !in_array($record->name, ['Master', 'Manager']),
+                fn (\App\Models\Role $record): bool => ! in_array($record->name, ['Master', 'Manager']),
             );
     }
 

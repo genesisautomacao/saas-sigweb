@@ -47,14 +47,15 @@ class MobileMapDataController extends Controller
         $modules = $tenant?->modules ?? [];
 
         // Camadas servidas por /api/map/data. 'modulo' = null → base (sempre disponível).
+        // O app de coleta cadastral trata apenas do cadastro imobiliário (lote, edificação
+        // e unidade), então o catálogo é só a base cartográfica de apoio — árvores e postes
+        // saíram junto com os syncs de arborização/manutenção.
         $catalogo = [
-            ['key' => 'lotes',       'label' => 'Lotes',       'tipo' => 'polygon', 'cor' => '#3388ff', 'modulo' => null,          'visivel_padrao' => true,  'min_zoom' => 15],
-            ['key' => 'quadras',     'label' => 'Quadras',     'tipo' => 'polygon', 'cor' => '#ff7800', 'modulo' => null,          'visivel_padrao' => false, 'min_zoom' => 14],
-            ['key' => 'bairros',     'label' => 'Bairros',     'tipo' => 'polygon', 'cor' => '#8e44ad', 'modulo' => null,          'visivel_padrao' => false, 'min_zoom' => 12],
-            ['key' => 'logradouros', 'label' => 'Logradouros', 'tipo' => 'line',    'cor' => '#7f8c8d', 'modulo' => null,          'visivel_padrao' => false, 'min_zoom' => 15],
-            ['key' => 'zonas',       'label' => 'Zonas',       'tipo' => 'polygon', 'cor' => '#2ecc71', 'modulo' => null,          'visivel_padrao' => false, 'min_zoom' => 13],
-            ['key' => 'arvores',     'label' => 'Árvores',     'tipo' => 'point',   'cor' => '#27ae60', 'modulo' => 'arborizacao', 'visivel_padrao' => true,  'min_zoom' => 16],
-            ['key' => 'postes',      'label' => 'Postes',      'tipo' => 'point',   'cor' => '#f1c40f', 'modulo' => 'iluminacao',  'visivel_padrao' => true,  'min_zoom' => 16],
+            ['key' => 'lotes',       'label' => 'Lotes',       'tipo' => 'polygon', 'cor' => '#3388ff', 'modulo' => null, 'visivel_padrao' => true,  'min_zoom' => 15],
+            ['key' => 'quadras',     'label' => 'Quadras',     'tipo' => 'polygon', 'cor' => '#ff7800', 'modulo' => null, 'visivel_padrao' => false, 'min_zoom' => 14],
+            ['key' => 'bairros',     'label' => 'Bairros',     'tipo' => 'polygon', 'cor' => '#8e44ad', 'modulo' => null, 'visivel_padrao' => false, 'min_zoom' => 12],
+            ['key' => 'logradouros', 'label' => 'Logradouros', 'tipo' => 'line',    'cor' => '#7f8c8d', 'modulo' => null, 'visivel_padrao' => false, 'min_zoom' => 15],
+            ['key' => 'zonas',       'label' => 'Zonas',       'tipo' => 'polygon', 'cor' => '#2ecc71', 'modulo' => null, 'visivel_padrao' => false, 'min_zoom' => 13],
         ];
 
         // 1) só camadas base ou de módulo ativo
@@ -84,12 +85,6 @@ class MobileMapDataController extends Controller
         switch ($layer) {
             case 'lotes':
                 return $this->layerLotes($tenantId, $bbox);
-
-            case 'arvores':
-                return $this->layerArvores($tenantId, $bbox);
-
-            case 'postes':
-                return $this->layerPostes($tenantId, $bbox);
 
             case 'quadras':
                 return $this->layerSimples('quadras', 'name', $tenantId, $bbox);
@@ -134,74 +129,6 @@ class MobileMapDataController extends Controller
                     'status_cadastro' => $row->status_cadastro ?? 'nao_visitado',
                     'ocupacao' => $row->ocupacao,
                     'layer' => 'lotes',
-                ],
-                'geometry' => $geom,
-            ];
-        }
-
-        return ['type' => 'FeatureCollection', 'features' => $features];
-    }
-
-    private function layerArvores(int $tenantId, ?array $bbox): array
-    {
-        $q = DB::table('arvores')
-            ->where('tenant_id', $tenantId)
-            ->whereNull('deleted_at')
-            ->whereNotNull('geo')
-            ->selectRaw('id, code, sequential_id, botanical_species, phytosanitary_condition, size, ST_AsGeoJSON(geo, 6) as geo_json');
-
-        $this->applyBbox($q, 'geo', $bbox);
-
-        $features = [];
-        foreach ($q->get() as $row) {
-            $geom = json_decode($row->geo_json);
-            if (! $geom || empty($geom->coordinates)) {
-                continue;
-            }
-            $features[] = [
-                'type' => 'Feature',
-                'properties' => [
-                    'id' => $row->id,
-                    'name' => $row->sequential_id ? "Árv. #{$row->sequential_id}" : 'S/N',
-                    'codigo' => $row->code,
-                    'sequential_id' => $row->sequential_id,
-                    'botanical_species' => $row->botanical_species,
-                    'phytosanitary_condition' => $row->phytosanitary_condition,
-                    'size' => $row->size,
-                    'layer' => 'arvores',
-                ],
-                'geometry' => $geom,
-            ];
-        }
-
-        return ['type' => 'FeatureCollection', 'features' => $features];
-    }
-
-    private function layerPostes(int $tenantId, ?array $bbox): array
-    {
-        $q = DB::table('postes')
-            ->where('tenant_id', $tenantId)
-            ->whereNull('deleted_at')
-            ->whereNotNull('geo')
-            ->selectRaw('id, code, sequential_id, structural_condition, ST_AsGeoJSON(geo, 6) as geo_json');
-
-        $this->applyBbox($q, 'geo', $bbox);
-
-        $features = [];
-        foreach ($q->get() as $row) {
-            $geom = json_decode($row->geo_json);
-            if (! $geom || empty($geom->coordinates)) {
-                continue;
-            }
-            $features[] = [
-                'type' => 'Feature',
-                'properties' => [
-                    'id' => $row->id,
-                    'name' => $row->sequential_id ? "Poste #{$row->sequential_id}" : 'S/N',
-                    'codigo' => $row->code,
-                    'sequential_id' => $row->sequential_id,
-                    'structural_condition' => $row->structural_condition,
-                    'layer' => 'postes',
                 ],
                 'geometry' => $geom,
             ];

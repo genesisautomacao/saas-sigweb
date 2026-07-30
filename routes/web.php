@@ -41,6 +41,9 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     // PD-1 — download do requerimento em PDF (gera a partir do template do fluxo)
     Route::get('/processo/{processo}/requerimento', [\App\Http\Controllers\ProcessoRequerimentoController::class, 'gerar'])->name('processo.requerimento.gerar');
+
+    // R67-4 — quadras (GeoJSON) para o mapa de atribuição de região, com quem já ocupa cada uma
+    Route::get('/coleta/quadras-geojson', \App\Http\Controllers\ColetaQuadrasController::class)->name('coleta.quadras-geojson');
 });
 
 // PT-1 — Portal de links do município: landing pública que a prefeitura usa como

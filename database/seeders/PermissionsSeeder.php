@@ -166,6 +166,11 @@ class PermissionsSeeder extends Seeder
             'gerenciar_areas_reurb',
             'gerenciar_secoes_logradouro',
 
+            /* Coleta Cadastral (R67) — integração tributária NÃO tem permissão de
+               prefeitura: o de/para é por sistema, no painel /admin (R67-5 revisada) */
+            'gerenciar_campos_customizados',
+            'gerenciar_atribuicoes_coleta',
+
             /* Módulo de Cadastro Social */
             'view_cadastros_sociais',
             'create_cadastros_sociais',

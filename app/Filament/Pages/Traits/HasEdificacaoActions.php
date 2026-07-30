@@ -4,14 +4,11 @@ namespace App\Filament\Pages\Traits;
 
 use App\Models\Edificacao;
 use App\Models\Lote;
-use Dom\Text;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
-use Filament\Support\Enums\Alignment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Livewire\Attributes\On;
 
 trait HasEdificacaoActions
 {
@@ -20,13 +17,13 @@ trait HasEdificacaoActions
      */
     public function toggleEdificacoesLote()
     {
-        $this->mostrarEdificacoesLoteAtivo = !$this->mostrarEdificacoesLoteAtivo;
+        $this->mostrarEdificacoesLoteAtivo = ! $this->mostrarEdificacoesLoteAtivo;
 
         if ($this->mostrarEdificacoesLoteAtivo && $this->loteAtivoId) {
             $edificacoes = Edificacao::where('lote_id', $this->loteAtivoId)
                 ->select('id', 'geo')
                 ->get()
-                ->map(fn($edif) => [
+                ->map(fn ($edif) => [
                     'id' => $edif->id,
                     'geo' => $edif->geo_json,
                 ])
@@ -48,45 +45,27 @@ trait HasEdificacaoActions
             ->modalSubmitActionLabel('Salvar Edificação')
             ->modalWidth('md')
             ->form([
-                Select::make('tipo')
-                    ->label('Finalidade / Uso')
-                    ->options([
-                        'Residencial' => 'Residencial',
-                        'Comercial'   => 'Comercial',
-                        'Industrial'  => 'Industrial',
-                        'Misto'       => 'Misto',
-                        'Outro'       => 'Outro',
-                    ])
-                    ->required(),
-                Select::make('tp_construcao')
-                    ->label('Tipo de Construção (material)')
-                    ->options([
-                        'Alvenaria' => 'Alvenaria',
-                        'Madeira'   => 'Madeira',
-                        'Mista'     => 'Mista',
-                        'Outro'     => 'Outro',
-                    ])
-                    ->required(),
-                \Filament\Forms\Components\TextInput::make('caracteristica_construcao')
-                    ->label('Característica da Construção')
-                    ->placeholder('Ex: Pavimento 1, Anexo, Edícula...')
-                    ->maxLength(255)
-                    ->nullable(),
-                Select::make('estado_conservacao')
-                    ->label('Estado de Conservação')
-                    ->options([
-                        'Ruim'    => 'Ruim',
-                        'Regular' => 'Regular',
-                        'Médio'   => 'Médio',
-                        'Bom'     => 'Bom',
-                    ])
-                    ->required(),
-                \Filament\Forms\Components\TextInput::make('pavimento')
-                    ->label('Nº de Pavimentos')
-                    ->numeric()
-                    ->minValue(1)
-                    ->maxValue(99)
-                    ->nullable(),
+                // R67-2 — rótulo/valores definidos pelo município
+                \App\Services\Coleta\CampoDominioService::aplicar(Select::make('tipo')->required(), 'edificacao', 'tipo'),
+                \App\Services\Coleta\CampoDominioService::aplicar(Select::make('tp_construcao')->required(), 'edificacao', 'tp_construcao'),
+                \App\Services\Coleta\CampoDominioService::aplicar(
+                    \Filament\Forms\Components\TextInput::make('caracteristica_construcao')
+                        ->placeholder('Ex: Pavimento 1, Anexo, Edícula...')
+                        ->maxLength(255)
+                        ->nullable(),
+                    'edificacao', 'caracteristica_construcao'
+                ),
+                \App\Services\Coleta\CampoDominioService::aplicar(Select::make('estado_conservacao')->required(), 'edificacao', 'estado_conservacao'),
+                \App\Services\Coleta\CampoDominioService::aplicar(
+                    \Filament\Forms\Components\TextInput::make('pavimento')->numeric()->minValue(1)->maxValue(99)->nullable(),
+                    'edificacao', 'pavimento'
+                ),
+
+                // R67-1 — campos criados pelo município
+                \Filament\Forms\Components\Section::make('Campos do Município')
+                    ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('edificacao')->isNotEmpty())
+                    ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('edificacao'))
+                    ->columnSpanFull(),
 
             ])
             ->action(function (array $data) {
@@ -97,7 +76,7 @@ trait HasEdificacaoActions
 
                 $edif = Edificacao::create($data);
 
-                DB::statement("UPDATE edificacoes SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$edif->id]);
+                DB::statement('UPDATE edificacoes SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$edif->id]);
 
                 $this->loteAreaConstruida = (float) Edificacao::where('lote_id', $this->loteAtivoId)->sum('area_geo');
 
@@ -118,63 +97,47 @@ trait HasEdificacaoActions
     {
         return Action::make('opcoesEdificacao')
             ->hiddenLabel()
-            ->modalHeading(fn() => 'Edificação #' . $this->edificacaoAtivaId)
+            ->modalHeading(fn () => 'Edificação #'.$this->edificacaoAtivaId)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Alterações')
             ->fillForm(function (): array {
                 $edif = Edificacao::find($this->edificacaoAtivaId);
+
                 return [
-                    'tipo'                       => $edif?->tipo,
-                    'tp_construcao'              => $edif?->tp_construcao,
-                    'caracteristica_construcao'  => $edif?->caracteristica_construcao,
-                    'estado_conservacao'         => $edif?->estado_conservacao,
-                    'pavimento'                  => $edif?->pavimento,
-                    'area_geo'                   => $edif?->area_geo,
+                    'tipo' => $edif?->tipo,
+                    'tp_construcao' => $edif?->tp_construcao,
+                    'caracteristica_construcao' => $edif?->caracteristica_construcao,
+                    'estado_conservacao' => $edif?->estado_conservacao,
+                    'pavimento' => $edif?->pavimento,
+                    'area_geo' => $edif?->area_geo,
+                    'dados_customizados' => $edif?->dados_customizados ?? [], // R67-1
                 ];
             })
             ->form([
-                Select::make('tipo')
-                    ->label('Finalidade / Uso')
-                    ->options([
-                        'Residencial' => 'Residencial',
-                        'Comercial'   => 'Comercial',
-                        'Industrial'  => 'Industrial',
-                        'Misto'       => 'Misto',
-                        'Outro'       => 'Outro',
-                    ])
-                    ->required(),
-                Select::make('tp_construcao')
-                    ->label('Tipo de Construção (material)')
-                    ->options([
-                        'Alvenaria' => 'Alvenaria',
-                        'Madeira'   => 'Madeira',
-                        'Mista'     => 'Mista',
-                        'Outro'     => 'Outro',
-                    ])
-                    ->required(),
-                \Filament\Forms\Components\TextInput::make('caracteristica_construcao')
-                    ->label('Característica da Construção')
-                    ->placeholder('Ex: Pavimento 1, Anexo, Edícula...')
-                    ->maxLength(255)
-                    ->nullable(),
-                Select::make('estado_conservacao')
-                    ->label('Estado de Conservação')
-                    ->options([
-                        'Ruim'    => 'Ruim',
-                        'Regular' => 'Regular',
-                        'Médio'   => 'Médio',
-                        'Bom'     => 'Bom',
-                    ])
-                    ->required(),
-                \Filament\Forms\Components\TextInput::make('pavimento')
-                    ->label('Nº de Pavimentos')
-                    ->numeric()
-                    ->minValue(1)
-                    ->maxValue(99)
-                    ->nullable(),
+                // R67-2 — rótulo/valores definidos pelo município
+                \App\Services\Coleta\CampoDominioService::aplicar(Select::make('tipo')->required(), 'edificacao', 'tipo'),
+                \App\Services\Coleta\CampoDominioService::aplicar(Select::make('tp_construcao')->required(), 'edificacao', 'tp_construcao'),
+                \App\Services\Coleta\CampoDominioService::aplicar(
+                    \Filament\Forms\Components\TextInput::make('caracteristica_construcao')
+                        ->placeholder('Ex: Pavimento 1, Anexo, Edícula...')
+                        ->maxLength(255)
+                        ->nullable(),
+                    'edificacao', 'caracteristica_construcao'
+                ),
+                \App\Services\Coleta\CampoDominioService::aplicar(Select::make('estado_conservacao')->required(), 'edificacao', 'estado_conservacao'),
+                \App\Services\Coleta\CampoDominioService::aplicar(
+                    \Filament\Forms\Components\TextInput::make('pavimento')->numeric()->minValue(1)->maxValue(99)->nullable(),
+                    'edificacao', 'pavimento'
+                ),
                 \Filament\Forms\Components\TextInput::make('area_geo')
                     ->label('Área (m²)')
                     ->readOnly(),
+
+                // R67-1 — campos criados pelo município
+                \Filament\Forms\Components\Section::make('Campos do Município')
+                    ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('edificacao')->isNotEmpty())
+                    ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('edificacao'))
+                    ->columnSpanFull(),
             ])
             ->action(function (array $data) {
                 $edif = Edificacao::find($this->edificacaoAtivaId);

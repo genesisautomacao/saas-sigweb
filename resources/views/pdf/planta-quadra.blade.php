@@ -317,20 +317,23 @@
 
             </div>
 
+            @php
+                // Nº de células varia com o vocabulário do município (R67-2): reparte igual.
+                $larguraCelula = round(100 / max(count($ocupacaoResumo) + 2, 1), 4) . '%';
+            @endphp
             <div class="summary">
-                <div class="cell">
+                <div class="cell" style="width: {{ $larguraCelula }};">
                     <div class="label">Total Lotes</div>
                     <div class="value">{{ $totalLotes }}</div>
                 </div>
-                <div class="cell">
-                    <div class="label">Construídos</div>
-                    <div class="value">{{ $totalConstruidos }}</div>
-                </div>
-                <div class="cell">
-                    <div class="label">Baldios</div>
-                    <div class="value">{{ $totalBaldios }}</div>
-                </div>
-                <div class="cell">
+                {{-- Uma célula por valor do vocabulário do município --}}
+                @foreach ($ocupacaoResumo as $oc)
+                    <div class="cell" style="width: {{ $larguraCelula }};">
+                        <div class="label">{{ $oc['label'] }}</div>
+                        <div class="value">{{ $oc['total'] }}</div>
+                    </div>
+                @endforeach
+                <div class="cell" style="width: {{ $larguraCelula }};">
                     <div class="label">Edificações</div>
                     <div class="value">{{ $totalEdificacoes }}</div>
                 </div>
@@ -371,8 +374,8 @@
                     <th style="width: 22%;">Endereço</th>
                     <th class="num" style="width: 10%;">Área (m²)</th>
                     <th class="num" style="width: 9%;">Testada (m)</th>
-                    <th class="ctr" style="width: 10%;">Ocupação</th>
-                    <th class="ctr" style="width: 9%;">Situação</th>
+                    <th class="ctr" style="width: 10%;">{{ \App\Services\Coleta\CampoDominioService::label('lote', 'ocupacao') }}</th>
+                    <th class="ctr" style="width: 9%;">{{ \App\Services\Coleta\CampoDominioService::label('lote', 'situacao_quadra') }}</th>
                     <th class="ctr" style="width: 8%;">Edif.</th>
                     <th class="num" style="width: 9%;">Área Constr.</th>
                 </tr>
@@ -381,14 +384,12 @@
                 @foreach ($lotes as $l)
                     @php
                         $primeiraUnidade = $l->unidadesImobiliarias->first();
-                        $ocupacaoLabel = ['baldio' => 'Baldio', 'construido' => 'Construído'][$l->ocupacao] ?? '—';
+                        $dominio = \App\Services\Coleta\CampoDominioService::class;
+                        $ocupacaoLabel = $dominio::rotuloValor('lote', 'ocupacao', $l->ocupacao) ?? '—';
                         $ocupacaoClass =
                             ['baldio' => 'badge-baldio', 'construido' => 'badge-construido'][$l->ocupacao] ??
                             'badge-default';
-                        $situacaoLabel =
-                            ['meio_quadra' => 'Meio', 'esquina' => 'Esquina', 'encravado' => 'Encravado'][
-                                $l->situacao_quadra
-                            ] ?? '—';
+                        $situacaoLabel = $dominio::rotuloValor('lote', 'situacao_quadra', $l->situacao_quadra) ?? '—';
                         $areaConstrLote = $l->edificacoes->sum('area_geo');
                     @endphp
                     <tr>

@@ -23,9 +23,13 @@ class LoteResource extends Resource
     protected static ?string $model = Lote::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-map-pin';
+
     protected static ?string $navigationGroup = 'Módulo Imobiliário';
+
     protected static ?string $modelLabel = 'Lote (Terreno)';
+
     protected static ?string $pluralModelLabel = 'Lotes';
+
     protected static ?int $navigationSort = 5;
 
     public static function form(Form $form): Form
@@ -62,34 +66,26 @@ class LoteResource extends Resource
 
                         Forms\Components\Select::make('quadra_id')
                             ->label('Quadra Pertencente')
-                            ->options(fn() => Quadra::pluck('name', 'id'))
+                            ->options(fn () => Quadra::pluck('name', 'id'))
                             ->searchable()
                             ->required(),
 
                         Forms\Components\Select::make('zona_id')
                             ->label('Zona Urbana (Para Viabilidade)')
-                            ->options(fn() => Zona::pluck('name', 'id'))
+                            ->options(fn () => Zona::pluck('name', 'id'))
                             ->searchable()
                             ->required(),
 
-                        Forms\Components\Select::make('ocupacao')
-                            ->label('Ocupação do Lote')
-                            ->options([
-                                'baldio'     => 'Baldio',
-                                'construido' => 'Construído',
-                            ])
-                            ->placeholder('Selecione...')
-                            ->nullable(),
+                        // R67-2 — rótulo/valores/visibilidade definidos pelo município
+                        \App\Services\Coleta\CampoDominioService::aplicar(
+                            Forms\Components\Select::make('ocupacao')->placeholder('Selecione...')->nullable(),
+                            'lote', 'ocupacao'
+                        ),
 
-                        Forms\Components\Select::make('situacao_quadra')
-                            ->label('Situação na Quadra')
-                            ->options([
-                                'meio_quadra' => 'Meio de Quadra',
-                                'esquina'     => 'Esquina',
-                                'encravado'   => 'Encravado',
-                            ])
-                            ->placeholder('Selecione...')
-                            ->nullable(),
+                        \App\Services\Coleta\CampoDominioService::aplicar(
+                            Forms\Components\Select::make('situacao_quadra')->placeholder('Selecione...')->nullable(),
+                            'lote', 'situacao_quadra'
+                        ),
 
                     ])->columns(3),
 
@@ -130,9 +126,9 @@ class LoteResource extends Resource
                         Forms\Components\Select::make('status_cadastro')
                             ->label('Status do Cadastro')
                             ->options([
-                                'nao_visitado'   => 'Não Visitado',
-                                'coletado'       => 'Coletado',
-                                'pendente'       => 'Pendente',
+                                'nao_visitado' => 'Não Visitado',
+                                'coletado' => 'Coletado',
+                                'pendente' => 'Pendente',
                                 'inconformidade' => 'Inconformidade',
                             ])
                             ->default('nao_visitado')
@@ -201,6 +197,13 @@ class LoteResource extends Resource
                         ])->columnSpanFull(),
                     ]),
 
+                // R67-1 — campos criados pelo município (Coleta cadastral → Campos do Município)
+                Forms\Components\Section::make('Campos do Município')
+                    ->icon('heroicon-o-adjustments-horizontal')
+                    ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('lote')->isNotEmpty())
+                    ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('lote'))
+                    ->columns(3),
+
                 Forms\Components\Section::make('Geometria do Lote (Polígono)')
                     ->description('Caso não desenhado no mapa, insira o GeoJSON gerado pela topografia.')
                     ->schema([
@@ -209,7 +212,7 @@ class LoteResource extends Resource
                             ->helperText('Você pode colar um GeoJSON completo OU apenas uma lista de coordenadas no formato: "-50.404263 -26.972014, -50.401214 -26.974058..."')
                             ->rows(15)
                             ->columnSpanFull(),
-                    ])
+                    ]),
             ]);
     }
 
@@ -230,18 +233,18 @@ class LoteResource extends Resource
                 Tables\Columns\TextColumn::make('status_cadastro')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn($state) => match($state) {
-                        'nao_visitado'   => 'Não Visitado',
-                        'coletado'       => 'Coletado',
-                        'pendente'       => 'Pendente',
+                    ->formatStateUsing(fn ($state) => match ($state) {
+                        'nao_visitado' => 'Não Visitado',
+                        'coletado' => 'Coletado',
+                        'pendente' => 'Pendente',
                         'inconformidade' => 'Inconformidade',
-                        default          => '—',
+                        default => '—',
                     })
-                    ->color(fn($state) => match($state) {
-                        'coletado'       => 'success',
-                        'pendente'       => 'warning',
+                    ->color(fn ($state) => match ($state) {
+                        'coletado' => 'success',
+                        'pendente' => 'warning',
                         'inconformidade' => 'danger',
-                        default          => 'gray',
+                        default => 'gray',
                     })
                     ->sortable(),
 
@@ -254,7 +257,7 @@ class LoteResource extends Resource
 
                 Tables\Columns\TextColumn::make('logradouro')
                     ->label('Logradouro')
-                    ->formatStateUsing(fn(?string $state, Lote $record) => trim(($record->tipo_logradouro ? $record->tipo_logradouro . ' ' : '') . ($state ?? '')) ?: '—')
+                    ->formatStateUsing(fn (?string $state, Lote $record) => trim(($record->tipo_logradouro ? $record->tipo_logradouro.' ' : '').($state ?? '')) ?: '—')
                     ->searchable(['tipo_logradouro', 'logradouro'])
                     ->toggleable(),
 
@@ -288,41 +291,39 @@ class LoteResource extends Resource
                 Tables\Columns\TextColumn::make('delta_area')
                     ->label('Δ Área (%)')
                     ->getStateUsing(function (Lote $record): ?string {
-                        if (!$record->area_cadastrada || !$record->area_geo) return null;
+                        if (! $record->area_cadastrada || ! $record->area_geo) {
+                            return null;
+                        }
                         $delta = (($record->area_geo - $record->area_cadastrada) / $record->area_cadastrada) * 100;
-                        return ($delta >= 0 ? '+' : '') . number_format($delta, 1, ',', '.') . '%';
+
+                        return ($delta >= 0 ? '+' : '').number_format($delta, 1, ',', '.').'%';
                     })
                     ->badge()
                     ->color(function (Lote $record): string {
-                        if (!$record->area_cadastrada || !$record->area_geo) return 'gray';
+                        if (! $record->area_cadastrada || ! $record->area_geo) {
+                            return 'gray';
+                        }
                         $delta = abs(($record->area_geo - $record->area_cadastrada) / $record->area_cadastrada * 100);
+
                         return $delta > 5 ? 'danger' : 'success';
                     })
                     ->default('—')
                     ->toggleable(),
 
+                // Rótulos vêm do vocabulário do município (CampoDominioService), não de uma lista fixa.
                 Tables\Columns\BadgeColumn::make('ocupacao')
-                    ->label('Ocupação')
-                    ->formatStateUsing(fn($state) => match($state) {
-                        'baldio'     => 'Baldio',
-                        'construido' => 'Construído',
-                        default      => '—',
-                    })
-                    ->color(fn($state) => match($state) {
-                        'baldio'     => 'warning',
+                    ->label(\App\Services\Coleta\CampoDominioService::label('lote', 'ocupacao'))
+                    ->formatStateUsing(fn ($state) => \App\Services\Coleta\CampoDominioService::rotuloValor('lote', 'ocupacao', $state) ?? '—')
+                    ->color(fn ($state) => match ($state) {
+                        'baldio' => 'warning',
                         'construido' => 'success',
-                        default      => 'gray',
+                        default => 'gray',
                     })
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\BadgeColumn::make('situacao_quadra')
-                    ->label('Situação')
-                    ->formatStateUsing(fn($state) => match($state) {
-                        'meio_quadra' => 'Meio de Quadra',
-                        'esquina'     => 'Esquina',
-                        'encravado'   => 'Encravado',
-                        default       => '—',
-                    })
+                    ->label(\App\Services\Coleta\CampoDominioService::label('lote', 'situacao_quadra'))
+                    ->formatStateUsing(fn ($state) => \App\Services\Coleta\CampoDominioService::rotuloValor('lote', 'situacao_quadra', $state) ?? '—')
                     ->color('info')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -342,9 +343,9 @@ class LoteResource extends Resource
                 Tables\Filters\SelectFilter::make('status_cadastro')
                     ->label('Status do Cadastro')
                     ->options([
-                        'nao_visitado'   => 'Não Visitado',
-                        'coletado'       => 'Coletado',
-                        'pendente'       => 'Pendente',
+                        'nao_visitado' => 'Não Visitado',
+                        'coletado' => 'Coletado',
+                        'pendente' => 'Pendente',
                         'inconformidade' => 'Inconformidade',
                     ])
                     ->multiple(),
@@ -360,7 +361,10 @@ class LoteResource extends Resource
                     ])
                     ->query(function ($query, array $data) {
                         $pct = isset($data['percentual']) ? (float) $data['percentual'] / 100 : null;
-                        if ($pct === null) return $query;
+                        if ($pct === null) {
+                            return $query;
+                        }
+
                         return $query
                             ->whereNotNull('area_cadastrada')
                             ->where('area_cadastrada', '>', 0)
@@ -368,8 +372,11 @@ class LoteResource extends Resource
                             ->whereRaw('ABS(area_geo - area_cadastrada) / area_cadastrada > ?', [$pct]);
                     })
                     ->indicateUsing(function (array $data): ?string {
-                        if (!isset($data['percentual'])) return null;
-                        return 'Divergência > ' . $data['percentual'] . '%';
+                        if (! isset($data['percentual'])) {
+                            return null;
+                        }
+
+                        return 'Divergência > '.$data['percentual'].'%';
                     }),
 
                 Tables\Filters\TrashedFilter::make(),
@@ -384,18 +391,20 @@ class LoteResource extends Resource
                         if ($record->geo_json && isset($record->geo_json->coordinates[0][0][0])) {
                             $lon = $record->geo_json->coordinates[0][0][0][0];
                             $lat = $record->geo_json->coordinates[0][0][0][1];
-                            return url('/app/' . $tenant->slug . '/mapa-interativo?layer=lotes&focus_lat=' . $lat . '&focus_lon=' . $lon);
+
+                            return url('/app/'.$tenant->slug.'/mapa-interativo?layer=lotes&focus_lat='.$lat.'&focus_lon='.$lon);
                         }
+
                         return null;
                     })
-                    ->visible(fn(Lote $record) => $record->geo_json !== null),
+                    ->visible(fn (Lote $record) => $record->geo_json !== null),
 
                 Tables\Actions\Action::make('emitir_notificacao')
                     ->label('Notificação')
                     ->icon('heroicon-o-document-text')
                     ->color('danger')
                     ->tooltip('Emitir Notificação de Irregularidade')
-                    ->visible(fn (Lote $record) => !empty($record->inconformidade_descricao))
+                    ->visible(fn (Lote $record) => ! empty($record->inconformidade_descricao))
                     ->action(fn (Lote $record) => app(NotificacaoIrregularidadeService::class)->generatePdf($record)),
 
                 Tables\Actions\EditAction::make(),

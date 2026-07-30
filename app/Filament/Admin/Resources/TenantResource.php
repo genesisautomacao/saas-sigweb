@@ -21,11 +21,25 @@ class TenantResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
 
-    protected static ?string $modelLabel = 'Empresa';
+    protected static ?string $modelLabel = 'Prefeitura';
 
-    protected static ?string $pluralModelLabel = 'Empresas';
+    protected static ?string $pluralModelLabel = 'Prefeituras';
 
     protected static ?string $navigationGroup = 'Gestão do SaaS';
+
+    /**
+     * Atalho das travas do painel: Master vê tudo; Operador só o que foi marcado
+     * no cadastro dele (Configurações Globais → Usuários do Admin).
+     */
+    protected static function pode(string $capacidade): bool
+    {
+        return \Filament\Facades\Filament::auth()->user()?->podeNoAdmin($capacidade) ?? false;
+    }
+
+    protected static function ehMaster(): bool
+    {
+        return \Filament\Facades\Filament::auth()->user()?->isMaster() ?? false;
+    }
 
     public static function form(Form $form): Form
     {
@@ -74,6 +88,9 @@ class TenantResource extends Resource
                 Forms\Components\Section::make('Integração e-SUS AB (Saúde)')
                     ->icon('heroicon-o-heart')
                     ->description('Configurações de sincronização diária do Cadastro Único e Saúde.')
+                    // Credenciais de integração: só o Master. O EditTenant preserva as
+                    // chaves ocultas do JSON `data` no save (mutateFormDataBeforeSave).
+                    ->visible(fn () => static::ehMaster())
                     ->schema([
                         // 🟢 O BOTÃO MÁGICO PARA A SUA APRESENTAÇÃO
                         Forms\Components\Toggle::make('data.esus_simulacao')
@@ -222,9 +239,85 @@ class TenantResource extends Resource
                             ->columnSpanFull(),
                     ])->columns(3),
 
-                // --- SEÇÃO 5: MÓDULOS ---
+                // --- SEÇÃO 5: INTEGRAÇÃO TRIBUTÁRIA (R67-5) ---
+                // O de/para de campos vive no catálogo global (Configurações Globais →
+                // Sistemas Tributários); aqui só se aponta QUAL sistema a prefeitura usa.
+                Forms\Components\Section::make('Integração Tributária')
+                    ->icon('heroicon-o-arrows-right-left')
+                    ->description('Sistema de arrecadação usado pela prefeitura. O mapa de campos (de/para) é parametrizado uma única vez por sistema em "Configurações Globais → Sistemas Tributários".')
+                    // Sistema, modo simulação/produção e credenciais da API: só o Master.
+                    ->visible(fn () => static::ehMaster())
+                    ->schema([
+                        Forms\Components\Select::make('data.sistema_tributario_id')
+                            ->label('Sistema tributário desta prefeitura')
+                            ->placeholder('Nenhum (nomes de campo já no padrão SIGWEB)')
+                            ->options(fn () => \App\Models\SistemaTributario::where('ativo', true)->orderBy('nome')->pluck('nome', 'id'))
+                            ->searchable()
+                            ->nullable()
+                            ->live()
+                            // tenant.data é JSON: grava como número (ou remove a chave)
+                            ->dehydrateStateUsing(fn ($state) => is_numeric($state) ? (int) $state : null)
+                            ->helperText('As importações e sincronizações tributárias desta prefeitura passam a usar o de/para do sistema escolhido.'),
+
+                        // 🔑 A CHAVE simulação ↔ produção. "Produção" exige que o sistema
+                        // escolhido tenha CONECTOR implementado (coluna driver do catálogo
+                        // registrada em IntegraPrefeituraService::DRIVERS).
+                        Forms\Components\Select::make('data.tributario_modo')
+                            ->label('Modo da integração')
+                            ->options([
+                                'simulacao' => 'Simulação (JSON enviado pelo admin)',
+                                'producao' => 'Produção (API real do sistema)',
+                            ])
+                            ->default('simulacao')
+                            ->live()
+                            ->disableOptionWhen(function (string $value, Forms\Get $get): bool {
+                                if ($value !== 'producao') {
+                                    return false;
+                                }
+                                $sistemaId = $get('data.sistema_tributario_id');
+                                $driver = $sistemaId ? \App\Models\SistemaTributario::find($sistemaId)?->driver : null;
+
+                                return ! ($driver && array_key_exists($driver, \App\Services\ApiTools\IntegraPrefeituraService::DRIVERS));
+                            })
+                            ->helperText('"Produção" só fica disponível quando o sistema escolhido tem conector de API implementado.'),
+
+                        // Credenciais da INSTÂNCIA desta prefeitura (o conector é do sistema;
+                        // URL e token são de cada cliente) — mesmo padrão da seção e-SUS.
+                        Forms\Components\TextInput::make('data.tributario_api.url')
+                            ->label('URL da API do sistema tributário')
+                            ->placeholder('Ex: https://tributos.prefeitura.gov.br/api')
+                            ->url()
+                            ->visible(fn (Forms\Get $get) => $get('data.tributario_modo') === 'producao')
+                            ->required(fn (Forms\Get $get) => $get('data.tributario_modo') === 'producao'),
+
+                        Forms\Components\TextInput::make('data.tributario_api.token')
+                            ->label('Token / chave de acesso')
+                            ->password()
+                            ->revealable()
+                            ->visible(fn (Forms\Get $get) => $get('data.tributario_modo') === 'producao')
+                            ->required(fn (Forms\Get $get) => $get('data.tributario_modo') === 'producao'),
+
+                        // Status da fonte de dados (o upload fica na AÇÃO "Simulação Tributária" da listagem)
+                        Forms\Components\Placeholder::make('simulacao_status')
+                            ->label('Fonte de dados (simulação)')
+                            ->visible(fn (Forms\Get $get) => $get('data.tributario_modo') !== 'producao')
+                            ->content(function (?Tenant $record): string {
+                                if (! $record) {
+                                    return 'Salve a prefeitura para enviar o JSON de simulação.';
+                                }
+
+                                $resumo = \App\Services\ApiTools\IntegraPrefeituraService::resumoMock($record);
+
+                                return $resumo
+                                    ? "Arquivo com {$resumo['imoveis']} imóvel(is) — atualizado em {$resumo['atualizado_em']->format('d/m/Y H:i')}. Substitua pela ação \"Simulação Tributária\" na listagem."
+                                    : 'Nenhum arquivo enviado — use a ação "Simulação Tributária" na listagem de prefeituras.';
+                            }),
+                    ])->columns(2),
+
+                // --- SEÇÃO 6: MÓDULOS ---
                 Forms\Components\Section::make('Módulos Contratados')
                     ->icon('heroicon-o-squares-2x2')
+                    ->visible(fn () => static::pode('admin_gerenciar_modulos'))
                     ->schema([
                         Forms\Components\Select::make('modules')
                             ->label('Módulos Liberados para esta Prefeitura')
@@ -258,7 +351,7 @@ class TenantResource extends Resource
                     ->circular(), // Mostra a logo redondinha na tabela
 
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Empresa')
+                    ->label('Prefeitura')
                     ->searchable()
                     ->sortable(),
 
@@ -294,6 +387,7 @@ class TenantResource extends Resource
                         ->label('Sincronizar e-SUS')
                         ->icon('heroicon-o-arrow-path')
                         ->color('success')
+                        ->visible(fn () => static::pode('admin_sincronizar_esus'))
                         ->requiresConfirmation()
                         ->modalHeading('Sincronizar dados do e-SUS')
                         ->modalDescription('Deseja acionar o motor de ETL para buscar as atualizações de saúde do Cadastro Único no servidor do e-SUS agora?')
@@ -323,6 +417,7 @@ class TenantResource extends Resource
                         ->label('Delegar Manager')
                         ->icon('heroicon-o-user-plus')
                         ->color('success')
+                        ->visible(fn () => static::pode('admin_delegar_manager'))
                         ->form([
                             Forms\Components\TextInput::make('name')
                                 ->label('Nome do Manager')
@@ -368,6 +463,7 @@ class TenantResource extends Resource
                         ->label('Importar Mapa (GIS)')
                         ->icon('heroicon-o-map')
                         ->color('info')
+                        ->visible(fn () => static::pode('admin_importar_gis'))
                         ->form([
                             Forms\Components\Select::make('camada')
                                 ->label('Qual camada você está enviando?')
@@ -466,16 +562,46 @@ class TenantResource extends Resource
                             \Illuminate\Support\Facades\DB::beginTransaction();
                             try {
 
-                                // Helper para buscar o ID global real no banco com base no ID do JSON (salvo como sequential_id)
-                                $resolveRelacionamento = function ($modelStr, $jsonId) use ($record) {
+                                // Referências do JSON que não existem nesta prefeitura (relatadas ao final)
+                                $naoResolvidos = [];
+
+                                // Helper para buscar o ID global real no banco com base no ID do JSON (salvo como sequential_id).
+                                // ⚠️ Sem correspondência o vínculo fica NULO: usar o número do JSON como id global
+                                // amarraria o registro na entidade de OUTRA prefeitura (a PK é sequência global).
+                                $resolveRelacionamento = function ($modelStr, $jsonId) use ($record, &$naoResolvidos) {
                                     if (! $jsonId) {
                                         return null;
                                     }
+
                                     $realId = $modelStr::where('tenant_id', $record->id)->where('sequential_id', $jsonId)->value('id');
 
-                                    // Se não achar, usa o próprio ID do JSON (fallback de segurança caso o jsonId já seja o ID global)
-                                    return $realId ?? $jsonId;
+                                    if (! $realId) {
+                                        $rotulo = class_basename($modelStr);
+                                        $naoResolvidos[$rotulo] = ($naoResolvidos[$rotulo] ?? 0) + 1;
+                                    }
+
+                                    return $realId;
                                 };
+
+                                // R67-1 — campos customizados do município para esta camada:
+                                // uma property do GeoJSON com o mesmo nome do identificador do campo
+                                // é importada para `dados_customizados`. Carregado UMA vez (o painel
+                                // admin não tem tenant Filament → filtro explícito).
+                                $entidadeCustom = match ($data['camada']) {
+                                    'Lote' => 'lote',
+                                    'Edificacao' => 'edificacao',
+                                    'UnidadeImobiliaria' => 'unidade',
+                                    default => null,
+                                };
+
+                                $camposCustom = $entidadeCustom
+                                    ? \App\Models\CampoCustomizado::withoutGlobalScopes()
+                                        ->where('tenant_id', $record->id)
+                                        ->where('entidade', $entidadeCustom)
+                                        ->where('ativo', true)
+                                        ->whereNull('deleted_at')
+                                        ->get()
+                                    : collect();
 
                                 foreach ($agrupados as $originalId => $item) {
                                     $props = $item['props'];
@@ -565,6 +691,39 @@ class TenantResource extends Resource
                                         $fillData['inscricao_imobiliaria'] = $props->inscricao_imobiliaria;
                                     }
 
+                                    // R67-1 — CAMPOS CUSTOMIZADOS DO MUNICÍPIO
+                                    // Property do GeoJSON com o mesmo nome do identificador do campo.
+                                    // As colunas reais acima sempre vencem (o identificador é validado
+                                    // contra a lista de colunas reservadas na criação do campo).
+                                    if ($camposCustom->isNotEmpty()) {
+                                        $dadosCustom = [];
+
+                                        foreach ($camposCustom as $campoCustom) {
+                                            $slug = $campoCustom->slug;
+
+                                            if (! isset($props->{$slug}) || $props->{$slug} === '') {
+                                                continue;
+                                            }
+
+                                            $valor = $props->{$slug};
+
+                                            $dadosCustom[$slug] = match ($campoCustom->tipo) {
+                                                'numero' => is_numeric($valor) ? (float) $valor : null,
+                                                'sim_nao' => filter_var($valor, FILTER_VALIDATE_BOOLEAN),
+                                                'multipla' => is_array($valor) ? array_values($valor) : array_map('trim', explode(',', (string) $valor)),
+                                                default => is_array($valor) ? $valor : (string) $valor,
+                                            };
+
+                                            if ($dadosCustom[$slug] === null) {
+                                                unset($dadosCustom[$slug]);
+                                            }
+                                        }
+
+                                        if (! empty($dadosCustom)) {
+                                            $fillData['dados_customizados'] = $dadosCustom;
+                                        }
+                                    }
+
                                     // 4. SALVAR NO BANCO
                                     $entidade = new $modelClass;
 
@@ -584,16 +743,197 @@ class TenantResource extends Resource
                                     \Illuminate\Support\Facades\Storage::disk('local')->delete($data['arquivo']);
                                 }
 
-                                \Filament\Notifications\Notification::make()
-                                    ->success()
+                                $corpo = count($agrupados).' registros foram importados para a camada '.$data['camada'].'.';
+
+                                // Vínculos que o JSON pedia e não existem nesta prefeitura: quase sempre
+                                // é a hierarquia importada fora de ordem (quadras antes dos lotes, etc.).
+                                if ($naoResolvidos !== []) {
+                                    $corpo .= ' ⚠️ Referências não encontradas (vínculo ficou vazio): '
+                                        .collect($naoResolvidos)->map(fn ($qtd, $rotulo) => "{$qtd} × {$rotulo}")->implode(', ')
+                                        .'. Importe a camada superior primeiro e reimporte esta.';
+                                }
+
+                                $notificacao = \Filament\Notifications\Notification::make()
                                     ->title('Importação Concluída!')
-                                    ->body(count($agrupados).' registros foram importados para a camada '.$data['camada'])
-                                    ->send();
+                                    ->body($corpo);
+
+                                // Aviso fica na tela até o usuário fechar (não pode passar batido)
+                                $naoResolvidos === []
+                                    ? $notificacao->success()->send()
+                                    : $notificacao->warning()->persistent()->send();
                             } catch (\Exception $e) {
                                 \Illuminate\Support\Facades\DB::rollBack();
                                 \Filament\Notifications\Notification::make()
                                     ->danger()->title('Erro no Banco de Dados')
                                     ->body($e->getMessage())->send();
+                            }
+                        }),
+
+                    // --- AÇÃO: SIMULAÇÃO TRIBUTÁRIA (R67-5) ---
+                    // Upload do JSON que alimenta a integração tributária em modo simulação
+                    // (storage/app/mocks/{slug}.json — lido pelo IntegraPrefeituraService nos
+                    // botões ☁️/Sincronizar da prefeitura) + importação em massa opcional.
+                    Tables\Actions\Action::make('simulacao_tributaria')
+                        ->label('Simulação Tributária')
+                        ->icon('heroicon-o-document-currency-dollar')
+                        ->color('warning')
+                        ->visible(fn () => static::pode('admin_tributario_simulacao'))
+                        ->modalHeading(fn (Tenant $record) => "Simulação Tributária — {$record->name}")
+                        ->modalDescription('O JSON enviado vira a "API da prefeitura": os botões ☁️ e Sincronizar passam a responder com estes dados, já traduzidos pelo de/para do sistema tributário configurado.')
+                        ->form(fn (Tenant $record) => [
+                            Forms\Components\Placeholder::make('status_atual')
+                                ->label('Situação atual')
+                                ->content(function () use ($record): string {
+                                    $resumo = \App\Services\ApiTools\IntegraPrefeituraService::resumoMock($record);
+                                    $sistemaId = data_get($record->data, 'sistema_tributario_id');
+                                    $sistema = $sistemaId ? \App\Models\SistemaTributario::find($sistemaId)?->nome : null;
+
+                                    return ($resumo
+                                        ? "Arquivo atual: {$resumo['imoveis']} imóvel(is), atualizado em {$resumo['atualizado_em']->format('d/m/Y H:i')}."
+                                        : 'Nenhum arquivo de simulação enviado ainda.')
+                                        .' Sistema tributário: '.($sistema ?? 'nenhum (campos no padrão SIGWEB)').'.';
+                                }),
+
+                            Forms\Components\FileUpload::make('arquivo')
+                                ->label('JSON de simulação (substitui o atual)')
+                                ->helperText('Array de imóveis ou {"imoveis": [...]}. Pode usar os nomes de campo do sistema de origem — o de/para traduz na entrada.')
+                                ->acceptedFileTypes(['application/json'])
+                                ->maxSize(51200)
+                                ->disk('local')
+                                ->directory('imports/tributario')
+                                ->nullable(),
+
+                            Forms\Components\Toggle::make('importar_agora')
+                                ->label('Importar todos os imóveis agora')
+                                ->helperText('Roda a importação em massa (tributario:importar) em cima do arquivo, gravando nas unidades imobiliárias por inscrição. Sem isto, o arquivo só alimenta a busca por código (☁️/Sincronizar).')
+                                ->default(false),
+                        ])
+                        ->action(function (Tenant $record, array $data) {
+                            $mockPath = \App\Services\ApiTools\IntegraPrefeituraService::caminhoMock($record);
+                            $mensagens = [];
+
+                            // 1) Upload novo? Valida, normaliza (raiz = array) e salva como o mock do tenant
+                            if (! empty($data['arquivo'])) {
+                                $tmpPath = storage_path('app/private/'.$data['arquivo']);
+
+                                if (! file_exists($tmpPath)) {
+                                    Notification::make()->danger()->title('Arquivo não encontrado no disco!')->send();
+
+                                    return;
+                                }
+
+                                $json = json_decode(file_get_contents($tmpPath), true);
+                                $imoveis = is_array($json) ? (isset($json[0]) ? $json : ($json['imoveis'] ?? null)) : null;
+
+                                if (! is_array($imoveis) || $imoveis === [] || ! is_array($imoveis[0] ?? null)) {
+                                    Notification::make()->danger()
+                                        ->title('JSON inválido')
+                                        ->body('Esperado um array de imóveis (ou {"imoveis": [...]}) com ao menos 1 registro.')
+                                        ->send();
+
+                                    return;
+                                }
+
+                                \Illuminate\Support\Facades\File::ensureDirectoryExists(dirname($mockPath));
+                                file_put_contents($mockPath, json_encode($imoveis, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                                \Illuminate\Support\Facades\Storage::disk('local')->delete($data['arquivo']);
+
+                                // Diagnóstico: quantos ficam localizáveis depois do de/para?
+                                $comInscricao = 0;
+                                $comCodigo = 0;
+                                foreach ($imoveis as $imovel) {
+                                    $traduzido = \App\Services\Fiscal\MapaFiscalService::aplicar((array) $imovel, $record->id);
+                                    filled($traduzido['inscricao_imobiliaria'] ?? null) && $comInscricao++;
+                                    filled($traduzido['codigo_imovel_tributario'] ?? null) && $comCodigo++;
+                                }
+
+                                $mensagens[] = count($imoveis).' imóvel(is) salvos na simulação — '
+                                    ."{$comCodigo} com código tributário e {$comInscricao} com inscrição (após o de/para).";
+                            }
+
+                            if (! file_exists($mockPath)) {
+                                Notification::make()->warning()
+                                    ->title('Nenhum arquivo de simulação')
+                                    ->body('Envie o JSON para ativar a integração simulada desta prefeitura.')
+                                    ->send();
+
+                                return;
+                            }
+
+                            // 2) Importação em massa opcional (grava nas unidades por inscrição)
+                            if (! empty($data['importar_agora'])) {
+                                \App\Services\Fiscal\MapaFiscalService::limparCache();
+
+                                $exitCode = \Illuminate\Support\Facades\Artisan::call('tributario:importar', [
+                                    '--tenant' => $record->slug,
+                                    '--file' => $mockPath,
+                                ]);
+                                $output = \Illuminate\Support\Facades\Artisan::output();
+
+                                preg_match('/Atualizados: \d+/u', $output, $ok);
+                                preg_match('/Não encontrados.*: \d+/u', $output, $nf);
+
+                                $mensagens[] = $exitCode === 0
+                                    ? 'Importação: '.($ok[0] ?? 'concluída').(isset($nf[0]) ? " · {$nf[0]}" : '')
+                                    : 'Importação FALHOU — veja os logs.';
+                            }
+
+                            $falhou = (bool) collect($mensagens)->first(fn ($m) => str_contains($m, 'FALHOU'));
+
+                            $notificacao = Notification::make()->title('Simulação Tributária')
+                                ->body(implode(' ', $mensagens) ?: 'Nada a fazer — nenhum arquivo novo e importação não solicitada.');
+
+                            $falhou ? $notificacao->danger()->send() : $notificacao->success()->send();
+                        }),
+
+                    // --- AÇÃO: SINCRONIZAR TRIBUTÁRIO (TODOS) ---
+                    // Varre TODAS as unidades imobiliárias com identificador e sincroniza
+                    // cada uma pela integração vigente (simulação ou API real), criando
+                    // proprietários (Pessoa) e endereços — comando sigweb:sincronizar-imoveis.
+                    Tables\Actions\Action::make('sincronizar_tributario')
+                        ->label('Sincronizar Tributário (todos)')
+                        ->icon('heroicon-o-arrow-path-rounded-square')
+                        ->color('warning')
+                        ->visible(fn () => static::pode('admin_tributario_sincronizar'))
+                        ->requiresConfirmation()
+                        ->modalHeading(fn (Tenant $record) => "Sincronizar todos os imóveis — {$record->name}")
+                        ->modalDescription(function (Tenant $record) {
+                            $fonte = \App\Services\ApiTools\IntegraPrefeituraService::rotuloIntegracao($record->id)
+                                ?? 'nenhuma fonte configurada';
+                            $total = \App\Models\UnidadeImobiliaria::withoutGlobalScopes()
+                                ->where('tenant_id', $record->id)
+                                ->whereNull('deleted_at')
+                                ->whereNotNull('codigo_imovel_tributario')
+                                ->count();
+
+                            return "Busca os dados fiscais de {$total} unidade(s) com código tributário e atualiza inscrição, endereço, proprietário e o JSON do BIC. Fonte: {$fonte}.";
+                        })
+                        ->modalSubmitActionLabel('Sim, sincronizar todos')
+                        ->action(function (Tenant $record) {
+                            // Bases grandes: cada unidade é uma busca na fonte
+                            set_time_limit(600);
+
+                            \App\Services\Fiscal\MapaFiscalService::limparCache();
+
+                            $exitCode = \Illuminate\Support\Facades\Artisan::call('sigweb:sincronizar-imoveis', [
+                                'tenant_id' => $record->id,
+                            ]);
+                            $output = \Illuminate\Support\Facades\Artisan::output();
+
+                            preg_match('/Concluído! .+/u', $output, $match);
+
+                            if ($exitCode === 0) {
+                                Notification::make()
+                                    ->success()
+                                    ->title('Sincronização tributária concluída')
+                                    ->body($match[0] ?? trim($output))
+                                    ->send();
+                            } else {
+                                Notification::make()
+                                    ->danger()
+                                    ->title('Sincronização falhou')
+                                    ->body(trim($output) ?: 'Verifique os logs do sistema.')
+                                    ->send();
                             }
                         }),
 
@@ -604,6 +944,7 @@ class TenantResource extends Resource
                         ->label('Recalcular Áreas (GIS)')
                         ->icon('heroicon-o-calculator')
                         ->color('info')
+                        ->visible(fn () => static::pode('admin_recalcular_gis'))
                         ->form([
                             Forms\Components\Select::make('entidade')
                                 ->label('Entidade')

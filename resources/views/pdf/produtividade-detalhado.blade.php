@@ -48,16 +48,10 @@
                 'inconformidade' => 'Inconformidade',
             ][$lote->status_cadastro] ?? '—';
 
-            $ocupacaoLabel = [
-                'baldio'     => 'Baldio',
-                'construido' => 'Construído',
-            ][$lote->ocupacao] ?? '—';
-
-            $situacaoLabel = [
-                'meio_quadra' => 'Meio de Quadra',
-                'esquina'     => 'Esquina',
-                'encravado'   => 'Encravado',
-            ][$lote->situacao_quadra] ?? '—';
+            // R67-2 — rótulos vêm do vocabulário do município
+            $dominio = \App\Services\Coleta\CampoDominioService::class;
+            $ocupacaoLabel = $dominio::rotuloValor('lote', 'ocupacao', $lote->ocupacao) ?? '—';
+            $situacaoLabel = $dominio::rotuloValor('lote', 'situacao_quadra', $lote->situacao_quadra) ?? '—';
         @endphp
 
         <div class="lote-card">
@@ -79,8 +73,8 @@
                 <div class="col">
                     <strong>Quadra:</strong> {{ $lote->quadra?->name ?? '—' }}<br>
                     <strong>Zona:</strong> {{ $lote->zona?->sigla ?? '—' }}<br>
-                    <strong>Ocupação:</strong> {{ $ocupacaoLabel }}<br>
-                    <strong>Situação:</strong> {{ $situacaoLabel }}
+                    <strong>{{ $dominio::label('lote', 'ocupacao') }}:</strong> {{ $ocupacaoLabel }}<br>
+                    <strong>{{ $dominio::label('lote', 'situacao_quadra') }}:</strong> {{ $situacaoLabel }}
                 </div>
                 <div class="col">
                     <strong>Área:</strong> {{ number_format($lote->area_geo ?? 0, 2, ',', '.') }} m²<br>

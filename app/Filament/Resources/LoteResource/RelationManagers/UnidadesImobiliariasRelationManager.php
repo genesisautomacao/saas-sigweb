@@ -2,19 +2,20 @@
 
 namespace App\Filament\Resources\LoteResource\RelationManagers;
 
+use App\Models\Pessoa;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\File;
-use Filament\Notifications\Notification;
-use App\Models\Pessoa;
 
 class UnidadesImobiliariasRelationManager extends RelationManager
 {
     protected static string $relationship = 'unidadesImobiliarias';
+
     protected static ?string $title = 'Unidades Imobiliárias (Cadastros Fiscais)';
+
     protected static ?string $icon = 'heroicon-o-document-currency-dollar';
 
     public function form(Form $form): Form
@@ -27,13 +28,20 @@ class UnidadesImobiliariasRelationManager extends RelationManager
                     ->label('Inscrição Imobiliária (BIC)'),
                 Forms\Components\Select::make('proprietario_id')
                     ->label('Proprietário Principal')
-                    ->options(fn() => Pessoa::pluck('name', 'id'))
+                    ->options(fn () => Pessoa::pluck('name', 'id'))
                     ->searchable(),
+
+                // R67-1 — campos criados pelo município
+                Forms\Components\Section::make('Campos do Município')
+                    ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('unidade')->isNotEmpty())
+                    ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('unidade'))
+                    ->columns(2)
+                    ->columnSpanFull(),
 
                 // 🛑 NOVO: Campo de leitura do JSON
                 Forms\Components\Textarea::make('dados_tributarios')
                     ->label('Dados Sincronizados (API Prefeitura)')
-                    ->formatStateUsing(fn($state) => $state ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'Ainda não sincronizado.')
+                    ->formatStateUsing(fn ($state) => $state ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'Ainda não sincronizado.')
                     ->disabled() // Impede a edição manual do JSON
                     ->rows(15)
                     ->columnSpanFull(),
@@ -67,27 +75,37 @@ class UnidadesImobiliariasRelationManager extends RelationManager
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('Sincronizar com a Prefeitura')
-                    ->modalDescription(fn($record) => "Deseja buscar os dados fiscais do imóvel de código: {$record->codigo_imovel_tributario}?")
+                    ->modalDescription(function ($record) {
+                        $rotulo = \App\Services\ApiTools\IntegraPrefeituraService::rotuloIntegracao(\Filament\Facades\Filament::getTenant()?->id);
+
+                        return "Deseja buscar os dados fiscais do imóvel de código: {$record->codigo_imovel_tributario}?"
+                            .($rotulo ? " Fonte: {$rotulo}." : '');
+                    })
                     ->modalSubmitActionLabel('Sim, buscar dados')
                     ->action(function ($record, \App\Services\ApiTools\IntegraPrefeituraService $apiService) {
 
-                        if (!$record->codigo_imovel_tributario) {
+                        if (! $record->codigo_imovel_tributario) {
                             Notification::make()->title('Código Ausente')->body('Preencha o Código Imóvel Tributário antes de sincronizar.')->warning()->send();
+
                             return;
                         }
 
                         try {
                             // O Filament injeta o Service automaticamente! Chamamos apenas a função:
-                            $dadosPrefeitura = $apiService->buscarImovelPorCodigo($record->codigo_imovel_tributario);
+                            $dadosPrefeitura = $apiService->buscarImovel([
+                                'codigo_imovel_tributario' => $record->codigo_imovel_tributario,
+                                'inscricao_imobiliaria' => $record->inscricao_imobiliaria,
+                            ]);
 
                             if ($dadosPrefeitura) {
                                 $record->update([
-                                    'inscricao_imobiliaria' => $dadosPrefeitura['inscricao_imobiliaria'],
-                                    'dados_tributarios' => $dadosPrefeitura
+                                    // ?? — JSON de origem pode não trazer a inscrição (mantém a atual)
+                                    'inscricao_imobiliaria' => $dadosPrefeitura['inscricao_imobiliaria'] ?? $record->inscricao_imobiliaria,
+                                    'dados_tributarios' => $dadosPrefeitura,
                                 ]);
                                 Notification::make()->title('Sincronizado com Sucesso!')->success()->send();
                             } else {
-                                Notification::make()->title('Não Encontrado')->body('O código ' . $record->codigo_imovel_tributario . ' não foi localizado na prefeitura.')->danger()->send();
+                                Notification::make()->title('Não Encontrado')->body('O código '.$record->codigo_imovel_tributario.' não foi localizado na prefeitura.')->danger()->send();
                             }
                         } catch (\Exception $e) {
                             Notification::make()->title('Erro na Integração')->body($e->getMessage())->danger()->send();
@@ -99,7 +117,7 @@ class UnidadesImobiliariasRelationManager extends RelationManager
                     ->label('Documentos')
                     ->icon('heroicon-o-paper-clip')
                     ->color('warning')
-                    ->modalHeading(fn($record) => "Documentos: Unidade " . ($record->codigo_imovel_tributario ?? 'Sem Código'))
+                    ->modalHeading(fn ($record) => 'Documentos: Unidade '.($record->codigo_imovel_tributario ?? 'Sem Código'))
                     ->modalDescription('Gerencie escrituras, RG, CPF e outros arquivos vinculados a esta unidade.')
                     ->modalSubmitActionLabel('Salvar Documentos')
                     ->slideOver() // Abre uma aba lateral elegante em vez de um modal central
@@ -139,7 +157,7 @@ class UnidadesImobiliariasRelationManager extends RelationManager
                             ->columns(2)
                             ->defaultItems(0) // Começa vazio se não tiver docs
                             ->addActionLabel('Adicionar Novo Documento')
-                            ->itemLabel(fn(array $state): ?string => $state['name'] ?? null), // Mostra o nome do doc no título do bloco
+                            ->itemLabel(fn (array $state): ?string => $state['name'] ?? null), // Mostra o nome do doc no título do bloco
                     ]),
                 // --- FIM DA NOVA AÇÃO DE DOCUMENTOS ---
 
@@ -161,17 +179,21 @@ class UnidadesImobiliariasRelationManager extends RelationManager
                             $falha = 0;
 
                             foreach ($records as $record) {
-                                if (!$record->codigo_imovel_tributario) {
+                                if (! $record->codigo_imovel_tributario) {
                                     $falha++;
+
                                     continue;
                                 }
 
                                 try {
-                                    $dados = $apiService->buscarImovelPorCodigo($record->codigo_imovel_tributario);
+                                    $dados = $apiService->buscarImovel([
+                                        'codigo_imovel_tributario' => $record->codigo_imovel_tributario,
+                                        'inscricao_imobiliaria' => $record->inscricao_imobiliaria,
+                                    ]);
                                     if ($dados) {
                                         $record->update([
                                             'inscricao_imobiliaria' => $dados['inscricao_imobiliaria'],
-                                            'dados_tributarios' => $dados
+                                            'dados_tributarios' => $dados,
                                         ]);
                                         $sucesso++;
                                     } else {

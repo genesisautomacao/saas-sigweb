@@ -7,16 +7,16 @@ use Illuminate\Support\Facades\Log;
 
 class CnpjService
 {
-
     /**
      * Consulta um CNPJ na API comercial  https://cnpja.com/
      * Plano pago
      * email de cadastro: contato@organosi.com.br
-     * @param string $cnpj
+     *
+     * @param  string  $cnpj
      * @return array|null
      */
-
     protected string $apiKey;
+
     protected string $baseUrl;
 
     public function __construct()
@@ -32,6 +32,7 @@ class CnpjService
     {
         if (empty($this->apiKey)) {
             Log::error('CNPJá Service: API Key não configurada.');
+
             return ['error' => 'API Key não configurada.'];
         }
 
@@ -39,7 +40,7 @@ class CnpjService
         $url = "{$this->baseUrl}/office/{$cleanedCnpj}?registrations=BR";
 
         $response = Http::withHeaders([
-            'Authorization' => $this->apiKey
+            'Authorization' => $this->apiKey,
         ])->get($url);
 
         if ($response->successful()) {
@@ -48,10 +49,10 @@ class CnpjService
 
         Log::error('Falha na consulta à API CNPJá', [
             'status' => $response->status(),
-            'response' => $response->body()
+            'response' => $response->body(),
         ]);
 
         // Retorna um array com a chave 'error' para a modal saber que falhou
-        return ['error' => 'Falha na consulta: ' . $response->status()];
+        return ['error' => 'Falha na consulta: '.$response->status()];
     }
 }

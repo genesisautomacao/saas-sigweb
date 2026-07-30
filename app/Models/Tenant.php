@@ -2,12 +2,11 @@
 
 namespace App\Models;
 
+use Filament\Models\Contracts\HasAvatar;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Filament\Models\Contracts\HasAvatar;
-use Illuminate\Support\Facades\Storage;
 
 class Tenant extends Model implements HasAvatar
 {
@@ -78,7 +77,7 @@ class Tenant extends Model implements HasAvatar
             // 1. Módulo Administrativo
             $adminEntities = ['pessoas', 'contatos', 'enderecos', 'documentos'];
             foreach ($adminEntities as $entity) {
-                if (str_ends_with($permission, '_' . $entity) && !in_array('administrativo', $activeModules)) {
+                if (str_ends_with($permission, '_'.$entity) && ! in_array('administrativo', $activeModules)) {
                     return false;
                 }
             }
@@ -86,7 +85,7 @@ class Tenant extends Model implements HasAvatar
             // 2. Módulo de Iluminação Pública
             $iluminacaoEntities = ['tipos_poste', 'postes'];
             foreach ($iluminacaoEntities as $entity) {
-                if (str_ends_with($permission, '_' . $entity) && !in_array('iluminacao', $activeModules)) {
+                if (str_ends_with($permission, '_'.$entity) && ! in_array('iluminacao', $activeModules)) {
                     return false;
                 }
             }
@@ -94,7 +93,7 @@ class Tenant extends Model implements HasAvatar
             // 3. Módulo de Arborização (Meio Ambiente)
             $arborizacaoEntities = ['arvores'];
             foreach ($arborizacaoEntities as $entity) {
-                if (str_ends_with($permission, '_' . $entity) && !in_array('arborizacao', $activeModules)) {
+                if (str_ends_with($permission, '_'.$entity) && ! in_array('arborizacao', $activeModules)) {
                     return false;
                 }
             }
@@ -102,7 +101,7 @@ class Tenant extends Model implements HasAvatar
             // 4. Módulo de Estoque e Almoxarifado
             $estoqueEntities = ['locais_estoque', 'marcas', 'produtos', 'estoques', 'movimentacoes'];
             foreach ($estoqueEntities as $entity) {
-                if (str_ends_with($permission, '_' . $entity) && !in_array('estoque', $activeModules)) {
+                if (str_ends_with($permission, '_'.$entity) && ! in_array('estoque', $activeModules)) {
                     return false;
                 }
             }
@@ -110,7 +109,7 @@ class Tenant extends Model implements HasAvatar
             // 5. Módulo de Manutenção e Serviços
             $manutencaoEntities = ['solicitacoes', 'ordens_servico'];
             foreach ($manutencaoEntities as $entity) {
-                if (str_ends_with($permission, '_' . $entity) && !in_array('manutencao', $activeModules)) {
+                if (str_ends_with($permission, '_'.$entity) && ! in_array('manutencao', $activeModules)) {
                     return false;
                 }
             }
@@ -118,7 +117,7 @@ class Tenant extends Model implements HasAvatar
             // 6. Módulo de Gestão de Cemitérios
             $cemiterioEntities = ['cemiterios', 'quadras_cemiterio', 'logradouros_cemiterio', 'jazigos'];
             foreach ($cemiterioEntities as $entity) {
-                if (str_ends_with($permission, '_' . $entity) && !in_array('cemiterio', $activeModules)) {
+                if (str_ends_with($permission, '_'.$entity) && ! in_array('cemiterio', $activeModules)) {
                     return false;
                 }
             }
@@ -130,13 +129,14 @@ class Tenant extends Model implements HasAvatar
         // Sincroniza o array filtrado diretamente no papel do Manager
         $role->syncPermissions($permissionsToAssign);
     }
+
     public function getFilamentAvatarUrl(): ?string
     {
         $logo = data_get($this->data, 'logo');
 
         if ($logo) {
             // O asset() cria o link perfeito para a web e não dá erro no editor
-            return asset('storage/' . $logo);
+            return asset('storage/'.$logo);
         }
 
         return null;
@@ -159,14 +159,17 @@ class Tenant extends Model implements HasAvatar
     {
         return $this->hasMany(Pessoa::class);
     }
+
     public function contatos(): HasMany
     {
         return $this->hasMany(Contato::class);
     }
+
     public function enderecos(): HasMany
     {
         return $this->hasMany(Endereco::class);
     }
+
     public function documentos(): HasMany
     {
         return $this->hasMany(Documento::class);
@@ -309,14 +312,17 @@ class Tenant extends Model implements HasAvatar
     {
         return $this->hasMany(Cemiterio::class);
     }
+
     public function quadrasCemiterio(): HasMany
     {
         return $this->hasMany(QuadraCemiterio::class);
     }
+
     public function logradouroCemiterios(): HasMany
     {
         return $this->hasMany(LogradouroCemiterio::class);
     }
+
     public function jazigos(): HasMany
     {
         return $this->hasMany(Jazigo::class);
@@ -437,6 +443,17 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(Chamado::class);
     }
 
+    // Release 67 — customizações do cadastro e coleta cadastral
+    public function camposCustomizados(): HasMany
+    {
+        return $this->hasMany(CampoCustomizado::class);
+    }
+
+    public function coletaAtribuicoes(): HasMany
+    {
+        return $this->hasMany(ColetaAtribuicao::class);
+    }
+
     // Módulo de Cadastro Rural
     public function ruralLocalidades(): HasMany
     {
@@ -496,7 +513,7 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(Cnae::class);
     }
 
-     public function zoneamentoRegras(): HasMany
+    public function zoneamentoRegras(): HasMany
     {
         return $this->hasMany(ZoneamentoRegra::class);
     }
@@ -505,6 +522,4 @@ class Tenant extends Model implements HasAvatar
     {
         return $this->hasMany(AreaReurb::class);
     }
-
-
 }

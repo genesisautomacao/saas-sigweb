@@ -2,13 +2,13 @@
 
 namespace App\Services\ApiTools;
 
-use App\Models\Tenant;
-use App\Models\Pessoa;
 use App\Models\CadastroSocial;
+use App\Models\Pessoa;
+use App\Models\Tenant;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class EsusSyncService
 {
@@ -23,13 +23,14 @@ class EsusSyncService
         $token = $dadosTenant['esus_token'] ?? null;
 
         // Se não for simulação e não tiver credenciais, aborta
-        if (!$isSimulacao && (!$url || !$token)) {
+        if (! $isSimulacao && (! $url || ! $token)) {
             Log::warning("Sincronização e-SUS abortada para Tenant ID {$tenant->id}: Credenciais ausentes.");
+
             return false;
         }
 
         try {
-            Log::info("Iniciando ETL e-SUS para Tenant ID {$tenant->id}. Modo Simulação: " . ($isSimulacao ? 'ON' : 'OFF'));
+            Log::info("Iniciando ETL e-SUS para Tenant ID {$tenant->id}. Modo Simulação: ".($isSimulacao ? 'ON' : 'OFF'));
 
             // 1. EXTRAÇÃO (Extract)
             $dadosBrutos = $isSimulacao ? $this->getSimulatedPayload($tenant) : $this->fetchFromApi($url, $token);
@@ -44,7 +45,8 @@ class EsusSyncService
             return true;
 
         } catch (\Exception $e) {
-            Log::error("Erro no ETL e-SUS (Tenant {$tenant->id}): " . $e->getMessage());
+            Log::error("Erro no ETL e-SUS (Tenant {$tenant->id}): ".$e->getMessage());
+
             return false;
         }
     }
@@ -72,7 +74,7 @@ class EsusSyncService
                 if (isset($familiaData['membros']) && is_array($familiaData['membros'])) {
                     foreach ($familiaData['membros'] as $membroData) {
                         $membro = $this->upsertPessoa($tenant, $membroData);
-                        
+
                         if (isset($membroData['condicoes_saude'])) {
                             $this->upsertCondicoesSaude($tenant, $membro, $membroData['condicoes_saude']);
                         }
@@ -82,7 +84,7 @@ class EsusSyncService
                 DB::commit();
             } catch (\Exception $e) {
                 DB::rollBack();
-                Log::error("Falha ao salvar família {$familiaData['esus_familia_id']} no Tenant {$tenant->id}: " . $e->getMessage());
+                Log::error("Falha ao salvar família {$familiaData['esus_familia_id']} no Tenant {$tenant->id}: ".$e->getMessage());
             }
         }
     }
@@ -92,16 +94,16 @@ class EsusSyncService
         // Tenta achar pelo CNS primeiro (Chave Mestra da Saúde), depois pelo CPF
         $pessoa = Pessoa::where('tenant_id', $tenant->id)
             ->where(function ($query) use ($dadosPessoa) {
-                if (!empty($dadosPessoa['cns'])) {
+                if (! empty($dadosPessoa['cns'])) {
                     $query->where('cns', $dadosPessoa['cns']);
                 }
-                if (!empty($dadosPessoa['cpf'])) {
+                if (! empty($dadosPessoa['cpf'])) {
                     $query->orWhere('cpf', $dadosPessoa['cpf']);
                 }
             })->first();
 
-        if (!$pessoa) {
-            $pessoa = new Pessoa();
+        if (! $pessoa) {
+            $pessoa = new Pessoa;
             $pessoa->tenant_id = $tenant->id;
             $pessoa->type = 'fisica';
         }
@@ -124,8 +126,8 @@ class EsusSyncService
             ->where('esus_familia_id', $dadosFamilia['esus_familia_id'])
             ->first();
 
-        if (!$cadastro) {
-            $cadastro = new CadastroSocial();
+        if (! $cadastro) {
+            $cadastro = new CadastroSocial;
             $cadastro->tenant_id = $tenant->id;
             $cadastro->esus_familia_id = $dadosFamilia['esus_familia_id'];
         }
@@ -135,7 +137,7 @@ class EsusSyncService
         $cadastro->quantidade_membros = $dadosFamilia['quantidade_membros'] ?? 1;
         $cadastro->renda_familiar_total = $dadosFamilia['renda_familiar'] ?? null;
         $cadastro->em_area_de_risco = $dadosFamilia['area_de_risco'] ?? false;
-        
+
         $cadastro->save();
 
         return $cadastro;
@@ -169,13 +171,13 @@ class EsusSyncService
     {
         $response = Http::withToken($token)
             ->timeout(60)
-            ->get($url . '/familias/atualizadas-hoje'); // Exemplo de endpoint padrão e-SUS
+            ->get($url.'/familias/atualizadas-hoje'); // Exemplo de endpoint padrão e-SUS
 
         if ($response->successful()) {
             return $response->json();
         }
 
-        throw new \Exception("Erro na API do e-SUS: " . $response->status());
+        throw new \Exception('Erro na API do e-SUS: '.$response->status());
     }
 
     /**
@@ -192,7 +194,7 @@ class EsusSyncService
                 'gestante' => false,
                 'fumante' => true,
                 'pcd' => false,
-                'acamado' => false
+                'acamado' => false,
             ],
             // CNS DA MARIA (Você digita esse CNS lá no Filament)
             '700999988887777' => [
@@ -201,7 +203,7 @@ class EsusSyncService
                 'gestante' => true,
                 'fumante' => true,
                 'pcd' => false,
-                'acamado' => false
+                'acamado' => false,
             ],
             // CNS DO VOVÔ
             '700555544443333' => [
@@ -210,8 +212,8 @@ class EsusSyncService
                 'gestante' => false,
                 'fumante' => false,
                 'pcd' => false,
-                'acamado' => true
-            ]
+                'acamado' => true,
+            ],
         ];
     }
 
@@ -237,27 +239,27 @@ class EsusSyncService
 
         // 2. O ETL "pesquisa" cada pessoa sua lá no banco falso do e-SUS
         foreach ($pessoasComCns as $pessoa) {
-            
+
             // Se o CNS da pessoa existir no nosso Banco Falso, a mágica acontece
             if (array_key_exists($pessoa->cns, $bancoFalso)) {
-                
+
                 $condicoes = $bancoFalso[$pessoa->cns];
 
                 // Monta o pacote simulando a resposta da API oficial
                 $familiasSimuladas[] = [
-                    "esus_familia_id" => "FAM-SIMULADA-" . $pessoa->id,
-                    "nis" => "12345678901",
-                    "quantidade_membros" => 1,
-                    "renda_familiar" => 1500.00,
-                    "area_de_risco" => false,
-                    "responsavel" => [
-                        "esus_id" => "CIDAD-" . $pessoa->id,
-                        "nome" => $pessoa->name,
-                        "cpf" => $pessoa->cpf,
-                        "cns" => $pessoa->cns,
-                        "condicoes_saude" => $condicoes // 👈 Injeta as doenças encontradas!
+                    'esus_familia_id' => 'FAM-SIMULADA-'.$pessoa->id,
+                    'nis' => '12345678901',
+                    'quantidade_membros' => 1,
+                    'renda_familiar' => 1500.00,
+                    'area_de_risco' => false,
+                    'responsavel' => [
+                        'esus_id' => 'CIDAD-'.$pessoa->id,
+                        'nome' => $pessoa->name,
+                        'cpf' => $pessoa->cpf,
+                        'cns' => $pessoa->cns,
+                        'condicoes_saude' => $condicoes, // 👈 Injeta as doenças encontradas!
                     ],
-                    "membros" => []
+                    'membros' => [],
                 ];
             }
         }

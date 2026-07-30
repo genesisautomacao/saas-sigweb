@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
+use App\Traits\HasTenantSequentialId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
-use App\Traits\BelongsToTenant;
-use App\Traits\HasTenantSequentialId;
 
 class UnidadeImobiliaria extends Model
 {
-    use SoftDeletes, BelongsToTenant, HasTenantSequentialId;
+    use BelongsToTenant, HasTenantSequentialId, SoftDeletes;
 
     protected $fillable = [
         'tenant_id',
@@ -22,6 +22,7 @@ class UnidadeImobiliaria extends Model
         'code',
         'geo',
         'dados_tributarios',
+        'dados_customizados',
         'logradouro_nome',
         'numero_imovel',
         // Campos fiscais promovidos do dados_tributarios (mesmo nome da chave JSON)
@@ -62,9 +63,11 @@ class UnidadeImobiliaria extends Model
 
     protected $casts = [
         'dados_tributarios' => 'array',
+        'dados_customizados' => 'array', // R67-1 — campos customizados do município
     ];
 
     protected $hidden = ['geo'];
+
     protected $appends = ['geo_json'];
 
     protected static function booted(): void
@@ -86,7 +89,7 @@ class UnidadeImobiliaria extends Model
     public function sincronizarColunasFiscais(): void
     {
         $dt = $this->dados_tributarios;
-        if (!is_array($dt) || empty($dt)) {
+        if (! is_array($dt) || empty($dt)) {
             return;
         }
 
@@ -94,7 +97,7 @@ class UnidadeImobiliaria extends Model
 
         $updates = [];
         foreach (self::CAMPOS_FISCAIS as $campo) {
-            if (!array_key_exists($campo, $dt)) {
+            if (! array_key_exists($campo, $dt)) {
                 continue;
             }
             $valor = ($dt[$campo] === null || $dt[$campo] === '') ? null : $dt[$campo];
@@ -103,7 +106,7 @@ class UnidadeImobiliaria extends Model
             }
         }
 
-        if (!empty($updates)) {
+        if (! empty($updates)) {
             DB::table('unidade_imobiliarias')->where('id', $this->id)->update($updates);
         }
     }
@@ -121,29 +124,29 @@ class UnidadeImobiliaria extends Model
      */
     public function propagarEnderecoParaLote(): void
     {
-        if (!$this->lote_id) {
+        if (! $this->lote_id) {
             return;
         }
 
         $dt = $this->dados_tributarios;
-        if (!is_array($dt) || empty($dt)) {
+        if (! is_array($dt) || empty($dt)) {
             return;
         }
 
         $lote = DB::table('lotes')->where('id', $this->lote_id)
             ->first(['tipo_logradouro', 'logradouro', 'numero_logradouro', 'cep', 'numero_predial_antigo']);
-        if (!$lote) {
+        if (! $lote) {
             return;
         }
 
         // Houve sincronização real do tributário? (criação ou mudança do JSON)
         $mudouTributario = $this->wasRecentlyCreated || $this->wasChanged('dados_tributarios');
 
-        $norm = fn($v) => ($v === null || $v === '') ? null : (string) $v;
+        $norm = fn ($v) => ($v === null || $v === '') ? null : (string) $v;
         $updates = [];
 
         foreach (['tipo_logradouro', 'logradouro', 'cep'] as $campo) {
-            if (!array_key_exists($campo, $dt)) {
+            if (! array_key_exists($campo, $dt)) {
                 continue;
             }
             if ($mudouTributario || $lote->$campo === null) {
@@ -155,23 +158,25 @@ class UnidadeImobiliaria extends Model
             $geradorRodou = $lote->numero_predial_antigo !== null;
             if ($mudouTributario) {
                 $updates['numero_logradouro'] = $norm($dt['numero_logradouro']);
-            } elseif ($lote->numero_logradouro === null && !$geradorRodou) {
+            } elseif ($lote->numero_logradouro === null && ! $geradorRodou) {
                 $updates['numero_logradouro'] = $norm($dt['numero_logradouro']);
             }
         }
 
-        if (!empty($updates)) {
+        if (! empty($updates)) {
             DB::table('lotes')->where('id', $this->lote_id)->update($updates);
         }
     }
 
     public function getGeoJsonAttribute()
     {
-        if (!isset($this->attributes['id']) || is_null($this->attributes['geo']))
+        if (! isset($this->attributes['id']) || is_null($this->attributes['geo'])) {
             return null;
+        }
         $result = DB::table('unidade_imobiliarias')
             ->select(DB::raw('ST_AsGeoJSON(geo) as geo_json'))
             ->where('id', $this->attributes['id'])->first();
+
         return $result ? json_decode($result->geo_json) : null;
     }
 
@@ -180,10 +185,11 @@ class UnidadeImobiliaria extends Model
         // Se a geometria for nula (Ex: apartamento sem ponto no mapa), salva como NULL puro
         if (empty($value)) {
             $this->attributes['geo'] = null;
+
             return;
         }
 
-        $this->attributes['geo'] = DB::raw("ST_GeomFromGeoJSON('" . json_encode($value) . "')");
+        $this->attributes['geo'] = DB::raw("ST_GeomFromGeoJSON('".json_encode($value)."')");
     }
 
     public function lote()

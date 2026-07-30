@@ -2428,27 +2428,25 @@
 
                     @if ($loteOcupacao || $loteSituacaoQuadra)
                         @php
-                            $ocupacaoLabel = ['baldio' => 'Baldio', 'construido' => 'Construído'];
-                            $situacaoLabel = [
-                                'meio_quadra' => 'Meio de Quadra',
-                                'esquina' => 'Esquina',
-                                'encravado' => 'Encravado',
-                            ];
+                            // Rótulo do campo e do valor vêm do vocabulário do município (R67-2).
+                            $dominio = \App\Services\Coleta\CampoDominioService::class;
                         @endphp
                         <div
                             class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 grid grid-cols-2 gap-4 text-xs">
                             @if ($loteOcupacao)
                                 <div>
-                                    <p class="text-[10px] text-gray-400 uppercase font-bold">Ocupação</p>
+                                    <p class="text-[10px] text-gray-400 uppercase font-bold">
+                                        {{ $dominio::label('lote', 'ocupacao') }}</p>
                                     <p class="font-bold text-gray-700 dark:text-gray-300">
-                                        {{ $ocupacaoLabel[$loteOcupacao] ?? '—' }}</p>
+                                        {{ $dominio::rotuloValor('lote', 'ocupacao', $loteOcupacao) ?? '—' }}</p>
                                 </div>
                             @endif
                             @if ($loteSituacaoQuadra)
                                 <div>
-                                    <p class="text-[10px] text-gray-400 uppercase font-bold">Situação</p>
+                                    <p class="text-[10px] text-gray-400 uppercase font-bold">
+                                        {{ $dominio::label('lote', 'situacao_quadra') }}</p>
                                     <p class="font-bold text-gray-700 dark:text-gray-300">
-                                        {{ $situacaoLabel[$loteSituacaoQuadra] ?? '—' }}</p>
+                                        {{ $dominio::rotuloValor('lote', 'situacao_quadra', $loteSituacaoQuadra) ?? '—' }}</p>
                                 </div>
                             @endif
                         </div>

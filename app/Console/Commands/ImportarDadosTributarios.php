@@ -19,29 +19,33 @@ class ImportarDadosTributarios extends Command
     public function handle(): int
     {
         $tenantSlug = $this->option('tenant');
-        $filePath   = $this->option('file');
-        $dryRun     = $this->option('dry-run');
+        $filePath = $this->option('file');
+        $dryRun = $this->option('dry-run');
 
-        if (!$tenantSlug || !$filePath) {
+        if (! $tenantSlug || ! $filePath) {
             $this->error('Informe --tenant e --file. Exemplo:');
             $this->line('  php artisan tributario:importar --tenant=antonio-carlos --file=dados.json');
+
             return 1;
         }
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             $this->error("Arquivo não encontrado: {$filePath}");
+
             return 1;
         }
 
         $tenant = Tenant::where('slug', $tenantSlug)->first();
-        if (!$tenant) {
+        if (! $tenant) {
             $this->error("Tenant '{$tenantSlug}' não encontrado.");
+
             return 1;
         }
 
         $json = json_decode(file_get_contents($filePath), true);
-        if (!is_array($json)) {
+        if (! is_array($json)) {
             $this->error('JSON inválido ou não é um array de imóveis.');
+
             return 1;
         }
 
@@ -50,11 +54,12 @@ class ImportarDadosTributarios extends Command
 
         if (empty($imoveis)) {
             $this->warn('Nenhum imóvel encontrado no JSON.');
+
             return 0;
         }
 
         $this->info("Tenant: {$tenant->name} (id={$tenant->id})");
-        $this->info('Imóveis no JSON: ' . count($imoveis));
+        $this->info('Imóveis no JSON: '.count($imoveis));
         $dryRun && $this->warn('-- DRY RUN: nenhuma alteração será salva --');
 
         $atualizados = 0;
@@ -67,10 +72,16 @@ class ImportarDadosTributarios extends Command
 
         try {
             foreach ($imoveis as $imovel) {
+                // R67-5 — o de/para roda ANTES de qualquer lookup: um JSON com os nomes
+                // do sistema de origem (ex.: nrInscricao → inscricao_imobiliaria) também
+                // importa. O payload bruto é preservado dentro do próprio array.
+                $imovel = \App\Services\Fiscal\MapaFiscalService::aplicar($imovel, $tenant->id);
+
                 $inscricao = $imovel['inscricao_imobiliaria'] ?? null;
 
-                if (!$inscricao) {
+                if (! $inscricao) {
                     $bar->advance();
+
                     continue;
                 }
 
@@ -79,16 +90,17 @@ class ImportarDadosTributarios extends Command
                     ->where('inscricao_imobiliaria', $inscricao)
                     ->first();
 
-                if (!$unidade) {
+                if (! $unidade) {
                     $naoEncontrados++;
                     $bar->advance();
+
                     continue;
                 }
 
-                if (!$dryRun) {
+                if (! $dryRun) {
                     $unidade->dados_tributarios = $imovel;
                     // Atualiza também código tributário se vier no JSON
-                    if (!empty($imovel['codigo_imovel_tributario'])) {
+                    if (! empty($imovel['codigo_imovel_tributario'])) {
                         $unidade->codigo_imovel_tributario = $imovel['codigo_imovel_tributario'];
                     }
                     $unidade->save();
@@ -117,7 +129,8 @@ class ImportarDadosTributarios extends Command
         } catch (\Exception $e) {
             DB::rollBack();
             $this->newLine();
-            $this->error('Erro durante importação: ' . $e->getMessage());
+            $this->error('Erro durante importação: '.$e->getMessage());
+
             return 1;
         }
 

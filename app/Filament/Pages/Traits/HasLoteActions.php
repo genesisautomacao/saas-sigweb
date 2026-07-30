@@ -3,22 +3,20 @@
 namespace App\Filament\Pages\Traits;
 
 use App\Models\Lote;
-use App\Models\UnidadeImobiliaria;
-use App\Models\Zona;
 use App\Models\Quadra;
+use App\Models\UnidadeImobiliaria;
 use Filament\Actions\Action;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Unique;
-use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\HtmlString;
 
 trait HasLoteActions
 {
-
     /**
      * Ação: Criar Novo Lote e Unidade Automática
      */
@@ -29,7 +27,7 @@ trait HasLoteActions
             ->modalDescription('Preencha os dados básicos. A quadra e a zona já foram detectadas pelo satélite.')
             ->modalSubmitActionLabel('Salvar Lote e Unidade')
             ->modalWidth('md')
-            ->fillForm(fn(): array => [
+            ->fillForm(fn (): array => [
                 'quadra_id' => $this->quadraRascunhoId,
             ])
             ->form([
@@ -40,7 +38,7 @@ trait HasLoteActions
                     ->unique(
                         table: 'lotes',
                         column: 'numero_lote',
-                        modifyRuleUsing: fn(Unique $rule) => $rule
+                        modifyRuleUsing: fn (Unique $rule) => $rule
                             ->where('tenant_id', $this->tenantId)
                             ->where('quadra_id', $this->quadraRascunhoId)
                     )
@@ -51,28 +49,21 @@ trait HasLoteActions
                     ->numeric()
                     ->nullable(),
 
-                Select::make('ocupacao')
-                    ->label('Ocupação do Lote')
-                    ->options([
-                        'baldio'    => 'Baldio',
-                        'construido' => 'Construído',
-                    ])
-                    ->placeholder('Selecione...')
-                    ->nullable(),
+                \App\Services\Coleta\CampoDominioService::aplicar(
+                    Select::make('ocupacao')->placeholder('Selecione...')->nullable(),
+                    'lote',
+                    'ocupacao'
+                ),
 
-                Select::make('situacao_quadra')
-                    ->label('Situação na Quadra')
-                    ->options([
-                        'meio_quadra' => 'Meio de Quadra',
-                        'esquina'     => 'Esquina',
-                        'encravado'   => 'Encravado',
-                    ])
-                    ->placeholder('Selecione...')
-                    ->nullable(),
+                \App\Services\Coleta\CampoDominioService::aplicar(
+                    Select::make('situacao_quadra')->placeholder('Selecione...')->nullable(),
+                    'lote',
+                    'situacao_quadra'
+                ),
 
                 Select::make('quadra_id')
                     ->label('Quadra (Auto-detectada)')
-                    ->options(fn() => Quadra::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id'))
+                    ->options(fn () => Quadra::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id'))
                     ->disabled()
                     ->dehydrated()
                     ->required(),
@@ -93,7 +84,7 @@ trait HasLoteActions
 
                 $lote = Lote::create($data);
 
-                DB::statement("UPDATE lotes SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$lote->id]);
+                DB::statement('UPDATE lotes SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$lote->id]);
 
                 if ($lote) {
                     $unidade = UnidadeImobiliaria::create([
@@ -105,11 +96,11 @@ trait HasLoteActions
                     ]);
 
                     if ($unidade) {
-                        DB::statement("
+                        DB::statement('
                             UPDATE unidade_imobiliarias
                             SET geo = (SELECT ST_PointOnSurface(geo) FROM lotes WHERE id = ?)
                             WHERE id = ?
-                        ", [$lote->id, $unidade->id]);
+                        ', [$lote->id, $unidade->id]);
                     }
                 }
 
@@ -118,7 +109,7 @@ trait HasLoteActions
                 $this->dispatch('adicionar-lote-mapa', [
                     'id' => $lote->id,
                     'numero_lote' => $lote->numero_lote,
-                    'geo' => $this->geometriaRascunho
+                    'geo' => $this->geometriaRascunho,
                 ]);
 
                 $this->geometriaRascunho = null;
@@ -136,20 +127,22 @@ trait HasLoteActions
             ->modalWidth('xl')
             ->fillForm(function (): array {
                 $lote = Lote::query()->find($this->loteAtivoId);
+
                 return [
-                    'numero_lote'              => $lote?->numero_lote ?? '',
-                    'tipo_logradouro'          => $lote?->tipo_logradouro,
-                    'logradouro'               => $lote?->logradouro,
-                    'numero_logradouro'        => $lote?->numero_logradouro,
-                    'cep'                      => $lote?->cep,
-                    'numero_predial_antigo'    => $lote?->numero_predial_antigo,
-                    'main_facade_length'       => $lote?->main_facade_length,
-                    'ocupacao'                 => $lote?->ocupacao,
-                    'situacao_quadra'          => $lote?->situacao_quadra,
-                    'status_cadastro'          => $lote?->status_cadastro ?? 'nao_visitado',
-                    'observacao'               => $lote?->observacao,
+                    'numero_lote' => $lote?->numero_lote ?? '',
+                    'tipo_logradouro' => $lote?->tipo_logradouro,
+                    'logradouro' => $lote?->logradouro,
+                    'numero_logradouro' => $lote?->numero_logradouro,
+                    'cep' => $lote?->cep,
+                    'numero_predial_antigo' => $lote?->numero_predial_antigo,
+                    'main_facade_length' => $lote?->main_facade_length,
+                    'ocupacao' => $lote?->ocupacao,
+                    'situacao_quadra' => $lote?->situacao_quadra,
+                    'status_cadastro' => $lote?->status_cadastro ?? 'nao_visitado',
+                    'observacao' => $lote?->observacao,
                     'inconformidade_descricao' => $lote?->inconformidade_descricao,
-                    'dados_vistoria'           => $lote?->dados_vistoria ?? [],
+                    'dados_vistoria' => $lote?->dados_vistoria ?? [],
+                    'dados_customizados' => $lote?->dados_customizados ?? [], // R67-1
                 ];
             })
             ->form([
@@ -160,9 +153,10 @@ trait HasLoteActions
                     ->unique(
                         table: 'lotes',
                         column: 'numero_lote',
-                        ignorable: fn() => Lote::query()->find($this->loteAtivoId),
+                        ignorable: fn () => Lote::query()->find($this->loteAtivoId),
                         modifyRuleUsing: function (Unique $rule) {
                             $lote = Lote::query()->find($this->loteAtivoId);
+
                             return $rule->where('tenant_id', $this->tenantId)->where('quadra_id', $lote->quadra_id);
                         }
                     )
@@ -202,31 +196,23 @@ trait HasLoteActions
                     ->numeric()
                     ->nullable(),
 
-                Select::make('ocupacao')
-                    ->label('Ocupação do Lote')
-                    ->options([
-                        'baldio'     => 'Baldio',
-                        'construido' => 'Construído',
-                    ])
-                    ->placeholder('Selecione...')
-                    ->nullable(),
+                // R67-2 — rótulo/valores definidos pelo município
+                \App\Services\Coleta\CampoDominioService::aplicar(
+                    Select::make('ocupacao')->placeholder('Selecione...')->nullable(),
+                    'lote', 'ocupacao'
+                ),
 
-                Select::make('situacao_quadra')
-                    ->label('Situação na Quadra')
-                    ->options([
-                        'meio_quadra' => 'Meio de Quadra',
-                        'esquina'     => 'Esquina',
-                        'encravado'   => 'Encravado',
-                    ])
-                    ->placeholder('Selecione...')
-                    ->nullable(),
+                \App\Services\Coleta\CampoDominioService::aplicar(
+                    Select::make('situacao_quadra')->placeholder('Selecione...')->nullable(),
+                    'lote', 'situacao_quadra'
+                ),
 
                 Select::make('status_cadastro')
                     ->label('Status do Cadastro')
                     ->options([
-                        'nao_visitado'   => 'Não Visitado',
-                        'coletado'       => 'Coletado',
-                        'pendente'       => 'Pendente',
+                        'nao_visitado' => 'Não Visitado',
+                        'coletado' => 'Coletado',
+                        'pendente' => 'Pendente',
                         'inconformidade' => 'Inconformidade',
                     ])
                     ->required()
@@ -243,7 +229,7 @@ trait HasLoteActions
                     ->label('Descrição da Inconformidade')
                     ->rows(3)
                     ->nullable()
-                    ->visible(fn(\Filament\Forms\Get $get) => $get('status_cadastro') === 'inconformidade')
+                    ->visible(fn (\Filament\Forms\Get $get) => $get('status_cadastro') === 'inconformidade')
                     ->columnSpanFull(),
 
                 \Filament\Forms\Components\KeyValue::make('dados_vistoria')
@@ -252,6 +238,13 @@ trait HasLoteActions
                     ->valueLabel('Valor')
                     ->reorderable()
                     ->nullable()
+                    ->columnSpanFull(),
+
+                // R67-1 — campos criados pelo município
+                \Filament\Forms\Components\Section::make('Campos do Município')
+                    ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('lote')->isNotEmpty())
+                    ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('lote'))
+                    ->columns(2)
                     ->columnSpanFull(),
             ])
             ->action(function (array $data) {
@@ -263,7 +256,7 @@ trait HasLoteActions
                     $this->loteFacePrincipal = $data['main_facade_length'] ?? 0;
                     // Refletir mudanças na ficha lateral imediatamente
                     $this->loteStatusCadastro = $data['status_cadastro'] ?? null;
-                    $this->loteOcupacao       = $data['ocupacao'] ?? null;
+                    $this->loteOcupacao = $data['ocupacao'] ?? null;
                     $this->loteSituacaoQuadra = $data['situacao_quadra'] ?? null;
                     $this->dispatch('atualizar-label-lote', ['id' => $lote->id, 'numero_lote' => $data['numero_lote']]);
                 }
@@ -277,7 +270,7 @@ trait HasLoteActions
     {
         return Action::make('verUnidades')
             ->hiddenLabel()
-            ->modalHeading(fn() => 'Unidades Imobiliárias - Lote #' . $this->loteAtivoNome)
+            ->modalHeading(fn () => 'Unidades Imobiliárias - Lote #'.$this->loteAtivoNome)
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Fechar')
             ->modalWidth('4xl')
@@ -405,13 +398,13 @@ trait HasLoteActions
                 TextInput::make('inscricao_imobiliaria')
                     ->label('Inscrição Imobiliária')
                     ->maxLength(255)
-                    ->unique(table: 'unidade_imobiliarias', column: 'inscricao_imobiliaria', modifyRuleUsing: fn(\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId))
+                    ->unique(table: 'unidade_imobiliarias', column: 'inscricao_imobiliaria', modifyRuleUsing: fn (\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId))
                     ->validationMessages(['unique' => 'Esta Inscrição já está cadastrada.']),
 
                 TextInput::make('codigo_imovel_tributario')
                     ->label('Código do Imóvel Tributário')
                     ->maxLength(255)
-                    ->unique(table: 'unidade_imobiliarias', column: 'codigo_imovel_tributario', modifyRuleUsing: fn(\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId))
+                    ->unique(table: 'unidade_imobiliarias', column: 'codigo_imovel_tributario', modifyRuleUsing: fn (\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId))
                     ->validationMessages(['unique' => 'Este Código Tributário já está cadastrado.'])
                     ->suffixAction(
                         \Filament\Forms\Components\Actions\Action::make('sincronizar_api')
@@ -420,10 +413,16 @@ trait HasLoteActions
                             ->tooltip('Buscar na Prefeitura')
                             ->action(function (\Filament\Forms\Get $get, \Filament\Forms\Set $set) {
                                 $codigo = $get('codigo_imovel_tributario');
-                                if (!$codigo) return;
+                                if (! $codigo && ! $get('inscricao_imobiliaria')) {
+                                    return;
+                                }
                                 try {
-                                    // 🛑 Passando o tenantId pro serviço para o futuro
-                                    $dados = app(\App\Services\ApiTools\IntegraPrefeituraService::class)->buscarImovelPorCodigo($codigo, $this->tenantId);
+                                    // Passa os DOIS identificadores — o sistema do catálogo
+                                    // decide qual é o ponto de ligação (chave_ligacao)
+                                    $dados = app(\App\Services\ApiTools\IntegraPrefeituraService::class)->buscarImovel([
+                                        'codigo_imovel_tributario' => $codigo,
+                                        'inscricao_imobiliaria' => $get('inscricao_imobiliaria'),
+                                    ], $this->tenantId);
                                     if ($dados) {
                                         // 🛑 Usa o nosso Helper para extrair endereço e criar a pessoa
                                         $payload = $this->processarDadosSincronizacao($dados);
@@ -452,33 +451,26 @@ trait HasLoteActions
 
                 Select::make('proprietario_id')
                     ->label('Proprietário Principal')
-                    ->options(fn() => \App\Models\Pessoa::pluck('name', 'id'))
+                    ->options(fn () => \App\Models\Pessoa::pluck('name', 'id'))
                     ->searchable()
                     ->nullable(),
 
                 \Filament\Forms\Components\Section::make('Dados Fiscais (Prefeitura)')
-                    ->description('Preencha o Código Tributário acima e clique em ☁️ para sincronizar. Editar aqui atualiza também o JSON usado no BIC.')
+                    ->description(function () {
+                        $rotulo = \App\Services\ApiTools\IntegraPrefeituraService::rotuloIntegracao($this->tenantId);
+
+                        return 'Preencha o Código Tributário acima e clique em ☁️ para sincronizar. Editar aqui atualiza também o JSON usado no BIC.'
+                            .($rotulo ? " Integração: {$rotulo}." : '');
+                    })
                     ->columns(3)
-                    ->schema([
-                        TextInput::make('tipo_construcao')->label('Tipo de Construção')->maxLength(255),
-                        TextInput::make('descricao_classificacao')->label('Classificação')->maxLength(255),
-                        TextInput::make('face')->label('Face da Quadra')->maxLength(255),
+                    // R67-2 — rótulos/visibilidade dos campos fiscais definidos pelo município
+                    ->schema(fn () => \App\Services\Coleta\CampoDominioService::componentesFiscaisUnidade()),
 
-                        TextInput::make('fracao_ideal')->label('Fração Ideal')->numeric(),
-                        TextInput::make('area_edificacao')->label('Área Edificação')->numeric()->suffix('m²'),
-                        TextInput::make('area_total_edificacao')->label('Área Total Edif.')->numeric()->suffix('m²'),
-
-                        TextInput::make('valor_venal_lote')->label('Valor Venal Terreno')->numeric()->prefix('R$'),
-                        TextInput::make('valor_venal_edificacao')->label('Valor Venal Edificação')->numeric()->prefix('R$'),
-                        TextInput::make('valor_metro_terreno')->label('Valor m² Terreno')->numeric()->prefix('R$'),
-
-                        TextInput::make('valor_metro_edificacao')->label('Valor m² Edificação')->numeric()->prefix('R$'),
-                        TextInput::make('valor_imposto_territorial')->label('IPTU Territorial')->numeric()->prefix('R$'),
-                        TextInput::make('valor_imposto_predial')->label('IPTU Predial')->numeric()->prefix('R$'),
-
-                        TextInput::make('valor_total_imposto')->label('IPTU Total')->numeric()->prefix('R$')
-                            ->columnSpan(['default' => 3]),
-                    ]),
+                // R67-1 — campos criados pelo município
+                \Filament\Forms\Components\Section::make('Campos do Município')
+                    ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('unidade')->isNotEmpty())
+                    ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('unidade'))
+                    ->columns(3),
 
                 \Filament\Forms\Components\Section::make('JSON bruto (referência)')
                     ->description('Campos completos retornados pela Prefeitura. Somente leitura.')
@@ -488,7 +480,10 @@ trait HasLoteActions
                         \Filament\Forms\Components\Textarea::make('dados_tributarios')
                             ->hiddenLabel()
                             ->formatStateUsing(function ($state) {
-                                if (is_string($state)) $state = json_decode($state, true);
+                                if (is_string($state)) {
+                                    $state = json_decode($state, true);
+                                }
+
                                 return $state ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'Ainda não sincronizado.';
                             })
                             ->disabled()
@@ -504,7 +499,7 @@ trait HasLoteActions
                     $decoded = json_decode($json, true);
                     $json = json_last_error() === JSON_ERROR_NONE ? $decoded : null;
                 }
-                if (!is_array($json)) {
+                if (! is_array($json)) {
                     $json = [];
                 }
 
@@ -524,7 +519,7 @@ trait HasLoteActions
                 $unidade = UnidadeImobiliaria::create($data);
 
                 if ($unidade && $lote) {
-                    DB::statement("UPDATE unidade_imobiliarias SET geo = (SELECT ST_PointOnSurface(geo) FROM lotes WHERE id = ?) WHERE id = ?", [$lote->id, $unidade->id]);
+                    DB::statement('UPDATE unidade_imobiliarias SET geo = (SELECT ST_PointOnSurface(geo) FROM lotes WHERE id = ?) WHERE id = ?', [$lote->id, $unidade->id]);
                 }
 
                 Notification::make()->title('Unidade criada com sucesso!')->success()->send();
@@ -535,7 +530,7 @@ trait HasLoteActions
                 Action::make('voltar')
                     ->label('Voltar')
                     ->color('gray')
-                    ->action(fn() => $this->replaceMountedAction('verUnidades')),
+                    ->action(fn () => $this->replaceMountedAction('verUnidades')),
             ]);
     }
 
@@ -560,7 +555,9 @@ trait HasLoteActions
             ])
             ->action(function (array $data, array $arguments) {
                 $unidade = UnidadeImobiliaria::query()->find($arguments['unidadeId']);
-                if (!$unidade) return;
+                if (! $unidade) {
+                    return;
+                }
 
                 $lote = Lote::query()->find($this->loteAtivoId);
 
@@ -574,7 +571,7 @@ trait HasLoteActions
 
                     if ($lote) {
                         DB::statement(
-                            "UPDATE unidade_imobiliarias SET geo = (SELECT ST_PointOnSurface(geo) FROM lotes WHERE id = ?) WHERE id = ?",
+                            'UPDATE unidade_imobiliarias SET geo = (SELECT ST_PointOnSurface(geo) FROM lotes WHERE id = ?) WHERE id = ?',
                             [$lote->id, $nova->id]
                         );
                     }
@@ -593,7 +590,7 @@ trait HasLoteActions
                 Action::make('voltar')
                     ->label('Voltar')
                     ->color('gray')
-                    ->action(fn() => $this->replaceMountedAction('verUnidades')),
+                    ->action(fn () => $this->replaceMountedAction('verUnidades')),
             ]);
     }
 
@@ -605,8 +602,11 @@ trait HasLoteActions
             ->modalSubmitActionLabel('Salvar Alterações')
             ->modalWidth('3xl')
             ->fillForm(function (array $arguments): array {
-                if (!isset($arguments['unidadeId'])) return [];
+                if (! isset($arguments['unidadeId'])) {
+                    return [];
+                }
                 $unidade = UnidadeImobiliaria::query()->find($arguments['unidadeId']);
+
                 return $unidade ? $unidade->toArray() : [];
             })
             ->form(function (array $arguments) {
@@ -620,7 +620,10 @@ trait HasLoteActions
                             // 🛑 BUG 1 RESOLVIDO: Ignora o ID diretamente na query
                             modifyRuleUsing: function (\Illuminate\Validation\Rules\Unique $rule) use ($arguments) {
                                 $rule->where('tenant_id', $this->tenantId);
-                                if (isset($arguments['unidadeId'])) $rule->ignore($arguments['unidadeId']);
+                                if (isset($arguments['unidadeId'])) {
+                                    $rule->ignore($arguments['unidadeId']);
+                                }
+
                                 return $rule;
                             }
                         )
@@ -635,7 +638,10 @@ trait HasLoteActions
                             // 🛑 BUG 1 RESOLVIDO
                             modifyRuleUsing: function (\Illuminate\Validation\Rules\Unique $rule) use ($arguments) {
                                 $rule->where('tenant_id', $this->tenantId);
-                                if (isset($arguments['unidadeId'])) $rule->ignore($arguments['unidadeId']);
+                                if (isset($arguments['unidadeId'])) {
+                                    $rule->ignore($arguments['unidadeId']);
+                                }
+
                                 return $rule;
                             }
                         )
@@ -647,14 +653,18 @@ trait HasLoteActions
                                 ->tooltip('Buscar na Prefeitura')
                                 ->action(function (\Filament\Forms\Get $get, \Filament\Forms\Set $set) {
                                     $codigo = $get('codigo_imovel_tributario');
-                                    if (!$codigo) {
-                                        Notification::make()->title('Aviso')->body('Digite o código antes de buscar.')->warning()->send();
+                                    if (! $codigo && ! $get('inscricao_imobiliaria')) {
+                                        Notification::make()->title('Aviso')->body('Digite o código (ou a inscrição) antes de buscar.')->warning()->send();
+
                                         return;
                                     }
                                     try {
-                                        // 🛑 Passando o tenantId pro serviço para o futuro
+                                        // Passa os DOIS identificadores — o sistema decide o ponto de ligação
                                         $apiService = app(\App\Services\ApiTools\IntegraPrefeituraService::class);
-                                        $dados = $apiService->buscarImovelPorCodigo($codigo, $this->tenantId);
+                                        $dados = $apiService->buscarImovel([
+                                            'codigo_imovel_tributario' => $codigo,
+                                            'inscricao_imobiliaria' => $get('inscricao_imobiliaria'),
+                                        ], $this->tenantId);
 
                                         if ($dados) {
                                             // 🛑 Usa o nosso Helper
@@ -685,33 +695,26 @@ trait HasLoteActions
 
                     Select::make('proprietario_id')
                         ->label('Proprietário Principal')
-                        ->options(fn() => \App\Models\Pessoa::pluck('name', 'id'))
+                        ->options(fn () => \App\Models\Pessoa::pluck('name', 'id'))
                         ->searchable()
                         ->nullable(),
 
                     \Filament\Forms\Components\Section::make('Dados Fiscais (Prefeitura)')
-                        ->description('Valores do sistema tributário. Editar aqui atualiza também o JSON usado no BIC.')
+                        ->description(function () {
+                            $rotulo = \App\Services\ApiTools\IntegraPrefeituraService::rotuloIntegracao($this->tenantId);
+
+                            return 'Valores do sistema tributário. Editar aqui atualiza também o JSON usado no BIC.'
+                                .($rotulo ? " Integração: {$rotulo}." : '');
+                        })
                         ->columns(3)
-                        ->schema([
-                            TextInput::make('tipo_construcao')->label('Tipo de Construção')->maxLength(255),
-                            TextInput::make('descricao_classificacao')->label('Classificação')->maxLength(255),
-                            TextInput::make('face')->label('Face da Quadra')->maxLength(255),
+                        // R67-2 — rótulos/visibilidade dos campos fiscais definidos pelo município
+                        ->schema(fn () => \App\Services\Coleta\CampoDominioService::componentesFiscaisUnidade()),
 
-                            TextInput::make('fracao_ideal')->label('Fração Ideal')->numeric(),
-                            TextInput::make('area_edificacao')->label('Área Edificação')->numeric()->suffix('m²'),
-                            TextInput::make('area_total_edificacao')->label('Área Total Edif.')->numeric()->suffix('m²'),
-
-                            TextInput::make('valor_venal_lote')->label('Valor Venal Terreno')->numeric()->prefix('R$'),
-                            TextInput::make('valor_venal_edificacao')->label('Valor Venal Edificação')->numeric()->prefix('R$'),
-                            TextInput::make('valor_metro_terreno')->label('Valor m² Terreno')->numeric()->prefix('R$'),
-
-                            TextInput::make('valor_metro_edificacao')->label('Valor m² Edificação')->numeric()->prefix('R$'),
-                            TextInput::make('valor_imposto_territorial')->label('IPTU Territorial')->numeric()->prefix('R$'),
-                            TextInput::make('valor_imposto_predial')->label('IPTU Predial')->numeric()->prefix('R$'),
-
-                            TextInput::make('valor_total_imposto')->label('IPTU Total')->numeric()->prefix('R$')
-                                ->columnSpan(['default' => 3]),
-                        ]),
+                    // R67-1 — campos criados pelo município
+                    \Filament\Forms\Components\Section::make('Campos do Município')
+                        ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('unidade')->isNotEmpty())
+                        ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('unidade'))
+                        ->columns(3),
 
                     \Filament\Forms\Components\Section::make('JSON bruto (referência)')
                         ->description('Campos completos retornados pela Prefeitura. Somente leitura.')
@@ -721,7 +724,10 @@ trait HasLoteActions
                             \Filament\Forms\Components\Textarea::make('dados_tributarios')
                                 ->hiddenLabel()
                                 ->formatStateUsing(function ($state) {
-                                    if (is_string($state)) $state = json_decode($state, true);
+                                    if (is_string($state)) {
+                                        $state = json_decode($state, true);
+                                    }
+
                                     return $state ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'Ainda não sincronizado.';
                                 })
                                 ->disabled()
@@ -740,7 +746,7 @@ trait HasLoteActions
                         $decoded = json_decode($json, true);
                         $json = json_last_error() === JSON_ERROR_NONE ? $decoded : null;
                     }
-                    if (!is_array($json)) {
+                    if (! is_array($json)) {
                         $json = is_array($unidade->dados_tributarios) ? $unidade->dados_tributarios : [];
                     }
 
@@ -760,6 +766,7 @@ trait HasLoteActions
             ->modalCancelAction(false)
             ->extraModalFooterActions(function (array $arguments) {
                 $unidadeId = $arguments['unidadeId'] ?? null;
+
                 return [
                     Action::make('excluir_unidade')
                         ->label('Excluir Unidade')
@@ -780,7 +787,7 @@ trait HasLoteActions
                     Action::make('voltar')
                         ->label('Voltar')
                         ->color('gray')
-                        ->action(fn() => $this->replaceMountedAction('verUnidades')),
+                        ->action(fn () => $this->replaceMountedAction('verUnidades')),
                 ];
             });
     }
@@ -792,13 +799,17 @@ trait HasLoteActions
     {
         $unidade = UnidadeImobiliaria::query()->find($id);
 
-        if (!$unidade || !$unidade->codigo_imovel_tributario) {
+        if (! $unidade || ! $unidade->codigo_imovel_tributario) {
             Notification::make()->title('Aviso')->body('A unidade precisa ter o Código Tributário preenchido para sincronizar.')->warning()->send();
+
             return;
         }
 
         $apiService = app(\App\Services\ApiTools\IntegraPrefeituraService::class);
-        $dados = $apiService->buscarImovelPorCodigo($unidade->codigo_imovel_tributario, $this->tenantId); //$codigo, $this->tenantId
+        $dados = $apiService->buscarImovel([
+            'codigo_imovel_tributario' => $unidade->codigo_imovel_tributario,
+            'inscricao_imobiliaria' => $unidade->inscricao_imobiliaria,
+        ], $this->tenantId);
 
         try {
 
@@ -807,7 +818,7 @@ trait HasLoteActions
                 $payload = $this->processarDadosSincronizacao($dados);
                 $unidade->update($payload);
 
-                //$unidade->update(['inscricao_imobiliaria' => $dados['inscricao_imobiliaria'], 'dados_tributarios' => $dados]);
+                // $unidade->update(['inscricao_imobiliaria' => $dados['inscricao_imobiliaria'], 'dados_tributarios' => $dados]);
                 Notification::make()->title('Sincronizado!')->success()->send();
             } else {
                 Notification::make()->title('Não Encontrado')->body('O código não foi localizado na prefeitura.')->danger()->send();
@@ -834,7 +845,10 @@ trait HasLoteActions
 
         foreach ($unidades as $unidade) {
             try {
-                $dados = $apiService->buscarImovelPorCodigo($unidade->codigo_imovel_tributario, $this->tenantId);
+                $dados = $apiService->buscarImovel([
+                    'codigo_imovel_tributario' => $unidade->codigo_imovel_tributario,
+                    'inscricao_imobiliaria' => $unidade->inscricao_imobiliaria,
+                ], $this->tenantId);
                 if ($dados) {
                     // Usa o helper que mastiga os dados, extrai o endereço e cria o proprietário!
                     $payload = $this->processarDadosSincronizacao($dados);
@@ -864,6 +878,10 @@ trait HasLoteActions
      */
     private function processarDadosSincronizacao(array $dados): array
     {
+        // R67-5 — traduz os nomes do sistema tributário do município para o canônico do
+        // SIGWEB antes de qualquer leitura (o payload bruto é preservado dentro do resultado).
+        $dados = \App\Services\Fiscal\MapaFiscalService::aplicar($dados, $this->tenantId);
+
         $nomeProprietario = $dados['proprietario_name'] ?? null;
         $pessoaId = null;
 
@@ -879,7 +897,7 @@ trait HasLoteActions
         }
 
         // Junta o Tipo (Rua) com o Nome do Logradouro
-        $logradouroNome = trim(($dados['tipo_logradouro'] ?? '') . ' ' . ($dados['logradouro'] ?? ''));
+        $logradouroNome = trim(($dados['tipo_logradouro'] ?? '').' '.($dados['logradouro'] ?? ''));
 
         return [
             'inscricao_imobiliaria' => $dados['inscricao_imobiliaria'] ?? null,
@@ -897,8 +915,9 @@ trait HasLoteActions
     {
         $unidade = \App\Models\UnidadeImobiliaria::query()->find($unidadeId);
 
-        if (!$unidade) {
+        if (! $unidade) {
             \Filament\Notifications\Notification::make()->title('Erro')->body('Unidade não encontrada.')->danger()->send();
+
             return;
         }
 
@@ -909,6 +928,7 @@ trait HasLoteActions
 
         // Instancia o seu serviço existente e faz o download!
         $service = app(\App\Services\Gis\BicPdfService::class);
+
         return $service->generatePdf($unidadeId, $mapImageBase64);
     }
 
@@ -919,20 +939,21 @@ trait HasLoteActions
     {
         if (empty($unidadesIds)) {
             \Filament\Notifications\Notification::make()->title('Aviso')->body('Nenhuma unidade selecionada.')->warning()->send();
+
             return;
         }
 
         // Instancia o serviço e chama o novo método de impressão em lote
         $service = app(\App\Services\Gis\BicPdfService::class);
+
         return $service->generatePdfEmMassa($unidadesIds, $mapImageBase64);
     }
-
 
     // abertura da hub de opções para consultas
     public function consultarViabilidadeAction(): Action
     {
         return Action::make('consultarViabilidadeAction')
-            ->modalHeading(fn() => 'Central de Viabilidade - Lote: ' . \App\Models\Lote::query()->find($this->loteAtivoId)?->numero_lote)
+            ->modalHeading(fn () => 'Central de Viabilidade - Lote: '.\App\Models\Lote::query()->find($this->loteAtivoId)?->numero_lote)
             ->modalWidth('2xl')
             ->modalSubmitActionLabel('Iniciar Análise Oficial')
             ->modalIcon('heroicon-o-document-magnifying-glass')
@@ -964,6 +985,7 @@ trait HasLoteActions
                             ->placeholder('Digite o código ou nome da atividade...')
                             ->getSearchResultsUsing(function (string $search) {
                                 $searchClean = preg_replace('/[^0-9a-zA-Z\s]/', '', $search);
+
                                 return \App\Models\Cnae::query()->where('tenant_id', $this->tenantId)
                                     ->where(function ($q) use ($search, $searchClean) {
                                         $q->where('codigo', 'like', "%{$search}%")
@@ -972,18 +994,18 @@ trait HasLoteActions
                                     })
                                     ->limit(30)
                                     ->get()
-                                    ->mapWithKeys(fn($cnae) => [$cnae->codigo => $cnae->codigo . ' - ' . $cnae->descricao])
+                                    ->mapWithKeys(fn ($cnae) => [$cnae->codigo => $cnae->codigo.' - '.$cnae->descricao])
                                     ->toArray();
                             })
                             ->getOptionLabelsUsing(function (array $values) {
                                 return \App\Models\Cnae::query()->whereIn('codigo', $values)
                                     ->get()
-                                    ->mapWithKeys(fn($cnae) => [$cnae->codigo => $cnae->codigo . ' - ' . $cnae->descricao])
+                                    ->mapWithKeys(fn ($cnae) => [$cnae->codigo => $cnae->codigo.' - '.$cnae->descricao])
                                     ->toArray();
                             })
                             ->required(),
                     ])
-                    ->visible(fn(\Filament\Forms\Get $get) => $get('tipo_consulta') === 'uso_solo'),
+                    ->visible(fn (\Filament\Forms\Get $get) => $get('tipo_consulta') === 'uso_solo'),
 
                 // --- SEÇÃO 2: PARCELAMENTO ---
                 \Filament\Forms\Components\Section::make('Parâmetros para Parcelamento')
@@ -996,7 +1018,7 @@ trait HasLoteActions
                             ->minValue(2)
                             ->required(),
                     ])
-                    ->visible(fn(\Filament\Forms\Get $get) => $get('tipo_consulta') === 'parcelamento'),
+                    ->visible(fn (\Filament\Forms\Get $get) => $get('tipo_consulta') === 'parcelamento'),
 
                 // --- SEÇÃO 3: UNIFICAÇÃO (Modo Mapa) ---
                 \Filament\Forms\Components\Section::make('Unificação (Seleção Visual)')
@@ -1011,7 +1033,7 @@ trait HasLoteActions
                                 </div>
                             ')),
                     ])
-                    ->visible(fn(\Filament\Forms\Get $get) => $get('tipo_consulta') === 'unificacao'),
+                    ->visible(fn (\Filament\Forms\Get $get) => $get('tipo_consulta') === 'unificacao'),
             ])
             ->action(function (array $data) {
                 // Roteamento inteligente e isolado para cada tela de resultado
@@ -1122,7 +1144,7 @@ trait HasLoteActions
                     Action::make('voltar')
                         ->label('Nova Consulta')
                         ->color('gray')
-                        ->action(fn() => $this->replaceMountedAction('consultarViabilidadeAction')),
+                        ->action(fn () => $this->replaceMountedAction('consultarViabilidadeAction')),
 
                     Action::make('imprimir_pdf')
                         ->label('Imprimir Relatório')
@@ -1134,10 +1156,10 @@ trait HasLoteActions
                             // Guarda a string de forma segura no HTML
                             'data-cnaes' => $cnaesString,
                             // 🛑 O TRUQUE: O Alpine lê a variável do HTML sem usar nenhuma aspa!
-                            'x-on:click.prevent' => "capturarMapaEImprimir({$this->loteAtivoId}, \$el.dataset.cnaes)"
+                            'x-on:click.prevent' => "capturarMapaEImprimir({$this->loteAtivoId}, \$el.dataset.cnaes)",
                         ])
                         ->action(function () { /* Vazio propositalmente */
-                        })
+                        }),
                 ];
             });
     }
@@ -1146,13 +1168,13 @@ trait HasLoteActions
     public function resultadoParcelamentoAction(): \Filament\Actions\Action
     {
         return \Filament\Actions\Action::make('resultadoParcelamentoAction')
-            ->modalHeading(fn() => 'Resultado da Análise - Parcelamento')
+            ->modalHeading(fn () => 'Resultado da Análise - Parcelamento')
             ->modalWidth('3xl')
             ->modalSubmitAction(false) // Remove o botão "Salvar" padrão (é apenas leitura)
             ->modalCancelActionLabel('Fechar')
             ->form(function (array $arguments) {
                 // 1. Puxa o motor matemático isolado
-                $service = new \App\Services\Viabilidade\ViabilidadeService();
+                $service = new \App\Services\Viabilidade\ViabilidadeService;
                 $resultado = $service->analisarParcelamento($this->loteAtivoId, $arguments['qtd_lotes'] ?? 2);
 
                 // 2. Prepara as cores e textos para a tela
@@ -1174,7 +1196,7 @@ trait HasLoteActions
                             \Filament\Forms\Components\Placeholder::make('parecer')
                                 ->label('Análise Geométrica e Matemática')
                                 ->content(new \Illuminate\Support\HtmlString("<div class='text-gray-700 dark:text-gray-300' style='font-size: 1rem; line-height: 1.5;'>{$htmlParecer}</div>")),
-                        ])
+                        ]),
                 ];
             })
             ->extraModalFooterActions(function (array $arguments) {
@@ -1189,11 +1211,11 @@ trait HasLoteActions
                             // 🛑 DISPARA UM EVENTO EXCLUSIVO DE PARCELAMENTO
                             $this->dispatch('capturar-mapa-parcelamento', [
                                 'lote_id' => $this->loteAtivoId,
-                                'qtd_lotes' => $arguments['qtd_lotes'] ?? 2
+                                'qtd_lotes' => $arguments['qtd_lotes'] ?? 2,
                             ]);
 
                             \Filament\Notifications\Notification::make()->title('Capturando croqui do mapa...')->info()->send();
-                        })
+                        }),
                 ];
             });
     }
@@ -1213,7 +1235,7 @@ trait HasLoteActions
         }
 
         // Prevenção extra caso venha nulo
-        if (!is_array($cnaes)) {
+        if (! is_array($cnaes)) {
             $cnaes = [];
         }
 
@@ -1222,6 +1244,7 @@ trait HasLoteActions
 
         if (isset($dadosAnalise['error'])) {
             \Filament\Notifications\Notification::make()->danger()->title('Erro')->body($dadosAnalise['error'])->send();
+
             return;
         }
 
@@ -1230,6 +1253,7 @@ trait HasLoteActions
 
         // Chama o Serviço de PDF e devolve o Stream direto pro navegador baixar
         $pdfService = app(\App\Services\Viabilidade\ViabilidadePdfService::class);
+
         return $pdfService->generatePdf($dadosAnalise, $mapImageBase64);
     }
 
@@ -1241,6 +1265,7 @@ trait HasLoteActions
 
         if (isset($dadosAnalise['error'])) {
             \Filament\Notifications\Notification::make()->danger()->title('Erro')->body($dadosAnalise['error'])->send();
+
             return;
         }
 
@@ -1249,6 +1274,7 @@ trait HasLoteActions
 
         // Chama a nova função do Serviço de PDF (que criaremos no Passo 2)
         $pdfService = app(\App\Services\Viabilidade\ViabilidadePdfService::class);
+
         return $pdfService->generateParcelamentoPdf($dadosAnalise, $mapImageBase64);
     }
 
@@ -1259,10 +1285,12 @@ trait HasLoteActions
 
         if (isset($dadosAnalise['error'])) {
             \Filament\Notifications\Notification::make()->danger()->title('Erro')->body($dadosAnalise['error'])->send();
+
             return;
         }
 
         $pdfService = app(\App\Services\Viabilidade\ViabilidadePdfService::class);
+
         return $pdfService->generateUnificacaoPdf($dadosAnalise, $mapImageBase64);
     }
 
@@ -1278,22 +1306,25 @@ trait HasLoteActions
             ->modalSubmitActionLabel('Emitir Notificação PDF')
             ->icon('heroicon-o-document-text')
             ->color('danger')
-            ->visible(fn() => $this->loteStatusCadastro === 'inconformidade')
-            ->action(fn() => $this->imprimirNotificacaoIrregularidade($this->loteAtivoId));
+            ->visible(fn () => $this->loteStatusCadastro === 'inconformidade')
+            ->action(fn () => $this->imprimirNotificacaoIrregularidade($this->loteAtivoId));
     }
 
     public function imprimirNotificacaoIrregularidade(string $loteId)
     {
         $lote = \App\Models\Lote::with(['unidadesImobiliarias.proprietario', 'quadra.loteamento.bairro'])->find($loteId);
-        if (!$lote) {
+        if (! $lote) {
             \Filament\Notifications\Notification::make()->danger()->title('Lote não encontrado')->send();
+
             return;
         }
         if (empty($lote->inconformidade_descricao)) {
             \Filament\Notifications\Notification::make()->warning()->title('Lote sem inconformidade registrada')->send();
+
             return;
         }
         $service = app(\App\Services\Irregularidade\NotificacaoIrregularidadeService::class);
+
         return $service->generatePdf($lote);
     }
 
@@ -1311,8 +1342,9 @@ trait HasLoteActions
             ->color('success')
             ->action(function () {
                 $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
-                if (!$lote) {
+                if (! $lote) {
                     \Filament\Notifications\Notification::make()->danger()->title('Erro')->body('Lote não encontrado.')->send();
+
                     return;
                 }
 
@@ -1335,7 +1367,7 @@ trait HasLoteActions
                 // 4. Devolve o arquivo para download sem recarregar a página
                 return response()->streamDownload(function () use ($pdf) {
                     echo $pdf->output();
-                }, 'memorial_lote_' . ($lote->numero_lote ?? $lote->id) . '.pdf');
+                }, 'memorial_lote_'.($lote->numero_lote ?? $lote->id).'.pdf');
             });
     }
 
@@ -1349,7 +1381,7 @@ trait HasLoteActions
     {
         return Action::make('exportarCroqui')
             ->modalHeading('Exportar Lote / Croqui')
-            ->modalDescription(fn() => 'Selecione o formato de exportação desejado para o Lote ' . $this->loteAtivoNome)
+            ->modalDescription(fn () => 'Selecione o formato de exportação desejado para o Lote '.$this->loteAtivoNome)
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Cancelar')
             ->modalWidth('2xl')
@@ -1364,8 +1396,6 @@ trait HasLoteActions
                     ])
                     ->action(function () {}),
 
-
-
                 // 🛑 ROTINA 2: EXPORTAÇÃO SHAPEFILE
                 Action::make('export_shp')
                     ->label('Gerar Shapefile')
@@ -1375,7 +1405,7 @@ trait HasLoteActions
                         $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
 
                         // Gera o GeoJSON puro pelo banco
-                        $geoJsonQuery = \Illuminate\Support\Facades\DB::selectOne("SELECT ST_AsGeoJSON(geo) as geojson FROM lotes WHERE id = ?", [$lote->id]);
+                        $geoJsonQuery = \Illuminate\Support\Facades\DB::selectOne('SELECT ST_AsGeoJSON(geo) as geojson FROM lotes WHERE id = ?', [$lote->id]);
 
                         // Adiciona as propriedades (Tabela de Atributos)
                         $featureCollection = [
@@ -1387,36 +1417,38 @@ trait HasLoteActions
                                         'id' => $lote->id,
                                         'numero' => $lote->numero_lote,
                                         'area_m2' => $lote->area_geo,
-                                        'testada' => $lote->main_facade_length
+                                        'testada' => $lote->main_facade_length,
                                     ],
-                                    'geometry' => json_decode($geoJsonQuery->geojson)
-                                ]
-                            ]
+                                    'geometry' => json_decode($geoJsonQuery->geojson),
+                                ],
+                            ],
                         ];
 
                         $jsonContent = json_encode($featureCollection);
 
                         // Tentativa de usar o conversor GDAL (ogr2ogr) do servidor para empacotar o ZIP do Shapefile
                         try {
-                            $tempDir = storage_path('app/temp_shp_' . uniqid());
-                            if (!is_dir($tempDir)) mkdir($tempDir);
+                            $tempDir = storage_path('app/temp_shp_'.uniqid());
+                            if (! is_dir($tempDir)) {
+                                mkdir($tempDir);
+                            }
 
-                            $geoJsonPath = $tempDir . '/lote.geojson';
+                            $geoJsonPath = $tempDir.'/lote.geojson';
                             file_put_contents($geoJsonPath, $jsonContent);
 
-                            $shpPath = $tempDir . '/Lote_' . $lote->numero_lote . '.shp';
+                            $shpPath = $tempDir.'/Lote_'.$lote->numero_lote.'.shp';
 
                             // Invoca o conversor do servidor
                             $process = \Illuminate\Support\Facades\Process::run("ogr2ogr -f \"ESRI Shapefile\" {$shpPath} {$geoJsonPath}");
 
                             if ($process->successful() && file_exists($shpPath)) {
-                                $zipPath = $tempDir . '/Lote_' . $lote->numero_lote . '.zip';
-                                $zip = new \ZipArchive();
+                                $zipPath = $tempDir.'/Lote_'.$lote->numero_lote.'.zip';
+                                $zip = new \ZipArchive;
                                 $zip->open($zipPath, \ZipArchive::CREATE);
-                                $zip->addFile($tempDir . '/Lote_' . $lote->numero_lote . '.shp', 'Lote_' . $lote->numero_lote . '.shp');
-                                $zip->addFile($tempDir . '/Lote_' . $lote->numero_lote . '.shx', 'Lote_' . $lote->numero_lote . '.shx');
-                                $zip->addFile($tempDir . '/Lote_' . $lote->numero_lote . '.dbf', 'Lote_' . $lote->numero_lote . '.dbf');
-                                $zip->addFile($tempDir . '/Lote_' . $lote->numero_lote . '.prj', 'Lote_' . $lote->numero_lote . '.prj');
+                                $zip->addFile($tempDir.'/Lote_'.$lote->numero_lote.'.shp', 'Lote_'.$lote->numero_lote.'.shp');
+                                $zip->addFile($tempDir.'/Lote_'.$lote->numero_lote.'.shx', 'Lote_'.$lote->numero_lote.'.shx');
+                                $zip->addFile($tempDir.'/Lote_'.$lote->numero_lote.'.dbf', 'Lote_'.$lote->numero_lote.'.dbf');
+                                $zip->addFile($tempDir.'/Lote_'.$lote->numero_lote.'.prj', 'Lote_'.$lote->numero_lote.'.prj');
                                 $zip->close();
 
                                 return response()->download($zipPath)->deleteFileAfterSend(true);
@@ -1434,7 +1466,7 @@ trait HasLoteActions
 
                         return response()->streamDownload(function () use ($jsonContent) {
                             echo $jsonContent;
-                        }, 'Lote_' . ($lote->numero_lote ?? $lote->id) . '.geojson');
+                        }, 'Lote_'.($lote->numero_lote ?? $lote->id).'.geojson');
                     }),
             ]);
     }
@@ -1447,12 +1479,14 @@ trait HasLoteActions
         // Carrega o lote e as relações necessárias para o PDF
         $lote = \App\Models\Lote::with(['quadra.bairro', 'zona'])->find($loteId);
 
-        if (!$lote) {
+        if (! $lote) {
             \Filament\Notifications\Notification::make()->title('Erro')->body('Lote não encontrado.')->danger()->send();
+
             return;
         }
 
         $service = app(\App\Services\Gis\CroquiPdfService::class);
+
         return $service->generatePdf($lote, $mapImageBase64);
     }
 
@@ -1466,14 +1500,15 @@ trait HasLoteActions
             ->label('Fotos do Lote')
             ->icon('heroicon-o-camera')
             ->color('gray')
-            ->modalHeading(fn() => 'Fotos do Lote ' . (\App\Models\Lote::query()->find($this->loteAtivoId)?->numero_lote))
+            ->modalHeading(fn () => 'Fotos do Lote '.(\App\Models\Lote::query()->find($this->loteAtivoId)?->numero_lote))
             ->modalDescription('Frontal, lateral esquerda e lateral direita. As fotos são compartilhadas com o app mobile.')
             ->modalWidth('4xl')
             ->modalSubmitActionLabel('Salvar Fotos')
             ->fillForm(function (): array {
                 $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
+
                 return [
-                    'foto_frontal'     => $lote?->foto_frontal,
+                    'foto_frontal' => $lote?->foto_frontal,
                     'foto_lateral_esq' => $lote?->foto_lateral_esq,
                     'foto_lateral_dir' => $lote?->foto_lateral_dir,
                 ];
@@ -1512,7 +1547,7 @@ trait HasLoteActions
                 $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
                 if ($lote) {
                     $lote->update([
-                        'foto_frontal'     => $data['foto_frontal'] ?? null,
+                        'foto_frontal' => $data['foto_frontal'] ?? null,
                         'foto_lateral_esq' => $data['foto_lateral_esq'] ?? null,
                         'foto_lateral_dir' => $data['foto_lateral_dir'] ?? null,
                     ]);
@@ -1527,17 +1562,17 @@ trait HasLoteActions
     public function abrirStreetViewAction(): \Filament\Actions\Action
     {
         return \Filament\Actions\Action::make('abrirStreetViewAction')
-            ->modalHeading(fn() => 'Google Street View - Frente do Lote')
+            ->modalHeading(fn () => 'Google Street View - Frente do Lote')
             ->modalWidth('5xl') // Modal bem larga para imersão
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Fechar')
             ->modalContent(function () {
                 // Busca o centroide exato do Lote usando PostGIS
                 $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
-                $centro = \Illuminate\Support\Facades\DB::selectOne("
+                $centro = \Illuminate\Support\Facades\DB::selectOne('
                     SELECT ST_Y(ST_Centroid(geo::geometry)) as lat, ST_X(ST_Centroid(geo::geometry)) as lng
                     FROM lotes WHERE id = ?
-                ", [$lote->id]);
+                ', [$lote->id]);
 
                 $lat = $centro->lat ?? 0;
                 $lng = $centro->lng ?? 0;
@@ -1594,7 +1629,7 @@ trait HasLoteActions
     public function verProcessosLoteAction(): Action
     {
         return Action::make('verProcessosLote')
-            ->modalHeading(fn() => 'Processos em Aberto — Lote ' . $this->loteAtivoNome)
+            ->modalHeading(fn () => 'Processos em Aberto — Lote '.$this->loteAtivoNome)
             ->modalWidth('4xl')
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Fechar')

@@ -19,20 +19,11 @@ trait BuildsMobileAuthResponse
 
         $tenant = $user->tenants()->first();
         $data = $tenant?->data ?? [];
-        $modules = $tenant?->modules ?? [];
 
-        $layerMap = [
-            'arborizacao' => ['arvores'],
-            'iluminacao' => ['postes'],
-            'cemiterio' => ['cemiterios', 'jazigos'],
-        ];
-
-        $layers = ['lotes', 'quadras', 'logradouros', 'bairros'];
-        foreach ($layerMap as $mod => $camadas) {
-            if (in_array($mod, $modules)) {
-                $layers = array_merge($layers, $camadas);
-            }
-        }
+        // Camadas realmente servidas por GET /api/map/data. O catálogo completo (com
+        // rótulo, cor, zoom mínimo e curadoria do município) vem de GET /api/map/layers —
+        // esta lista é só um atalho de compatibilidade.
+        $layers = ['lotes', 'quadras', 'logradouros', 'bairros', 'zonas'];
 
         return [
             'token' => $token,
@@ -54,6 +45,12 @@ trait BuildsMobileAuthResponse
                 'map_zoom' => isset($data['map_zoom']) && is_numeric($data['map_zoom']) ? (int) $data['map_zoom'] : null,
             ],
             'layers' => $layers,
+
+            // R67 — configuração da coleta (campos do boletim + região do cadastrador).
+            // Guard: usuário cidadão / sem tenant (este trait também serve o app de chamados).
+            'coleta' => $tenant && ! $user->isCidadao()
+                ? \App\Services\Coleta\ColetaConfigService::config($tenant, $user)
+                : null,
         ];
     }
 }

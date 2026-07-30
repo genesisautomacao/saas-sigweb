@@ -2,23 +2,23 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\DB;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasTenantSequentialId;
 use App\Traits\LogsGeometryChanges;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class Lote extends Model
 {
-    use SoftDeletes, BelongsToTenant, HasTenantSequentialId, LogsActivity, LogsGeometryChanges;
+    use BelongsToTenant, HasTenantSequentialId, LogsActivity, LogsGeometryChanges, SoftDeletes;
 
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['numero_lote', 'status_cadastro', 'ocupacao', 'situacao_quadra', 'observacao'])
+            ->logOnly(['numero_lote', 'status_cadastro', 'ocupacao', 'situacao_quadra', 'observacao', 'dados_customizados'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -36,32 +36,37 @@ class Lote extends Model
         'area_geo', 'area_cadastrada', 'main_facade_length',
         'foto_frontal', 'foto_lateral_esq', 'foto_lateral_dir',
         'observacao', 'status_cadastro', 'ocupacao', 'situacao_quadra',
-        'inconformidade_descricao', 'dados_vistoria',
+        'inconformidade_descricao', 'dados_vistoria', 'dados_customizados',
         'coletado_por_id', 'coletado_em',
         'geo',
     ];
 
     protected $casts = [
         'dados_vistoria' => 'array',
-        'coletado_em'    => 'datetime',
+        'dados_customizados' => 'array', // R67-1 — campos customizados do município
+        'coletado_em' => 'datetime',
     ];
+
     protected $hidden = ['geo'];
+
     protected $appends = ['geo_json'];
 
     public function getGeoJsonAttribute()
     {
-        if (!isset($this->attributes['id']) || is_null($this->attributes['geo']))
+        if (! isset($this->attributes['id']) || is_null($this->attributes['geo'])) {
             return null;
+        }
         // O 6 mantém o arquivo JSON leve sem perder precisão
         $result = DB::table('lotes')
             ->select(DB::raw('ST_AsGeoJSON(geo, 6) as geo_json'))
             ->where('id', $this->attributes['id'])->first();
+
         return $result ? json_decode($result->geo_json) : null;
     }
 
     public function setGeoAttribute($value)
     {
-        $this->attributes['geo'] = DB::raw("ST_Multi(ST_GeomFromGeoJSON('" . json_encode($value) . "'))");
+        $this->attributes['geo'] = DB::raw("ST_Multi(ST_GeomFromGeoJSON('".json_encode($value)."'))");
     }
 
     /**

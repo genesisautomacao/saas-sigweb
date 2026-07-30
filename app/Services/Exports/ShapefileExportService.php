@@ -177,7 +177,12 @@ class ShapefileExportService
     {
         // Descobre as colunas escalares (todas exceto a geo)
         $cols = DB::getSchemaBuilder()->getColumnListing($layer);
-        $attrCols = array_filter($cols, fn ($c) => ! in_array($c, ['geo', 'foto_frontal', 'foto_lateral_esq', 'foto_lateral_dir'], true));
+        // dados_customizados/dados_vistoria/dados_tributarios ficam de fora: o DBF trunca em
+        // 254 caracteres e nomes de coluna em 10 — JSON sairia cortado (R67-1).
+        $attrCols = array_filter($cols, fn ($c) => ! in_array($c, [
+            'geo', 'foto_frontal', 'foto_lateral_esq', 'foto_lateral_dir',
+            'dados_customizados', 'dados_vistoria', 'dados_tributarios',
+        ], true));
 
         $selectAttrs = implode(', ', array_map(fn ($c) => "\"$c\"", $attrCols));
 

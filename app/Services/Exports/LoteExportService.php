@@ -2,6 +2,8 @@
 
 namespace App\Services\Exports;
 
+use App\Services\Coleta\CampoCustomizadoService;
+use App\Services\Coleta\CampoDominioService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
@@ -23,14 +25,17 @@ class LoteExportService
         $lotes->loadMissing(['unidadesImobiliarias.proprietario', 'edificacoes']);
 
         $loteData = $lotes->map(function ($lote) {
-            return [
+            return array_merge([
                 'ID' => $lote->sequential_id,
                 'Número do Lote' => $lote->numero_lote,
                 'Quadra' => $lote->quadra->name ?? '-',
                 'Zona' => $lote->zona->sigla ?? '-',
                 'Testada (m)' => $lote->main_facade_length ? number_format($lote->main_facade_length, 2, ',', '') : '0,00',
                 'Área Geo (m²)' => $lote->area_geo ? number_format($lote->area_geo, 2, ',', '') : '0,00',
-            ];
+                // R67-2 — rótulo do campo E do valor definidos pelo município
+                CampoDominioService::label('lote', 'ocupacao') => CampoDominioService::rotuloValor('lote', 'ocupacao', $lote->ocupacao) ?? '-',
+                CampoDominioService::label('lote', 'situacao_quadra') => CampoDominioService::rotuloValor('lote', 'situacao_quadra', $lote->situacao_quadra) ?? '-',
+            ], CampoCustomizadoService::colunasExport('lote', $lote->dados_customizados)); // R67-1
         });
 
         $writer = SimpleExcelWriter::create($filePath);
@@ -39,14 +44,14 @@ class LoteExportService
 
         $unidadesData = $lotes->flatMap(function ($lote) {
             return $lote->unidadesImobiliarias->map(function ($unidade) use ($lote) {
-                return [
+                return array_merge([
                     'Lote' => $lote->numero_lote,
                     'Código Imóvel Tributário' => $unidade->codigo_imovel_tributario ?? '-',
                     'Inscrição Imobiliária' => $unidade->inscricao_imobiliaria ?? '-',
                     'Logradouro' => $unidade->logradouro_nome ?? '-',
                     'Número' => $unidade->numero_imovel ?? '-',
                     'Proprietário' => $unidade->proprietario->name ?? ($unidade->dados_tributarios['proprietario_name'] ?? '-'),
-                ];
+                ], CampoCustomizadoService::colunasExport('unidade', $unidade->dados_customizados)); // R67-1
             });
         });
 
@@ -57,13 +62,15 @@ class LoteExportService
 
         $edificacoesData = $lotes->flatMap(function ($lote) {
             return $lote->edificacoes->map(function ($edificacao) use ($lote) {
-                return [
+                return array_merge([
                     'Lote' => $lote->numero_lote,
-                    'Tipo' => $edificacao->tipo ?? '-',
-                    'Tipo de Construção' => $edificacao->tp_construcao ?? '-',
-                    'Estado de Conservação' => $edificacao->estado_conservacao ?? '-',
+                    // R67-2 — rótulos definidos pelo município
+                    CampoDominioService::label('edificacao', 'tipo') => $edificacao->tipo ?? '-',
+                    CampoDominioService::label('edificacao', 'tp_construcao') => $edificacao->tp_construcao ?? '-',
+                    CampoDominioService::label('edificacao', 'estado_conservacao') => $edificacao->estado_conservacao ?? '-',
+                    CampoDominioService::label('edificacao', 'pavimento') => $edificacao->pavimento ?? '-',
                     'Área (m²)' => $edificacao->area_geo ? number_format($edificacao->area_geo, 2, ',', '') : '0,00',
-                ];
+                ], CampoCustomizadoService::colunasExport('edificacao', $edificacao->dados_customizados)); // R67-1
             });
         });
 
@@ -85,7 +92,18 @@ class LoteExportService
 
         $title = 'Relatório de Lotes e Terrenos';
 
-        $pdf = Pdf::loadView('pdf.lote-detalhado-report', compact('lotes', 'title'))->setPaper('a4', 'portrait');
+        // R67-1/2 — campos do município (definições + rótulos personalizados)
+        $camposCustom = [
+            'lote' => CampoCustomizadoService::definicoes('lote'),
+            'unidade' => CampoCustomizadoService::definicoes('unidade'),
+            'edificacao' => CampoCustomizadoService::definicoes('edificacao'),
+        ];
+        $rotulos = [
+            'lote' => CampoDominioService::rotulos('lote'),
+            'edificacao' => CampoDominioService::rotulos('edificacao'),
+        ];
+
+        $pdf = Pdf::loadView('pdf.lote-detalhado-report', compact('lotes', 'title', 'camposCustom', 'rotulos'))->setPaper('a4', 'portrait');
 
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->stream();
@@ -108,6 +126,9 @@ class LoteExportService
             $loteXml->addChild('zona', htmlspecialchars($lote->zona->sigla ?? ''));
             $loteXml->addChild('testada_m', number_format($lote->main_facade_length ?? 0, 2, '.', ''));
             $loteXml->addChild('area_geo_m2', number_format($lote->area_geo ?? 0, 2, '.', ''));
+            $loteXml->addChild('ocupacao', htmlspecialchars((string) ($lote->ocupacao ?? '')));
+            $loteXml->addChild('situacao_quadra', htmlspecialchars((string) ($lote->situacao_quadra ?? '')));
+            self::xmlCustomizados($loteXml, 'lote', $lote->dados_customizados); // R67-1
 
             $unidadesXml = $loteXml->addChild('unidades_imobiliarias');
             foreach ($lote->unidadesImobiliarias as $unidade) {
@@ -117,6 +138,7 @@ class LoteExportService
                 $unidadeXml->addChild('logradouro', htmlspecialchars($unidade->logradouro_nome ?? ''));
                 $unidadeXml->addChild('numero', htmlspecialchars($unidade->numero_imovel ?? ''));
                 $unidadeXml->addChild('proprietario', htmlspecialchars($unidade->proprietario->name ?? ($unidade->dados_tributarios['proprietario_name'] ?? '')));
+                self::xmlCustomizados($unidadeXml, 'unidade', $unidade->dados_customizados); // R67-1
             }
 
             $edificacoesXml = $loteXml->addChild('edificacoes');
@@ -125,13 +147,36 @@ class LoteExportService
                 $edificacaoXml->addChild('tipo', htmlspecialchars($edificacao->tipo ?? ''));
                 $edificacaoXml->addChild('tp_construcao', htmlspecialchars($edificacao->tp_construcao ?? ''));
                 $edificacaoXml->addChild('estado_conservacao', htmlspecialchars($edificacao->estado_conservacao ?? ''));
+                $edificacaoXml->addChild('pavimento', htmlspecialchars((string) ($edificacao->pavimento ?? '')));
                 $edificacaoXml->addChild('area_geo_m2', number_format($edificacao->area_geo ?? 0, 2, '.', ''));
+                self::xmlCustomizados($edificacaoXml, 'edificacao', $edificacao->dados_customizados); // R67-1
             }
         }
 
         return response()->streamDownload(function () use ($xml) {
             echo $xml->asXML();
         }, $fileName, ['Content-Type' => 'application/xml']);
+    }
+
+    /** R67-1 — bloco <dados_customizados> com os campos do município. */
+    protected static function xmlCustomizados(\SimpleXMLElement $pai, string $entidade, ?array $dados): void
+    {
+        $definicoes = CampoCustomizadoService::definicoes($entidade);
+
+        if ($definicoes->isEmpty()) {
+            return;
+        }
+
+        $bloco = $pai->addChild('dados_customizados');
+
+        foreach ($definicoes as $campo) {
+            $valor = $dados[$campo->slug] ?? null;
+            $valor = is_array($valor) ? implode(', ', $valor) : (is_bool($valor) ? ($valor ? 'Sim' : 'Não') : (string) $valor);
+
+            $item = $bloco->addChild('campo', htmlspecialchars($valor));
+            $item->addAttribute('slug', $campo->slug);
+            $item->addAttribute('label', $campo->label);
+        }
     }
 
     public function exportToCsv(Collection $lotes)

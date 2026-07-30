@@ -1,17 +1,16 @@
 <?php
 
-use App\Http\Controllers\Api\ArvoreSyncController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CadastradorLocationController;
 use App\Http\Controllers\Api\ChamadoController;
 use App\Http\Controllers\Api\CidadaoAuthController;
+use App\Http\Controllers\Api\ColetaConfigController;
 use App\Http\Controllers\Api\LoteNearestController;
 use App\Http\Controllers\Api\LoteSyncController;
 use App\Http\Controllers\Api\MensagemController;
 use App\Http\Controllers\Api\MobileMapDataController;
 use App\Http\Controllers\Api\OgcController;
 use App\Http\Controllers\Api\ProductividadeController;
-use App\Http\Controllers\Api\SolicitacaoManutencaoSyncController;
 use Illuminate\Support\Facades\Route;
 
 // Rota OGC Interoperability (WFS/WMS) com isolamento SaaS via Slug
@@ -34,19 +33,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/me', [AuthController::class, 'updateMe']); // editar perfil (item 187)
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // Arborização (offline-first)
-    Route::get('/sync/pull', [ArvoreSyncController::class, 'pull']);
-    Route::post('/sync/push', [ArvoreSyncController::class, 'push']);
-
-    // Manutenções (offline-first)
-    Route::get('/sync/manutencoes/pull', [SolicitacaoManutencaoSyncController::class, 'pull']);
-    Route::post('/sync/manutencoes/push', [SolicitacaoManutencaoSyncController::class, 'push']);
-
     // Camadas do Mapa Mobile
     Route::get('/map/layers', [MobileMapDataController::class, 'layers']); // catálogo configurado no SIG WEB (item 179)
     Route::get('/map/data', [MobileMapDataController::class, 'index']);    // GeoJSON por layer, com bbox opcional
 
     // Lotes CTM (offline-first — pull com ficha completa, push com boletim de campo)
+    // R67-3 — configuração do boletim de coleta (campos e região) para o app
+    Route::get('/coleta/config', ColetaConfigController::class);
+
     Route::get('/sync/lotes/pull', [LoteSyncController::class, 'pull']);
     Route::post('/sync/lotes/push', [LoteSyncController::class, 'push']);
 

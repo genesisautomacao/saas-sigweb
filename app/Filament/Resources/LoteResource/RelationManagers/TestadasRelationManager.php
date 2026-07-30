@@ -15,7 +15,9 @@ use Filament\Tables\Table;
 class TestadasRelationManager extends RelationManager
 {
     protected static string $relationship = 'testadas';
+
     protected static ?string $title = 'Testadas do Lote';
+
     protected static ?string $icon = 'heroicon-o-arrows-right-left';
 
     public function form(Form $form): Form
@@ -27,7 +29,7 @@ class TestadasRelationManager extends RelationManager
                 Forms\Components\Select::make('tipo')
                     ->label('Tipo de Testada')
                     ->options([
-                        'principal'  => 'Principal',
+                        'principal' => 'Principal',
                         'secundaria' => 'Secundária',
                     ])
                     ->default('secundaria')
@@ -60,13 +62,14 @@ class TestadasRelationManager extends RelationManager
                     ->helperText('Selecione o Logradouro acima para filtrar as seções disponíveis.')
                     ->options(function (Get $get) {
                         $logradouroId = $get('logradouro_id');
-                        if (!$logradouroId) {
+                        if (! $logradouroId) {
                             return [];
                         }
+
                         return SecaoLogradouro::where('logradouro_id', $logradouroId)
                             ->orderBy('sequential_id')
                             ->get()
-                            ->mapWithKeys(fn ($s) => [$s->id => $s->name ?: ('Seção #' . $s->sequential_id)])
+                            ->mapWithKeys(fn ($s) => [$s->id => $s->name ?: ('Seção #'.$s->sequential_id)])
                             ->toArray();
                     })
                     ->searchable()
@@ -84,14 +87,14 @@ class TestadasRelationManager extends RelationManager
                     ->label('Tipo')
                     ->badge()
                     ->color(fn ($state) => match ($state) {
-                        'principal'  => 'success',
+                        'principal' => 'success',
                         'secundaria' => 'gray',
-                        default      => 'gray',
+                        default => 'gray',
                     })
                     ->formatStateUsing(fn ($state) => match ($state) {
-                        'principal'  => 'Principal',
+                        'principal' => 'Principal',
                         'secundaria' => 'Secundária',
-                        default      => ucfirst($state),
+                        default => ucfirst($state),
                     }),
 
                 Tables\Columns\TextColumn::make('logradouro.name')
@@ -102,9 +105,8 @@ class TestadasRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('secaoLogradouro.name')
                     ->label('Seção')
                     ->default('—')
-                    ->formatStateUsing(fn ($state, $record) =>
-                        $record->secaoLogradouro
-                            ? ($record->secaoLogradouro->name ?: 'Seção #' . $record->secaoLogradouro->sequential_id)
+                    ->formatStateUsing(fn ($state, $record) => $record->secaoLogradouro
+                            ? ($record->secaoLogradouro->name ?: 'Seção #'.$record->secaoLogradouro->sequential_id)
                             : '—'
                     ),
 
@@ -126,6 +128,7 @@ class TestadasRelationManager extends RelationManager
                                 ->where('tipo', 'principal')
                                 ->update(['tipo' => 'secundaria']);
                         }
+
                         return $data;
                     })
                     ->after(function (\App\Models\LoteTestada $record): void {
@@ -146,6 +149,7 @@ class TestadasRelationManager extends RelationManager
                                 ->where('id', '!=', $record->id)
                                 ->update(['tipo' => 'secundaria']);
                         }
+
                         return $data;
                     })
                     ->after(function (\App\Models\LoteTestada $record): void {

@@ -353,6 +353,30 @@
         @endif
     </table>
 
+    {{-- R67-1/5 — campos criados pelo município + campos extras do sistema tributário local --}}
+    @php
+        $camposMunicipio = array_filter($camposMunicipio ?? [], fn ($v) => $v !== '-' && $v !== null && $v !== '');
+        $extrasFiscais = $extrasFiscais ?? [];
+    @endphp
+    @if(!empty($camposMunicipio) || !empty($extrasFiscais))
+        <div class="section-title">7. CAMPOS DO MUNICÍPIO</div>
+        <table>
+            @foreach(array_chunk(array_merge(
+                collect($camposMunicipio)->map(fn ($v, $k) => ['label' => $k, 'valor' => $v])->values()->all(),
+                $extrasFiscais
+            ), 3) as $linha)
+                <tr>
+                    @foreach($linha as $item)
+                        <td width="33%">
+                            <span class="label">{{ $item['label'] }}</span>
+                            <span class="value">{{ $item['valor'] ?: '-' }}</span>
+                        </td>
+                    @endforeach
+                </tr>
+            @endforeach
+        </table>
+    @endif
+
     <div class="footer">
         Gerado pelo Sistema Cartográfico Multifinalitário (SIGWEB)<br>
         Documento Emitido em: {{ $dataHora }} | Chave de Autenticação Cartográfica:

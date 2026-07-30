@@ -46,8 +46,22 @@
                     </tr>
                     <tr>
                         <td><strong>Testada (m):</strong> {{ $lote->main_facade_length ? number_format($lote->main_facade_length, 2, ',', '') : '0,00' }}</td>
-                        <td colspan="3"><strong>Área Geo (m²):</strong> {{ $lote->area_geo ? number_format($lote->area_geo, 2, ',', '') : '0,00' }}</td>
+                        <td><strong>Área Geo (m²):</strong> {{ $lote->area_geo ? number_format($lote->area_geo, 2, ',', '') : '0,00' }}</td>
+                        <td><strong>{{ $rotulos['lote']['ocupacao'] ?? 'Ocupação' }}:</strong> {{ \App\Services\Coleta\CampoDominioService::rotuloValor('lote', 'ocupacao', $lote->ocupacao) ?? '-' }}</td>
+                        <td><strong>{{ $rotulos['lote']['situacao_quadra'] ?? 'Situação na Quadra' }}:</strong> {{ \App\Services\Coleta\CampoDominioService::rotuloValor('lote', 'situacao_quadra', $lote->situacao_quadra) ?? '-' }}</td>
                     </tr>
+                    @if(!empty($camposCustom['lote']) && count($camposCustom['lote']))
+                        <tr>
+                            <td colspan="4">
+                                @foreach($camposCustom['lote'] as $campo)
+                                    @php $v = $lote->dados_customizados[$campo->slug] ?? null; @endphp
+                                    <strong>{{ $campo->label }}:</strong>
+                                    {{ is_array($v) ? implode(', ', $v) : (is_bool($v) ? ($v ? 'Sim' : 'Não') : ($v ?: '-')) }}
+                                    @if(!$loop->last) &nbsp;·&nbsp; @endif
+                                @endforeach
+                            </td>
+                        </tr>
+                    @endif
                 </table>
 
                 <div class="sub-title">Unidades Imobiliárias</div>
@@ -60,6 +74,9 @@
                                 <th>Logradouro</th>
                                 <th>Número</th>
                                 <th>Proprietário</th>
+                                @foreach(($camposCustom['unidade'] ?? []) as $campo)
+                                    <th>{{ $campo->label }}</th>
+                                @endforeach
                             </tr>
                         </thead>
                         <tbody>
@@ -70,6 +87,10 @@
                                     <td>{{ $unidade->logradouro_nome ?? '-' }}</td>
                                     <td>{{ $unidade->numero_imovel ?? '-' }}</td>
                                     <td>{{ $unidade->proprietario->name ?? ($unidade->dados_tributarios['proprietario_name'] ?? '-') }}</td>
+                                    @foreach(($camposCustom['unidade'] ?? []) as $campo)
+                                        @php $v = $unidade->dados_customizados[$campo->slug] ?? null; @endphp
+                                        <td>{{ is_array($v) ? implode(', ', $v) : (is_bool($v) ? ($v ? 'Sim' : 'Não') : ($v ?: '-')) }}</td>
+                                    @endforeach
                                 </tr>
                             @endforeach
                         </tbody>
@@ -83,10 +104,13 @@
                     <table class="sub-table">
                         <thead>
                             <tr>
-                                <th>Tipo</th>
-                                <th>Tipo de Construção</th>
-                                <th>Estado de Conservação</th>
+                                <th>{{ $rotulos['edificacao']['tipo'] ?? 'Tipo' }}</th>
+                                <th>{{ $rotulos['edificacao']['tp_construcao'] ?? 'Tipo de Construção' }}</th>
+                                <th>{{ $rotulos['edificacao']['estado_conservacao'] ?? 'Estado de Conservação' }}</th>
                                 <th>Área (m²)</th>
+                                @foreach(($camposCustom['edificacao'] ?? []) as $campo)
+                                    <th>{{ $campo->label }}</th>
+                                @endforeach
                             </tr>
                         </thead>
                         <tbody>
@@ -96,6 +120,10 @@
                                     <td>{{ $edificacao->tp_construcao ?? '-' }}</td>
                                     <td>{{ $edificacao->estado_conservacao ?? '-' }}</td>
                                     <td>{{ $edificacao->area_geo ? number_format($edificacao->area_geo, 2, ',', '') : '0,00' }}</td>
+                                    @foreach(($camposCustom['edificacao'] ?? []) as $campo)
+                                        @php $v = $edificacao->dados_customizados[$campo->slug] ?? null; @endphp
+                                        <td>{{ is_array($v) ? implode(', ', $v) : (is_bool($v) ? ($v ? 'Sim' : 'Não') : ($v ?: '-')) }}</td>
+                                    @endforeach
                                 </tr>
                             @endforeach
                         </tbody>

@@ -29,26 +29,18 @@ class ProdutividadeExportService
             'inconformidade' => 'Inconformidade',
         ];
 
-        $ocupacaoLabels = [
-            'baldio' => 'Baldio',
-            'construido' => 'Construído',
-        ];
+        // R67-2 — ocupação e situação seguem o vocabulário do município
+        $dominio = \App\Services\Coleta\CampoDominioService::class;
 
-        $situacaoLabels = [
-            'meio_quadra' => 'Meio de Quadra',
-            'esquina' => 'Esquina',
-            'encravado' => 'Encravado',
-        ];
-
-        $data = $lotes->map(function ($lote) use ($statusLabels, $ocupacaoLabels, $situacaoLabels) {
+        $data = $lotes->map(function ($lote) use ($statusLabels, $dominio) {
             return [
                 'ID' => $lote->sequential_id,
                 'Lote nº' => $lote->numero_lote ?? '—',
                 'Quadra' => $lote->quadra->name ?? '—',
                 'Zona' => $lote->zona->sigla ?? '—',
                 'Status' => $statusLabels[$lote->status_cadastro] ?? '—',
-                'Ocupação' => $ocupacaoLabels[$lote->ocupacao] ?? '—',
-                'Situação na Quadra' => $situacaoLabels[$lote->situacao_quadra] ?? '—',
+                $dominio::label('lote', 'ocupacao') => $dominio::rotuloValor('lote', 'ocupacao', $lote->ocupacao) ?? '—',
+                $dominio::label('lote', 'situacao_quadra') => $dominio::rotuloValor('lote', 'situacao_quadra', $lote->situacao_quadra) ?? '—',
                 'Cadastrador' => $lote->coletor->name ?? '—',
                 'Data Coleta' => $lote->coletado_em ? $lote->coletado_em->format('d/m/Y H:i') : '—',
                 'Área Lote (m²)' => $lote->area_geo ? number_format($lote->area_geo, 2, ',', '') : '0,00',

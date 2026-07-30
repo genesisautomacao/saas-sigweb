@@ -48,7 +48,7 @@
 ### b) Integração do campo com SIGWEB para acompanhamento diário — ✅ ATENDIDO
 
 - `MonitoramentoCampoPage` com atualização automática a cada 30s — mapa Leaflet com posição GPS dos cadastradores ativos
-- `ProdutividadePage` com 6 cards de resumo e tabelas por cadastrador e quadra
+- `ProdutividadePage` com 6 cards de resumo e a tabela das quadras designadas a cada cadastrador (filtro por período + cadastrador, exportável em PDF)
 - Chat supervisor ↔ cadastrador via `MensagensPage` + push Expo
 
 ### c) Visitação apenas a lotes previamente identificados — ✅ ATENDIDO
@@ -156,7 +156,7 @@ Endpoint `GET /api/search-lote` com busca em:
 - `toggleLotesStatusColor()` em `mapa-engine.js` — alterna paleta de cor dos lotes por `status_cadastro`
   - `nao_visitado` → cinza · `coletado` → verde · `pendente` → amarelo · `inconformidade` → vermelho
 - `MonitoramentoCampoPage` — atualização automática a cada 30s com posição GPS dos agentes no mapa
-- `ProdutividadePage` — estatísticas em tempo real com filtro de data e setor
+- `ProdutividadePage` — estatísticas em tempo real por região designada, com filtro de período e cadastrador
 
 ### k) Módulos de viabilidade, arborização e iluminação — ✅ ATENDIDO
 

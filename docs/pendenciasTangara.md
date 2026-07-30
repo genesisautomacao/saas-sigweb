@@ -262,6 +262,110 @@ Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unid
 
 ---
 
+## Release 67 — Coleta cadastral (campos por município, boletim, regiões, integração fiscal)
+
+> Ajustes no app de coleta (CTM) e no gerenciador web, solicitados em 2026-07-29 (antes da PoC Tangará 17/08).
+> Beneficiam todos os municípios. Plano completo em `C:\Users\jesse\.claude\plans\precisamos-melhorar-alguns-aspectos-reflective-hopcroft.md`.
+>
+> **Organização do menu (revisada em 2026-07-29):** customização de campos e integração tributária **não** são da coleta —
+> valem para o sistema todo. Grupo **Customizações** (Campos Customizados + Campos Padrão do Sistema) ·
+> grupo **Configurações** (Integração Tributária) · grupo **Coleta cadastral** apenas Boletim de Coleta + Regiões dos Cadastradores.
+
+#### R67-1 — Campos customizados por município (lotes, edificações, unidades)
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-29
+
+- Entidade `CampoCustomizado` (tenant, entidade, label, slug snake_case, tipo [texto|numero|selecao|multipla|data|sim_nao], opções, obrigatório, na_coleta, ordem, ativo) + coluna `dados_customizados` JSON nas 3 tabelas;
+- Presentes em: formulários web (LoteResource, modais do mapa, RelationManagers), boletim do app, exports (Excel/PDF/XML), BIC e **importação GIS** (property do GeoJSON com o slug → valor).
+
+#### R67-2 — Campos padrão "white-label" por município
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-29
+
+- `CampoDominio` (tenant, entidade, campo): **rótulo** + **lista de valores** + visibilidade + exigência na coleta, configuráveis por município para os campos taxonômicos (`ocupacao`, `situacao_quadra`, `tipo`, `tp_construcao`, `caracteristica_construcao`, `estado_conservacao`, `pavimento`);
+- A coluna no banco **não muda** (relatórios, PGV, mapa e contrato do app seguem estáveis); fallback para o padrão do sistema quando não configurado;
+- O vocabulário de `estado_conservacao` passa a servir também à Depreciação do PGV.
+
+**Correção 2026-07-30 —** `lotes.ocupacao` e `lotes.situacao_quadra` eram `enum()` (varchar + CHECK no PostgreSQL) e recusavam o vocabulário do município ao salvar o lote. Migration `2026_07_30_100000_drop_dominio_check_constraints_from_lotes` remove as duas restrições (mantém `lotes_status_cadastro_check`, que é estrutural). Junto: `CampoDominioService::rotuloValor()` traduz valores gravados nas telas/PDFs/exports, `aplicar()` preserva no Select o valor legado fora da nova lista, a Planta de Quadra passa a contar por vocabulário e o modal "Criar Lote" do mapa (que ficara com a lista fixa) foi plumbado.
+
+#### R67-3 — Boletim de coleta configurável
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-29
+
+- `ConfiguracaoColetaPage` (painel do município): quais campos BASE são exigidos no boletim (lote/edificação) + rótulos/vocabulários + mapa fiscal;
+- Novo `GET /api/coleta/config`: o app monta o boletim inteiro a partir do payload (campos base, campos padrão com rótulo/opções do município, campos customizados, região). Obrigatoriedade validada no app — o push nunca rejeita coleta offline.
+
+#### R67-4 — Regiões por cadastrador
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-29
+
+- `ColetaAtribuicao` (tenant, user, período, quadras[], ativo) + Resource no painel do município, com **seleção das quadras pelo MAPA** (clique alterna; quadra de outro cadastrador no mesmo período aparece em vermelho e é bloqueada — no mapa e no servidor) e **mapa geral na lista** com uma cor por cadastrador;
+- `pull`/`nearest` filtram por quadra da atribuição vigente: **sem atribuição → pull vazio** (Master/Manager baixam tudo); resolve o travamento do app por carregar toda a base;
+- Índice novo em `lotes.quadra_id`. ⚠️ Implantação: atribuir região a todos os cadastradores antes de atualizar o app.
+
+#### R67-5 — Integração fiscal por SISTEMA (catálogo global no /admin)
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-29 · **Revisado em:** 2026-07-30
+
+- **Revisão 2026-07-30 (decisão do usuário):** o de/para é característica do SISTEMA (Betha, GOVBR, IPM, Fiorilli…), não da prefeitura — e deixá-lo editável no painel do município era risco operacional. Virou **catálogo global** `SistemaTributario` no painel **/admin** (`SistemaTributarioResource`, Configurações Globais); o `TenantResource` ganhou a seção "Integração Tributária" com o select do sistema (`tenant.data['sistema_tributario_id']`). Export divergente do mesmo fornecedor = outra entrada no catálogo ("Betha — layout 2"). A página por-tenant e a permissão `gerenciar_integracao_fiscal` foram removidas;
+- O JSON bruto (`dados_tributarios`) continua sendo a verdade; as 13 colunas fiscais seguem como **projeção canônica**; sem sistema apontado = passthrough. Aplicado em `tributario:importar`, sync da API e BIC (extras);
+- **Futuro (fora desta release):** transformações/fórmulas, agendamento, **retorno SIGWEB → sistema tributário** (divergências da coleta), **BIC estruturalmente customizável**, tipo de campo "foto".
+
+#### R67-10 — Chave simulação ↔ produção + arquitetura de conectores de API
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- **A chave:** `tenant.data['tributario_modo']` (`simulacao` | `producao`) — Select na seção "Integração Tributária" do `TenantResource`; "Produção" desabilitado enquanto o sistema escolhido não tiver conector implementado;
+- **Onde as APIs se configuram (2 níveis):** o **conector** (driver — endpoints/autenticação do fornecedor) é do SISTEMA, no catálogo (`sistemas_tributarios.driver` → registry `IntegraPrefeituraService::DRIVERS`, interface `Drivers\TributarioDriver`); as **credenciais** (URL/token da instância) são da PREFEITURA (`tenant.data['tributario_api']`, campos no TenantResource — molde da seção e-SUS);
+- `IntegraPrefeituraService` virou despachante: produção → driver + credenciais; senão → mock. Falha da API real = log + vazio, **nunca** fallback silencioso ao mock. Selo da prefeitura reflete o modo ("— produção (API)"). Registry vazio: 1ª entrada será o `GovbrDriver` (Bom Princípio/RS, P1 do backlog) quando houver credenciais + documentação;
+- Testado com driver fake: resolução pelo catálogo, credenciais chegando ao conector, payload da API traduzido pelo de/para, produção-sem-driver caindo honestamente na simulação e falha de API sem contaminar com o mock;
+- **Ponto de ligação configurável (adição do mesmo dia):** `sistemas_tributarios.chave_ligacao` (código tributário padrão | inscrição imobiliária) declara qual campo da unidade localiza o imóvel no fornecedor. Novo `buscarImovel(array $identificadores)` — os 8 call sites passam código E inscrição e o service escolhe pelo sistema (o driver recebe chave+valor; o mock busca pelo nome de origem da chave via de/para invertido). Testado: sistema por inscrição acha pela inscrição e recusa busca só-por-código; sistema por código inalterado; syncs não apagam mais a inscrição quando o payload não a traz.
+
+#### R67-9 — Simulação Tributária pelo /admin + de/para no ponto único
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- Ação **"Simulação Tributária"** na listagem do `TenantResource`: upload do JSON (vira `storage/app/mocks/{slug}.json`, com validação/normalização e diagnóstico pós-de/para) + toggle "importar todos agora" (`tributario:importar`). O formulário da prefeitura mostra só o STATUS do arquivo;
+- **Correção de furo:** o de/para só rodava em 1 dos 4 consumidores do `IntegraPrefeituraService`. Agora `buscarImovelPorCodigo()` aplica `MapaFiscalService::aplicar()` internamente (ponto único) e a **busca por código aceita o nome de origem** (de/para invertido) — JSON "cara do sistema" (ex.: `cdImovel`, `nrInscricao`) funciona em busca, sincronização e importação em massa (que também passou a traduzir ANTES dos lookups);
+- **Prefeitura enxerga a integração:** selo "Sistema — simulação (JSON)" nas seções Dados Fiscais dos modais e no modal Sincronizar (via `rotuloIntegracao()`), sem expor configuração;
+- Testado ponta a ponta: mock estilo IPM com sistema de/para → busca acha pelo código de origem, canônico preenchido, bruto preservado, extras no BIC, `tributario:importar --dry-run` casa pela inscrição traduzida; sem sistema apontado = passthrough como antes.
+
+#### R67-8 — Campos Padrão por entidade + Unidade Imobiliária white-label
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- "Campos Padrão do Sistema" virou **tabela Filament nativa** (busca, filtro por entidade e por "personalizado", agrupamento por entidade, toggle "usar este campo" inline) — linhas de `campo_dominios` semeadas sob demanda com valores-fallback; a ação "Personalizar" abre o detalhe da entidade (`campos-padrao/{entidade}`) com os fieldsets de rótulo/lista/uso. Extensível: nova entidade (ex.: Árvore) = registrar em `CampoDominioService::PADROES`;
+- **Unidade Imobiliária** entrou nos campos padrão: as 13 colunas fiscais com **rótulo + ocultar** (sem lista de valores — decisão do usuário: os valores vêm do sistema tributário). Inputs dos modais Cadastrar/Editar Unidade agora nascem de `componentesFiscaisUnidade()` (white-label aplicado); campos padrão da unidade ficam **fora** do Boletim de Coleta e do app (`ENTIDADES_NA_COLETA`).
+
+#### R67-6 — Resumo de Produtividade por região designada
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- `ProdutividadePage` deixa de filtrar por **Setor Fiscal** (recorte que não corresponde ao trabalho de campo) e passa a filtrar por **data inicial + data final + cadastrador**;
+- A tabela mostra **apenas as quadras designadas** (`ColetaAtribuicao` que se sobrepõe ao período), com cadastrador, período da atribuição, total de lotes, coletados no período e **percentual cumprido** de cada quadra;
+- Botão **Exportar PDF** no topo da página (blade `pdf/produtividade-quadras.blade.php`, paisagem), respeitando os filtros da tela.
+
+#### R67-11 — Operadores do painel /admin (delegar tarefas sem dar acesso total)
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- **Decisão (usuário, 2026-07-30):** manter **um único painel** `/admin` com papéis, em vez de criar um painel de suporte separado — as tarefas a delegar (importar GIS, editar prefeitura) vivem dentro do `TenantResource`, e duplicá-lo custaria manutenção eterna;
+- Papel **global** `Operador` (`roles.tenant_id = null`, mesmo mecanismo do Master) + 9 permissões `admin_*` marcadas **por usuário** (`AdminAcessoSeeder`). `User::papelAdmin()/isMaster()/podeNoAdmin()`; `canAccessPanel('admin')` passou a aceitar Master **ou** Operador;
+- Novo **`UsuarioAdminResource`** (Configurações Globais → Usuários do Admin), **visível só para o Master**: cria/edita/exclui operadores e marca as capacidades (checkbox com descrição). `User::sincronizarAcessoAdmin()` mexe só nos vínculos globais — papéis que a pessoa tenha **dentro de prefeituras** (Manager) ficam intactos, o que `syncRoles()` do Spatie não garante com teams ligado;
+- Travas: `TenantPolicy` (excluir prefeitura = só Master), `ApiSettingPolicy` e `SistemaTributarioPolicy` (só Master); ações do `TenantResource` com `visible()` por capacidade; seções e-SUS e Integração Tributária ocultas para o Operador;
+- **Correção de furo achada no caminho:** o `EditTenant` não preservava as chaves do JSON `tenant.data` ausentes do formulário — salvar a prefeitura apagava `coleta_campos_base` e credenciais de seções ocultas. `mutateFormDataBeforeSave` agora faz merge com o `data` atual;
+- Testado (38 asserções, transação revertida): operador entra no /admin e só executa o marcado, sem acesso a APIs/sistemas/exclusão; revogação; Master irrestrito; papel de prefeitura preservado; merge do JSON. ⚠️ **Implantação:** `php artisan db:seed --class=AdminAcessoSeeder`.
+
+#### R67-12 — Importação GIS: referência não encontrada não pode virar vínculo cruzado
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- O `resolveRelacionamento` do importador traduz o id do GeoJSON pelo par (`tenant_id`, `sequential_id`) — é isso que permite cada município ter numeração própria começando em 1. Quando **não achava**, caía no número do JSON como id global e podia amarrar o registro na entidade de **outra prefeitura** (a PK é sequência global), silenciosamente;
+- Agora vínculo não resolvido fica **nulo** e a notificação final vira aviso **persistente** com a contagem por entidade ("⚠️ 38 × Quadra — importe a camada superior primeiro"). Sintoma típico: hierarquia importada fora de ordem;
+- Testado ponta a ponta pela ação real (transação revertida): município novo com quadras 1–2, lotes apontando para elas ficam corretos, lote apontando para quadra inexistente fica com `quadra_id` nulo (antes apontaria para a quadra id 99 da prefeitura 1), campo customizado (`numero_teste`) importado do GeoJSON e base sem nenhum vínculo cruzado.
+
+---
+
 ## Pontos fortes a destacar na demonstração
 
 1. Estatísticas com **gráficos plotados no mapa** (centroide de cada bairro) — item 2.6-41;

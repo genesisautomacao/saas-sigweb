@@ -4,8 +4,10 @@ namespace App\Services\Gis;
 
 use App\Models\Lote;
 use App\Models\Quadra;
+use App\Services\Coleta\CampoDominioService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Facades\Filament;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -37,16 +39,19 @@ class PlantaQuadraPdfService
             ->get();
 
         // Métricas agregadas
-        $totalLotes        = $lotes->count();
-        $totalConstruidos  = $lotes->where('ocupacao', 'construido')->count();
-        $totalBaldios      = $lotes->where('ocupacao', 'baldio')->count();
-        $areaTotalLotes    = (float) $lotes->sum('area_geo');
-        $areaTotalConstr   = (float) $lotes->sum(fn ($l) => $l->edificacoes->sum('area_geo'));
-        $totalUnidades     = (int)   $lotes->sum(fn ($l) => $l->unidadesImobiliarias->count());
-        $totalEdificacoes  = (int)   $lotes->sum(fn ($l) => $l->edificacoes->count());
+        $totalLotes = $lotes->count();
+
+        // Distribuição por ocupação seguindo o VOCABULÁRIO DO MUNICÍPIO (R67-2), na ordem
+        // configurada. Sem customização resulta exatamente nas células "Construído" e
+        // "Baldio" de sempre; com vocabulário próprio, as células acompanham a lista.
+        $ocupacaoResumo = $this->distribuicaoOcupacao($lotes);
+        $areaTotalLotes = (float) $lotes->sum('area_geo');
+        $areaTotalConstr = (float) $lotes->sum(fn ($l) => $l->edificacoes->sum('area_geo'));
+        $totalUnidades = (int) $lotes->sum(fn ($l) => $l->unidadesImobiliarias->count());
+        $totalEdificacoes = (int) $lotes->sum(fn ($l) => $l->edificacoes->count());
 
         $dataHora = now()->format('d/m/Y H:i:s');
-        $fileName = 'Planta-Quadra-' . preg_replace('/[^\w\-]+/', '_', (string) $quadra->name) . '.pdf';
+        $fileName = 'Planta-Quadra-'.preg_replace('/[^\w\-]+/', '_', (string) $quadra->name).'.pdf';
 
         // Zona UTM SIRGAS 2000 calculada a partir do centróide da quadra
         $sirgasUtmZone = $this->resolveSirgasUtmZone($quadra->id);
@@ -58,8 +63,7 @@ class PlantaQuadraPdfService
             'mapImageBase64',
             'dataHora',
             'totalLotes',
-            'totalConstruidos',
-            'totalBaldios',
+            'ocupacaoResumo',
             'areaTotalLotes',
             'areaTotalConstr',
             'totalUnidades',
@@ -76,6 +80,39 @@ class PlantaQuadraPdfService
     }
 
     /**
+     * Contagem de lotes por valor de ocupação, na ordem do vocabulário do município.
+     * Valores gravados que saíram da lista (legado) entram no fim, para não sumirem
+     * do somatório da planta.
+     *
+     * @return array<int, array{label: string, total: int}>
+     */
+    private function distribuicaoOcupacao(Collection $lotes): array
+    {
+        $opcoes = CampoDominioService::opcoes('lote', 'ocupacao');
+
+        $contagem = $lotes
+            ->filter(fn ($l) => filled($l->ocupacao))
+            ->countBy('ocupacao');
+
+        $resumo = [];
+
+        foreach ($opcoes as $valor => $rotulo) {
+            $resumo[] = ['label' => $rotulo, 'total' => (int) ($contagem[$valor] ?? 0)];
+        }
+
+        foreach ($contagem as $valor => $total) {
+            if (! array_key_exists($valor, $opcoes)) {
+                $resumo[] = [
+                    'label' => CampoDominioService::rotuloValor('lote', 'ocupacao', (string) $valor) ?? (string) $valor,
+                    'total' => (int) $total,
+                ];
+            }
+        }
+
+        return $resumo;
+    }
+
+    /**
      * Calcula a zona UTM SIRGAS 2000 (ex.: "22S") a partir do centróide da quadra.
      * Retorna null se a quadra não tiver geometria.
      */
@@ -87,13 +124,13 @@ class PlantaQuadraPdfService
             [$quadraId]
         );
 
-        if (!$row || $row->lon === null || $row->lat === null) {
+        if (! $row || $row->lon === null || $row->lat === null) {
             return null;
         }
 
-        $zone       = (int) floor(((float) $row->lon + 180) / 6) + 1;
+        $zone = (int) floor(((float) $row->lon + 180) / 6) + 1;
         $hemisferio = ((float) $row->lat) >= 0 ? 'N' : 'S';
 
-        return $zone . $hemisferio;
+        return $zone.$hemisferio;
     }
 }

@@ -2,19 +2,34 @@
 
 namespace App\Filament\Pages;
 
-use App\Models\SetorFiscal;
+use App\Models\ColetaAtribuicao;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Filament\Actions;
 use Filament\Facades\Filament;
 use Filament\Pages\Page;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 
+/**
+ * Resumo de Produtividade — acompanhamento das REGIÕES DESIGNADAS (R67-6).
+ *
+ * O recorte da tela é a atribuição do cadastrador (`coleta_atribuicoes`), não o
+ * setor fiscal: filtra-se por período + cadastrador e lista-se cada quadra
+ * designada com o percentual já cumprido.
+ */
 class ProdutividadePage extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar';
+
     protected static ?string $navigationLabel = 'Resumo de Produtividade';
+
     protected static ?string $title = 'Resumo de Produtividade';
+
     protected static ?string $navigationGroup = 'Coleta cadastral';
+
     protected static ?int $navigationSort = 31;
+
     protected static string $view = 'filament.pages.produtividade';
 
     public static function canAccess(): bool
@@ -23,117 +38,233 @@ class ProdutividadePage extends Page
     }
 
     public int $tenantId = 0;
-    public string $dataFiltro = '';
-    public ?int $quadraId = null;
-    public ?int $setorId = null;
+
+    public string $dataInicio = '';
+
+    public string $dataFim = '';
+
+    public ?int $cadastradorId = null;
 
     public function mount(): void
     {
-        $tenant = Filament::getTenant();
-        $this->tenantId = $tenant?->id ?? 0;
-        $this->dataFiltro = today()->toDateString();
+        $this->tenantId = Filament::getTenant()?->id ?? 0;
+        $this->dataInicio = today()->startOfMonth()->toDateString();
+        $this->dataFim = today()->toDateString();
     }
 
-    #[Computed]
-    public function resumo(): array
+    protected function getHeaderActions(): array
     {
-        if (!$this->tenantId) {
-            return ['total' => 0, 'coletados' => 0, 'pendentes' => 0, 'inconformidades' => 0, 'nao_visitados' => 0, 'percentual' => 0];
-        }
-
-        $q = DB::table('lotes')->where('tenant_id', $this->tenantId)->whereNull('deleted_at');
-
-        if ($this->quadraId) {
-            $q->where('quadra_id', $this->quadraId);
-        }
-
-        if ($this->setorId) {
-            $q->whereRaw(
-                "ST_Intersects(ST_Centroid(geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
-                [$this->setorId]
-            );
-        }
-
-        $rows = (clone $q)->selectRaw("
-            count(*) as total,
-            sum(case when status_cadastro = 'coletado' then 1 else 0 end) as coletados,
-            sum(case when status_cadastro = 'pendente' then 1 else 0 end) as pendentes,
-            sum(case when status_cadastro = 'inconformidade' then 1 else 0 end) as inconformidades,
-            sum(case when status_cadastro = 'nao_visitado' then 1 else 0 end) as nao_visitados
-        ")->first();
-
-        $total = (int) $rows->total;
-
         return [
-            'total'          => $total,
-            'coletados'      => (int) $rows->coletados,
-            'pendentes'      => (int) $rows->pendentes,
-            'inconformidades' => (int) $rows->inconformidades,
-            'nao_visitados'  => (int) $rows->nao_visitados,
-            'percentual'     => $total > 0 ? round((int) $rows->coletados * 100 / $total, 1) : 0,
+            Actions\Action::make('exportar_pdf')
+                ->label('Exportar PDF')
+                ->icon('heroicon-o-document-arrow-down')
+                ->color('gray')
+                ->action(fn () => $this->exportarPdf()),
         ];
     }
 
-    #[Computed]
-    public function porCadastrador(): array
-    {
-        if (!$this->tenantId) {
-            return [];
-        }
+    // ------------------------------------------------------------------
+    // Filtros
+    // ------------------------------------------------------------------
 
-        return DB::table('lotes as l')
-            ->join('users as u', 'u.id', '=', 'l.coletado_por_id')
-            ->where('l.tenant_id', $this->tenantId)
-            ->whereNull('l.deleted_at')
-            ->whereNotNull('l.coletado_por_id')
-            ->when($this->quadraId, fn($q) => $q->where('l.quadra_id', $this->quadraId))
-            ->when($this->setorId, fn($q) => $q->whereRaw(
-                "ST_Intersects(ST_Centroid(l.geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
-                [$this->setorId]
-            ))
-            ->selectRaw("
-                u.id as user_id, u.name,
-                sum(case when date(l.coletado_em) = ? then 1 else 0 end) as coletados_hoje,
-                count(*) as coletados_total
-            ", [$this->dataFiltro])
-            ->groupBy('u.id', 'u.name')
-            ->orderByDesc('coletados_hoje')
-            ->get()
-            ->map(fn($r) => (array) $r)
-            ->toArray();
+    protected function inicio(): string
+    {
+        return $this->dataInicio ?: today()->toDateString();
     }
 
-    #[Computed]
-    public function porQuadra(): array
+    protected function fim(): string
     {
-        if (!$this->tenantId) {
+        return $this->dataFim ?: $this->inicio();
+    }
+
+    /** Cadastradores que possuem alguma atribuição de região (lista curta e relevante). */
+    #[Computed]
+    public function cadastradores(): array
+    {
+        if (! $this->tenantId) {
             return [];
         }
 
-        return DB::table('lotes as l')
-            ->leftJoin('quadras as q', 'q.id', '=', 'l.quadra_id')
-            ->where('l.tenant_id', $this->tenantId)
-            ->whereNull('l.deleted_at')
-            ->when($this->quadraId, fn($q) => $q->where('l.quadra_id', $this->quadraId))
-            ->when($this->setorId, fn($q) => $q->whereRaw(
-                "ST_Intersects(ST_Centroid(l.geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
-                [$this->setorId]
-            ))
+        return DB::table('coleta_atribuicoes as ca')
+            ->join('users as u', 'u.id', '=', 'ca.user_id')
+            ->where('ca.tenant_id', $this->tenantId)
+            ->whereNull('ca.deleted_at')
+            ->distinct()
+            ->orderBy('u.name')
+            ->pluck('u.name', 'u.id')
+            ->all();
+    }
+
+    // ------------------------------------------------------------------
+    // Dados
+    // ------------------------------------------------------------------
+
+    /**
+     * Uma única passada: linhas (quadra designada) + resumo do período.
+     * `#[Computed]` memoiza no request, então blade e PDF reaproveitam o cálculo.
+     *
+     * @return array{linhas: array<int, array<string, mixed>>, resumo: array<string, int|float>}
+     */
+    #[Computed]
+    public function dados(): array
+    {
+        $vazio = [
+            'linhas' => [],
+            'resumo' => [
+                'quadras' => 0, 'total' => 0, 'coletados' => 0, 'pendentes' => 0,
+                'inconformidades' => 0, 'nao_visitados' => 0, 'no_periodo' => 0, 'percentual' => 0,
+            ],
+        ];
+
+        if (! $this->tenantId) {
+            return $vazio;
+        }
+
+        $atribuicoes = $this->atribuicoesDoPeriodo();
+
+        if ($atribuicoes->isEmpty()) {
+            return $vazio;
+        }
+
+        $quadraIds = $atribuicoes
+            ->flatMap(fn (ColetaAtribuicao $a) => $a->quadra_ids ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($quadraIds)) {
+            return $vazio;
+        }
+
+        $nomes = DB::table('quadras')->whereIn('id', $quadraIds)->pluck('name', 'id');
+        $stats = $this->estatisticasPorQuadra($quadraIds);
+
+        $linhas = [];
+
+        foreach ($atribuicoes as $atribuicao) {
+            foreach (array_unique(array_map('intval', $atribuicao->quadra_ids ?? [])) as $quadraId) {
+                $s = $stats[$quadraId] ?? null;
+                $total = (int) ($s->total ?? 0);
+                $coletados = (int) ($s->coletados ?? 0);
+
+                $linhas[] = [
+                    'quadra_id' => $quadraId,
+                    'quadra_nome' => $nomes[$quadraId] ?? ('#'.$quadraId),
+                    'cadastrador' => $atribuicao->user?->name ?? '—',
+                    'periodo' => $this->rotuloPeriodo($atribuicao),
+                    'total' => $total,
+                    'coletados' => $coletados,
+                    'no_periodo' => (int) ($s->no_periodo ?? 0),
+                    'pendentes' => (int) ($s->pendentes ?? 0),
+                    'inconformidades' => (int) ($s->inconformidades ?? 0),
+                    'nao_visitados' => (int) ($s->nao_visitados ?? 0),
+                    'percentual' => $total > 0 ? round($coletados * 100 / $total, 1) : 0.0,
+                ];
+            }
+        }
+
+        // Ordena por cadastrador e, dentro dele, pela quadra em ordem natural
+        // (nomes de quadra costumam ser numéricos: "2" antes de "10").
+        usort($linhas, function (array $a, array $b): int {
+            return strnatcasecmp((string) $a['cadastrador'], (string) $b['cadastrador'])
+                ?: strnatcasecmp((string) $a['quadra_nome'], (string) $b['quadra_nome']);
+        });
+
+        // O resumo agrega por QUADRA DISTINTA: a mesma quadra em duas atribuições
+        // dentro do período não pode contar duas vezes.
+        $resumo = [
+            'quadras' => count($quadraIds), 'total' => 0, 'coletados' => 0, 'pendentes' => 0,
+            'inconformidades' => 0, 'nao_visitados' => 0, 'no_periodo' => 0, 'percentual' => 0,
+        ];
+
+        foreach ($stats as $s) {
+            $resumo['total'] += (int) $s->total;
+            $resumo['coletados'] += (int) $s->coletados;
+            $resumo['pendentes'] += (int) $s->pendentes;
+            $resumo['inconformidades'] += (int) $s->inconformidades;
+            $resumo['nao_visitados'] += (int) $s->nao_visitados;
+            $resumo['no_periodo'] += (int) $s->no_periodo;
+        }
+
+        $resumo['percentual'] = $resumo['total'] > 0
+            ? round($resumo['coletados'] * 100 / $resumo['total'], 1)
+            : 0;
+
+        return ['linhas' => $linhas, 'resumo' => $resumo];
+    }
+
+    /** Atribuições ativas que se SOBREPÕEM ao período filtrado. */
+    protected function atribuicoesDoPeriodo(): Collection
+    {
+        $inicio = $this->inicio();
+        $fim = $this->fim();
+
+        return ColetaAtribuicao::query()
+            ->with('user:id,name')
+            ->where('ativo', true)
+            ->when($this->cadastradorId, fn ($q) => $q->where('user_id', $this->cadastradorId))
+            ->whereDate('data_inicio', '<=', $fim)
+            ->where(fn ($q) => $q->whereNull('data_fim')->orWhereDate('data_fim', '>=', $inicio))
+            ->orderBy('data_inicio')
+            ->get();
+    }
+
+    /** Contagens de lotes por quadra designada (uma query só). */
+    protected function estatisticasPorQuadra(array $quadraIds): Collection
+    {
+        return DB::table('lotes')
+            ->where('tenant_id', $this->tenantId)
+            ->whereNull('deleted_at')
+            ->whereIn('quadra_id', $quadraIds)
             ->selectRaw("
-                l.quadra_id,
-                coalesce(q.name, 'S/Q') as quadra_nome,
+                quadra_id,
                 count(*) as total,
-                sum(case when l.status_cadastro = 'coletado' then 1 else 0 end) as coletados,
-                round(
-                    sum(case when l.status_cadastro = 'coletado' then 1 else 0 end) * 100.0 / nullif(count(*), 0),
-                    1
-                ) as percentual
-            ")
-            ->groupBy('l.quadra_id', 'q.name')
-            ->orderByDesc('coletados')
-            ->limit(20)
+                sum(case when status_cadastro = 'coletado' then 1 else 0 end) as coletados,
+                sum(case when status_cadastro = 'pendente' then 1 else 0 end) as pendentes,
+                sum(case when status_cadastro = 'inconformidade' then 1 else 0 end) as inconformidades,
+                sum(case when status_cadastro = 'nao_visitado' then 1 else 0 end) as nao_visitados,
+                sum(case when coletado_em is not null and coletado_em::date between ? and ? then 1 else 0 end) as no_periodo
+            ", [$this->inicio(), $this->fim()])
+            ->groupBy('quadra_id')
             ->get()
-            ->map(fn($r) => (array) $r)
-            ->toArray();
+            ->keyBy('quadra_id');
+    }
+
+    protected function rotuloPeriodo(ColetaAtribuicao $a): string
+    {
+        $inicio = $a->data_inicio?->format('d/m/Y') ?? '—';
+
+        return $a->data_fim
+            ? $inicio.' a '.$a->data_fim->format('d/m/Y')
+            : 'desde '.$inicio;
+    }
+
+    // ------------------------------------------------------------------
+    // Exportação
+    // ------------------------------------------------------------------
+
+    public function exportarPdf()
+    {
+        $dados = $this->dados;
+
+        $pdf = Pdf::loadView('pdf.produtividade-quadras', [
+            'tenant' => Filament::getTenant(),
+            'linhas' => $dados['linhas'],
+            'resumo' => $dados['resumo'],
+            'periodo' => \Carbon\Carbon::parse($this->inicio())->format('d/m/Y')
+                .' a '.\Carbon\Carbon::parse($this->fim())->format('d/m/Y'),
+            'cadastrador' => $this->cadastradorId ? ($this->cadastradores[$this->cadastradorId] ?? null) : null,
+            'dataHora' => now()->format('d/m/Y H:i'),
+        ]);
+
+        $pdf->setPaper('a4', 'landscape');
+
+        return response()->streamDownload(
+            function () use ($pdf) {
+                echo $pdf->output();
+            },
+            'produtividade-regioes-'.now()->format('YmdHis').'.pdf'
+        );
     }
 }

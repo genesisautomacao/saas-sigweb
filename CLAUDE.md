@@ -120,6 +120,21 @@ Acordeon abaixo de "Processos Digitais" com a camada `coleta` (**self-contained*
 ### Filament Panel Structure
 
 - **Admin panel** ([app/Filament/Admin/](app/Filament/Admin/)): Super-admin area, manages tenants. Accessible at `/admin`.
+
+#### Usuários do painel /admin — Master × Operador (R67-11)
+
+O `/admin` tem **dois papéis GLOBAIS** (`roles.tenant_id = null`, o mesmo mecanismo que o Master sempre usou — papel global vale em qualquer contexto porque a relação `roles()` do Spatie inclui `team_id IS NULL`):
+
+- **Master** — super administrador, bypass total via `Gate::before`. Exclusivo dele: **excluir prefeitura**, `ApiSettingResource`, `SistemaTributarioResource`, as seções **e-SUS** e **Integração Tributária** do `TenantResource` (credenciais/driver/modo) e a gestão destes usuários.
+- **Operador** — acesso restrito. **Sem bypass**: só faz o que estiver marcado no cadastro dele (falha fechada). Sempre enxerga a **lista** de prefeituras.
+
+As capacidades são **permissões globais `admin_*` diretas por usuário** (não por papel — decisão do usuário: "checkbox por usuário"), declaradas em [`User::CAPACIDADES_ADMIN`](app/Models/User.php): `admin_editar_prefeitura`, `admin_criar_prefeitura`, `admin_gerenciar_modulos`, `admin_importar_gis`, `admin_recalcular_gis`, `admin_tributario_simulacao`, `admin_tributario_sincronizar`, `admin_sincronizar_esus`, `admin_delegar_manager`. Cada uma governa um botão/seção via `TenantResource::pode()`; a UI fica em **Configurações Globais → Usuários do Admin** ([UsuarioAdminResource](app/Filament/Admin/Resources/UsuarioAdminResource.php)), **visível só para o Master** (overrides `canViewAny/canCreate/canEdit/canDelete`, não a `UserPolicy` — que serve ao painel da prefeitura).
+
+- **`User::sincronizarAcessoAdmin($papel, $capacidades)`** grava os vínculos com `DB::table` filtrando `tenant_id IS NULL`: papéis/permissões que a pessoa tenha **dentro de uma prefeitura** (ex.: Manager) ficam intactos — ⚠️ `syncRoles()`/`syncPermissions()` do Spatie **não** garantem isso com teams ligado (o `detach()` do pivot ignora o filtro de team). Helpers: `papelAdmin()` (com `whereNull('roles.tenant_id')` explícito, para que um papel homônimo criado num município nunca dê acesso ao SaaS), `isMaster()`, `isAdminSaas()`, `podeNoAdmin()`, `capacidadesAdmin()`.
+- **Policies obrigatórias:** `TenantPolicy` (delete/restore/forceDelete = só Master; create/update por capacidade), `ApiSettingPolicy` e `SistemaTributarioPolicy` (tudo só Master). Sem Policy o Filament **libera** o Resource — ver o aviso "Gate de recurso via Policy".
+- **`canAccessPanel`:** `admin` → `isAdminSaas()`; `app` → cidadão nunca, e usuário do SaaS só se tiver prefeitura vinculada (evita cair numa tela quebrada).
+- ⚠️ **`EditTenant::mutateFormDataBeforeSave` faz merge do JSON `tenant.data`** — o Filament devolve só os caminhos dos campos **visíveis**, e `tenant.data` é escrito por vários lugares (boletim de coleta, enquadramento salvo no mapa, credenciais). Sem o merge, salvar a prefeitura apagaria as chaves ausentes (bug que já existia antes das seções ocultas).
+- **Implantação:** `php artisan db:seed --class=AdminAcessoSeeder` (cria o papel `Operador` + as permissões `admin_*`; idempotente, já incluído no `DatabaseSeeder`).
 - **App panel** ([app/Filament/](app/Filament/)): Tenant-scoped area with all GIS resources. Accessible at `/app`.
 - **Cidadão panel** ([app/Filament/Cidadao/](app/Filament/Cidadao/)): Public-facing citizen area (auto-registration, digital processes). Accessible at `/cidadao`.
 - Resources follow standard Filament structure: `app/Filament/Resources/XxxResource.php` + `Pages/` subfolder.
@@ -140,17 +155,18 @@ Coluna `users.tipo` = `prefeitura` | `cidadao` separa a **equipe** do **cidadão
 
 ### API (Mobile Sync)
 
-Protected by Laravel Sanctum (`auth:sanctum`). Endpoints in [routes/api.php](routes/api.php) support offline sync for mobile field agents:
+Protected by Laravel Sanctum (`auth:sanctum`). Endpoints in [routes/api.php](routes/api.php) support offline sync for mobile field agents.
+
+> **Contrato completo para o time do app (React Native): [docs/MensagensAppAssistente.md](docs/MensagensAppAssistente.md)** — payloads reais de cada endpoint, regra da região do cadastrador, boletim dinâmico, fluxo push→config→pull e armadilhas. É o documento a enviar ao assistente do app.
+>
+> ⚠️ **Escopo do app de coleta reduzido em 2026-07-30 ao cadastro imobiliário** (lote, edificação, unidade). Foram **removidos**: `ArvoreSyncController` (`GET/POST /api/sync/pull|push` — árvores), `SolicitacaoManutencaoSyncController` (`/api/sync/manutencoes/*`) e as camadas `arvores`/`postes` do `MobileMapDataController` (catálogo e `map/data`). O `layers` do login virou a lista fixa das 5 camadas realmente servidas (`lotes`, `quadras`, `logradouros`, `bairros`, `zonas`) — antes anunciava camadas por módulo que o `map/data` nunca serviu (cemitérios) ou que não existem mais.
 
 | Endpoint | Descrição |
 |---|---|
-| `POST /api/login` | Autenticação — retorna token + tenant (map_lat/lon/zoom) + layers |
-| `GET /api/sync/pull` | Pull de árvores (arborização) |
-| `POST /api/sync/push` | Push de árvores coletadas |
-| `GET /api/sync/manutencoes/pull` | Pull de solicitações de manutenção |
-| `POST /api/sync/manutencoes/push` | Push de manutenções |
-| `GET /api/map/layers` | **Catálogo de camadas configuradas no SIG WEB p/ o app (item 179)** — só as camadas base + as dos módulos ativos, filtradas por `tenant.data['mobile_layers']` (curadoria no Admin→Tenant); cada uma com `label/tipo/cor/visivel_padrao/min_zoom` |
-| `GET /api/map/data?layer=lotes&bbox=...` | GeoJSON por camada (lotes, quadras, logradouros, bairros, zonas, arvores, postes) |
+| `POST /api/login` | Autenticação — retorna token + tenant (map_lat/lon/zoom) + layers + **`coleta`** (boletim + região) |
+| `GET /api/coleta/config` | **Boletim configurável + região do cadastrador** (R67-3) — o app monta o formulário inteiro daqui |
+| `GET /api/map/layers` | **Catálogo de camadas configuradas no SIG WEB p/ o app (item 179)** — camadas base filtradas por `tenant.data['mobile_layers']` (curadoria no Admin→Tenant); cada uma com `label/tipo/cor/visivel_padrao/min_zoom` |
+| `GET /api/map/data?layer=lotes&bbox=...` | GeoJSON por camada (lotes, quadras, logradouros, bairros, zonas) |
 | `GET /api/sync/lotes/pull` | Pull completo de lotes CTM com unidades imobiliárias + edificações |
 | `POST /api/sync/lotes/push` | Push do boletim de campo (status, fotos, vistoria, inconformidades) |
 | `GET /api/lotes/nearest?lat&lon` | Lote não visitado mais próximo via PostGIS |
@@ -336,6 +352,33 @@ php artisan tributario:importar --tenant=antonio-carlos --file=dados.json
 
 O JSON pode ser array raiz `[{...}]` ou `{"imoveis": [{...}]}`. Cada item precisa do campo `inscricao_imobiliaria`. Todo o restante do objeto vai para `dados_tributarios` como JSON livre. Faz upsert — não duplica se rodar mais de uma vez.
 
+### Customizações do cadastro + Coleta cadastral (Release 67)
+
+⚠️ **Separação de escopo (importante):** customizar campos e integrar com o sistema tributário valem para o **sistema inteiro**, não para a coleta. Por isso as telas ficam em grupos distintos:
+
+| Grupo | Tela | Papel |
+|---|---|---|
+| **Customizações** | `CampoCustomizadoResource` (Campos Customizados) | cria campos extras de lote/edificação/unidade |
+| **Customizações** | [CamposPadraoPage](app/Filament/Pages/CamposPadraoPage.php) (Campos Padrão do Sistema) | **tabela Filament nativa** (busca, filtros entidade/personalizado, agrupada por entidade, ToggleColumn "usar") — as linhas são `campo_dominios` **semeadas sob demanda** no mount com valores-fallback (linha semeada ≡ linha inexistente); "Personalizar" abre [CamposPadraoEntidadePage](app/Filament/Pages/CamposPadraoEntidadePage.php) (`campos-padrao/{entidade}`, fora do menu) com rótulo + lista de valores + "usar este campo" da entidade inteira. Extensível: nova entidade = registrar em `CampoDominioService::PADROES` |
+| **/admin (Configurações Globais)** | [SistemaTributarioResource](app/Filament/Admin/Resources/SistemaTributarioResource.php) (Sistemas Tributários) | **catálogo GLOBAL por sistema** (Betha, GOVBR, IPM…): de/para + extras parametrizados UMA vez; o `TenantResource` (seção "Integração Tributária") aponta qual sistema cada prefeitura usa (`tenant.data['sistema_tributario_id']`) |
+| **Coleta cadastral** | [BoletimColetaPage](app/Filament/Pages/BoletimColetaPage.php) | **fonte única** do boletim: quais campos (padrão + customizados) o cadastrador de rua preenche e quais são obrigatórios |
+| **Coleta cadastral** | `ColetaAtribuicaoResource` (Regiões dos Cadastradores) | região/período de cada cadastrador |
+
+Regra de precedência: campo com `visivel = false` (Customizações) **nunca** aparece no boletim nem no app, mesmo marcado lá. As flags `na_coleta`/`obrigatorio_coleta` são editadas **só** no Boletim de Coleta (o cadastro do campo customizado mostra `na_coleta` como coluna informativa). Contrato do app em [docs/appColetaCadastral.md](docs/appColetaCadastral.md).
+
+- **Campos customizados (R67-1)** — `CampoCustomizado` (`campos_customizados`: tenant, `entidade` lote|edificacao|unidade, label, **slug snake_case imutável**, tipo [texto|numero|selecao|multipla|data|sim_nao], opcoes, obrigatorio, na_coleta, ordem, ativo) + coluna JSON **`dados_customizados`** nas 3 tabelas (cast array). [CampoCustomizadoService](app/Services/Coleta/CampoCustomizadoService.php): `componentes()` (molde `ProcessoFormService::camposDaEtapa`; **multipla = Select multiple**), `filtrarPayload()` (whitelist por slug + cast — usado no push e no import GIS), `colunasExport()`, `COLUNAS_RESERVADAS` (valida slug). Plumbados em: `LoteResource`, modais do mapa (`HasLoteActions`/`HasEdificacaoActions`), RelationManagers, exports (Excel/PDF/XML), BIC e **importação GIS do `TenantResource`** (property do GeoJSON com o nome do slug → valor).
+- **Campos padrão white-label (R67-2)** — `CampoDominio` (`campo_dominios`: tenant, entidade, campo, **label**, **opcoes**, visivel, na_coleta, obrigatorio_coleta). [CampoDominioService](app/Services/Coleta/CampoDominioService.php) é a fonte única: `label()`/`opcoes()` com **fallback para a const `PADROES`** (rótulos e listas atuais) e `aplicar($component, $entidade, $campo)` usado em TODOS os Selects de `ocupacao`, `situacao_quadra`, `tipo`, `tp_construcao`, `caracteristica_construcao`, `estado_conservacao`, `pavimento`. **A coluna do banco nunca muda** — só rótulo/lista/visibilidade —, então relatórios, PGV, mapa e o contrato do app seguem estáveis (campo com `visivel=false` usa `hidden()->dehydrated(true)`, preservando o valor gravado).
+  - ⚠️ **`enum()` do Laravel = varchar + CHECK no PostgreSQL.** `lotes.ocupacao` e `lotes.situacao_quadra` nasceram assim e recusavam o vocabulário municipal (`violates check constraint lotes_ocupacao_check`) ao salvar lote/push do app. A migration `2026_07_30_100000_drop_dominio_check_constraints_from_lotes` **remove as duas** restrições (`down()` recria com `NOT VALID`). **`lotes_status_cadastro_check` fica** — `status_cadastro` é estrutural (cor do mapa, produtividade, app), não é white-label. Qualquer novo campo white-label precisa da coluna **sem CHECK**.
+  - **`rotuloValor($entidade, $campo, $valor)`** traduz um valor JÁ GRAVADO para exibição (tabelas, PDFs, exports, ficha do mapa), com fallback em cascata: lista do município → `PADROES` → o próprio valor. É o que faz o legado (`construido`) continuar legível depois que o município troca a lista, em vez de virar "—".
+  - `aplicar()` injeta o valor atual nas opções do Select quando ele saiu da lista (`"construido (valor atual)"`) — sem isso o campo abriria em branco e o save apagaria o dado do registro antigo.
+  - A **Planta de Quadra** não conta mais `construido`/`baldio` fixos: `PlantaQuadraPdfService::distribuicaoOcupacao()` gera uma célula por valor do vocabulário (na ordem configurada) + valores legados no fim; sem customização, a saída é idêntica à de antes.
+- **Boletim configurável (R67-3)** — `BoletimColetaPage` (lista única por entidade: campos padrão visíveis + customizados; fotos/observação exigidas → `tenant.data['coleta_campos_base']` com **merge**) + **`GET /api/coleta/config`** ([ColetaConfigService](app/Services/Coleta/ColetaConfigService.php)): o app monta o boletim inteiro pelo payload (mudar vocabulário não exige release do app). **Obrigatoriedade é validada no app** — o push nunca rejeita coleta offline.
+- **Regiões por cadastrador (R67-4)** — `ColetaAtribuicao` (`coleta_atribuicoes`: user, período, quadra_ids, ativo) + Resource **com seleção por MAPA** (ViewField `filament.forms.components.mapa-selecao-quadras`, OpenLayers, clique alterna a quadra; verde = selecionada, vermelho = de outro cadastrador — **não clicável**, azul = livre; contador de quadras/lotes e busca por nome). GeoJSON vem de `GET /coleta/quadras-geojson` ([ColetaQuadrasController](app/Http/Controllers/ColetaQuadrasController.php)) que já devolve `ocupada_por`/`ocupada_por_id`/`periodo` calculando **sobreposição de período** (atribuição encerrada não bloqueia; `ignorar_id` evita a atribuição em edição bloquear a si mesma). Trava de servidor no `mutateFormDataBefore(Create|Save)` via trait `ValidaConflitoRegiao` (edição concorrente/payload manipulado). A lista tem o widget `MapaRegioesColetaWidget` — mapa geral com **uma cor por cadastrador** (atribuições vigentes) e tooltip com quadra/dono/lotes. Seleção por bairro saiu da UI (a coluna `bairro_ids` continua no banco e no `ColetaRegiaoService` por compatibilidade). [ColetaRegiaoService::quadrasPermitidas()](app/Services/Coleta/ColetaRegiaoService.php) devolve **3 estados**: `null` = sem restrição (Master/Manager, checagem raw no molde do `Gate::before`), `[]` = **sem atribuição vigente → pull vazio** (com `aviso: sem_regiao_atribuida`), array = quadras atribuídas (diretas + as dos bairros). No payload do app isso vira o campo **explícito** `regiao.modo` = `livre` | `restrita` | `sem_atribuicao` (`resumoRegiao()`) — o app lê o `modo`, nunca deduz pelo tamanho da lista. Aplicado no `pull` e no `nearest`; índice novo `lotes_quadra_id_index`. ⚠️ **Implantação: atribuir região a todos os cadastradores antes de atualizar o app.**
+- **Integração fiscal por SISTEMA (R67-5, revisada 2026-07-30)** — catálogo **GLOBAL** `SistemaTributario` (`sistemas_tributarios`: nome único, `mapa` de/para origem→canônico, `extras` a exibir, ativo — **não** escopado por tenant) gerido no **/admin** ([SistemaTributarioResource](app/Filament/Admin/Resources/SistemaTributarioResource.php), grupo Configurações Globais). Cada prefeitura aponta seu sistema no `TenantResource` → `tenant.data['sistema_tributario_id']`. [MapaFiscalService](app/Services/Fiscal/MapaFiscalService.php)`::aplicar()` (chamado em `tributario:importar`, no sync da API e no BIC via `extras()`) resolve tenant→sistema; o JSON **bruto continua sendo a verdade**; sem sistema apontado = passthrough. Export divergente do mesmo fornecedor = outra entrada ("Betha — layout 2"). **A prefeitura não vê nem edita a integração** (a antiga `IntegracaoTributariaPage` por-tenant e a permissão `gerenciar_integracao_fiscal` foram REMOVIDAS; a tabela `integracao_fiscal_mapas` nunca chegou a produção — a migration `2026_07_29_100003` foi reescrita para criar `sistemas_tributarios`).
+- **Campos padrão da UNIDADE (R67-2 extensão)** — `PADROES['unidade']` = as 13 colunas fiscais, com **rótulo + visibilidade apenas** (nunca lista de valores — os valores vêm do sistema tributário). `CampoDominioService::componentesFiscaisUnidade()` é a fonte única dos inputs fiscais dos modais Cadastrar/Editar Unidade (`HasLoteActions`); campo oculto usa `hidden()->dehydrated(true)->dehydratedWhenHidden()` (⚠️ hidden puro NÃO desidrata). `ENTIDADES_NA_COLETA = ['lote','edificacao']` mantém os campos padrão da unidade **fora** do Boletim de Coleta e do `/api/coleta/config` (dados fiscais são somente-leitura no app).
+- Permissões: `gerenciar_campos_customizados`, `gerenciar_atribuicoes_coleta` (CAIXA "Coleta Cadastral" da `RoleResource` + **`CreateRole` e `EditRole`** + Policies).
+- **Fora de escopo (itens futuros):** EAV completo (F2), **BIC estruturalmente customizável**, **retorno SIGWEB → sistema tributário** (fila de divergências), transformações/agendamento na integração, tipo de campo "foto", tematização/filtros por campo custom, reset de campanha.
+
 ### Colunas fiscais derivadas em `unidade_imobiliarias`
 
 Além do JSON `dados_tributarios` (fonte bruta, usada no BIC), 13 chaves fiscais são **promovidas a colunas** para busca/edição/relatórios (`UnidadeImobiliaria::CAMPOS_FISCAIS`): `tipo_construcao`, `descricao_classificacao`, `face`, `fracao_ideal`, `area_edificacao`, `area_total_edificacao`, `valor_venal_lote`, `valor_venal_edificacao`, `valor_metro_terreno`, `valor_metro_edificacao`, `valor_imposto_territorial`, `valor_imposto_predial`, `valor_total_imposto`.
@@ -408,6 +451,8 @@ php artisan gis:recalcular-metadata --tenant=tangara --entidade=bairros
 php artisan gis:recalcular-metadata --force
 ```
 
+**Importação GIS — como os relacionamentos são resolvidos:** a ação "Importar Mapa (GIS)" grava o `id` do GeoJSON em **`sequential_id`** (a PK `id` fica com a sequência global do Postgres) e resolve `quadra_id`/`bairro_id`/`lote_id`/… procurando `where tenant_id = <prefeitura> and sequential_id = <id do JSON>`. Por isso cada município pode ter sua numeração começando em 1 sem colidir com os outros — **desde que a hierarquia seja importada de cima para baixo** (a numeração do seletor, 1. Distritos … 5. Quadras … 7. Lotes, é a ordem de dependência). Referência não encontrada deixa o vínculo **nulo** e é contada na notificação final (aviso persistente "N × Quadra"); ⚠️ **nunca** cair de volta no número do JSON como id global — isso amarrava o registro na entidade de OUTRA prefeitura (corrigido em 2026-07-30). Conferência pós-importação: `SELECT count(*) FROM lotes l JOIN quadras q ON q.id = l.quadra_id WHERE l.tenant_id <> q.tenant_id`.
+
 O mesmo recálculo está disponível no painel Admin sem terminal: `TenantResource` → ação **"Recalcular Áreas (GIS)"** (entidade opcional + toggle "sobrescrever" = `--force`; executa `Artisan::call('gis:recalcular-metadata', ['--tenant' => $record->slug])` e notifica o total atualizado). Útil logo após o "Importar Mapa (GIS)", que não traz `area_geo` quando o GeoJSON não tem essa propriedade.
 
 A `Planta de Quadra` (`pdf.planta-quadra`) exibe a área da quadra (`$quadra->area_geo`) tanto no bloco de identificação quanto como card destacado ao lado das áreas dos lotes e das edificações.
@@ -435,13 +480,14 @@ A `Planta de Quadra` (`pdf.planta-quadra`) exibe a área da quadra (`$quadra->ar
 - Clicar no card voa o mapa até o cadastrador (`flyToCadastrador(lat, lon)`)
 - Mostra apenas cadastradores com GPS nos últimos 10 minutos
 
-#### Produtividade (`app/Filament/Pages/ProdutividadePage.php`)
+#### Resumo de Produtividade (`app/Filament/Pages/ProdutividadePage.php`)
 
-- Rota: `/app/{tenant}/produtividade` (Administração → Produtividade)
-- Filtro de data (reativo via `wire:model.live`)
-- 6 cards de resumo: Total · Coletados · Pendentes · Inconformidades · Não visitados · % Progresso
-- Tabela por cadastrador: coletados no dia filtrado vs. coletados total
-- Tabela por quadra (top 20): com barra de progresso inline
+- Rota: `/app/{tenant}/produtividade` (Coleta cadastral → Resumo de Produtividade)
+- **Recorte = região designada** (`coleta_atribuicoes`), não setor fiscal (R67-6, 2026-07-30): filtros **data inicial + data final + cadastrador** (reativos via `wire:model.live`). O select de cadastradores lista só quem tem atribuição.
+- Tabela **Quadras designadas** — uma linha por (atribuição × quadra) que se **sobrepõe** ao período (`data_inicio <= fim AND (data_fim IS NULL OR data_fim >= inicio)`): cadastrador, período da atribuição, lotes, coletados no período, coletados total, restantes e **% cumprido** com barra.
+- 6 cards de resumo (Quadras designadas · Lotes na região · Coletados no período · Pendentes · Inconformidades · % cumprido) agregados por **quadra distinta** — a mesma quadra em duas atribuições dentro do período não conta duas vezes.
+- Ação **Exportar PDF** no header (`exportarPdf()` → `pdf.produtividade-quadras`, A4 paisagem), respeitando os filtros. `#[Computed] dados()` memoiza o cálculo, então tela e PDF partem do mesmo resultado.
+- Contagens numa query só (`estatisticasPorQuadra`), usando o índice `lotes_quadra_id_index`.
 
 ---
 
@@ -658,7 +704,11 @@ A PoC exige "acesso direto aos dados do BDG/CTM-Geo da Prefeitura via internet".
 
 ### Contexto importante
 
-- **`IntegraPrefeituraService`** (`app/Services/ApiTools/IntegraPrefeituraService.php`) — integração com o sistema tributário genérico da prefeitura (já existente e operacional, independente do GOVBR).
+- **`IntegraPrefeituraService`** (`app/Services/ApiTools/IntegraPrefeituraService.php`) — **despachante** da integração tributária, com dois modos por prefeitura (chave `tenant.data['tributario_modo']` = `simulacao`|`producao`, seção "Integração Tributária" do `TenantResource`):
+  - **Simulação (padrão):** lê `storage/app/mocks/{slug}.json`, alimentado pela ação **"Simulação Tributária"** do `TenantResource` (/admin — upload validado + toggle "importar todos agora" que roda `tributario:importar`). Ao lado, a ação **"Sincronizar Tributário (todos)"** roda `sigweb:sincronizar-imoveis {tenant_id}` (varre TODAS as unidades com código e sincroniza endereço/proprietário/JSON pela fonte vigente — funciona nos dois modos). O `TenantResource` usa rótulos **Prefeitura/Prefeituras** (não "Empresa").
+  - **Produção (API real):** chama o **conector** do sistema — coluna `driver` do catálogo Sistemas Tributários, resolvida no registry `IntegraPrefeituraService::DRIVERS` (chave ⇒ classe que implementa [Drivers\TributarioDriver](app/Services/ApiTools/Drivers/TributarioDriver.php)) — com as **credenciais da prefeitura** (`tenant.data['tributario_api']` = url/token, campos no TenantResource visíveis só em produção, molde da seção e-SUS). O conector é do FORNECEDOR (1 driver atende N prefeituras); as credenciais são da instância. Registry vazio hoje — 1ª entrada será o GOVBR. O select "Produção" fica desabilitado (`disableOptionWhen`) enquanto o sistema escolhido não tiver driver registrado; driver existente + API falhando = `Log::warning` + null, **nunca** fallback silencioso ao mock.
+  - **Ponto de ligação (chave configurável por sistema):** `sistemas_tributarios.chave_ligacao` (`codigo_imovel_tributario` padrão | `inscricao_imobiliaria` — const `SistemaTributario::CHAVES_LIGACAO`, Select no catálogo) declara QUAL campo da unidade localiza o imóvel no fornecedor. A API de consumo é **`buscarImovel(array $identificadores, $tenantId)`** — os 8 call sites passam os DOIS identificadores e o service escolhe pelo sistema; `buscarImovelPorCodigo()` é wrapper de compatibilidade (devolve null se o sistema localizar por inscrição). O driver recebe `($tenant, $credenciais, $chaveLigacao, $valor)`.
+  - É o **ponto único do de/para** (R67-5): o resultado (mock OU API) sai por `MapaFiscalService::aplicar()`, e a busca no mock aceita o nome de origem da chave de ligação (de/para invertido) — os consumidores (☁️ dos modais, Sincronizar single/bulk do RelationManager, `EditLote`, `SincronizarTudoApi`) herdam tradução, chave e troca de modo sem código próprio. O `tributario:importar` também aplica o de/para **antes** dos lookups. `rotuloIntegracao($tenantId)` dá o selo exibido à prefeitura ("Betha — produção (API)" / "— simulação (JSON)"); `resumoMock()`/`caminhoMock()` servem o status no admin. Syncs que regravam `inscricao_imobiliaria` usam `?? valor atual` (payload sem inscrição não apaga a existente).
 - **GOVBR** — sistema de Arrecadação específico usado por Bom Princípio/RS. É um sistema externo distinto, sem integração atual no SIGWEB. Requer nova implementação + credenciais fornecidas pela prefeitura.
 
 ### Resultado Global
