@@ -43,6 +43,15 @@ class Tenant extends Model implements HasAvatar
 
             // Executa a nossa rotina de sincronização de permissões
             $tenant->syncManagerPermissions($role);
+
+            // KIT INICIAL de campos customizados (PoC Tangará): garante que a prefeitura
+            // nova não comece com a edificação "vazia" — Tipo de Edificação, Nº de
+            // Pavimentos etc. nascem como campos customizados editáveis. Idempotente.
+            try {
+                \App\Services\Coleta\KitCamposCustomizadosService::aplicar($tenant->id);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Kit de campos customizados falhou: '.$e->getMessage());
+            }
         });
 
         // 2. Quando uma Empresa (Tenant) é ATUALIZADA (Ex: Você liberou um módulo novo)

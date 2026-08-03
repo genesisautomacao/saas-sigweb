@@ -51,7 +51,7 @@ class CamposPadraoEntidadePage extends Page implements HasForms
         // (os valores vêm do sistema tributário, não do usuário).
         return $this->entidade === 'unidade'
             ? 'Personalize o nome exibido e oculte o que o município não usa. Os valores destes campos vêm do sistema tributário.'
-            : 'Personalize o nome e a lista de valores conforme a realidade do município — os dados já gravados são preservados.';
+            : 'Personalize como o município chama cada campo e cada valor. A lista de valores é fixa do sistema — se precisar de um valor que não existe aqui, crie um Campo Customizado.';
     }
 
     public function mount(string $entidade): void
@@ -65,9 +65,20 @@ class CamposPadraoEntidadePage extends Page implements HasForms
         foreach (array_keys(CampoDominioService::PADROES[$entidade]) as $campo) {
             $dominio = CampoDominio::where('entidade', $entidade)->where('campo', $campo)->first();
 
+            // Só chaves que existem no PADROES. Blinda a tela contra o formato legado
+            // (lista solta de rótulos) caso a normalização ainda não tenha rodado.
+            $chavesValidas = array_keys(CampoDominioService::PADROES[$entidade][$campo]['opcoes'] ?? []);
+            $salvas = $dominio?->opcoes ?? [];
+            $opcoes = [];
+            foreach ($chavesValidas as $chave) {
+                if (filled($salvas[$chave] ?? null)) {
+                    $opcoes[$chave] = $salvas[$chave];
+                }
+            }
+
             $estado["dom_{$campo}"] = [
                 'label' => $dominio?->label,
-                'opcoes' => $dominio?->opcoes ?? [],
+                'opcoes' => $opcoes,
                 'visivel' => $dominio?->visivel ?? true,
             ];
         }
@@ -80,29 +91,39 @@ class CamposPadraoEntidadePage extends Page implements HasForms
         $itens = [];
 
         foreach (CampoDominioService::PADROES[$this->entidade] ?? [] as $campo => $padrao) {
-            $temLista = ! empty($padrao['opcoes']);
+            $linhas = [
+                Forms\Components\TextInput::make("dom_{$campo}.label")
+                    ->label('Nome no seu município')
+                    ->placeholder($padrao['label'])
+                    ->helperText('Em branco = nome padrão do sistema.')
+                    ->maxLength(255),
+
+                Forms\Components\Toggle::make("dom_{$campo}.visivel")
+                    ->label('Usar este campo')
+                    ->helperText('Desligado: o campo some dos formulários e do app (os dados já gravados são preservados).')
+                    ->default(true),
+            ];
+
+            // Lista de valores: o município RENOMEIA cada valor do sistema.
+            // Não pode acrescentar nem remover valor — a chave gravada no banco é fixa
+            // (decisão D6). Precisa de um valor que não existe? Crie um campo customizado.
+            if (! empty($padrao['opcoes'])) {
+                $linhas[] = Forms\Components\Placeholder::make("ajuda_{$campo}")
+                    ->label('Nomes dos valores')
+                    ->content('Renomeie como o município chama cada valor. Em branco = nome padrão. Para um valor que não existe aqui, crie um Campo Customizado.')
+                    ->columnSpanFull();
+
+                foreach ($padrao['opcoes'] as $chave => $rotuloPadrao) {
+                    $linhas[] = Forms\Components\TextInput::make("dom_{$campo}.opcoes.{$chave}")
+                        ->label($rotuloPadrao)
+                        ->placeholder($rotuloPadrao)
+                        ->maxLength(255);
+                }
+            }
 
             $itens[] = Forms\Components\Fieldset::make($padrao['label'])
-                ->schema(array_values(array_filter([
-                    Forms\Components\TextInput::make("dom_{$campo}.label")
-                        ->label('Nome no seu município')
-                        ->placeholder($padrao['label'])
-                        ->helperText('Em branco = nome padrão do sistema.')
-                        ->maxLength(255),
-
-                    $temLista
-                        ? Forms\Components\TagsInput::make("dom_{$campo}.opcoes")
-                            ->label('Valores aceitos (Enter para separar)')
-                            ->placeholder(implode(', ', array_values($padrao['opcoes'])))
-                            ->helperText('Vazio = lista padrão do sistema.')
-                        : null,
-
-                    Forms\Components\Toggle::make("dom_{$campo}.visivel")
-                        ->label('Usar este campo')
-                        ->helperText('Desligado: o campo some dos formulários e do app (os dados já gravados são preservados).')
-                        ->default(true),
-                ])))
-                ->columns(2);
+                ->schema($linhas)
+                ->columns(3);
         }
 
         return $form->schema($itens)->statePath('data');
@@ -119,11 +140,24 @@ class CamposPadraoEntidadePage extends Page implements HasForms
             // na_coleta/obrigatorio_coleta pertencem ao Boletim de Coleta — preservados aqui.
             $atual = CampoDominio::where('entidade', $this->entidade)->where('campo', $campo)->first();
 
+            // Guarda o mapa `chave do sistema => rótulo do município`, só com o que
+            // foi realmente renomeado. Chave fora do PADROES é descartada — a lista de
+            // valores é imutável (D6) e aceitar chave estranha reabriria o bug de gravar
+            // rótulo como valor na coluna.
+            $chavesValidas = array_keys(CampoDominioService::PADROES[$this->entidade][$campo]['opcoes'] ?? []);
+            $mapaOpcoes = [];
+            foreach ($chavesValidas as $chave) {
+                $rotulo = $estado['opcoes'][$chave] ?? null;
+                if (filled($rotulo)) {
+                    $mapaOpcoes[$chave] = $rotulo;
+                }
+            }
+
             CampoDominio::updateOrCreate(
                 ['tenant_id' => $tenantId, 'entidade' => $this->entidade, 'campo' => $campo],
                 [
                     'label' => filled($estado['label'] ?? null) ? $estado['label'] : null,
-                    'opcoes' => ! empty($estado['opcoes']) ? array_values($estado['opcoes']) : null,
+                    'opcoes' => $mapaOpcoes ?: null,
                     'visivel' => (bool) ($estado['visivel'] ?? true),
                     'na_coleta' => $atual?->na_coleta ?? true,
                     'obrigatorio_coleta' => $atual?->obrigatorio_coleta ?? false,

@@ -151,7 +151,7 @@
         irregularidade no imóvel acima identificado:
     </p>
     <div class="irregularidade-box">
-        {{ $lote->inconformidade_descricao }}
+        {{ $lote->coletaVigente?->inconformidade_descricao }}
     </div>
 
     {{-- PRAZO --}}

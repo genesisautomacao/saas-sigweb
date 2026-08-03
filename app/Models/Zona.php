@@ -19,6 +19,8 @@ class Zona extends Model
     protected $fillable = [
         'tenant_id',
         'sequential_id',
+        'codigo',
+        'dados_customizados',
         'perimetro_id',
         'code',
         'sigla',
@@ -26,6 +28,10 @@ class Zona extends Model
         'rgb',
         'area_geo',
         'geo',
+    ];
+
+    protected $casts = [
+        'dados_customizados' => 'array', // campos do município (item 75)
     ];
 
     protected $hidden = ['geo'];

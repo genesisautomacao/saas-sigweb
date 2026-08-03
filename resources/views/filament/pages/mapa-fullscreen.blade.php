@@ -22,7 +22,7 @@
                 mapLat: {{ $mapLat }},
                 mapLon: {{ $mapLon }},
                 mapZoom: {{ $mapZoom }},
-                azureMapsKey: '{{ env('AZURE_MAPS_KEY', '') }}',
+                azureMapsKey: '{{ config('services.azure_maps.key', '') }}',
                 permissionsUrl: '/gis/{{ $tenantSlug }}/map-permissions'
             };
         </script>
@@ -709,30 +709,36 @@
                                     <x-heroicon-o-check x-show="activeBasemap === 'osm'" class="w-4 h-4" />
                                 </button>
 
-                                <button
-                                    @click="activeBasemap = 'azure_road'; $dispatch('switch-basemap', 'azure_road'); open = false"
-                                    class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 text-sm transition-colors"
-                                    x-bind:class="activeBasemap === 'azure_road' ? 'text-primary-600 font-bold' :
-                                        'text-gray-700 dark:text-gray-300'">
-                                    <span class="flex items-center gap-2"><x-heroicon-o-map-pin class="w-4 h-4" />
-                                        Azure Maps (Ruas)</span>
-                                    <x-heroicon-o-check x-show="activeBasemap === 'azure_road'" class="w-4 h-4" />
-                                </button>
+                                {{-- E1.5 — sem chave Azure cadastrada, as opções somem (tiles em
+                                     branco na frente da Comissão seria pior que não oferecer). --}}
+                                @if (filled(config('services.azure_maps.key')))
+                                    <button
+                                        @click="activeBasemap = 'azure_road'; $dispatch('switch-basemap', 'azure_road'); open = false"
+                                        class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 text-sm transition-colors"
+                                        x-bind:class="activeBasemap === 'azure_road' ? 'text-primary-600 font-bold' :
+                                            'text-gray-700 dark:text-gray-300'">
+                                        <span class="flex items-center gap-2"><x-heroicon-o-map-pin class="w-4 h-4" />
+                                            Azure Maps (Ruas)</span>
+                                        <x-heroicon-o-check x-show="activeBasemap === 'azure_road'" class="w-4 h-4" />
+                                    </button>
+                                @endif
 
                                 {{-- Grupo: Satélite e Ortofoto --}}
                                 <div
                                     class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-2 border-t border-gray-100 dark:border-gray-700">
                                     Imagens Aéreas</div>
 
-                                <button
-                                    @click="activeBasemap = 'azure_sat'; $dispatch('switch-basemap', 'azure_sat'); open = false"
-                                    class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 text-sm transition-colors"
-                                    x-bind:class="activeBasemap === 'azure_sat' ? 'text-primary-600 font-bold' :
-                                        'text-gray-700 dark:text-gray-300'">
-                                    <span class="flex items-center gap-2"><x-heroicon-o-camera class="w-4 h-4" />
-                                        Azure Satélite</span>
-                                    <x-heroicon-o-check x-show="activeBasemap === 'azure_sat'" class="w-4 h-4" />
-                                </button>
+                                @if (filled(config('services.azure_maps.key')))
+                                    <button
+                                        @click="activeBasemap = 'azure_sat'; $dispatch('switch-basemap', 'azure_sat'); open = false"
+                                        class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 text-sm transition-colors"
+                                        x-bind:class="activeBasemap === 'azure_sat' ? 'text-primary-600 font-bold' :
+                                            'text-gray-700 dark:text-gray-300'">
+                                        <span class="flex items-center gap-2"><x-heroicon-o-camera class="w-4 h-4" />
+                                            Azure Satélite</span>
+                                        <x-heroicon-o-check x-show="activeBasemap === 'azure_sat'" class="w-4 h-4" />
+                                    </button>
+                                @endif
 
                                 <button
                                     @click="activeBasemap = 'esri_sat'; $dispatch('switch-basemap', 'esri_sat'); open = false"
@@ -1521,7 +1527,7 @@
                                     style="font-size:10px;max-width:80px;padding:1px 2px;">
                                     <option value="__default__">Padrão</option>
                                     <option value="name">Nome</option>
-                                    <option value="setor_codigo">Setor</option>
+                                    <option value="codigo">Código</option>
                                 </select>
                             </div>
                         </div>
@@ -2444,9 +2450,9 @@
                             @if ($loteSituacaoQuadra)
                                 <div>
                                     <p class="text-[10px] text-gray-400 uppercase font-bold">
-                                        {{ $dominio::label('lote', 'situacao_quadra') }}</p>
+                                        Situação na Quadra</p>
                                     <p class="font-bold text-gray-700 dark:text-gray-300">
-                                        {{ $dominio::rotuloValor('lote', 'situacao_quadra', $loteSituacaoQuadra) ?? '—' }}</p>
+                                        {{ $loteSituacaoQuadra }}</p>
                                 </div>
                             @endif
                         </div>
@@ -3236,7 +3242,7 @@
     </script>
 
     {{-- Carrega o Google Maps com a biblioteca de Geometria (para calcular o ângulo do olhar) --}}
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=geometry" async
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key', '') }}&libraries=geometry" async
         defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 

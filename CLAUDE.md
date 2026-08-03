@@ -195,6 +195,7 @@ Faz upsert em `unidades_imobiliarias.dados_tributarios` por `inscricao_imobiliar
 ### Key Conventions
 
 - All Filament forms use Portuguese field labels and entity names (Brazil-specific).
+- **Máximo de 3 inputs por linha nos formulários Filament** (`->columns(3)` como teto — nunca 4+). Vale para `Section`/`Fieldset`/`Grid` e para o `form()->columns()` dos três painéis. Campos longos (textarea, JSON, listas) continuam com `columnSpanFull()`.
 - **Timezone `America/Sao_Paulo`** (config/app.php, sobreponível via `APP_TIMEZONE`) desde 2026-07-22 — antes era UTC, então **timestamps gravados antes dessa data estão em UTC no banco** (exibem +3h); registros novos são gravados/exibidos no horário de Brasília.
 - **Traduções pt-BR em `lang/pt_BR/`** (validation/auth/passwords/pagination) — sem essa pasta, o locale `pt_BR` caía no inglês nas mensagens de validação. O `:attribute` recebe o label do Filament.
 - **Uploads do módulo de processos: 20MB** (`maxSize(20480)` em `camposDaEtapa` tipo `arquivo` e no requerimento assinado — plantas grandes). O `config/livewire.php` já permite 50MB no upload temporário; **em produção, `upload_max_filesize`/`post_max_size` do PHP e `client_max_body_size` do nginx precisam comportar ≥ 20M**.
@@ -351,6 +352,23 @@ php artisan tributario:importar --tenant=antonio-carlos --file=dados.json
 ```
 
 O JSON pode ser array raiz `[{...}]` ou `{"imoveis": [{...}]}`. Cada item precisa do campo `inscricao_imobiliaria`. Todo o restante do objeto vai para `dados_tributarios` como JSON livre. Faz upsert — não duplica se rodar mais de uma vez.
+
+### Refatoração de Campos — PoC Tangará (2026-08-01) ⚠️ LER ANTES DE MEXER NO IMOBILIÁRIO
+
+Refatoração estrutural aprovada campo a campo em [docs/campos_imobiliario_para_aprovacao.txt](docs/campos_imobiliario_para_aprovacao.txt) (mapeamento em [docs/mapeamentoCamposImobiliario.md](docs/mapeamentoCamposImobiliario.md)). Régua de 3 categorias: **BASE** (infra) · **FIXO** (coluna, rótulo white-label, valores imutáveis) · **CUSTOM** (campo criado por prefeitura). *Regra de ouro: campo alimentado pelo sistema tributário nunca é campo padrão do SIGWEB.*
+
+- **34 colunas REMOVIDAS** (dado migrado antes do drop): as 13 fiscais da unidade (JSON `dados_tributarios` é a verdade), 5 atributos da edificação (→ `dados_customizados`, `tipo`→slug `tipo_edificacao`), `lotes.situacao_quadra`/`observacao`/`inconformidade_descricao`/`coletado_*`/`dados_vistoria`/`tipo_logradouro`/`logradouro`/`cep` (endereço vive na unidade; nº predial fica). **Edificação tem ZERO campos fixos** — só `area_geo` + campos customizados.
+- **`coleta_imobiliaria`** (novo, [ColetaImobiliaria](app/Models/ColetaImobiliaria.php)): polimórfica (`coletavel_type/id`), `campanha` (recadastro não sobrescreve histórico), status/quem/quando/observação/inconformidade. `Lote::coletaVigente()`. ⚠️ `lotes.status_cadastro` **permanece como cache** da coleta vigente (colore o mapa sem JOIN) — `ColetaImobiliaria::registrar()` sincroniza.
+- **Campos customizados em 13 camadas** (item 75 do edital): `CampoCustomizado::ENTIDADES` cobre o imobiliário inteiro; `dados_customizados` **JSONB** + índice GIN em todas; `ENTIDADES_COLETAVEIS` = lote/edificacao/unidade (só essas no boletim). `colunasReservadas()` agora deriva do schema (não é mais lista fixa).
+- **Chave/rótulo (N1):** `campo_dominios.opcoes` guarda `chave => rótulo`; a coluna grava a CHAVE. `CampoDominioService::normalizarValor()` traduz rótulo→chave no push (blindagem p/ app publicado). `PADROES` enxuto: só `lote.ocupacao`, `secao_logradouro.lado`, `lote_testada.tipo` (as únicas listas governadas pelo sistema, além de `status_cadastro` e `coleta.status`).
+- **KIT INICIAL** ([KitCamposCustomizadosService](app/Services/Coleta/KitCamposCustomizadosService.php) + seeder + hook `Tenant::created`): prefeitura nova nasce com `situacao_quadra`, `tipo_edificacao`, `pavimento`, `tp_construcao`, `estado_conservacao`, `tipo_pavimentacao`, `material` etc. como campos customizados editáveis. Sem o kit, os itens 16/43 do edital não demonstram.
+- **`codigo` municipal** (varchar 50 + índice tenant+codigo) em logradouros/seções/bairros/quadras/zonas/perímetros/setores — itens 44–49; pré-requisito da Recodificação (T2.5). `sequential_id` segue intocado (chave da importação GIS). Novas: `secoes_logradouro.lado` (par/impar/ambos) e `unidade.nome_edificio` (coluna + trigram + backfill; itens 5/3-3).
+- **Busca unificada:** proprietário via `pessoas` (`proprietario_id` — funciona sem integração tributária; fallback no JSON legado), `pg_trgm` + GIN em pessoas.name/cpf/cnpj e unidade.logradouro_nome/nome_edificio. Estatísticas de edificação agrupam por expressão JSONB da whitelist (**e o `group_field` é validado — havia injeção de SQL**).
+- **APIs de terceiros (E1.5):** `ApiSetting` "Azure Maps" (`AZURE_MAPS_KEY`) e "Google Maps" (`GOOGLE_MAPS_API_KEY`) → injetadas em `config('services.azure_maps.key'/'google_maps.key')` no boot (cache `api_settings.all`, invalidado no saved). **Nunca usar `env()` em runtime** (com `config:cache`, retorna null). Opções de basemap Azure ocultas sem chave.
+- **`php artisan poc:inventario --tenant=<slug>`** ([PocInventario](app/Console/Commands/PocInventario.php)): mede se a base tem dado para demonstrar cada item do edital — rodar na VPS antes da demo.
+- **App RN** (`C:\laragon\www\aplicativos-sigweb\app-coletas`): form é config-driven (`/api/coleta/config`) e se adapta sozinho; `CONFIG_PADRAO` do fallback atualizado. O push antigo (campos soltos) é absorvido por shims de compat no `LoteSyncController`.
+- **Integração tributária bidirecional** (decisão do usuário): GET (buscar) E POST/PUT (devolver ao fornecedor). O de/para (`MapaFiscalService::camposCanonicos($tenantId)`) já mira slugs de campos customizados; o método de escrita do driver entra com o 1º conector real.
+- **Implantação:** `php artisan migrate` + `php artisan db:seed --class=KitCamposCustomizadosSeeder`.
 
 ### Customizações do cadastro + Coleta cadastral (Release 67)
 

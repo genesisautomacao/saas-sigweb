@@ -29,6 +29,11 @@ class PerimetroUrbanoResource extends Resource
     {
         return $form->schema([
             Forms\Components\Section::make('Identificação')->schema([
+                Forms\Components\TextInput::make('codigo')
+                    ->label('Código do Distrito')
+                    ->helperText('Código do cadastro municipal.')
+                    ->maxLength(50),
+
                 Forms\Components\TextInput::make('name')
                     ->label('Nome')
                     ->required()
@@ -64,6 +69,7 @@ class PerimetroUrbanoResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
+                Tables\Columns\TextColumn::make('codigo')->label('Código')->searchable()->sortable()->placeholder('—'),
                 Tables\Columns\TextColumn::make('name')->label('Nome')->searchable()->weight('bold'),
                 Tables\Columns\TextColumn::make('distrito')->label('Distrito')->searchable(),
                 Tables\Columns\TextColumn::make('area_geo')

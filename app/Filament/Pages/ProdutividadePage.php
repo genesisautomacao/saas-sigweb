@@ -213,20 +213,26 @@ class ProdutividadePage extends Page
     /** Contagens de lotes por quadra designada (uma query só). */
     protected function estatisticasPorQuadra(array $quadraIds): Collection
     {
+        // Refatoração PoC Tangará: coletado_em vive em coleta_imobiliaria (campanha vigente).
         return DB::table('lotes')
-            ->where('tenant_id', $this->tenantId)
-            ->whereNull('deleted_at')
-            ->whereIn('quadra_id', $quadraIds)
+            ->leftJoin('coleta_imobiliaria as ci', function ($join) {
+                $join->on('ci.coletavel_id', '=', 'lotes.id')
+                    ->where('ci.coletavel_type', '=', 'App\\Models\\Lote')
+                    ->whereNull('ci.deleted_at');
+            })
+            ->where('lotes.tenant_id', $this->tenantId)
+            ->whereNull('lotes.deleted_at')
+            ->whereIn('lotes.quadra_id', $quadraIds)
             ->selectRaw("
-                quadra_id,
-                count(*) as total,
-                sum(case when status_cadastro = 'coletado' then 1 else 0 end) as coletados,
-                sum(case when status_cadastro = 'pendente' then 1 else 0 end) as pendentes,
-                sum(case when status_cadastro = 'inconformidade' then 1 else 0 end) as inconformidades,
-                sum(case when status_cadastro = 'nao_visitado' then 1 else 0 end) as nao_visitados,
-                sum(case when coletado_em is not null and coletado_em::date between ? and ? then 1 else 0 end) as no_periodo
+                lotes.quadra_id,
+                count(distinct lotes.id) as total,
+                count(distinct case when lotes.status_cadastro = 'coletado' then lotes.id end) as coletados,
+                count(distinct case when lotes.status_cadastro = 'pendente' then lotes.id end) as pendentes,
+                count(distinct case when lotes.status_cadastro = 'inconformidade' then lotes.id end) as inconformidades,
+                count(distinct case when lotes.status_cadastro = 'nao_visitado' then lotes.id end) as nao_visitados,
+                count(distinct case when ci.coletado_em is not null and ci.coletado_em::date between ? and ? then lotes.id end) as no_periodo
             ", [$this->inicio(), $this->fim()])
-            ->groupBy('quadra_id')
+            ->groupBy('lotes.quadra_id')
             ->get()
             ->keyBy('quadra_id');
     }

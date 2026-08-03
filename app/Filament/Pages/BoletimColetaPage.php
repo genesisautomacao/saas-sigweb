@@ -15,6 +15,7 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Arr;
 
 /**
  * R67-3 — Boletim de Coleta: define o que o cadastrador de rua preenche no app.
@@ -76,7 +77,7 @@ class BoletimColetaPage extends Page implements HasForms
         }
 
         // Campos customizados do município
-        foreach (array_keys(CampoCustomizado::ENTIDADES) as $entidade) {
+        foreach (CampoCustomizado::ENTIDADES_COLETAVEIS as $entidade) {
             foreach (CampoCustomizadoService::definicoes($entidade) as $campo) {
                 $estado["cus_{$campo->id}"] = ['na_coleta' => (bool) $campo->na_coleta];
             }
@@ -89,7 +90,7 @@ class BoletimColetaPage extends Page implements HasForms
     {
         $secoes = [];
 
-        foreach (CampoCustomizado::ENTIDADES as $entidade => $rotuloEntidade) {
+        foreach (Arr::only(CampoCustomizado::ENTIDADES, CampoCustomizado::ENTIDADES_COLETAVEIS) as $entidade => $rotuloEntidade) {
             $itens = [];
 
             // 1) Campos padrão do sistema (com rótulo já personalizado pelo município).
@@ -190,7 +191,7 @@ class BoletimColetaPage extends Page implements HasForms
         }
 
         // Campos customizados: flag "aparece no app"
-        foreach (array_keys(CampoCustomizado::ENTIDADES) as $entidade) {
+        foreach (CampoCustomizado::ENTIDADES_COLETAVEIS as $entidade) {
             foreach (CampoCustomizadoService::definicoes($entidade) as $campo) {
                 $estado = $dados["cus_{$campo->id}"] ?? null;
 

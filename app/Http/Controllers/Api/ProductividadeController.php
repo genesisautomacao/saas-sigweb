@@ -51,9 +51,15 @@ class ProductividadeController extends Controller
         $totalInconform    = (int) ($totaisPorStatus['inconformidade'] ?? 0);
         $totalNaoVisitados = (int) ($totaisPorStatus['nao_visitado'] ?? 0);
 
-        // Por cadastrador (totais históricos + hoje)
+        // Por cadastrador (totais históricos + hoje).
+        // Refatoração PoC Tangará: quem/quando coletou vive em coleta_imobiliaria.
         $porCadastrador = DB::table('lotes as l')
-            ->join('users as u', 'u.id', '=', 'l.coletado_por_id')
+            ->join('coleta_imobiliaria as ci', function ($join) {
+                $join->on('ci.coletavel_id', '=', 'l.id')
+                    ->where('ci.coletavel_type', '=', 'App\\Models\\Lote')
+                    ->whereNull('ci.deleted_at');
+            })
+            ->join('users as u', 'u.id', '=', 'ci.coletado_por_id')
             ->where('l.tenant_id', $tenantId)
             ->whereNull('l.deleted_at')
             ->whereIn('l.status_cadastro', ['coletado', 'pendente', 'inconformidade'])
@@ -65,8 +71,8 @@ class ProductividadeController extends Controller
             ->selectRaw("
                 u.id as user_id,
                 u.name as nome,
-                COUNT(*) as coletados_total,
-                SUM(CASE WHEN DATE(l.coletado_em) = ? THEN 1 ELSE 0 END) as coletados_hoje
+                COUNT(DISTINCT l.id) as coletados_total,
+                COUNT(DISTINCT CASE WHEN DATE(ci.coletado_em) = ? THEN l.id END) as coletados_hoje
             ", [$data])
             ->groupBy('u.id', 'u.name')
             ->orderByDesc('coletados_hoje')

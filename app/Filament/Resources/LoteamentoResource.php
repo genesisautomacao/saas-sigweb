@@ -34,9 +34,6 @@ class LoteamentoResource extends Resource
                     ->required()
                     ->maxLength(255),
                 
-                Forms\Components\TextInput::make('setor')
-                    ->label('Setor (Opcional)')
-                    ->maxLength(255),
 
                 Forms\Components\TextInput::make('area_geo')
                     ->label('Área (m²)')

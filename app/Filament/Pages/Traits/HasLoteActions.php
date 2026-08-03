@@ -55,12 +55,6 @@ trait HasLoteActions
                     'ocupacao'
                 ),
 
-                \App\Services\Coleta\CampoDominioService::aplicar(
-                    Select::make('situacao_quadra')->placeholder('Selecione...')->nullable(),
-                    'lote',
-                    'situacao_quadra'
-                ),
-
                 Select::make('quadra_id')
                     ->label('Quadra (Auto-detectada)')
                     ->options(fn () => Quadra::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id'))
@@ -128,20 +122,19 @@ trait HasLoteActions
             ->fillForm(function (): array {
                 $lote = Lote::query()->find($this->loteAtivoId);
 
+                // Refatoração PoC Tangará: observação/inconformidade vivem na coleta;
+                // endereço vive na unidade; situacao_quadra em dados_customizados.
+                $coleta = $lote?->coletaVigente;
+
                 return [
                     'numero_lote' => $lote?->numero_lote ?? '',
-                    'tipo_logradouro' => $lote?->tipo_logradouro,
-                    'logradouro' => $lote?->logradouro,
                     'numero_logradouro' => $lote?->numero_logradouro,
-                    'cep' => $lote?->cep,
                     'numero_predial_antigo' => $lote?->numero_predial_antigo,
                     'main_facade_length' => $lote?->main_facade_length,
                     'ocupacao' => $lote?->ocupacao,
-                    'situacao_quadra' => $lote?->situacao_quadra,
                     'status_cadastro' => $lote?->status_cadastro ?? 'nao_visitado',
-                    'observacao' => $lote?->observacao,
-                    'inconformidade_descricao' => $lote?->inconformidade_descricao,
-                    'dados_vistoria' => $lote?->dados_vistoria ?? [],
+                    'observacao' => $coleta?->observacao,
+                    'inconformidade_descricao' => $coleta?->inconformidade_descricao,
                     'dados_customizados' => $lote?->dados_customizados ?? [], // R67-1
                 ];
             })
@@ -162,24 +155,13 @@ trait HasLoteActions
                     )
                     ->validationMessages(['unique' => 'Já existe um Lote com este número nesta exata Quadra.']),
 
-                \Filament\Forms\Components\Fieldset::make('Endereço (Numeração Predial)')
+                // Refatoração PoC Tangará: o endereço textual vive na Unidade Imobiliária;
+                // aqui fica só a numeração predial do lote.
+                \Filament\Forms\Components\Fieldset::make('Numeração Predial')
                     ->schema([
-                        TextInput::make('tipo_logradouro')
-                            ->label('Tipo de Logradouro')
-                            ->placeholder('Rua, Avenida...')
-                            ->maxLength(255),
-
-                        TextInput::make('logradouro')
-                            ->label('Logradouro')
-                            ->maxLength(255),
-
                         TextInput::make('numero_logradouro')
                             ->label('Número Predial (atual)')
                             ->helperText('Definido pelo gerador de numeração predial.')
-                            ->maxLength(255),
-
-                        TextInput::make('cep')
-                            ->label('CEP')
                             ->maxLength(255),
 
                         TextInput::make('numero_predial_antigo')
@@ -196,15 +178,10 @@ trait HasLoteActions
                     ->numeric()
                     ->nullable(),
 
-                // R67-2 — rótulo/valores definidos pelo município
+                // R67-2 — rótulo definido pelo município (lista fixa: baldio/construido)
                 \App\Services\Coleta\CampoDominioService::aplicar(
                     Select::make('ocupacao')->placeholder('Selecione...')->nullable(),
                     'lote', 'ocupacao'
-                ),
-
-                \App\Services\Coleta\CampoDominioService::aplicar(
-                    Select::make('situacao_quadra')->placeholder('Selecione...')->nullable(),
-                    'lote', 'situacao_quadra'
                 ),
 
                 Select::make('status_cadastro')
@@ -219,8 +196,10 @@ trait HasLoteActions
                     ->live()
                     ->columnSpanFull(),
 
+                // Refatoração PoC Tangará: observação/inconformidade são dados da COLETA
+                // (gravados em coleta_imobiliaria no action, não em coluna do lote).
                 \Filament\Forms\Components\Textarea::make('observacao')
-                    ->label('Observação Geral')
+                    ->label('Observação da Coleta')
                     ->rows(3)
                     ->nullable()
                     ->columnSpanFull(),
@@ -230,14 +209,6 @@ trait HasLoteActions
                     ->rows(3)
                     ->nullable()
                     ->visible(fn (\Filament\Forms\Get $get) => $get('status_cadastro') === 'inconformidade')
-                    ->columnSpanFull(),
-
-                \Filament\Forms\Components\KeyValue::make('dados_vistoria')
-                    ->label('Boletim de Campo (Dados Livres)')
-                    ->keyLabel('Campo')
-                    ->valueLabel('Valor')
-                    ->reorderable()
-                    ->nullable()
                     ->columnSpanFull(),
 
                 // R67-1 — campos criados pelo município
@@ -250,14 +221,26 @@ trait HasLoteActions
             ->action(function (array $data) {
                 $lote = Lote::query()->find($this->loteAtivoId);
                 if ($lote) {
+                    // Observação/inconformidade pertencem à coleta, não ao lote.
+                    $observacao = $data['observacao'] ?? null;
+                    $inconformidade = $data['inconformidade_descricao'] ?? null;
+                    unset($data['observacao'], $data['inconformidade_descricao']);
+
                     $lote->update($data);
+
+                    \App\Models\ColetaImobiliaria::registrar($lote, array_filter([
+                        'status' => $data['status_cadastro'] ?? null,
+                        'observacao' => $observacao,
+                        'inconformidade_descricao' => $inconformidade,
+                    ], fn ($v) => $v !== null), tenantId: $this->tenantId);
+
                     Notification::make()->title('Lote atualizado!')->success()->send();
                     $this->loteAtivoNome = $data['numero_lote'];
                     $this->loteFacePrincipal = $data['main_facade_length'] ?? 0;
                     // Refletir mudanças na ficha lateral imediatamente
                     $this->loteStatusCadastro = $data['status_cadastro'] ?? null;
                     $this->loteOcupacao = $data['ocupacao'] ?? null;
-                    $this->loteSituacaoQuadra = $data['situacao_quadra'] ?? null;
+                    $this->loteSituacaoQuadra = $data['dados_customizados']['situacao_quadra'] ?? null;
                     $this->dispatch('atualizar-label-lote', ['id' => $lote->id, 'numero_lote' => $data['numero_lote']]);
                 }
             });
@@ -433,10 +416,9 @@ trait HasLoteActions
                                         $set('numero_imovel', $payload['numero_imovel']);
                                         $set('proprietario_id', $payload['proprietario_id']);
 
-                                        // Reflete os campos fiscais nos inputs individuais
-                                        foreach (UnidadeImobiliaria::CAMPOS_FISCAIS as $campo) {
-                                            $set($campo, $dados[$campo] ?? null);
-                                        }
+                                        // Refatoração PoC Tangará: nome do edifício tem coluna;
+                                        // os demais fiscais vivem no JSON (exibidos abaixo).
+                                        $set('nome_edificio', $dados['nome_edificio'] ?? null);
 
                                         // Mantém a visualização do JSON bonitinha no Textarea
                                         $set('dados_tributarios', json_encode($payload['dados_tributarios'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
@@ -459,11 +441,10 @@ trait HasLoteActions
                     ->description(function () {
                         $rotulo = \App\Services\ApiTools\IntegraPrefeituraService::rotuloIntegracao($this->tenantId);
 
-                        return 'Preencha o Código Tributário acima e clique em ☁️ para sincronizar. Editar aqui atualiza também o JSON usado no BIC.'
+                        return 'Preencha o Código Tributário acima e clique em ☁️ para sincronizar. O detalhe fiscal completo fica no JSON abaixo; o que o município quiser editar vira campo customizado.'
                             .($rotulo ? " Integração: {$rotulo}." : '');
                     })
                     ->columns(3)
-                    // R67-2 — rótulos/visibilidade dos campos fiscais definidos pelo município
                     ->schema(fn () => \App\Services\Coleta\CampoDominioService::componentesFiscaisUnidade()),
 
                 // R67-1 — campos criados pelo município
@@ -503,11 +484,10 @@ trait HasLoteActions
                     $json = [];
                 }
 
-                // Write-through: reflete os inputs fiscais de volta no JSON (mantém o BIC correto)
-                foreach (UnidadeImobiliaria::CAMPOS_FISCAIS as $campo) {
-                    if (array_key_exists($campo, $data)) {
-                        $json[$campo] = ($data[$campo] === '') ? null : $data[$campo];
-                    }
+                // Refatoração PoC Tangará: as colunas fiscais foram removidas — o JSON
+                // bruto segue como a verdade; nome_edificio reflete no JSON p/ o BIC.
+                if (array_key_exists('nome_edificio', $data)) {
+                    $json['nome_edificio'] = ($data['nome_edificio'] === '') ? null : $data['nome_edificio'];
                 }
                 $data['dados_tributarios'] = $json;
 
@@ -676,10 +656,9 @@ trait HasLoteActions
                                             $set('numero_imovel', $payload['numero_imovel']);
                                             $set('proprietario_id', $payload['proprietario_id']);
 
-                                            // Reflete os campos fiscais nos inputs individuais
-                                            foreach (UnidadeImobiliaria::CAMPOS_FISCAIS as $campo) {
-                                                $set($campo, $dados[$campo] ?? null);
-                                            }
+                                            // Refatoração PoC Tangará: só nome_edificio tem coluna;
+                                            // o detalhe fiscal fica no JSON abaixo.
+                                            $set('nome_edificio', $dados['nome_edificio'] ?? null);
 
                                             $set('dados_tributarios', json_encode($payload['dados_tributarios'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
@@ -703,11 +682,10 @@ trait HasLoteActions
                         ->description(function () {
                             $rotulo = \App\Services\ApiTools\IntegraPrefeituraService::rotuloIntegracao($this->tenantId);
 
-                            return 'Valores do sistema tributário. Editar aqui atualiza também o JSON usado no BIC.'
+                            return 'O detalhe fiscal completo fica no JSON abaixo; o que o município quiser editar vira campo customizado.'
                                 .($rotulo ? " Integração: {$rotulo}." : '');
                         })
                         ->columns(3)
-                        // R67-2 — rótulos/visibilidade dos campos fiscais definidos pelo município
                         ->schema(fn () => \App\Services\Coleta\CampoDominioService::componentesFiscaisUnidade()),
 
                     // R67-1 — campos criados pelo município
@@ -750,11 +728,10 @@ trait HasLoteActions
                         $json = is_array($unidade->dados_tributarios) ? $unidade->dados_tributarios : [];
                     }
 
-                    // Write-through: reflete os inputs fiscais de volta no JSON (mantém o BIC correto)
-                    foreach (UnidadeImobiliaria::CAMPOS_FISCAIS as $campo) {
-                        if (array_key_exists($campo, $data)) {
-                            $json[$campo] = ($data[$campo] === '') ? null : $data[$campo];
-                        }
+                    // Refatoração PoC Tangará: nome_edificio reflete no JSON p/ o BIC;
+                    // as demais chaves fiscais seguem intocadas no JSON bruto.
+                    if (array_key_exists('nome_edificio', $data)) {
+                        $json['nome_edificio'] = ($data['nome_edificio'] === '') ? null : $data['nome_edificio'];
                     }
                     $data['dados_tributarios'] = $json;
 
@@ -1318,7 +1295,8 @@ trait HasLoteActions
 
             return;
         }
-        if (empty($lote->inconformidade_descricao)) {
+        // Refatoração PoC Tangará: a inconformidade vive na coleta vigente.
+        if (blank($lote->coletaVigente?->inconformidade_descricao)) {
             \Filament\Notifications\Notification::make()->warning()->title('Lote sem inconformidade registrada')->send();
 
             return;

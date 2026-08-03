@@ -46,4 +46,16 @@ return [
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
     ],
 
+    // Basemaps do mapa (Azure Road/Satélite) — a chave cadastrada no /admin
+    // (ApiSetting "Azure Maps") SOBRESCREVE este fallback do .env no boot.
+    'azure_maps' => [
+        'key' => env('AZURE_MAPS_KEY'),
+    ],
+
+    // Street View / visualizador 360 + perfil altimétrico (Elevation API).
+    // Idem: ApiSetting "Google Maps" sobrescreve no boot.
+    'google_maps' => [
+        'key' => env('GOOGLE_MAPS_API_KEY'),
+    ],
+
 ];

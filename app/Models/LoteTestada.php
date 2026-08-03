@@ -15,7 +15,7 @@ class LoteTestada extends Model
 
     protected $fillable = [
         'tenant_id', 'lote_id', 'logradouro_id', 'secao_logradouro_id',
-        'tipo', 'comprimento', 'geo',
+        'tipo', 'comprimento', 'dados_customizados', 'geo',
     ];
 
     protected $hidden = ['geo'];
@@ -23,6 +23,7 @@ class LoteTestada extends Model
 
     protected $casts = [
         'comprimento' => 'decimal:2',
+        'dados_customizados' => 'array', // campos do município (item 75)
     ];
 
     public function getGeoJsonAttribute()

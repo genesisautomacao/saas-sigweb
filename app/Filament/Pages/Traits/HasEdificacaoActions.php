@@ -45,28 +45,12 @@ trait HasEdificacaoActions
             ->modalSubmitActionLabel('Salvar Edificação')
             ->modalWidth('md')
             ->form([
-                // R67-2 — rótulo/valores definidos pelo município
-                \App\Services\Coleta\CampoDominioService::aplicar(Select::make('tipo')->required(), 'edificacao', 'tipo'),
-                \App\Services\Coleta\CampoDominioService::aplicar(Select::make('tp_construcao')->required(), 'edificacao', 'tp_construcao'),
-                \App\Services\Coleta\CampoDominioService::aplicar(
-                    \Filament\Forms\Components\TextInput::make('caracteristica_construcao')
-                        ->placeholder('Ex: Pavimento 1, Anexo, Edícula...')
-                        ->maxLength(255)
-                        ->nullable(),
-                    'edificacao', 'caracteristica_construcao'
-                ),
-                \App\Services\Coleta\CampoDominioService::aplicar(Select::make('estado_conservacao')->required(), 'edificacao', 'estado_conservacao'),
-                \App\Services\Coleta\CampoDominioService::aplicar(
-                    \Filament\Forms\Components\TextInput::make('pavimento')->numeric()->minValue(1)->maxValue(99)->nullable(),
-                    'edificacao', 'pavimento'
-                ),
-
-                // R67-1 — campos criados pelo município
-                \Filament\Forms\Components\Section::make('Campos do Município')
-                    ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('edificacao')->isNotEmpty())
+                // Refatoração PoC Tangará: TODOS os atributos descritivos da edificação
+                // são campos customizados (o kit inicial cria tipo_edificacao, pavimento,
+                // tp_construcao e estado_conservacao — o município ajusta como quiser).
+                \Filament\Forms\Components\Section::make('Dados da Edificação')
                     ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('edificacao'))
-                    ->columnSpanFull(),
-
+                    ->columns(2),
             ])
             ->action(function (array $data) {
                 $data['tenant_id'] = $this->tenantId;
@@ -104,39 +88,19 @@ trait HasEdificacaoActions
                 $edif = Edificacao::find($this->edificacaoAtivaId);
 
                 return [
-                    'tipo' => $edif?->tipo,
-                    'tp_construcao' => $edif?->tp_construcao,
-                    'caracteristica_construcao' => $edif?->caracteristica_construcao,
-                    'estado_conservacao' => $edif?->estado_conservacao,
-                    'pavimento' => $edif?->pavimento,
                     'area_geo' => $edif?->area_geo,
                     'dados_customizados' => $edif?->dados_customizados ?? [], // R67-1
                 ];
             })
             ->form([
-                // R67-2 — rótulo/valores definidos pelo município
-                \App\Services\Coleta\CampoDominioService::aplicar(Select::make('tipo')->required(), 'edificacao', 'tipo'),
-                \App\Services\Coleta\CampoDominioService::aplicar(Select::make('tp_construcao')->required(), 'edificacao', 'tp_construcao'),
-                \App\Services\Coleta\CampoDominioService::aplicar(
-                    \Filament\Forms\Components\TextInput::make('caracteristica_construcao')
-                        ->placeholder('Ex: Pavimento 1, Anexo, Edícula...')
-                        ->maxLength(255)
-                        ->nullable(),
-                    'edificacao', 'caracteristica_construcao'
-                ),
-                \App\Services\Coleta\CampoDominioService::aplicar(Select::make('estado_conservacao')->required(), 'edificacao', 'estado_conservacao'),
-                \App\Services\Coleta\CampoDominioService::aplicar(
-                    \Filament\Forms\Components\TextInput::make('pavimento')->numeric()->minValue(1)->maxValue(99)->nullable(),
-                    'edificacao', 'pavimento'
-                ),
+                // Refatoração PoC Tangará: atributos descritivos = campos customizados.
                 \Filament\Forms\Components\TextInput::make('area_geo')
                     ->label('Área (m²)')
                     ->readOnly(),
 
-                // R67-1 — campos criados pelo município
-                \Filament\Forms\Components\Section::make('Campos do Município')
-                    ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('edificacao')->isNotEmpty())
+                \Filament\Forms\Components\Section::make('Dados da Edificação')
                     ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('edificacao'))
+                    ->columns(2)
                     ->columnSpanFull(),
             ])
             ->action(function (array $data) {

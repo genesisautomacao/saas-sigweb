@@ -1,0 +1,206 @@
+LISTA FINAL PARA APROVACAO - MODULO IMOBILIARIO
+Levantado do banco real. Consolidado em 2026-08-01 com todas as suas observacoes.
+NADA foi executado ainda alem do campo "codigo" (E1.1, ja feito e testado).
+
+LEGENDA
+  BASE   = infraestrutura, nem entra na discussao (id, FK, geometria, datas, derivados)
+  FIXO   = nasce com toda prefeitura nova, coluna do sistema
+  KIT    = nasce como CAMPO CUSTOMIZADO ja criado no provisionamento (rotulo e opcoes editaveis)
+  SAI    = coluna que EXISTE hoje e sera REMOVIDA; vira campo customizado se o municipio quiser
+
+REGRA: campo alimentado pelo sistema tributario nao e campo fixo do SIGWEB.
+       Excecao: NOME PROPRIO que identifica o imovel (logradouro_nome, nome_edificio)
+       - isso e identificacao, nao vocabulario do fornecedor.
+
+
+================================================================================
+LOTES                                                          (11.044 registros)
+================================================================================
+id / tenant_id / code / sequential_id / quadra_id / zona_id / geo / datas   BASE
+area_geo                    BASE     calculado por PostGIS
+main_facade_length          BASE     testada principal, derivada
+dados_customizados          BASE     json -> JSONB (indexavel)
+
+numero_lote                 FIXO     identificacao
+status_cadastro             FIXO     cache da coleta vigente; colore o mapa (mantido aqui de
+                                     proposito: 4.434 poligonos por requisicao, sem JOIN)
+ocupacao                    FIXO     binario baldio/construido
+foto_frontal                FIXO     contrato do app
+foto_lateral_esq            FIXO     contrato do app
+foto_lateral_dir            FIXO     contrato do app
+numero_logradouro           FIXO     saida da NUMERACAO PREDIAL (numero novo gerado)
+numero_predial_antigo       FIXO     numero anterior, guardado pela numeracao predial
+
+area_cadastrada             FIXO     APROVADO MANTER - base do comparativo de areas
+                                     (area cadastrada x area_geo medida, com delta)
+
+tipo_logradouro             SAI      copia do endereco da unidade
+logradouro                  SAI      copia - a busca ja faz JOIN e procura duas vezes
+cep                         SAI      copia
+dados_vistoria              SAI      morto: superado pelo boletim configuravel (3 de 11.044)
+observacao                  SAI      -> vai para coleta_imobiliaria
+inconformidade_descricao    SAI      -> vai para coleta_imobiliaria
+coletado_por_id             SAI      -> vai para coleta_imobiliaria
+coletado_em                 SAI      -> vai para coleta_imobiliaria
+
+>>> O logradouro do lote passa a vir de lote_testadas.logradouro_id (normalizado,
+>>> e e o que o item 42 do edital pede: "Logradouro e Secao de cada testada")
+
+
+================================================================================
+EDIFICACOES                                                     (7.894 registros)
+================================================================================
+id / tenant_id / code / sequential_id / lote_id / geo / datas   BASE
+area_geo                    BASE     calculado por PostGIS
+dados_customizados          BASE     json -> JSONB
+
+tipo_edificacao             KIT      renomeado de "tipo"; rotulo e opcoes editaveis
+pavimento                   KIT      rotulo e opcoes editaveis
+
+tp_construcao               SAI      valores reais: "Alvenaria (0)" - codigo do fornecedor dentro
+caracteristica_construcao   SAI      valores reais: "Pavimento 1", "Pavimento 2"
+estado_conservacao          SAI      valores reais: Mau, Nova/Otima, Nenhum
+
+>>> ZERO campos FIXO. So geometria, area e campos da prefeitura.
+
+
+================================================================================
+UNIDADE_IMOBILIARIAS                                            (4.693 registros)
+================================================================================
+id / tenant_id / code / sequential_id / lote_id / datas   BASE
+proprietario_id             BASE     FK para pessoas - e o vinculo do proprietario
+dados_tributarios           BASE     json -> JSONB. Bruto do tributario, continua sendo a verdade
+dados_customizados          BASE     json -> JSONB
+
+codigo_imovel_tributario    FIXO     chave de ligacao com o fornecedor
+inscricao_imobiliaria       FIXO     chave de ligacao + busca por inscricao (item 4)
+logradouro_nome             FIXO     endereco do imovel (item 3)
+numero_imovel               FIXO     endereco do imovel
+nome_edificio        (NOVO) FIXO     nome proprio, nao vocabulario (itens 5 e 3-3)
+
+tipo_construcao             SAI      vocabulario do tributario
+descricao_classificacao     SAI      vocabulario do tributario
+face                        SAI      vocabulario do tributario
+fracao_ideal                SAI      so exibicao no BIC
+area_edificacao             SAI      so exibicao no BIC
+area_total_edificacao       SAI      derivavel de SUM(edificacoes.area_geo)
+valor_venal_lote            SAI      nenhum codigo le a coluna
+valor_venal_edificacao      SAI      nenhum codigo le a coluna
+valor_metro_terreno         SAI      so exibicao no BIC
+valor_metro_edificacao      SAI      so exibicao no BIC
+valor_imposto_territorial   SAI      so exibicao no BIC
+valor_imposto_predial       SAI      so exibicao no BIC
+valor_total_imposto         SAI      o PGV le do JSON, nao da coluna (verificado)
+
+>>> AS 13 COLUNAS FISCAIS SAEM. Nenhuma tem consumidor no codigo alem de exibir.
+>>> O dado continua integro em dados_tributarios.
+
+>>> PROPRIETARIO: nao serao criadas colunas proprietario_nome / proprietario_cpf_cnpj.
+>>> A busca passa a usar pessoas via proprietario_id (os 3.962 registros com JSON sao
+>>> exatamente os 3.962 com proprietario_id - normalizar nao perde nada) e corrige o
+>>> buraco de municipio sem integracao tributaria nao achar proprietario nenhum.
+
+
+================================================================================
+COLETA_IMOBILIARIA                                                  (TABELA NOVA)
+================================================================================
+id / tenant_id / datas                          BASE
+coletavel_type / coletavel_id                   BASE   polimorfico:
+                                                       Lote | Edificacao | UnidadeImobiliaria
+                                                       (futuro: Arvore, Poste, o que vier)
+campanha                    FIXO     recadastramento nao sobrescreve o anterior
+status                      FIXO     nao_visitado / coletado / pendente / inconformidade
+coletado_por_id             FIXO     quem coletou
+coletado_em                 FIXO     quando coletou
+observacao                  FIXO     texto livre do boletim
+inconformidade_descricao    FIXO     descricao da inconformidade
+
+indice (tenant_id, coletavel_type, coletavel_id, campanha)
+
+>>> A visita continua reconstituivel por campanha + coletado_por + coletado_em.
+>>> Se um dia precisar do agrupamento formal de visita, entra um grupo_id nullable.
+
+
+================================================================================
+QUADRAS (378) | BAIRROS (15) | LOGRADOUROS (199) | LOTEAMENTOS (2)
+================================================================================
+QUADRAS      name FIXO | codigo FIXO (ja criado)     | setor_codigo SAI (redundante)
+BAIRROS      name FIXO | codigo FIXO (ja criado)     | setor        SAI (redundante)
+LOGRADOUROS  name FIXO | codigo FIXO (ja criado)
+LOTEAMENTOS  name FIXO                                | setor        SAI (0 de 2 preenchidos)
+(area_geo / extensao_geo / FKs / datas = BASE em todas)
+
+
+================================================================================
+SECOES_LOGRADOURO (2) | LOTE_TESTADAS (5)
+================================================================================
+SECOES        name FIXO | codigo FIXO (ja criado) | lado FIXO (NOVO: par/impar/ambos)
+              tipo_pavimentacao SAI (asfalto/terra/concreto varia por municipio)
+LOTE_TESTADAS tipo FIXO (principal/secundaria/lateral/fundos)
+(extensao_geo / comprimento / FKs = BASE)
+
+
+================================================================================
+ZONAS (23) | PERIMETROS_URBANOS (1) | SETORES_FISCAIS (4) | MEIO_FIOS (3)
+================================================================================
+ZONAS         name FIXO | sigla FIXO | rgb FIXO | codigo FIXO (ja criado)
+PERIMETROS    name FIXO | distrito FIXO | fill_color FIXO | codigo FIXO (ja criado)
+SETORES       nome FIXO | codigo FIXO (ja criado)  | descricao SAI (texto solto)
+MEIO_FIOS     observacoes FIXO   | material SAI | estado_conservacao SAI
+(area_geo / extensao_geo / FKs = BASE em todas)
+
+
+================================================================================
+MUDANCAS GLOBAIS (fora da lista de campos)
+================================================================================
+1. json -> JSONB nas 5 colunas
+   lotes.dados_customizados, edificacoes.dados_customizados,
+   unidade_imobiliarias.dados_customizados, unidade_imobiliarias.dados_tributarios
+   (lotes.dados_vistoria e removida)
+   MOTIVO: quase tudo passa a viver em dados_customizados e o item 76 exige filtrar,
+   tematizar e gerar estatistica por esses campos. Com "json" nao existe indice - cada
+   filtro vira varredura completa com parse linha a linha. Com jsonb, indice GIN resolve.
+
+2. Habilitar pg_trgm (disponivel no servidor, nao instalado) e criar indices GIN em:
+   pessoas.name, pessoas.cpf, pessoas.cnpj
+   unidade_imobiliarias.nome_edificio, unidade_imobiliarias.logradouro_nome
+   MOTIVO: hoje a busca unificada faz ILIKE '%termo%' sem NENHUM indice que a sirva.
+
+3. KIT INICIAL - seeder que cria os campos customizados padrao ao provisionar
+   prefeitura nova (comeca por tipo_edificacao e pavimento).
+
+4. De/para do sistema tributario passa a poder mirar SLUG de campo customizado,
+   e nao so coluna canonica. E a "associacao no momento da integracao".
+
+
+================================================================================
+NUMEROS
+================================================================================
+FIXO   : 35 campos + 6 na tabela nova
+SAI    : 34 colunas removidas
+NOVO   : 2 colunas (secoes.lado, unidade.nome_edificio) + 1 tabela
+JA FEITO: 7 colunas "codigo" (E1.1, testado, 16 assercoes)
+
+CAMPOS FIXOS COM LISTA DE VALORES GOVERNADA PELO SISTEMA - apenas 4:
+  lotes.ocupacao               baldio / construido
+  secoes_logradouro.lado       par / impar / ambos
+  lote_testadas.tipo           principal / secundaria / lateral / fundos
+  coleta_imobiliaria.status    nao_visitado / coletado / pendente / inconformidade
+
+Todo o resto dos FIXO e texto, numero, data, foto ou cor - sem lista para discutir.
+
+
+================================================================================
+PENDENCIAS - TODAS RESOLVIDAS EM 2026-08-01
+================================================================================
+1. lotes.area_cadastrada -> APROVADO MANTER como FIXO.
+   E a base do comparativo de areas (cadastrada x area_geo medida, com delta).
+
+2. lotes.observacao e inconformidade_descricao -> APROVADO MOVER.
+   Ficam apenas em coleta_imobiliaria.
+
+3. APP DE COLETA -> sem documento de contrato. O app fica em
+   C:\laragon\www\aplicativos-sigweb\app-coletas e sera alterado direto,
+   junto com o backend. Refatoracao ponta a ponta.
+
+>>> LISTA APROVADA. Pode executar.

@@ -32,9 +32,9 @@ class LoteExportService
                 'Zona' => $lote->zona->sigla ?? '-',
                 'Testada (m)' => $lote->main_facade_length ? number_format($lote->main_facade_length, 2, ',', '') : '0,00',
                 'Área Geo (m²)' => $lote->area_geo ? number_format($lote->area_geo, 2, ',', '') : '0,00',
-                // R67-2 — rótulo do campo E do valor definidos pelo município
+                // R67-2 — rótulo do campo E do valor definidos pelo município.
+                // situacao_quadra e demais atributos viraram campos customizados (abaixo).
                 CampoDominioService::label('lote', 'ocupacao') => CampoDominioService::rotuloValor('lote', 'ocupacao', $lote->ocupacao) ?? '-',
-                CampoDominioService::label('lote', 'situacao_quadra') => CampoDominioService::rotuloValor('lote', 'situacao_quadra', $lote->situacao_quadra) ?? '-',
             ], CampoCustomizadoService::colunasExport('lote', $lote->dados_customizados)); // R67-1
         });
 
@@ -60,15 +60,12 @@ class LoteExportService
             $writer->addHeader(array_keys($unidadesData->first()))->addRows($unidadesData->toArray());
         }
 
+        // Refatoração PoC Tangará: os atributos descritivos da edificação são campos
+        // customizados — colunasExport() já os rotula e formata.
         $edificacoesData = $lotes->flatMap(function ($lote) {
             return $lote->edificacoes->map(function ($edificacao) use ($lote) {
                 return array_merge([
                     'Lote' => $lote->numero_lote,
-                    // R67-2 — rótulos definidos pelo município
-                    CampoDominioService::label('edificacao', 'tipo') => $edificacao->tipo ?? '-',
-                    CampoDominioService::label('edificacao', 'tp_construcao') => $edificacao->tp_construcao ?? '-',
-                    CampoDominioService::label('edificacao', 'estado_conservacao') => $edificacao->estado_conservacao ?? '-',
-                    CampoDominioService::label('edificacao', 'pavimento') => $edificacao->pavimento ?? '-',
                     'Área (m²)' => $edificacao->area_geo ? number_format($edificacao->area_geo, 2, ',', '') : '0,00',
                 ], CampoCustomizadoService::colunasExport('edificacao', $edificacao->dados_customizados)); // R67-1
             });
@@ -127,8 +124,7 @@ class LoteExportService
             $loteXml->addChild('testada_m', number_format($lote->main_facade_length ?? 0, 2, '.', ''));
             $loteXml->addChild('area_geo_m2', number_format($lote->area_geo ?? 0, 2, '.', ''));
             $loteXml->addChild('ocupacao', htmlspecialchars((string) ($lote->ocupacao ?? '')));
-            $loteXml->addChild('situacao_quadra', htmlspecialchars((string) ($lote->situacao_quadra ?? '')));
-            self::xmlCustomizados($loteXml, 'lote', $lote->dados_customizados); // R67-1
+            self::xmlCustomizados($loteXml, 'lote', $lote->dados_customizados); // R67-1 (inclui situacao_quadra)
 
             $unidadesXml = $loteXml->addChild('unidades_imobiliarias');
             foreach ($lote->unidadesImobiliarias as $unidade) {
@@ -144,11 +140,8 @@ class LoteExportService
             $edificacoesXml = $loteXml->addChild('edificacoes');
             foreach ($lote->edificacoes as $edificacao) {
                 $edificacaoXml = $edificacoesXml->addChild('edificacao');
-                $edificacaoXml->addChild('tipo', htmlspecialchars($edificacao->tipo ?? ''));
-                $edificacaoXml->addChild('tp_construcao', htmlspecialchars($edificacao->tp_construcao ?? ''));
-                $edificacaoXml->addChild('estado_conservacao', htmlspecialchars($edificacao->estado_conservacao ?? ''));
-                $edificacaoXml->addChild('pavimento', htmlspecialchars((string) ($edificacao->pavimento ?? '')));
                 $edificacaoXml->addChild('area_geo_m2', number_format($edificacao->area_geo ?? 0, 2, '.', ''));
+                // Atributos descritivos = campos customizados (tipo_edificacao, pavimento...)
                 self::xmlCustomizados($edificacaoXml, 'edificacao', $edificacao->dados_customizados); // R67-1
             }
         }

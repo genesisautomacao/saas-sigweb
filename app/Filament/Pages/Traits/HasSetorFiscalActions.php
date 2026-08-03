@@ -34,6 +34,11 @@ trait HasSetorFiscalActions
                             : '<em style="color:#9ca3af;">Sem geometria — desenhe a área no mapa primeiro.</em>'
                     )),
 
+                TextInput::make('codigo')
+                    ->label('Código do Setor')
+                    ->helperText('Código do cadastro municipal (item 47 do edital).')
+                    ->maxLength(50),
+
                 TextInput::make('nome')
                     ->label('Nome do Setor Fiscal')
                     ->required()
@@ -46,9 +51,6 @@ trait HasSetorFiscalActions
                     ->searchable()
                     ->preload(),
 
-                Textarea::make('descricao')
-                    ->label('Descrição')
-                    ->columnSpanFull(),
             ])
             ->action(function (array $data) {
                 if (!$this->geometriaRascunho) {
@@ -61,7 +63,6 @@ trait HasSetorFiscalActions
                     // LINHA 'code' => (string) Str::uuid(), FOI REMOVIDA DAQUI!
                     'nome' => $data['nome'],
                     'pgv_parametro_id' => $data['pgv_parametro_id'],
-                    'descricao' => $data['descricao'],
                     'geo' => $this->geometriaRascunho,
                     'area_geo' => $this->setorFiscalAreaCalculada,
                 ]);
@@ -103,6 +104,11 @@ trait HasSetorFiscalActions
                                 : '<em style="color:#9ca3af;">Sem geometria registrada.</em>'
                         );
                     }),
+
+                TextInput::make('codigo')
+                    ->label('Código do Setor')
+                    ->maxLength(50)
+                    ->default(fn () => SetorFiscal::find($this->setorFiscalAtivoId)?->codigo),
 
                 TextInput::make('nome')
                     ->label('Nome do Setor')

@@ -20,8 +20,8 @@ class MeioFioExportService
         $data = $records->map(fn ($r) => [
             'ID' => $r->sequential_id,
             'Logradouro' => $r->logradouro?->name ?? '-',
-            'Material' => $r->material ? ucfirst($r->material) : '-',
-            'Conservação' => $r->estado_conservacao ? ucfirst($r->estado_conservacao) : '-',
+            'Material' => ($r->dados_customizados['material'] ?? null) ? ucfirst($r->dados_customizados['material']) : '-',
+            'Conservação' => ($r->dados_customizados['estado_conservacao'] ?? null) ? ucfirst($r->dados_customizados['estado_conservacao']) : '-',
             'Extensão (m)' => $r->extensao_geo ? number_format((float) $r->extensao_geo, 2, ',', '.') : '0,00',
             'Observações' => $r->observacoes ?? '',
         ]);
@@ -39,8 +39,8 @@ class MeioFioExportService
         $data = $records->map(fn ($r) => [
             $r->sequential_id,
             $r->logradouro?->name ?? '-',
-            $r->material ? ucfirst($r->material) : '-',
-            $r->estado_conservacao ? ucfirst($r->estado_conservacao) : '-',
+            ($r->dados_customizados['material'] ?? null) ? ucfirst($r->dados_customizados['material']) : '-',
+            ($r->dados_customizados['estado_conservacao'] ?? null) ? ucfirst($r->dados_customizados['estado_conservacao']) : '-',
             $r->extensao_geo ? number_format((float) $r->extensao_geo, 2, ',', '.').' m' : '-',
         ]);
         $headings = ['ID', 'Logradouro', 'Material', 'Conservação', 'Extensão'];

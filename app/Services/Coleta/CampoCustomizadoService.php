@@ -14,37 +14,46 @@ use Illuminate\Support\Collection;
  */
 class CampoCustomizadoService
 {
-    /**
-     * Colunas reais de cada tabela — um slug customizado NUNCA pode colidir com elas
-     * (senão o import GIS e os forms escreveriam no lugar errado).
-     */
-    public const COLUNAS_RESERVADAS = [
-        'lote' => [
-            'id', 'tenant_id', 'sequential_id', 'quadra_id', 'zona_id', 'code', 'numero_lote',
-            'area_geo', 'area_cadastrada', 'main_facade_length', 'geo', 'foto_frontal',
-            'foto_lateral_esq', 'foto_lateral_dir', 'observacao', 'status_cadastro', 'ocupacao',
-            'situacao_quadra', 'inconformidade_descricao', 'dados_vistoria', 'dados_customizados',
-            'coletado_por_id', 'coletado_em', 'numero_predial_antigo', 'tipo_logradouro',
-            'logradouro', 'numero_logradouro', 'cep', 'created_at', 'updated_at', 'deleted_at',
-        ],
-        'edificacao' => [
-            'id', 'tenant_id', 'sequential_id', 'lote_id', 'code', 'tipo', 'tp_construcao',
-            'caracteristica_construcao', 'estado_conservacao', 'pavimento', 'area_geo', 'geo',
-            'dados_customizados', 'created_at', 'updated_at', 'deleted_at',
-        ],
-        'unidade' => [
-            'id', 'tenant_id', 'sequential_id', 'lote_id', 'proprietario_id', 'code',
-            'codigo_imovel_tributario', 'inscricao_imobiliaria', 'geo', 'dados_tributarios',
-            'dados_customizados', 'logradouro_nome', 'numero_imovel', 'tipo_construcao',
-            'descricao_classificacao', 'face', 'fracao_ideal', 'area_edificacao',
-            'area_total_edificacao', 'valor_venal_lote', 'valor_venal_edificacao',
-            'valor_metro_terreno', 'valor_metro_edificacao', 'valor_imposto_territorial',
-            'valor_imposto_predial', 'valor_total_imposto', 'created_at', 'updated_at', 'deleted_at',
-        ],
+    /** Entidade (chave de CampoCustomizado::ENTIDADES) => tabela real. */
+    public const ENTIDADE_TABELA = [
+        'lote' => 'lotes',
+        'edificacao' => 'edificacoes',
+        'unidade' => 'unidade_imobiliarias',
+        'quadra' => 'quadras',
+        'bairro' => 'bairros',
+        'logradouro' => 'logradouros',
+        'secao_logradouro' => 'secoes_logradouro',
+        'lote_testada' => 'lote_testadas',
+        'loteamento' => 'loteamentos',
+        'zona' => 'zonas',
+        'perimetro' => 'perimetros_urbanos',
+        'setor_fiscal' => 'setores_fiscais',
+        'meio_fio' => 'meio_fios',
     ];
 
     /** Cache por request: [tenantId][entidade] => Collection<CampoCustomizado> */
     protected static array $cache = [];
+
+    /** Cache por request das colunas reais de cada tabela. */
+    protected static array $cacheColunas = [];
+
+    /**
+     * Colunas reais da tabela — um slug customizado NUNCA pode colidir com elas
+     * (senão o import GIS e os forms escreveriam no lugar errado).
+     *
+     * Lida do schema, não de lista fixa: a lista fixa ficava obsoleta a cada
+     * migration e ainda mencionaria colunas já removidas.
+     */
+    public static function colunasReservadas(string $entidade): array
+    {
+        $tabela = self::ENTIDADE_TABELA[$entidade] ?? null;
+
+        if (! $tabela || ! \Illuminate\Support\Facades\Schema::hasTable($tabela)) {
+            return [];
+        }
+
+        return self::$cacheColunas[$tabela] ??= \Illuminate\Support\Facades\Schema::getColumnListing($tabela);
+    }
 
     /** Definições ativas da entidade, ordenadas. */
     public static function definicoes(string $entidade, ?int $tenantId = null): Collection

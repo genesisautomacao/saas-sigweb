@@ -15,10 +15,15 @@ class SecaoLogradouro extends Model
     protected $table = 'secoes_logradouro';
 
     protected $fillable = [
-        'tenant_id', 'sequential_id', 'code',
-        'name', 'tipo_pavimentacao', 'extensao_geo',
+        'tenant_id', 'sequential_id', 'code', 'codigo', 'lado',
+        'name', 'extensao_geo',
         'logradouro_id',
+        'dados_customizados',
         'geo',
+    ];
+
+    protected $casts = [
+        'dados_customizados' => 'array', // campos do município (item 75)
     ];
 
     protected $hidden = ['geo'];

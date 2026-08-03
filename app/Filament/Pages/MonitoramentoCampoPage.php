@@ -53,9 +53,12 @@ class MonitoramentoCampoPage extends Page
             ->orderByDesc('cl.updated_at')
             ->get()
             ->map(function ($row) {
-                $coletadosHoje = DB::table('lotes')
+                // Refatoração PoC Tangará: quem/quando coletou vive em coleta_imobiliaria.
+                $coletadosHoje = DB::table('coleta_imobiliaria')
                     ->where('coletado_por_id', $row->user_id)
                     ->where('tenant_id', $this->tenantId)
+                    ->where('coletavel_type', 'App\\Models\\Lote')
+                    ->whereNull('deleted_at')
                     ->whereDate('coletado_em', today())
                     ->count();
 

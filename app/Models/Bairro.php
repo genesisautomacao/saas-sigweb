@@ -32,11 +32,16 @@ class Bairro extends Model
     protected $fillable = [
         'tenant_id',
         'sequential_id',
+        'codigo',
         'code',
         'name',
-        'setor',
+        'dados_customizados',
         'area_geo',
         'geo',
+    ];
+
+    protected $casts = [
+        'dados_customizados' => 'array', // campos do município (item 75)
     ];
 
     protected $hidden = ['geo'];

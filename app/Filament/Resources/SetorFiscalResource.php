@@ -30,6 +30,11 @@ class SetorFiscalResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Identificação do Setor')
                     ->schema([
+                        Forms\Components\TextInput::make('codigo')
+                            ->label('Código do Setor')
+                            ->helperText('Código do cadastro municipal.')
+                            ->maxLength(50),
+
                         Forms\Components\TextInput::make('nome')
                             ->label('Nome do Setor')
                             ->required()
@@ -42,9 +47,6 @@ class SetorFiscalResource extends Resource
                             ->preload()
                             ->searchable(),
 
-                        Forms\Components\Textarea::make('descricao')
-                            ->label('Descrição / Observações')
-                            ->columnSpanFull(),
                     ])->columns(2),
 
                 // O PADRÃO OURO DE GEOJSON ESPELHADO DO LOTE
@@ -67,6 +69,8 @@ class SetorFiscalResource extends Resource
                 Tables\Columns\TextColumn::make('sequential_id')
                     ->label('ID')
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('codigo')->label('Código')->searchable()->sortable()->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('nome')
                     ->label('Setor')

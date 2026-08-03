@@ -13,23 +13,24 @@ use App\Models\User;
  */
 class ColetaConfigService
 {
-    /** Campos base do LOTE que podem ser exigidos no boletim. */
+    /**
+     * Campos base do LOTE que podem ser exigidos no boletim.
+     * Refatoração PoC Tangará: situacao_quadra virou campo customizado (kit) e a
+     * observação passou a pertencer à COLETA (coleta_imobiliaria.observacao).
+     */
     public const CAMPOS_BASE_LOTE = [
         'ocupacao' => 'Ocupação do lote',
-        'situacao_quadra' => 'Situação na quadra',
-        'observacao' => 'Observação',
+        'observacao' => 'Observação da coleta',
         'foto_frontal' => 'Foto frontal',
         'foto_lateral_esq' => 'Foto lateral esquerda',
         'foto_lateral_dir' => 'Foto lateral direita',
     ];
 
-    /** Campos base da EDIFICAÇÃO que podem ser exigidos no boletim. */
+    /**
+     * Campos base da EDIFICAÇÃO — só a área construída restou como campo fixo;
+     * os atributos descritivos são campos customizados (kit inicial).
+     */
     public const CAMPOS_BASE_EDIFICACAO = [
-        'tipo' => 'Finalidade / uso',
-        'tp_construcao' => 'Tipo de construção',
-        'caracteristica_construcao' => 'Característica da construção',
-        'estado_conservacao' => 'Estado de conservação',
-        'pavimento' => 'Nº de pavimentos',
         'area_geo' => 'Área construída',
     ];
 

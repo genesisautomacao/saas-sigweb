@@ -279,8 +279,8 @@
             {{ $quadra->bairro?->name ? 'Bairro ' . $quadra->bairro->name . ' · ' : '' }}
             {{ $quadra->loteamento?->name ? 'Loteamento ' . $quadra->loteamento->name . ' · ' : '' }}
             {{ $quadra->perimetro?->name ? 'Distrito ' . $quadra->perimetro->name : '' }}
-            @if ($quadra->setor_codigo)
-                · Setor {{ $quadra->setor_codigo }}
+            @if ($quadra->codigo)
+                · Código {{ $quadra->codigo }}
             @endif
         </div>
     </div>
@@ -310,7 +310,7 @@
                 <div class="row"><strong>Bairro:</strong> {{ $quadra->bairro?->name ?? '—' }}</div>
                 <div class="row"><strong>Loteamento:</strong> {{ $quadra->loteamento?->name ?? '—' }}</div>
                 <div class="row"><strong>Distrito:</strong> {{ $quadra->perimetro?->name ?? '—' }}</div>
-                <div class="row"><strong>Cód. Setor:</strong> {{ $quadra->setor_codigo ?? '—' }}</div>
+                <div class="row"><strong>Código:</strong> {{ $quadra->codigo ?? '—' }}</div>
                 <div class="row"><strong>Área Total da Quadra:</strong>
                     {{ $quadra->area_geo ? number_format($quadra->area_geo, 2, ',', '.') . ' m²' : '—' }}
                 </div>
@@ -375,7 +375,7 @@
                     <th class="num" style="width: 10%;">Área (m²)</th>
                     <th class="num" style="width: 9%;">Testada (m)</th>
                     <th class="ctr" style="width: 10%;">{{ \App\Services\Coleta\CampoDominioService::label('lote', 'ocupacao') }}</th>
-                    <th class="ctr" style="width: 9%;">{{ \App\Services\Coleta\CampoDominioService::label('lote', 'situacao_quadra') }}</th>
+                    <th class="ctr" style="width: 9%;">Situação na Quadra</th>
                     <th class="ctr" style="width: 8%;">Edif.</th>
                     <th class="num" style="width: 9%;">Área Constr.</th>
                 </tr>
@@ -389,7 +389,8 @@
                         $ocupacaoClass =
                             ['baldio' => 'badge-baldio', 'construido' => 'badge-construido'][$l->ocupacao] ??
                             'badge-default';
-                        $situacaoLabel = $dominio::rotuloValor('lote', 'situacao_quadra', $l->situacao_quadra) ?? '—';
+                        {{-- Refatoração PoC Tangará: situacao_quadra é campo customizado --}}
+                        $situacaoLabel = $l->dados_customizados['situacao_quadra'] ?? '—';
                         $areaConstrLote = $l->edificacoes->sum('area_geo');
                     @endphp
                     <tr>
@@ -464,13 +465,15 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {{-- Refatoração PoC Tangará: atributos descritivos em dados_customizados --}}
                         @foreach ($l->edificacoes as $e)
+                            @php $dc = (array) $e->dados_customizados; @endphp
                             <tr>
-                                <td>{{ $e->tipo ?? '—' }}</td>
-                                <td>{{ $e->tp_construcao ?? '—' }}</td>
-                                <td>{{ $e->caracteristica_construcao ?? '—' }}</td>
-                                <td class="ctr">{{ $e->estado_conservacao ?? '—' }}</td>
-                                <td class="ctr">{{ $e->pavimento ?? '—' }}</td>
+                                <td>{{ $dc['tipo_edificacao'] ?? '—' }}</td>
+                                <td>{{ $dc['tp_construcao'] ?? '—' }}</td>
+                                <td>{{ $dc['caracteristica_construcao'] ?? '—' }}</td>
+                                <td class="ctr">{{ $dc['estado_conservacao'] ?? '—' }}</td>
+                                <td class="ctr">{{ $dc['pavimento'] ?? '—' }}</td>
                                 <td class="num">{{ number_format($e->area_geo ?? 0, 2, ',', '.') }}</td>
                             </tr>
                         @endforeach

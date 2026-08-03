@@ -47,22 +47,8 @@ trait HasMeioFioActions
                     ->options(Logradouro::where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'))
                     ->searchable()
                     ->preload(),
-                Select::make('material')
-                    ->label('Material')
-                    ->options([
-                        'concreto' => 'Concreto',
-                        'granito'  => 'Granito',
-                        'asfalto'  => 'Asfalto',
-                        'pedra'    => 'Pedra',
-                        'outro'    => 'Outro',
-                    ]),
-                Select::make('estado_conservacao')
-                    ->label('Estado de Conservação')
-                    ->options([
-                        'bom'     => 'Bom',
-                        'regular' => 'Regular',
-                        'ruim'    => 'Ruim',
-                    ]),
+                // Refatoração PoC Tangará: material/estado são campos customizados (kit)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('meio_fio'),
                 Textarea::make('observacoes')->label('Observações')->rows(2),
             ])
             ->action(function (array $data) {
@@ -105,10 +91,9 @@ trait HasMeioFioActions
             ->fillForm(function (): array {
                 $reg = MeioFio::find($this->meioFioAtivoId);
                 return [
-                    'material'           => $reg?->material,
-                    'estado_conservacao' => $reg?->estado_conservacao,
                     'logradouro_id'      => $reg?->logradouro_id,
                     'observacoes'        => $reg?->observacoes,
+                    'dados_customizados' => $reg?->dados_customizados ?? [],
                 ];
             })
             ->form([
@@ -128,22 +113,8 @@ trait HasMeioFioActions
                     ->options(Logradouro::where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'))
                     ->searchable()
                     ->preload(),
-                Select::make('material')
-                    ->label('Material')
-                    ->options([
-                        'concreto' => 'Concreto',
-                        'granito'  => 'Granito',
-                        'asfalto'  => 'Asfalto',
-                        'pedra'    => 'Pedra',
-                        'outro'    => 'Outro',
-                    ]),
-                Select::make('estado_conservacao')
-                    ->label('Estado de Conservação')
-                    ->options([
-                        'bom'     => 'Bom',
-                        'regular' => 'Regular',
-                        'ruim'    => 'Ruim',
-                    ]),
+                // Refatoração PoC Tangará: material/estado são campos customizados (kit)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('meio_fio'),
                 Textarea::make('observacoes')->label('Observações')->rows(2),
             ])
             ->action(function (array $data) {

@@ -49,14 +49,20 @@ class AppServiceProvider extends ServiceProvider
             'panels::sidebar.expand-button' => 'heroicon-o-bars-3',
         ]);
 
-        // Injeção dinâmica das credenciais do Resend (e-mail transacional).
-        // As credenciais são globais (super usuário → ApiSettingResource, name = "Resend") e
-        // valem para TODAS as tenants. Sem essa linha configurada, o mailer default (log/env)
-        // continua valendo — nada quebra.
+        // Injeção dinâmica das credenciais de APIs de terceiros (ApiSettingResource, /admin).
+        // Todas as linhas de api_settings são carregadas numa consulta só (com cache — o
+        // model invalida no saved/deleted) e injetadas em config(). O .env é o fallback.
+        // Sem linha cadastrada, nada muda — e NENHUM runtime deve chamar env() direto:
+        // com config:cache ativo, env() fora dos arquivos de config retorna null (E1.5).
         try {
             if (Schema::hasTable('api_settings')) {
-                $resend = ApiSetting::query()->where('name', 'Resend')->first();
+                $settings = \Illuminate\Support\Facades\Cache::rememberForever(
+                    'api_settings.all',
+                    fn () => ApiSetting::query()->get()->keyBy('name')
+                );
 
+                // Resend (e-mail transacional) — vale para TODAS as tenants.
+                $resend = $settings->get('Resend');
                 if ($resend && ! empty($resend->data)) {
                     $data = $resend->data;
 
@@ -67,6 +73,18 @@ class AppServiceProvider extends ServiceProvider
 
                     Config::set('mail.from.address', $data['MAIL_FROM_ADDRESS'] ?? env('MAIL_FROM_ADDRESS'));
                     Config::set('mail.from.name', $data['MAIL_FROM_NAME'] ?? env('MAIL_FROM_NAME'));
+                }
+
+                // Azure Maps (basemaps Road/Satélite do mapa — item 1-4 da PoC Tangará).
+                $azure = $settings->get('Azure Maps');
+                if ($azure && ! empty($azure->data['AZURE_MAPS_KEY'])) {
+                    Config::set('services.azure_maps.key', $azure->data['AZURE_MAPS_KEY']);
+                }
+
+                // Google Maps (Street View / visualizador 360 + perfil altimétrico).
+                $google = $settings->get('Google Maps');
+                if ($google && ! empty($google->data['GOOGLE_MAPS_API_KEY'])) {
+                    Config::set('services.google_maps.key', $google->data['GOOGLE_MAPS_API_KEY']);
                 }
             }
         } catch (\Throwable $e) {

@@ -35,7 +35,7 @@ class ApiSettingResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Section::make('Detalhes da Integração')
-                    ->description('Credenciais globais usadas por todas as prefeituras. Para o e-mail transacional (Resend) crie um registro com o nome exato "Resend" e as chaves RESEND_API_KEY, MAIL_FROM_ADDRESS e MAIL_FROM_NAME.')
+                    ->description('Credenciais globais usadas por todas as prefeituras. Nomes reconhecidos pelo sistema: "Resend" (RESEND_API_KEY, MAIL_FROM_ADDRESS, MAIL_FROM_NAME) · "Azure Maps" (AZURE_MAPS_KEY — basemaps do mapa) · "Google Maps" (GOOGLE_MAPS_API_KEY — Street View e perfil altimétrico) · "Portal" (VIDEO_TUTORIAL_URL).')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->label('Nome da API')

@@ -20,30 +20,18 @@ class EdificacoesRelationManager extends RelationManager
     {
         return $form
             ->schema([
-                // R67-2 — rótulo/valores definidos pelo município
-                \App\Services\Coleta\CampoDominioService::aplicar(Forms\Components\Select::make('tipo')->required(), 'edificacao', 'tipo'),
-                \App\Services\Coleta\CampoDominioService::aplicar(Forms\Components\Select::make('tp_construcao')->required(), 'edificacao', 'tp_construcao'),
-                \App\Services\Coleta\CampoDominioService::aplicar(
-                    Forms\Components\TextInput::make('caracteristica_construcao')
-                        ->placeholder('Ex: Pavimento 1, Anexo, Edícula...')
-                        ->maxLength(255)
-                        ->nullable(),
-                    'edificacao', 'caracteristica_construcao'
-                ),
-                \App\Services\Coleta\CampoDominioService::aplicar(Forms\Components\Select::make('estado_conservacao')->required(), 'edificacao', 'estado_conservacao'),
-                \App\Services\Coleta\CampoDominioService::aplicar(
-                    Forms\Components\TextInput::make('pavimento')->numeric()->minValue(1)->maxValue(99)->nullable(),
-                    'edificacao', 'pavimento'
-                ),
                 Forms\Components\TextInput::make('area_geo')
                     ->label('Área (m²)')
                     ->numeric()
                     ->required(),
 
-                // R67-1 — campos criados pelo município
-                Forms\Components\Section::make('Campos do Município')
+                // Refatoração PoC Tangará: TODOS os atributos descritivos da edificação
+                // são campos customizados do município (o kit inicial cria o conjunto
+                // padrão — tipo_edificacao, pavimento, tp_construcao, estado_conservacao).
+                Forms\Components\Section::make('Dados da Edificação')
                     ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('edificacao')->isNotEmpty())
                     ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('edificacao'))
+                    ->columns(3)
                     ->columnSpanFull(),
             ]);
     }
@@ -54,17 +42,21 @@ class EdificacoesRelationManager extends RelationManager
             ->recordTitleAttribute('id')
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID'),
-                Tables\Columns\TextColumn::make('tipo')->label('Finalidade')->badge()->color('info'),
-                Tables\Columns\TextColumn::make('tp_construcao')->label('Construção')->badge()->color('gray'),
-                Tables\Columns\TextColumn::make('estado_conservacao')->label('Conservação')->badge()
+                // Atributos descritivos vivem em dados_customizados (JSONB)
+                Tables\Columns\TextColumn::make('dados_customizados.tipo_edificacao')
+                    ->label('Tipo de Edificação')->badge()->color('info')->default('—'),
+                Tables\Columns\TextColumn::make('dados_customizados.tp_construcao')
+                    ->label('Construção')->badge()->color('gray')->default('—'),
+                Tables\Columns\TextColumn::make('dados_customizados.estado_conservacao')
+                    ->label('Conservação')->badge()->default('—')
                     ->color(fn ($state) => match ($state) {
-                        'Bom' => 'success',
-                        'Médio' => 'warning',
-                        'Regular' => 'warning',
-                        'Ruim' => 'danger',
+                        'Bom', 'Ótimo', 'Nova/Ótima' => 'success',
+                        'Médio', 'Regular' => 'warning',
+                        'Ruim', 'Mau' => 'danger',
                         default => 'gray',
                     }),
-                Tables\Columns\TextColumn::make('pavimento')->label('Pavimentos')->alignCenter(),
+                Tables\Columns\TextColumn::make('dados_customizados.pavimento')
+                    ->label('Pavimentos')->alignCenter()->default('—'),
                 Tables\Columns\TextColumn::make('area_geo')
                     ->label('Área Construída')
                     ->suffix(' m²')

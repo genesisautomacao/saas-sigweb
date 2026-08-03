@@ -24,6 +24,11 @@ class LogradouroResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Dados do Logradouro')
                     ->schema([
+                        Forms\Components\TextInput::make('codigo')
+                            ->label('Código do Logradouro')
+                            ->helperText('Código do cadastro municipal.')
+                            ->maxLength(50),
+
                         Forms\Components\TextInput::make('name')
                             ->label('Nome do Logradouro')
                             ->required()
@@ -52,6 +57,7 @@ class LogradouroResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
+                Tables\Columns\TextColumn::make('codigo')->label('Código')->searchable()->sortable()->placeholder('—'),
                 Tables\Columns\TextColumn::make('name')->label('Nome do Logradouro')->searchable()->weight('bold'),
                 Tables\Columns\TextColumn::make('extensao_geo')
                     ->label('Extensão (m)')

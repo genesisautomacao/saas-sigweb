@@ -35,6 +35,11 @@ trait HasZonaActions
                             : '<em style="color:#9ca3af;">Sem geometria — desenhe a área no mapa primeiro.</em>'
                     )),
 
+                TextInput::make('codigo')
+                    ->label('Código do Zoneamento')
+                    ->helperText('Código do cadastro municipal (item 49 do edital).')
+                    ->maxLength(50),
+
                 TextInput::make('name')
                     ->label('Nome da Zona')
                     ->required()
@@ -119,6 +124,7 @@ trait HasZonaActions
 
                 return [
                     'name' => $reg?->name,
+                    'codigo' => $reg?->codigo,
                     'sigla' => $reg?->sigla,
                     'perimetro_id' => $reg?->perimetro_id,
                     'rgb' => $rgbFormatado,
@@ -137,6 +143,7 @@ trait HasZonaActions
                         );
                     }),
 
+                TextInput::make('codigo')->label('Código do Zoneamento')->maxLength(50),
                 TextInput::make('name')->label('Nome da Zona')->required()->maxLength(255),
                 TextInput::make('sigla')->label('Sigla')->required()->maxLength(50),
                 Select::make('perimetro_id')

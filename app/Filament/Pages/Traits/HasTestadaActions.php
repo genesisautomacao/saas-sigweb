@@ -14,6 +14,36 @@ use Illuminate\Support\HtmlString;
 
 trait HasTestadaActions
 {
+    // Auto-detecção topológica pré-criação (preenchidos em interceptarDesenho):
+    // logradouro mais próximo da linha e a seção mais próxima DELE. Editáveis no modal.
+    public ?int $testadaLogradouroPreSelecionadoId = null;
+
+    public ?int $testadaSecaoPreSelecionadaId = null;
+
+    /** Opções de seção do logradouro escolhido (rótulo = código + lado + nome). */
+    protected function opcoesSecaoDoLogradouro($logradouroId): array
+    {
+        if (! $logradouroId) {
+            return [];
+        }
+
+        return \App\Models\SecaoLogradouro::where('tenant_id', $this->tenantId)
+            ->where('logradouro_id', $logradouroId)
+            ->orderBy('codigo')
+            ->get()
+            ->mapWithKeys(function ($s) {
+                $lado = \App\Services\Coleta\CampoDominioService::rotuloValor('secao_logradouro', 'lado', $s->lado);
+                $rotulo = trim(implode(' · ', array_filter([
+                    $s->codigo ? "Seção {$s->codigo}" : "Seção #{$s->sequential_id}",
+                    $lado,
+                    $s->name,
+                ])));
+
+                return [$s->id => $rotulo];
+            })
+            ->toArray();
+    }
+
     public function toggleTestadasLote(): void
     {
         $this->mostrarTestadasLoteAtivo = !$this->mostrarTestadasLoteAtivo;
@@ -44,6 +74,11 @@ trait HasTestadaActions
             ->modalHeading('Cadastrar Nova Testada')
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Testada')
+            ->fillForm(fn (): array => [
+                // Pré-seleção topológica (KNN) — o usuário pode trocar os dois.
+                'logradouro_id' => $this->testadaLogradouroPreSelecionadoId,
+                'secao_logradouro_id' => $this->testadaSecaoPreSelecionadaId,
+            ])
             ->form([
                 Placeholder::make('comprimento_calculado')
                     ->label('Comprimento calculado pela linha desenhada')
@@ -53,12 +88,13 @@ trait HasTestadaActions
                             : '<em style="color:#9ca3af;">Desenhe a linha no mapa para calcular automaticamente.</em>'
                     )),
 
-                Select::make('tipo')
-                    ->label('Tipo de Testada')
-                    ->options(['principal' => 'Principal', 'secundaria' => 'Secundária'])
-                    ->default('secundaria')
-                    ->required()
-                    ->helperText('Apenas uma testada pode ser Principal por lote.'),
+                \App\Services\Coleta\CampoDominioService::aplicar(
+                    Select::make('tipo')
+                        ->default('secundaria')
+                        ->required()
+                        ->helperText('Apenas uma testada pode ser Principal por lote.'),
+                    'lote_testada', 'tipo'
+                ),
 
                 TextInput::make('comprimento')
                     ->label('Comprimento (m) — ajuste manual')
@@ -69,6 +105,7 @@ trait HasTestadaActions
 
                 Select::make('logradouro_id')
                     ->label('Logradouro')
+                    ->helperText('Detectado automaticamente como o mais próximo da linha. Pode trocar.')
                     ->options(
                         fn() => Logradouro::where('tenant_id', $this->tenantId)
                             ->orderBy('name')
@@ -76,7 +113,18 @@ trait HasTestadaActions
                             ->toArray()
                     )
                     ->searchable()
+                    ->live()
+                    // Trocou o logradouro? A seção pré-detectada deixa de valer.
+                    ->afterStateUpdated(fn (\Filament\Forms\Set $set) => $set('secao_logradouro_id', null))
                     ->nullable(),
+
+                Select::make('secao_logradouro_id')
+                    ->label('Seção do Logradouro')
+                    ->helperText('Seção mais próxima do logradouro escolhido (item 42 do edital). Pode trocar.')
+                    ->options(fn (\Filament\Forms\Get $get) => $this->opcoesSecaoDoLogradouro($get('logradouro_id')))
+                    ->searchable()
+                    ->nullable()
+                    ->visible(fn (\Filament\Forms\Get $get) => $this->opcoesSecaoDoLogradouro($get('logradouro_id')) !== []),
             ])
             ->action(function (array $data) {
                 // Usa comprimento manual se informado, senão o calculado pela linha
@@ -125,6 +173,8 @@ trait HasTestadaActions
                 $this->geometriaRascunho = null;
                 $this->dispatch('limpar-rascunho-mapa');
                 $this->testadaExtensaoCalculada = null;
+                $this->testadaLogradouroPreSelecionadoId = null;
+                $this->testadaSecaoPreSelecionadaId = null;
 
                 // Atualiza a camada de testadas no mapa
                 $this->mostrarTestadasLoteAtivo = false;
@@ -145,6 +195,7 @@ trait HasTestadaActions
                     'tipo'         => $t?->tipo,
                     'comprimento'  => $t?->comprimento,
                     'logradouro_id' => $t?->logradouro_id,
+                    'secao_logradouro_id' => $t?->secao_logradouro_id,
                 ];
             })
             ->form([
@@ -160,11 +211,12 @@ trait HasTestadaActions
                         );
                     }),
 
-                Select::make('tipo')
-                    ->label('Tipo de Testada')
-                    ->options(['principal' => 'Principal', 'secundaria' => 'Secundária'])
-                    ->required()
-                    ->helperText('Mudar para Principal rebaixa a testada principal atual para Secundária.'),
+                \App\Services\Coleta\CampoDominioService::aplicar(
+                    Select::make('tipo')
+                        ->required()
+                        ->helperText('Mudar para Principal rebaixa a testada principal atual para Secundária.'),
+                    'lote_testada', 'tipo'
+                ),
 
                 TextInput::make('comprimento')
                     ->label('Comprimento (m)')
@@ -180,7 +232,16 @@ trait HasTestadaActions
                             ->toArray()
                     )
                     ->searchable()
+                    ->live()
+                    ->afterStateUpdated(fn (\Filament\Forms\Set $set) => $set('secao_logradouro_id', null))
                     ->nullable(),
+
+                Select::make('secao_logradouro_id')
+                    ->label('Seção do Logradouro')
+                    ->options(fn (\Filament\Forms\Get $get) => $this->opcoesSecaoDoLogradouro($get('logradouro_id')))
+                    ->searchable()
+                    ->nullable()
+                    ->visible(fn (\Filament\Forms\Get $get) => $this->opcoesSecaoDoLogradouro($get('logradouro_id')) !== []),
             ])
             ->action(function (array $data) {
                 $testada = LoteTestada::find($this->testadaAtivaId);

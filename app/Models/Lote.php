@@ -18,7 +18,7 @@ class Lote extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['numero_lote', 'status_cadastro', 'ocupacao', 'situacao_quadra', 'observacao', 'dados_customizados'])
+            ->logOnly(['numero_lote', 'status_cadastro', 'ocupacao', 'dados_customizados'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -31,20 +31,16 @@ class Lote extends Model
 
     protected $fillable = [
         'tenant_id', 'sequential_id', 'quadra_id', 'zona_id', 'code',
-        'numero_lote', 'numero_predial_antigo',
-        'tipo_logradouro', 'logradouro', 'numero_logradouro', 'cep',
+        'numero_lote', 'numero_predial_antigo', 'numero_logradouro',
         'area_geo', 'area_cadastrada', 'main_facade_length',
         'foto_frontal', 'foto_lateral_esq', 'foto_lateral_dir',
-        'observacao', 'status_cadastro', 'ocupacao', 'situacao_quadra',
-        'inconformidade_descricao', 'dados_vistoria', 'dados_customizados',
-        'coletado_por_id', 'coletado_em',
+        'status_cadastro', 'ocupacao',
+        'dados_customizados',
         'geo',
     ];
 
     protected $casts = [
-        'dados_vistoria' => 'array',
         'dados_customizados' => 'array', // R67-1 — campos customizados do município
-        'coletado_em' => 'datetime',
     ];
 
     protected $hidden = ['geo'];
@@ -107,10 +103,18 @@ class Lote extends Model
     }
 
     /**
-     * Quem coletou este lote em campo (preenchido pelo mobile via push)
+     * Coletas de campo deste lote (todas as campanhas).
+     * O status da coleta vigente fica cacheado em `status_cadastro` (cor do mapa).
      */
-    public function coletor()
+    public function coletas()
     {
-        return $this->belongsTo(User::class, 'coletado_por_id');
+        return $this->morphMany(ColetaImobiliaria::class, 'coletavel');
+    }
+
+    /** Coleta vigente (campanha padrão) — substitui as antigas colunas coletado_*. */
+    public function coletaVigente()
+    {
+        return $this->morphOne(ColetaImobiliaria::class, 'coletavel')
+            ->where('campanha', ColetaImobiliaria::CAMPANHA_PADRAO);
     }
 }

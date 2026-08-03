@@ -86,7 +86,7 @@ class CampoCustomizadoResource extends Resource
                         )
                         ->validationMessages(['unique' => 'Já existe um campo com este identificador nesta entidade.'])
                         ->rule(fn (Get $get) => function (string $attribute, $value, \Closure $fail) use ($get) {
-                            $reservadas = CampoCustomizadoService::COLUNAS_RESERVADAS[$get('entidade')] ?? [];
+                            $reservadas = CampoCustomizadoService::colunasReservadas((string) $get('entidade'));
                             if (in_array($value, $reservadas, true)) {
                                 $fail('Este identificador é reservado pelo sistema. Escolha outro.');
                             }

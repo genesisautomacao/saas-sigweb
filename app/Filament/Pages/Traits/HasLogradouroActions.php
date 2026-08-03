@@ -34,6 +34,11 @@ trait HasLogradouroActions
                             : '<em style="color:#9ca3af;">Sem geometria — desenhe a rua no mapa primeiro.</em>'
                     )),
 
+                TextInput::make('codigo')
+                    ->label('Código do Logradouro')
+                    ->helperText('Código do cadastro municipal (item 44 do edital).')
+                    ->maxLength(50),
+
                 TextInput::make('name')
                     ->label('Nome do Logradouro')
                     ->placeholder('Ex: Rua das Flores, Avenida Brasil...')
@@ -80,7 +85,8 @@ trait HasLogradouroActions
             ->fillForm(function (): array {
                 $logradouro = Logradouro::find($this->logradouroAtivoId);
                 return [
-                    'name' => $logradouro ? $logradouro->name : '',
+                    'name'   => $logradouro ? $logradouro->name : '',
+                    'codigo' => $logradouro?->codigo,
                 ];
             })
             ->form([
@@ -95,6 +101,10 @@ trait HasLogradouroActions
                                 : '<em style="color:#9ca3af;">Sem geometria registrada.</em>'
                         );
                     }),
+
+                TextInput::make('codigo')
+                    ->label('Código do Logradouro')
+                    ->maxLength(50),
 
                 TextInput::make('name')
                     ->label('Nome do Logradouro')
@@ -130,7 +140,9 @@ trait HasLogradouroActions
                                 ->first();
 
                             $nome = htmlspecialchars($s->name ?: ('Seção #' . $s->sequential_id), ENT_QUOTES, 'UTF-8');
-                            $tipo = $s->tipo_pavimentacao ? ucfirst($s->tipo_pavimentacao) : '—';
+                            // Refatoração PoC Tangará: tipo_pavimentacao vive em dados_customizados
+                            $pav = $s->dados_customizados['tipo_pavimentacao'] ?? null;
+                            $tipo = $pav ? ucfirst($pav) : '—';
                             $ext  = $s->extensao_geo !== null
                                 ? number_format((float) $s->extensao_geo, 0, ',', '.') . ' m'
                                 : '—';

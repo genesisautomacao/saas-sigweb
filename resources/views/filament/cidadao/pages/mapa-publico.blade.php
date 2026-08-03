@@ -582,7 +582,7 @@
     <script src="{{ asset('js/gis/mapa-cidadao-engine.js') }}"></script>
 
     {{-- Carrega o Google Maps (Obrigatório para o Street View) --}}
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=geometry" async
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key', '') }}&libraries=geometry" async
         defer></script>
 
     <script>

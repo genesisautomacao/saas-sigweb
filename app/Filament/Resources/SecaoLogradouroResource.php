@@ -25,28 +25,24 @@ class SecaoLogradouroResource extends Resource
     protected static ?string $pluralModelLabel = 'Seções de Logradouro';
     protected static ?string $slug = 'secoes-logradouro';
 
-    public static function getTipoPavimentacaoOptions(): array
-    {
-        return [
-            'asfalto'        => 'Asfalto',
-            'paralelepipedo' => 'Paralelepípedo',
-            'concreto'       => 'Concreto',
-            'cascalho'       => 'Cascalho',
-            'terra'          => 'Terra',
-            'outro'          => 'Outro',
-        ];
-    }
-
     public static function form(Form $form): Form
     {
         return $form->schema([
             Forms\Components\Section::make('Identificação')->schema([
+                Forms\Components\TextInput::make('codigo')
+                    ->label('Código da Seção (métrico)')
+                    ->helperText('Código do cadastro municipal.')
+                    ->maxLength(50),
+
+                // Item 44 do edital — lista governada pelo sistema (rótulo white-label)
+                \App\Services\Coleta\CampoDominioService::aplicar(
+                    Forms\Components\Select::make('lado')->placeholder('Selecione...')->nullable(),
+                    'secao_logradouro', 'lado'
+                ),
+
                 Forms\Components\TextInput::make('name')
                     ->label('Nome / Identificação da Seção')
                     ->maxLength(255),
-                Forms\Components\Select::make('tipo_pavimentacao')
-                    ->label('Tipo de Pavimentação')
-                    ->options(self::getTipoPavimentacaoOptions()),
                 Forms\Components\Select::make('logradouro_id')
                     ->label('Logradouro')
                     ->relationship('logradouro', 'name')
@@ -54,6 +50,12 @@ class SecaoLogradouroResource extends Resource
                     ->preload()
                     ->required(),
             ])->columns(3),
+
+            // Refatoração PoC Tangará: tipo_pavimentacao virou campo customizado (kit)
+            Forms\Components\Section::make('Dados da Seção')
+                ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('secao_logradouro')->isNotEmpty())
+                ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('secao_logradouro'))
+                ->columns(3),
 
             Forms\Components\Section::make('Dados Espaciais')->schema([
                 Forms\Components\Textarea::make('geo_json_input')
@@ -70,22 +72,23 @@ class SecaoLogradouroResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
+                Tables\Columns\TextColumn::make('codigo')->label('Código')->searchable()->sortable()->placeholder('—'),
                 Tables\Columns\TextColumn::make('name')->label('Nome')->searchable(),
                 Tables\Columns\TextColumn::make('logradouro.name')->label('Logradouro')->searchable(),
-                Tables\Columns\TextColumn::make('tipo_pavimentacao')
+                Tables\Columns\TextColumn::make('lado')
+                    ->label('Lado')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state) => \App\Services\Coleta\CampoDominioService::rotuloValor('secao_logradouro', 'lado', $state) ?? '—'),
+                Tables\Columns\TextColumn::make('dados_customizados.tipo_pavimentacao')
                     ->label('Pavimentação')
                     ->badge()
-                    ->formatStateUsing(fn(?string $state) => self::getTipoPavimentacaoOptions()[$state] ?? $state),
+                    ->default('—'),
                 Tables\Columns\TextColumn::make('extensao_geo')
                     ->label('Extensão (m)')
                     ->numeric(2, ',', '.')
                     ->sortable(),
             ])
-            ->filters([
-                Tables\Filters\SelectFilter::make('tipo_pavimentacao')
-                    ->label('Pavimentação')
-                    ->options(self::getTipoPavimentacaoOptions()),
-            ])
+            ->filters([])
             ->actions([
                 Tables\Actions\Action::make('ver_no_mapa')
                     ->label('Mapa')

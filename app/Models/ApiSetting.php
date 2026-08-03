@@ -17,4 +17,13 @@ class ApiSetting extends Model
     protected $casts = [
         'data' => 'array',
     ];
+
+    protected static function booted(): void
+    {
+        // O AppServiceProvider carrega TODAS as linhas com cache eterno — invalida
+        // aqui para a credencial nova valer na requisição seguinte.
+        $limpar = fn () => \Illuminate\Support\Facades\Cache::forget('api_settings.all');
+        static::saved($limpar);
+        static::deleted($limpar);
+    }
 }

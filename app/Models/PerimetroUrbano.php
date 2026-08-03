@@ -18,12 +18,18 @@ class PerimetroUrbano extends Model
     protected $fillable = [
         'tenant_id',
         'sequential_id',
+        'codigo',
+        'dados_customizados',
         'code',
         'name',
         'distrito',
         'fill_color',
         'area_geo',
         'geo'
+    ];
+
+    protected $casts = [
+        'dados_customizados' => 'array', // campos do município (item 75)
     ];
 
     protected $hidden = ['geo'];

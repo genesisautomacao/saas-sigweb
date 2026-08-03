@@ -461,15 +461,18 @@ class ProcessoFormService
             return null;
         }
 
-        $localizacao = trim(collect([$lote->tipo_logradouro, $lote->logradouro, $lote->numero_logradouro])
-            ->filter()
-            ->implode(' '));
+        // Refatoração PoC Tangará: o endereço vive na unidade imobiliária.
+        $unidadePrincipal = $lote->unidadesImobiliarias->first();
+        $localizacao = trim(collect([
+            $unidadePrincipal?->logradouro_nome,
+            $unidadePrincipal?->numero_imovel ?? $lote->numero_logradouro,
+        ])->filter()->implode(', '));
 
         return [
             'numero_lote' => $lote->numero_lote,
             'quadra' => $lote->quadra?->name,
             'loteamento' => $lote->quadra?->loteamento?->name,
-            'localizacao' => $localizacao !== '' ? $localizacao : ($lote->cep ? ('CEP '.$lote->cep) : null),
+            'localizacao' => $localizacao !== '' ? $localizacao : null,
             'unidades' => $lote->unidadesImobiliarias->map(fn ($u) => [
                 'inscricao' => $u->inscricao_imobiliaria,
                 'cadastro' => $u->codigo_imovel_tributario,

@@ -33,6 +33,11 @@ trait HasBairroActions
                             : '<em style="color:#9ca3af;">Sem geometria — desenhe a área no mapa primeiro.</em>'
                     )),
 
+                TextInput::make('codigo')
+                    ->label('Código do Bairro')
+                    ->helperText('Código do cadastro municipal (item 48 do edital).')
+                    ->maxLength(50),
+
                 TextInput::make('name')
                     ->label('Nome do Bairro')
                     ->required()
@@ -46,10 +51,13 @@ trait HasBairroActions
 
                 $registro = Bairro::create($data);
 
-                // Atualiza a área automaticamente no PostGIS (envolto em try-catch caso a coluna area_geo não exista na sua model de Bairros)
+                // Recalcula a área direto do PostGIS. Falha aqui NÃO pode ser silenciosa:
+                // é o que deixava bairro sem area_geo sem ninguém saber o porquê.
                 try {
                     DB::statement("UPDATE bairros SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$registro->id]);
-                } catch (\Exception $e) {}
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Falha ao calcular area_geo do bairro '.$registro->id.': '.$e->getMessage());
+                }
 
                 Notification::make()->title('Bairro Criado!')->success()->send();
 
@@ -74,7 +82,8 @@ trait HasBairroActions
             ->fillForm(function (): array {
                 $reg = Bairro::find($this->bairroAtivoId);
                 return [
-                    'name' => $reg?->name,
+                    'name'   => $reg?->name,
+                    'codigo' => $reg?->codigo,
                 ];
             })
             ->form([
@@ -90,6 +99,7 @@ trait HasBairroActions
                         );
                     }),
 
+                TextInput::make('codigo')->label('Código do Bairro')->maxLength(50),
                 TextInput::make('name')->label('Nome do Bairro')->required()->maxLength(255),
             ])
             ->action(function (array $data) {

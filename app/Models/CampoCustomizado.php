@@ -28,12 +28,35 @@ class CampoCustomizado extends Model
         'ativo' => 'boolean',
     ];
 
-    /** Entidades que aceitam campos customizados. */
+    /**
+     * Camadas que aceitam campos customizados.
+     *
+     * O item 75 do edital pede campo customizado "vinculando o mesmo a sua respectiva
+     * Camada (Layer)" — por isso a lista cobre o cadastro imobiliário inteiro, e não só
+     * as 3 entidades originais do R67-1.
+     */
     public const ENTIDADES = [
         'lote' => 'Lote',
         'edificacao' => 'Edificação',
         'unidade' => 'Unidade Imobiliária',
+        'quadra' => 'Quadra',
+        'bairro' => 'Bairro',
+        'logradouro' => 'Logradouro',
+        'secao_logradouro' => 'Seção de Logradouro',
+        'lote_testada' => 'Testada do Lote',
+        'loteamento' => 'Loteamento',
+        'zona' => 'Zoneamento',
+        'perimetro' => 'Distrito / Perímetro',
+        'setor_fiscal' => 'Setor Fiscal',
+        'meio_fio' => 'Meio-fio / Calçada',
     ];
+
+    /**
+     * Camadas que o cadastrador preenche EM CAMPO (entram no boletim do app).
+     * As demais aceitam campo customizado para ficha, filtro, temático e estatística,
+     * mas não fazem sentido no boletim — ninguém coleta "zoneamento" na rua.
+     */
+    public const ENTIDADES_COLETAVEIS = ['lote', 'edificacao', 'unidade'];
 
     /** Tipos de campo suportados (o app renderiza o boletim a partir disto). */
     public const TIPOS = [

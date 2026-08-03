@@ -638,8 +638,10 @@ class TenantResource extends Resource
                                     if (isset($props->rgb)) {
                                         $fillData['rgb'] = $props->rgb;
                                     }
-                                    if (isset($props->setor)) {
-                                        $fillData['setor'] = $props->setor;
+                                    // Refatoração PoC Tangará: 'setor' saiu; o código
+                                    // municipal (itens 44-49) entra pela property 'codigo'.
+                                    if (isset($props->codigo)) {
+                                        $fillData['codigo'] = $props->codigo;
                                     }
 
                                     // 🛑 A MÁGICA DOS RELACIONAMENTOS: Traduz o ID do JSON para o ID Real do Banco

@@ -45,9 +45,11 @@ trait HasQuadraActions
                     ->label('Identificação da Quadra (Ex: A, 10, etc)')
                     ->required()
                     ->maxLength(255),
-                TextInput::make('setor_codigo')
-                    ->label('Código do Setor')
-                    ->maxLength(20)
+                // Refatoração PoC Tangará: setor_codigo saiu (redundante) — o código
+                // municipal da quadra (item 45) é o campo `codigo`.
+                TextInput::make('codigo')
+                    ->label('Código da Quadra')
+                    ->maxLength(50)
                     ->nullable(),
                 Select::make('bairro_id')
                     ->label('Bairro')
@@ -129,7 +131,7 @@ trait HasQuadraActions
                 $reg = Quadra::find($this->quadraAtivaId);
                 return [
                     'name'         => $reg?->name,
-                    'setor_codigo' => $reg?->setor_codigo,
+                    'codigo'       => $reg?->codigo,
                     'bairro_id'    => $reg?->bairro_id,
                     'loteamento_id' => $reg?->loteamento_id,
                 ];
@@ -148,7 +150,7 @@ trait HasQuadraActions
                     }),
 
                 TextInput::make('name')->label('Identificação da Quadra')->required()->maxLength(255),
-                TextInput::make('setor_codigo')->label('Código do Setor')->maxLength(20)->nullable(),
+                TextInput::make('codigo')->label('Código da Quadra')->maxLength(50)->nullable(),
                 Select::make('bairro_id')
                     ->label('Bairro')
                     ->options(Bairro::where('tenant_id', $this->tenantId)->pluck('name', 'id'))

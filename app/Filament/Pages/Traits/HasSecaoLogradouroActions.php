@@ -48,12 +48,20 @@ trait HasSecaoLogradouroActions
                     ->searchable()
                     ->preload()
                     ->required(),
+                TextInput::make('codigo')
+                    ->label('Código da Seção (métrico)')
+                    ->maxLength(50),
+                // Item 44 — lista do sistema, rótulo white-label. Desenhar a seção sobre
+                // a TESTADA (frente dos lotes do lado), não sobre o eixo da rua.
+                \App\Services\Coleta\CampoDominioService::aplicar(
+                    Select::make('lado')->placeholder('Selecione...')->nullable(),
+                    'secao_logradouro', 'lado'
+                ),
                 TextInput::make('name')
                     ->label('Nome / Identificação da Seção')
                     ->maxLength(255),
-                Select::make('tipo_pavimentacao')
-                    ->label('Tipo de Pavimentação')
-                    ->options(SecaoLogradouroResource::getTipoPavimentacaoOptions()),
+                // Refatoração PoC Tangará: tipo_pavimentacao é campo customizado (kit)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('secao_logradouro'),
             ])
             ->action(function (array $data) {
                 $data['tenant_id']    = $this->tenantId;
@@ -94,9 +102,11 @@ trait HasSecaoLogradouroActions
             ->fillForm(function (): array {
                 $reg = SecaoLogradouro::find($this->secaoLogradouroAtivoId);
                 return [
-                    'name'              => $reg?->name,
-                    'tipo_pavimentacao' => $reg?->tipo_pavimentacao,
-                    'logradouro_id'     => $reg?->logradouro_id,
+                    'name'               => $reg?->name,
+                    'codigo'             => $reg?->codigo,
+                    'lado'               => $reg?->lado,
+                    'logradouro_id'      => $reg?->logradouro_id,
+                    'dados_customizados' => $reg?->dados_customizados ?? [],
                 ];
             })
             ->form([
@@ -117,12 +127,17 @@ trait HasSecaoLogradouroActions
                     ->searchable()
                     ->preload()
                     ->required(),
+                TextInput::make('codigo')
+                    ->label('Código da Seção (métrico)')
+                    ->maxLength(50),
+                \App\Services\Coleta\CampoDominioService::aplicar(
+                    Select::make('lado')->placeholder('Selecione...')->nullable(),
+                    'secao_logradouro', 'lado'
+                ),
                 TextInput::make('name')
                     ->label('Nome / Identificação da Seção')
                     ->maxLength(255),
-                Select::make('tipo_pavimentacao')
-                    ->label('Tipo de Pavimentação')
-                    ->options(SecaoLogradouroResource::getTipoPavimentacaoOptions()),
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('secao_logradouro'),
             ])
             ->action(function (array $data) {
                 $reg = SecaoLogradouro::find($this->secaoLogradouroAtivoId);

@@ -18,12 +18,19 @@ class SecoesRelationManager extends RelationManager
     public function form(Form $form): Form
     {
         return $form->schema([
+            Forms\Components\TextInput::make('codigo')
+                ->label('Código da Seção (métrico)')
+                ->maxLength(50),
+            // Item 44 do edital — lista do sistema, rótulo white-label
+            \App\Services\Coleta\CampoDominioService::aplicar(
+                Forms\Components\Select::make('lado')->placeholder('Selecione...')->nullable(),
+                'secao_logradouro', 'lado'
+            ),
             Forms\Components\TextInput::make('name')
                 ->label('Nome / Identificação da Seção')
                 ->maxLength(255),
-            Forms\Components\Select::make('tipo_pavimentacao')
-                ->label('Tipo de Pavimentação')
-                ->options(SecaoLogradouroResource::getTipoPavimentacaoOptions()),
+            // Refatoração PoC Tangará: tipo_pavimentacao é campo customizado (kit)
+            ...\App\Services\Coleta\CampoCustomizadoService::componentes('secao_logradouro'),
         ]);
     }
 
@@ -33,11 +40,16 @@ class SecoesRelationManager extends RelationManager
             ->recordTitleAttribute('name')
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
+                Tables\Columns\TextColumn::make('codigo')->label('Código')->searchable()->placeholder('—'),
                 Tables\Columns\TextColumn::make('name')->label('Nome')->searchable(),
-                Tables\Columns\TextColumn::make('tipo_pavimentacao')
+                Tables\Columns\TextColumn::make('lado')
+                    ->label('Lado')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state) => \App\Services\Coleta\CampoDominioService::rotuloValor('secao_logradouro', 'lado', $state) ?? '—'),
+                Tables\Columns\TextColumn::make('dados_customizados.tipo_pavimentacao')
                     ->label('Pavimentação')
                     ->badge()
-                    ->formatStateUsing(fn(?string $state) => SecaoLogradouroResource::getTipoPavimentacaoOptions()[$state] ?? $state),
+                    ->default('—'),
                 Tables\Columns\TextColumn::make('extensao_geo')
                     ->label('Extensão (m)')
                     ->numeric(2, ',', '.')

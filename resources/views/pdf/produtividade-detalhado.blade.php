@@ -48,10 +48,12 @@
                 'inconformidade' => 'Inconformidade',
             ][$lote->status_cadastro] ?? '—';
 
-            // R67-2 — rótulos vêm do vocabulário do município
+            // R67-2 — rótulos vêm do vocabulário do município.
+            // Refatoração PoC Tangará: coleta em coleta_imobiliaria; situacao_quadra em dados_customizados.
             $dominio = \App\Services\Coleta\CampoDominioService::class;
             $ocupacaoLabel = $dominio::rotuloValor('lote', 'ocupacao', $lote->ocupacao) ?? '—';
-            $situacaoLabel = $dominio::rotuloValor('lote', 'situacao_quadra', $lote->situacao_quadra) ?? '—';
+            $situacaoLabel = $lote->dados_customizados['situacao_quadra'] ?? '—';
+            $coleta = $lote->coletaVigente;
         @endphp
 
         <div class="lote-card">
@@ -62,8 +64,8 @@
                 <div class="lote-title">Lote {{ $lote->numero_lote ?? '—' }}</div>
                 <div class="lote-sub">
                     ID #{{ $lote->sequential_id }} ·
-                    Coletado por <strong>{{ $lote->coletor?->name ?? '—' }}</strong>
-                    @if($lote->coletado_em) em {{ $lote->coletado_em->format('d/m/Y H:i') }} @endif
+                    Coletado por <strong>{{ $coleta?->coletadoPor?->name ?? '—' }}</strong>
+                    @if($coleta?->coletado_em) em {{ $coleta->coletado_em->format('d/m/Y H:i') }} @endif
                 </div>
             </div>
 
@@ -74,18 +76,18 @@
                     <strong>Quadra:</strong> {{ $lote->quadra?->name ?? '—' }}<br>
                     <strong>Zona:</strong> {{ $lote->zona?->sigla ?? '—' }}<br>
                     <strong>{{ $dominio::label('lote', 'ocupacao') }}:</strong> {{ $ocupacaoLabel }}<br>
-                    <strong>{{ $dominio::label('lote', 'situacao_quadra') }}:</strong> {{ $situacaoLabel }}
+                    <strong>Situação na Quadra:</strong> {{ $situacaoLabel }}
                 </div>
                 <div class="col">
                     <strong>Área:</strong> {{ number_format($lote->area_geo ?? 0, 2, ',', '.') }} m²<br>
                     <strong>Testada:</strong> {{ number_format($lote->main_facade_length ?? 0, 2, ',', '.') }} m<br>
-                    <strong>Observação:</strong> {{ $lote->observacao ?: '—' }}
+                    <strong>Observação:</strong> {{ $coleta?->observacao ?: '—' }}
                 </div>
             </div>
 
-            @if($lote->status_cadastro === 'inconformidade' && $lote->inconformidade_descricao)
+            @if($lote->status_cadastro === 'inconformidade' && $coleta?->inconformidade_descricao)
                 <div class="inconf-box">
-                    <strong>Inconformidade:</strong> {{ $lote->inconformidade_descricao }}
+                    <strong>Inconformidade:</strong> {{ $coleta->inconformidade_descricao }}
                 </div>
             @endif
 
@@ -133,13 +135,15 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {{-- Refatoração PoC Tangará: atributos descritivos em dados_customizados --}}
                         @foreach($lote->edificacoes as $e)
+                            @php $dc = (array) $e->dados_customizados; @endphp
                             <tr>
-                                <td>{{ $e->tipo ?? '—' }}</td>
-                                <td>{{ $e->tp_construcao ?? '—' }}</td>
-                                <td>{{ $e->caracteristica_construcao ?? '—' }}</td>
-                                <td>{{ $e->estado_conservacao ?? '—' }}</td>
-                                <td style="text-align:center;">{{ $e->pavimento ?? '—' }}</td>
+                                <td>{{ $dc['tipo_edificacao'] ?? '—' }}</td>
+                                <td>{{ $dc['tp_construcao'] ?? '—' }}</td>
+                                <td>{{ $dc['caracteristica_construcao'] ?? '—' }}</td>
+                                <td>{{ $dc['estado_conservacao'] ?? '—' }}</td>
+                                <td style="text-align:center;">{{ $dc['pavimento'] ?? '—' }}</td>
                                 <td style="text-align:right;">{{ number_format($e->area_geo ?? 0, 2, ',', '.') }}</td>
                             </tr>
                         @endforeach

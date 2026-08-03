@@ -61,8 +61,11 @@ class CadastradorLocationController extends Controller
 
         // Adiciona contagem de lotes coletados hoje por cadastrador
         $hoje = now()->toDateString();
-        $coletadosHoje = DB::table('lotes')
+        // Refatoração PoC Tangará: quem/quando coletou vive em coleta_imobiliaria.
+        $coletadosHoje = DB::table('coleta_imobiliaria')
             ->where('tenant_id', $tenantId)
+            ->where('coletavel_type', 'App\\Models\\Lote')
+            ->whereNull('deleted_at')
             ->whereDate('coletado_em', $hoje)
             ->whereIn('coletado_por_id', $locations->pluck('user_id'))
             ->groupBy('coletado_por_id')

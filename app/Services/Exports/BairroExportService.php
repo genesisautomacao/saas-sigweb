@@ -17,7 +17,7 @@ class BairroExportService
             File::makeDirectory($path, 0755, true, true);
         }
 
-        $data = $records->map(fn ($r) => ['ID' => $r->sequential_id, 'Código' => $r->code, 'Nome' => $r->name, 'Setor' => $r->setor ?? '-']);
+        $data = $records->map(fn ($r) => ['ID' => $r->sequential_id, 'Código' => $r->codigo ?? '-', 'Nome' => $r->name]);
 
         SimpleExcelWriter::create($path.$fileName)->addHeader(array_keys($data->first() ?? []))->addRows($data->toArray());
 
@@ -27,8 +27,8 @@ class BairroExportService
     public function exportToPdf(Collection $records)
     {
         $fileName = 'bairros-'.now()->format('Y-m-d-His').'.pdf';
-        $data = $records->map(fn ($r) => [$r->sequential_id, $r->code, $r->name, $r->setor ?? '-']);
-        $headings = ['ID', 'Código', 'Nome', 'Setor'];
+        $data = $records->map(fn ($r) => [$r->sequential_id, $r->codigo ?? '-', $r->name]);
+        $headings = ['ID', 'Código', 'Nome'];
 
         $pdf = Pdf::loadView('pdf.default-report', ['data' => $data, 'headings' => $headings, 'title' => 'Relatório de Bairros'])->setPaper('a4', 'portrait');
 
@@ -45,7 +45,7 @@ class BairroExportService
             $item->addAttribute('id', (string) $r->sequential_id);
             $item->addChild('codigo', htmlspecialchars($r->code ?? ''));
             $item->addChild('nome', htmlspecialchars($r->name ?? ''));
-            $item->addChild('setor', htmlspecialchars($r->setor ?? ''));
+            $item->addChild('codigo', htmlspecialchars($r->codigo ?? ''));
         }
 
         return response()->streamDownload(function () use ($xml) {
@@ -62,7 +62,7 @@ class BairroExportService
         }
         $filePath = $path.$fileName;
 
-        $data = $records->map(fn ($r) => ['ID' => $r->sequential_id, 'Codigo' => $r->code, 'Nome' => $r->name, 'Setor' => $r->setor ?? '-']);
+        $data = $records->map(fn ($r) => ['ID' => $r->sequential_id, 'Codigo' => $r->codigo ?? '-', 'Nome' => $r->name]);
         SimpleExcelWriter::create($filePath, 'csv')
             ->addHeader(array_keys($data->first() ?? []))
             ->addRows($data->toArray());

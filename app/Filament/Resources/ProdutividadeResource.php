@@ -47,13 +47,16 @@ class ProdutividadeResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->whereNotNull('coletado_por_id');
+        // Refatoração PoC Tangará: a coleta vive em coleta_imobiliaria.
+        return parent::getEloquentQuery()
+            ->whereHas('coletaVigente', fn ($q) => $q->whereNotNull('coletado_por_id'))
+            ->with(['coletaVigente.coletadoPor']);
     }
 
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('coletado_em', 'desc')
+            ->defaultSort('id', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')
                     ->label('ID')
@@ -69,15 +72,12 @@ class ProdutividadeResource extends Resource
                     ->label('Quadra')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('coletor.name')
-                    ->label('Cadastrador')
-                    ->sortable()
-                    ->searchable(),
+                Tables\Columns\TextColumn::make('coletaVigente.coletadoPor.name')
+                    ->label('Cadastrador'),
 
-                Tables\Columns\TextColumn::make('coletado_em')
+                Tables\Columns\TextColumn::make('coletaVigente.coletado_em')
                     ->label('Data Coleta')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable(),
+                    ->dateTime('d/m/Y H:i'),
 
                 Tables\Columns\TextColumn::make('status_cadastro')
                     ->label('Status')
@@ -134,7 +134,14 @@ class ProdutividadeResource extends Resource
                             ->toArray();
                     })
                     ->searchable()
-                    ->preload(),
+                    ->preload()
+                    // Refatoração PoC Tangará: filtro via coleta_imobiliaria
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query->when(
+                            $data['value'] ?? null,
+                            fn ($q, $v) => $q->whereHas('coletaVigente', fn ($c) => $c->where('coletado_por_id', $v))
+                        );
+                    }),
 
                 SelectFilter::make('status_cadastro')
                     ->label('Status')
@@ -154,8 +161,8 @@ class ProdutividadeResource extends Resource
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
-                            ->when($data['data_inicio'] ?? null, fn ($q, $d) => $q->whereDate('coletado_em', '>=', $d))
-                            ->when($data['data_fim'] ?? null, fn ($q, $d) => $q->whereDate('coletado_em', '<=', $d));
+                            ->when($data['data_inicio'] ?? null, fn ($q, $d) => $q->whereHas('coletaVigente', fn ($c) => $c->whereDate('coletado_em', '>=', $d)))
+                            ->when($data['data_fim'] ?? null, fn ($q, $d) => $q->whereHas('coletaVigente', fn ($c) => $c->whereDate('coletado_em', '<=', $d)));
                     })
                     ->indicateUsing(function (array $data): array {
                         $indicators = [];

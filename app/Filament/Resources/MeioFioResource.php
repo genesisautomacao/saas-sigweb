@@ -29,28 +29,18 @@ class MeioFioResource extends Resource
     {
         return $form->schema([
             Forms\Components\Section::make('Identificação')->schema([
-                Forms\Components\Select::make('material')
-                    ->label('Material')
-                    ->options([
-                        'concreto' => 'Concreto',
-                        'granito'  => 'Granito',
-                        'asfalto'  => 'Asfalto',
-                        'pedra'    => 'Pedra',
-                        'outro'    => 'Outro',
-                    ]),
-                Forms\Components\Select::make('estado_conservacao')
-                    ->label('Estado de Conservação')
-                    ->options([
-                        'bom'     => 'Bom',
-                        'regular' => 'Regular',
-                        'ruim'    => 'Ruim',
-                    ]),
                 Forms\Components\Select::make('logradouro_id')
                     ->label('Logradouro vinculado')
                     ->relationship('logradouro', 'name')
                     ->searchable()
                     ->preload(),
             ])->columns(3),
+
+            // Refatoração PoC Tangará: material/estado viraram campos customizados (kit)
+            Forms\Components\Section::make('Dados do Meio-fio')
+                ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('meio_fio')->isNotEmpty())
+                ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('meio_fio'))
+                ->columns(3),
 
             Forms\Components\Section::make('Observações')->schema([
                 Forms\Components\Textarea::make('observacoes')
@@ -75,11 +65,13 @@ class MeioFioResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
                 Tables\Columns\TextColumn::make('logradouro.name')->label('Logradouro')->searchable(),
-                Tables\Columns\TextColumn::make('material')->label('Material')->badge()->sortable(),
-                Tables\Columns\TextColumn::make('estado_conservacao')
+                // Refatoração PoC Tangará: atributos em dados_customizados (JSONB)
+                Tables\Columns\TextColumn::make('dados_customizados.material')->label('Material')->badge()->default('—'),
+                Tables\Columns\TextColumn::make('dados_customizados.estado_conservacao')
                     ->label('Conservação')
                     ->badge()
-                    ->color(fn(?string $state) => match ($state) {
+                    ->default('—')
+                    ->color(fn(?string $state) => match (mb_strtolower((string) $state)) {
                         'bom'     => 'success',
                         'regular' => 'warning',
                         'ruim'    => 'danger',
@@ -90,15 +82,7 @@ class MeioFioResource extends Resource
                     ->numeric(2, ',', '.')
                     ->sortable(),
             ])
-            ->filters([
-                Tables\Filters\SelectFilter::make('estado_conservacao')
-                    ->label('Estado')
-                    ->options([
-                        'bom'     => 'Bom',
-                        'regular' => 'Regular',
-                        'ruim'    => 'Ruim',
-                    ]),
-            ])
+            ->filters([])
             ->actions([
                 Tables\Actions\Action::make('ver_no_mapa')
                     ->label('Mapa')

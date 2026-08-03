@@ -16,9 +16,14 @@ class MeioFio extends Model
 
     protected $fillable = [
         'tenant_id', 'sequential_id', 'code',
-        'material', 'estado_conservacao', 'extensao_geo',
+        'extensao_geo',
         'logradouro_id', 'observacoes',
+        'dados_customizados',
         'geo',
+    ];
+
+    protected $casts = [
+        'dados_customizados' => 'array', // campos do município (item 75)
     ];
 
     protected $hidden = ['geo'];

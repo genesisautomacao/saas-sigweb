@@ -16,15 +16,17 @@ class Edificacao extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
+        // Os atributos descritivos (tipo_edificacao, pavimento, estado etc.) vivem em
+        // dados_customizados desde a refatoração da PoC Tangará — logar o JSON cobre todos.
         return LogOptions::defaults()
-            ->logOnly(['tipo', 'tp_construcao', 'caracteristica_construcao', 'estado_conservacao', 'area_geo', 'dados_customizados'])
+            ->logOnly(['area_geo', 'dados_customizados'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
 
     protected $table = 'edificacoes';
 
-    protected $fillable = ['tenant_id', 'sequential_id', 'lote_id', 'code', 'tipo', 'tp_construcao', 'caracteristica_construcao', 'estado_conservacao', 'pavimento', 'area_geo', 'dados_customizados', 'geo'];
+    protected $fillable = ['tenant_id', 'sequential_id', 'lote_id', 'code', 'area_geo', 'dados_customizados', 'geo'];
 
     protected $casts = [
         'dados_customizados' => 'array', // R67-1 — campos customizados do município

@@ -21,10 +21,11 @@
 | Marco | Plenos | % acumulado | Status |
 |-------|-------:|------------:|--------|
 | Baseline (auditoria 2026-07-08) | 95/124 | 76,6% | — |
+| **Onda 1 — Estrutura de campos** | 95/124 | 76,6% | ⏳ fundacional — não move o contador, **destrava** as demais |
 | + Etapa 1 (T1.1–T1.12) | 113/124 | 91,1% | ⏳ |
 | + Etapa 2 (T2.1–T2.5) | 121/124 | **97,6%** (meta 95% ✔) | ⏳ |
 | + Etapa 3 (T3.1 — WMS) | 122/124 | 98,4% | ⏳ |
-| Pós-contrato (F2 — EAV) | 124/124 | 100% | 📋 plano futuro |
+| + Itens 75/76 (D5 — dentro das Ondas 3 e 4) | **124/124** | **100%** | ⏳ |
 
 > Referência dos itens da PoC: numeração `2.x-N` = seção Intranet do edital; `3-N` = seção Internet/Público; `1-N` = Características Técnicas (conforme `poc_tangara_sc.md` e tabelas do [PocTangara_plano.md](PocTangara_plano.md)).
 
@@ -34,6 +35,29 @@
 
 - **D1 — Integração Betha Sistemas: ✅ Decidido — dump JSON na PoC.** A demonstração usará dump JSON exportado do Betha → `php artisan tributario:importar` (mesma estratégia validada para o GOVBR em Bom Princípio; ponto de extensão: `IntegraPrefeituraService`). A API do Betha, em regra, só é liberada **após a aprovação da PoC e a assinatura do contrato** → a integração em tempo real está registrada como item futuro **F1**.
 - **D2 — EAV (campos customizáveis): ✅ Decidido — pós-PoC.** Por ser o item mais complexo do plano (40–80 h), o ex-T3.2 foi movido para o plano futuro como **F2** (a janela de 60 dias pós-contrato prevista no edital o cobre). O escopo pré-PoC passa a mirar **122/124 (98,4%)** — bem acima da meta de 95%.
+
+## Decisões registradas (2026-07-31)
+
+- **D3 — Base de demonstração: ✅ Decidido — reusar `prefeitura-de-santa-cecilia`.** Não será criado tenant novo nem importada base cartográfica de Tangará para a PoC. Reduz a Etapa 0 de ~8–24 h para ~2 h. A T0.1 vira **inventário de dados de demo** (garantir que a base exercite cada item do edital) em vez de importação.
+- **D4 — Seção de Logradouro é LINEAR, uma por lado. ✅ Decidido — sem entidade nova, sem polígono.** Confirmado no texto bruto do edital ([lista_txt_poc_tangara.txt](lista_txt_poc_tangara.txt)):
+  - **Intranet 44** pede *"Código do Logradouro + Código da Seção (métrico) + **Lado da Seção**, **comprimento**"* — "lado" só existe em relação a um eixo e o edital pede **comprimento**, não área → geometria linear (a `SecaoLogradouro` atual, MULTILINESTRING, serve).
+  - **Intranet 42** pede *"testada(s), **Logradouro e Seção de cada testada**"* — já implementado em `LoteTestada` (`logradouro_id` + `secao_logradouro_id`). O vínculo "o lote se integra à seção" **já existe**.
+  - **Uma seção por lado:** o `lado` só é dado útil se a própria seção for de um lado só (senão o lote par e o ímpar apontariam para a mesma seção). Logo, **duas seções por trecho** — independentes entre si, com comprimentos diferentes (travessa que entra só de um lado, rio/praça no outro lado, faces de quadra assimétricas). Modelagem: N linhas independentes com `lado` como **atributo**, nunca estrutura pareada.
+  - **Desenho sobre a testada, não sobre o eixo.** Coincidência geométrica exata quebra três coisas: (a) o `forEachFeatureAtPixel` do mapa só captura uma das linhas → a outra fica inclicável; (b) o **T2.2** fica impossível (buffer de linha no eixo pega os lotes dos DOIS lados e o `lado` fica indecidível); (c) a galeria de fotos do item 17 não distingue os lados. Fica como prática recomendada — **sem** constraint geométrica, para não quebrar importação de base legada desenhada no eixo.
+  - **Vocabulário do `lado` é white-label** (`CampoDominioService`, padrão R67-2): default Par/Ímpar/Ambos, cada município ajusta.
+  - **Pai hierárquico = Logradouro, único.** Já é assim (FK obrigatória + `hasMany` + `SecoesRelationManager` + "Nova Seção" pelo modal do logradouro) e o edital sempre escreve *"Logradouro **e** Seções"* (itens 44, 52, 70). **Não** adicionar `quadra_id` — a relação com a quadra é derivável por PostGIS no T2.2, e o PGV já tem `FaceQuadra` para face de quadra.
+  - **Rótulo:** manter **"Seções de Logradouro"** (o termo do edital, usado em 8 itens). A ideia de renomear para "Trechos" foi descartada para a PoC — se necessário no futuro, vira rótulo white-label por município, nunca renomeação de tabela/model/rota (25 arquivos + FK + camada do mapa + permissões).
+
+## Decisões registradas (2026-08-01)
+
+- **D5 — Itens 75/76 (campos customizáveis) VOLTAM para o escopo pré-PoC. ✅ Decidido — cancela a D2.** O `CampoCustomizado` (R67-1) já existe e já está plumbado na **edição** (①). Falta integrá-lo a ② filtro avançado, ③ mapa temático, ④ heatmap e ⑤ estatísticas — e os quatro vivem no `MapDataController` + `mapa-engine.js`, exatamente os arquivos que as Ondas 3 e 4 vão abrir. Construir os motores **já cientes de campos customizados** custa **10–16 h** marginais, contra os 40–80 h estimados no F2. **Resultado: 124/124 = 100%.** O F2 sai do Plano de Ação Futura.
+- **D6 — Régua de campos: 3 categorias. ✅ Decidido.** Detalhamento completo em [mapeamentoCamposImobiliario.md](mapeamentoCamposImobiliario.md).
+  1. ⚙️ **Base fixa do sistema** — `id`, `sequential_id`, `code`, `geo`, FKs, derivados PostGIS. Não é item de cadastro.
+  2. 🏷️ **Campo fixo white-label** — coluna do sistema com **valores (chaves) imutáveis** e **rótulos customizáveis** (nome do campo e texto de cada opção). O município **não inventa nem remove valor de select**.
+  3. ➕ **Campo da prefeitura** — não existe como coluna; cada município cria e ele aparece em ficha, edição, filtro, busca, temático, heatmap e estatísticas.
+  - Consequência direta: **`tipo_ocupacao` NÃO vira coluna** (era o N2). A `ocupacao` fica travada no binário `baldio`/`construido` que os itens 42/51/60 exigem, e o município que precisa de "em ruínas"/"em construção" cria o campo dele.
+- **D7 — Corte das colunas fiscais de `unidade_imobiliarias`. ✅ Decidido.** As 13 colunas promovidas em 2026-07-01 foram moldadas pelo export de **Santa Cecília** e o rastreio mostrou que **as buscas e o PGV leem o JSON, não as colunas** (proprietário e `nome_edificio` em [MapDataController:571-576](../app/Http/Controllers/Api/MapDataController.php#L571); `valor_total_imposto` em [PgvSimulacaoIptuService:50](../app/Services/Pgv/PgvSimulacaoIptuService.php#L50)). **Saem 9 colunas**; ficam 11 (incluindo as 3 novas `nome_edificio`, `proprietario_nome`, `proprietario_cpf_cnpj`). O `dados_tributarios` continua sendo a verdade — nenhum dado se perde.
+  - **Em aberto (decidir na implementação):** com o corte, `sistemas_tributarios.extras` (R67-5) e `CampoCustomizado` passam a disputar o papel de "mostrar campo do tributário que não é canônico". Unificar os dois é decisão adiada para quando o comportamento real estiver à vista.
 
 ## Plano de Ação Futura (pós-PoC / pós-contrato)
 
@@ -46,8 +70,10 @@
 - `.env`: `BETHA_API_URL` + credenciais; sincronização periódica → upsert em `unidade_imobiliarias.dados_tributarios` (mesmo contrato do `tributario:importar`);
 - Substitui o fluxo de dump JSON usado na PoC sem mudança de modelo de dados.
 
-#### F2 — Itens de Cadastro customizáveis (EAV) *(ex-T3.2)*
-**Itens PoC:** 2.8-75, 2.8-76, 2.10-88 (leitura estrita) · **Esforço:** 40–80 h · **Status:** 📋 Futuro (decisão D2 — janela de 60 dias pós-contrato)
+#### ~~F2 — Itens de Cadastro customizáveis (EAV)~~ *(ex-T3.2)*
+**Status:** ❌ **CANCELADO como item futuro em 2026-08-01 — decisão D5.** Voltou para o escopo pré-PoC, distribuído nas **Ondas 3 e 4** (o motor `CampoCustomizado` do R67-1 já existe; falta integrá-lo ao filtro avançado, mapa temático, heatmap e estatísticas, que são justamente os arquivos daquelas ondas). Texto original mantido abaixo como referência de escopo.
+
+**Itens PoC:** 2.8-75, 2.8-76, 2.10-88 (leitura estrita) · **Esforço original estimado:** 40–80 h · ~~**Status:** 📋 Futuro (decisão D2)~~
 
 Entidades `ItemCadastro` (tenant, camada, nome, tipo: numérico/texto/seleção/multisseleção/multisseleção-com-quantitativo, opções) + `ItemCadastroValor` (polimórfico). Integração obrigatória em: ① ficha/edição da entidade; ② filtro avançado/expressões; ③ tematização (valores únicos + classes); ④ heatmap; ⑤ estatísticas; ⑥ visibilidade por perfil. As integrações ③④⑤ reaproveitam os motores genéricos de T1.10/T1.11/T1.12 — **por isso a ordem das etapas importa**. Registrar o design detalhado aqui antes de iniciar.
 
@@ -55,26 +81,107 @@ Entidades `ItemCadastro` (tenant, camada, nome, tipo: numérico/texto/seleção/
 
 ## Etapa 0 — Preparação (sem código)
 
-#### T0.1 — Tenant de demonstração "Tangará"
-**Status:** ⏳ Pendente
+#### T0.1 — Base de demonstração (`prefeitura-de-santa-cecilia`)
+**Status:** 🔄 Em andamento — *inventário concluído em 2026-07-31; correção das lacunas pendente*
 
-Criar tenant, importar base cartográfica de demonstração (ou reusar `prefeitura-de-santa-cecilia`), rodar seeds e `gis:recalcular-metadata`. Garantir dados que exercitem **cada** item do edital: unidade com `nome_edificio`, proprietário com CNPJ, CNAEs nas `ZoneamentoRegra`, fotos de lote, seções de logradouro etc.
+Decisão **D3**: sem tenant novo e sem importação cartográfica. A tarefa virou **inventário de dados** contra os itens do edital que dependem de dado. Resultado completo na seção 2 de [roteiroDemoTangara.md](roteiroDemoTangara.md). 20 itens com dado suficiente; **6 lacunas** a corrigir com seeder idempotente antes da Onda 1:
+
+| # | Itens afetados | Lacuna medida |
+|---|---|---|
+| G1 | 2.1-11 | **0** pessoas jurídicas (item pede busca por CPF **/CNPJ**) |
+| G2 | 2.1-21, 3-11, 3-14 | `parametros_urbanos` cobre **2 de 10** zonas |
+| G3 | 2.7-42 | `ocupacao` / `situacao_quadra` em **4 de 4.434** lotes — **também esvazia a tematização da Onda 4** |
+| G4 | 2.7-43 | `pavimento` em **7 de 7.894** edificações |
+| G5 | 2.7-42, 2.7-44 | **5** testadas de lote · **2** seções de logradouro |
+| G6 | 2.1-5, 3-3 | **1** unidade com `nome_edificio` (chave do JSON `dados_tributarios`) |
 
 #### T0.2 — Validação de dependências do servidor de demo
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-31
 
-`ogr2ogr` no PATH (export SHP), chave Azure Maps válida, geração de PDF (DomPDF + jsPDF) e performance das camadas com a base de demo.
+PHP 8.3.30 · Laravel 12.52 · PostgreSQL 18.3 · **PostGIS 3.6.1** · **GDAL/ogr2ogr 3.13.0** no PATH (item 2.4-30 ok) · **DomPDF 3.1.4** com render validado em **A0/A1/A2/A3/A4 paisagem** (itens 2.4-25 a 29) · simple-excel 3.8.1 · activitylog 4.12.3 (13.277 registros).
+
+> ⚠️ **Dois achados:**
+> 1. **`AZURE_MAPS_KEY` está vazia** — os basemaps Azure Road/Satélite ([mapa-engine.js:83-96](../public/js/gis/mapa-engine.js#L83)) renderizam em branco. Pior: a chave é lida com `env()` dentro de um Blade ([mapa-fullscreen.blade.php:25](../resources/views/filament/pages/mapa-fullscreen.blade.php#L25)) e **`env()` fora de arquivo de config retorna vazio quando `config:cache` está ativo** — então em produção o basemap quebra mesmo com a chave no `.env`. Corrigir movendo para `config/services.php` + `config()`. O item 1-4 já é atendido por OSM + Esri Satélite.
+> 2. **Não existe suíte de testes** — apenas os 2 testes de exemplo do Laravel, e o `Tests\Feature\ExampleTest` falha (espera 200 em `/`, recebe 302). Sem rede de segurança contra regressão → o teste de cada onda será por **script em transação revertida**, padrão já usado no projeto.
 
 #### T0.3 — Roteiro de demonstração v1
-**Status:** ⏳ Pendente
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-31
 
-Documento item-a-item (124 linhas) com "como demonstrar" cada requisito. Os 95 itens ✅ do baseline já podem ser ensaiados desde já.
+[roteiroDemoTangara.md](roteiroDemoTangara.md) — checklist de ambiente, **matriz de dependência de dados** por item, estrutura em 7 blocos (A–G) espelhando as seções do edital e **5 riscos com plano B** (R1 Azure · R2 ausência de testes · R3 "itens de Cadastro" nos itens 24/37/38/3-23 · R4 lacunas de dado · R5 WMS). Os caminhos de clique item-a-item são preenchidos no T4.1, após as Ondas 1–4.
 
 ---
 
-## Etapa 1 — Quick Wins (33–58 h) → 113/124 (91,1%)
+## Onda 1 — Estrutura de campos ✅ CONCLUÍDA em 2026-08-01 *(escopo ampliado pelas decisões D6/D7 e pela lista aprovada)*
 
-> Converte 5 ❌ e 13 ⚠️ em ✅. Ordenada do mais fácil ao mais difícil.
+> **Status:** ✅ Implementada e testada (23 asserções em transação revertida, 0 falhas de código).
+> O escopo real executado foi muito além do planejado — a lista aprovada em
+> [campos_imobiliario_para_aprovacao.txt](campos_imobiliario_para_aprovacao.txt) virou uma refatoração completa:
+>
+> - **E1.1 ✅** `codigo` municipal nas 7 entidades (+ forms/tabelas nos Resources);
+> - **E1.2 ✅** chave/rótulo separados no `CampoDominioService` (+ normalização: `esquina`/`Esquina` unificados; push do app traduz rótulo→chave);
+> - **E1.3 ✅** a grande refatoração:
+>   - `jsonb` nas colunas de dado livre + `dados_customizados` em **13 camadas** (item 75) + 18 índices GIN + `pg_trgm`;
+>   - tabela **`coleta_imobiliaria`** polimórfica (campanha/status/quem/quando/observação/inconformidade) — 48 coletas migradas; `lotes.status_cadastro` mantido como cache do mapa;
+>   - **34 colunas removidas** com dado migrado antes do drop (5.395 edificações preservadas em `dados_customizados`);
+>   - novas: `secoes_logradouro.lado` e `unidade_imobiliarias.nome_edificio` (backfill do JSON + trigram);
+>   - busca unificada: proprietário via **`pessoas`** (funciona sem integração tributária; fallback no JSON), endereço só na unidade, `nome_edificio` na coluna;
+>   - **KIT INICIAL** de campos customizados (`KitCamposCustomizadosService` + seeder + hook `Tenant::created`) — 8 campos por prefeitura, opções mescladas com o dado real;
+>   - consumidores atualizados: sync API (pull/push com blindagem p/ app publicado), estatísticas (expressão JSONB **+ correção de injeção de SQL** no `group_field`), produtividade/monitoramento, Filament (LoteResource, traits, RelationManagers, ficha do mapa), PDFs (planta de quadra, produtividade, notificação, lote detalhado), exports, `MapaFiscalService::camposCanonicos()` mirando slugs;
+>   - app RN (`app-coletas`): `CONFIG_PADRAO` atualizado — o form é config-driven e se adapta sozinho;
+> - **E1.4 ✅** absorvido pelo kit (as 3 taxonomias hardcoded viraram campos do kit);
+> - **E1.5 ✅** `ApiSetting` "Azure Maps"/"Google Maps" + cache + fim dos 4 `env()` em runtime + opções Azure ocultas sem chave;
+> - **E1.6 ✅** comando `php artisan poc:inventario --tenant=<slug>` (rodar na VPS).
+>
+> ⚠️ **Implantação na VPS:** `php artisan migrate` (7 migrations, com migração de dado embutida) + `php artisan db:seed --class=KitCamposCustomizadosSeeder`. A integração bidirecional (GET + POST/PUT no tributário) ficou DESENHADA (de/para mira slug) — os métodos de escrita do driver entram com o 1º conector real.
+
+### Escopo original (referência)
+
+> Trabalho fundacional decidido pelas **D6/D7**. Vem **antes** das quick wins porque é pré-requisito delas: o T1.3 precisa do `codigo` do logradouro, e os motores da Onda 4 (itens 75/76) precisam da separação chave/rótulo.
+> Não altera contadores de conformidade por si só — **destrava** os itens 44/45/46/47/48/49 (L1), 5/3-3 (L2), 11 (proprietário) e 75/76 (D5).
+
+#### E1.1 — L1: coluna `codigo` municipal nas 7 entidades
+**Itens PoC:** 2.7-44, 2.7-45, 2.7-46, 2.7-47, 2.7-48, 2.7-49 · **Esforço:** 6–8 h · **Status:** ⏳ Pendente
+
+`logradouros`, `secoes_logradouro`, `bairros`, `quadras`, `zonas`, `perimetros_urbanos`, `setores_fiscais`. Hoje `code` é **UUID interno** e `sequential_id` é a **chave da importação GIS** (não pode virar editável). Sem isso, o código composto do item 44 não é formável e o **T2.5 (Recodificação) é impossível** — não se recodifica o que não tem código. Migration + forms + tabelas + exports + busca.
+
+#### E1.2 — N1: separar chave e rótulo no `CampoDominioService`
+**Pré-requisito da Onda 4** · **Esforço:** 4–6 h · **Status:** ⏳ Pendente
+
+Hoje `campo_dominios.opcoes` guarda **array plano de rótulos**, então o Select grava o **rótulo** na coluna — a base já tem `esquina` **e** `Esquina` como valores distintos do mesmo conceito, e `ocupacao` com `"Em Contrução"` (com typo). Isso faria o **mapa temático por valores únicos (T1.10) pintar duas classes para o mesmo conceito**. Passar a gravar `chave => rótulo` (chave por slug, imutável, mesma disciplina do `CampoCustomizado.slug`) + normalização única dos registros existentes.
+
+#### E1.3 — D7: corte fiscal em `unidade_imobiliarias`
+**Itens PoC:** 2.1-5, 2.1-11, 3-3 · **Esforço:** 6–10 h · **Status:** ⏳ Pendente
+
+Remover 9 colunas; criar `nome_edificio`, `proprietario_nome`, `proprietario_cpf_cnpj`. Ajustar `componentesFiscaisUnidade()` (R67-8), os modais de unidade, o BIC, os exports, o `MapaFiscalService` e a busca do `MapDataController` (que passa a ler coluna em vez de JSON). ⚠️ Base da VPS pode ser resetada — **exceto os processos digitais de Bom Princípio**.
+
+#### E1.4 — L3: taxonomias hardcoded para o `CampoDominio`
+**Esforço:** 2–3 h · **Status:** ⏳ Pendente
+
+`secoes_logradouro.tipo_pavimentacao`, `meio_fios.material`, `meio_fios.estado_conservacao`.
+
+> **L4 adiado (decisão do usuário, 2026-08-01):** o `PgvDepreciacaoResource` passar a listar `estado_conservacao` do `CampoDominioService` **fica fora desta onda** — o PGV terá uma revisão dedicada mais adiante. Nada no módulo PGV é tocado na Onda 1.
+
+#### E1.5 — N4: credenciais no `ApiSetting` + fim dos `env()` em runtime
+**Item PoC:** 1-4 · **Esforço:** 3–4 h · **Status:** ⏳ Pendente
+
+Entradas `Azure Maps` e `Google Maps` no `ApiSettingResource`; `AppServiceProvider` carrega todas as `api_settings` numa consulta só (com cache invalidado no `saved()`) e injeta em `config('services.*')`. Trocar os **4 `env()` em runtime** ([mapa-fullscreen.blade.php:25](../resources/views/filament/pages/mapa-fullscreen.blade.php#L25) e [:3239](../resources/views/filament/pages/mapa-fullscreen.blade.php#L3239), [mapa-publico.blade.php:585](../resources/views/filament/cidadao/pages/mapa-publico.blade.php#L585), [MapaFullscreen.php:1483](../app/Filament/Pages/MapaFullscreen.php#L1483)) por `config()` — **`env()` fora de arquivo de config retorna vazio com `config:cache` ativo**. Ocultar os basemaps Azure quando não houver chave.
+
+#### E1.6 — N3: comando `poc:inventario`
+**Esforço:** 1–2 h · **Status:** ⏳ Pendente
+
+Transformar o script de inventário da Onda 0 em comando artisan, para rodar **na VPS** (que é a base real da PoC — decisão do usuário em 2026-07-31) e medir a densidade de dado por item do edital.
+
+---
+
+## Etapa 1 — Quick Wins (36–61 h) → 113/124 (91,1%)
+
+> Converte 5 ❌ e 13 ⚠️ em ✅ (+ corrige o falso positivo do item 2.7-52 dentro do T1.3). Ordenada do mais fácil ao mais difícil.
+> **Ordem de execução por ondas** (agrupada por arquivo/subsistema, para não reabrir o mesmo arquivo várias vezes — acordada em 2026-07-31):
+> **Onda 1** = T1.1, T1.2, T1.3, T1.7, T1.5 (fichas, PDFs e cadastros) · **Onda 2** = T1.4, T1.6 (mapa público) ·
+> **Onda 3** = T1.8, T1.9 (`advancedSpatialQuery`) · **Onda 4** = T1.10, T1.11, T1.12 (motores genéricos do mapa — maior retorno: 9 itens).
+> Cada onda: implementação → teste do agente → teste do usuário → ok → próxima.
 
 #### T1.1 — Link "Ver histórico" na ficha do lote
 **Item PoC:** 2.1-14 · **Esforço:** 2–3 h · **Status:** ⏳ Pendente
@@ -86,10 +193,17 @@ A `AuditoriaPage` já loga tudo (inclusive geometria via `LogsGeometryChanges`);
 
 `MemorialDescritivoService` já identifica lotes confrontantes; adicionar o nome do proprietário do vizinho (via unidade imobiliária principal) no PDF `memorial_descritivo.blade.php`.
 
-#### T1.3 — Campos `codigo` (métrico) e `lado` na Seção de Logradouro
-**Item PoC:** 2.7-44 · **Esforço:** 2–3 h · **Status:** ⏳ Pendente
+#### T1.3 — Seção de Logradouro: código métrico, lado e cascata de exclusão
+**Itens PoC:** 2.7-44, **2.7-52** · **Esforço:** 5–6 h · **Status:** ⏳ Pendente · *(escopo revisado em 2026-07-31 — ver decisão D4)*
 
-Migration em `secoes_logradouro` + form/tabela no `SecaoLogradouroResource` e na trait `HasSecaoLogradouroActions`.
+1. Migration em `secoes_logradouro`: **`codigo`** (Código da Seção, métrico) + **`lado`**;
+2. **`lado` white-label** — registrar a entidade `secao_logradouro` em `CampoDominioService::PADROES` (default Par/Ímpar/Ambos). Fica fora de `ENTIDADES_NA_COLETA` (não é campo de coleta de campo);
+3. **Código composto na UI** — o item 44 pede `Código do Logradouro + Código da Seção`; exibir concatenado na tabela, na ficha do mapa e no PDF;
+4. **Índice único parcial** `(tenant_id, logradouro_id, codigo, lado) WHERE deleted_at IS NULL` — impede duplicar a mesma seção do mesmo lado, libera os dois lados (código igual + lado diferente). Como no Postgres `NULL ≠ NULL`, seção sem código nunca colide → importação legada passa limpo;
+5. 🐛 **Cascata de exclusão Logradouro → Seções (item 52)** — ver achado abaixo;
+6. Form/tabela no `SecaoLogradouroResource`, no `SecoesRelationManager` e na trait `HasSecaoLogradouroActions`. Orientação no formulário: desenhar a seção **sobre a testada** (frente dos lotes do lado), não sobre o eixo — sem constraint geométrica.
+
+> 🐛 **Achado 2026-07-31 — item 2.7-52 estava marcado ✅ indevidamente.** O edital pede *"Excluir Logradouro **e Seções**"*, mas excluir um logradouro **não** exclui as seções: o `cascadeOnDelete` da FK é constraint de banco e só dispara em DELETE físico, enquanto [HasLogradouroActions.php:202](../app/Filament/Pages/Traits/HasLogradouroActions.php#L202) faz `->delete()` num model com `SoftDeletes` — só grava `deleted_at`. As seções continuam ativas e visíveis no mapa, apontando para um pai excluído (a coluna "Logradouro" da listagem fica vazia porque o `belongsTo` cai no escopo global de soft delete). Corrigir cascateando o **soft delete e o restore** do logradouro para as seções. Não altera os contadores (o item já era contado como ✅), mas era um falso positivo que quebraria ao vivo.
 
 #### T1.4 — Foto frontal + croqui na ficha pública do imóvel
 **Item PoC:** 3-9 · **Esforço:** 2–4 h · **Status:** ⏳ Pendente
@@ -363,6 +477,25 @@ Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unid
 - O `resolveRelacionamento` do importador traduz o id do GeoJSON pelo par (`tenant_id`, `sequential_id`) — é isso que permite cada município ter numeração própria começando em 1. Quando **não achava**, caía no número do JSON como id global e podia amarrar o registro na entidade de **outra prefeitura** (a PK é sequência global), silenciosamente;
 - Agora vínculo não resolvido fica **nulo** e a notificação final vira aviso **persistente** com a contagem por entidade ("⚠️ 38 × Quadra — importe a camada superior primeiro"). Sintoma típico: hierarquia importada fora de ordem;
 - Testado ponta a ponta pela ação real (transação revertida): município novo com quadras 1–2, lotes apontando para elas ficam corretos, lote apontando para quadra inexistente fica com `quadra_id` nulo (antes apontaria para a quadra id 99 da prefeitura 1), campo customizado (`numero_teste`) importado do GeoJSON e base sem nenhum vínculo cruzado.
+
+---
+
+## Pós-PoC — releases especificadas e paradas
+
+#### 🗂️ Nuvem (S3/CloudFront) + Pacote de dados + Zerar dados no /admin
+**Status:** 📋 Especificado, **não implementado** — retomar depois da PoC de Tangará
+**Especificado em:** 2026-07-30 · **Documento:** [releaseNuvemFerramentasAdmin.md](releaseNuvemFerramentasAdmin.md)
+
+- Três frentes do painel `/admin`, levantadas no código e no banco reais: **(1)** armazenamento em nuvem — hoje 15,4 GB de ortofoto/LiDAR em `public/` e 126 MB de anexos, com anexos de processos e documentos de pessoas **publicamente acessíveis por URL sem login**; **(2)** pacote de dados por prefeitura (portabilidade, **não** backup); **(3)** zerar dados por conjuntos coerentes, nunca tabela a tabela;
+- Decisões já tomadas com o usuário: AWS S3 + CloudFront, credenciais em `api_settings` (nunca `.env`), pacote de entrega (planilhas + camadas + anexos + PDFs) com link temporário, exclusão em cascata com previsão de impacto, e privacidade dos anexos corrigida junto;
+- **Bloqueador conhecido:** o sistema **não tem backup automático**; a mitigação da ferramenta de zerar é operacional (`pg_dump` agendado) e a ferramenta só libera se houver pacote gerado nos últimos 7 dias.
+
+#### 🐛 Bug corrigido no levantamento — exclusão em massa de lotes pelo mapa
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- [MapaFullscreen.php:878](../app/Filament/Pages/MapaFullscreen.php#L878) fazia `$lote->query()->delete()` — `Model::query()` é **estático** e devolve builder **sem WHERE**: excluir um lote pelo mapa soft-deletava **todos os lotes da prefeitura ativa** (recuperável pelo `TrashedFilter`, mas silencioso). Corrigido para `$lote->delete()`;
+- Testado em transação revertida: 4.434 → 4.433 lotes ativos (exatamente o alvo), demais prefeituras intactas.
 
 ---
 

@@ -47,8 +47,7 @@
                     <tr>
                         <td><strong>Testada (m):</strong> {{ $lote->main_facade_length ? number_format($lote->main_facade_length, 2, ',', '') : '0,00' }}</td>
                         <td><strong>Área Geo (m²):</strong> {{ $lote->area_geo ? number_format($lote->area_geo, 2, ',', '') : '0,00' }}</td>
-                        <td><strong>{{ $rotulos['lote']['ocupacao'] ?? 'Ocupação' }}:</strong> {{ \App\Services\Coleta\CampoDominioService::rotuloValor('lote', 'ocupacao', $lote->ocupacao) ?? '-' }}</td>
-                        <td><strong>{{ $rotulos['lote']['situacao_quadra'] ?? 'Situação na Quadra' }}:</strong> {{ \App\Services\Coleta\CampoDominioService::rotuloValor('lote', 'situacao_quadra', $lote->situacao_quadra) ?? '-' }}</td>
+                        <td colspan="2"><strong>{{ $rotulos['lote']['ocupacao'] ?? 'Ocupação' }}:</strong> {{ \App\Services\Coleta\CampoDominioService::rotuloValor('lote', 'ocupacao', $lote->ocupacao) ?? '-' }}</td>
                     </tr>
                     @if(!empty($camposCustom['lote']) && count($camposCustom['lote']))
                         <tr>
@@ -103,10 +102,8 @@
                 @if($lote->edificacoes->isNotEmpty())
                     <table class="sub-table">
                         <thead>
+                            {{-- Refatoração PoC Tangará: atributos descritivos = campos customizados --}}
                             <tr>
-                                <th>{{ $rotulos['edificacao']['tipo'] ?? 'Tipo' }}</th>
-                                <th>{{ $rotulos['edificacao']['tp_construcao'] ?? 'Tipo de Construção' }}</th>
-                                <th>{{ $rotulos['edificacao']['estado_conservacao'] ?? 'Estado de Conservação' }}</th>
                                 <th>Área (m²)</th>
                                 @foreach(($camposCustom['edificacao'] ?? []) as $campo)
                                     <th>{{ $campo->label }}</th>
@@ -116,9 +113,6 @@
                         <tbody>
                             @foreach($lote->edificacoes as $edificacao)
                                 <tr>
-                                    <td>{{ $edificacao->tipo ?? '-' }}</td>
-                                    <td>{{ $edificacao->tp_construcao ?? '-' }}</td>
-                                    <td>{{ $edificacao->estado_conservacao ?? '-' }}</td>
                                     <td>{{ $edificacao->area_geo ? number_format($edificacao->area_geo, 2, ',', '') : '0,00' }}</td>
                                     @foreach(($camposCustom['edificacao'] ?? []) as $campo)
                                         @php $v = $edificacao->dados_customizados[$campo->slug] ?? null; @endphp

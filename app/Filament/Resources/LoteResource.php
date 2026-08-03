@@ -76,39 +76,24 @@ class LoteResource extends Resource
                             ->searchable()
                             ->required(),
 
-                        // R67-2 — rótulo/valores/visibilidade definidos pelo município
+                        // R67-2 — rótulo/visibilidade definidos pelo município (lista fixa: baldio/construido)
                         \App\Services\Coleta\CampoDominioService::aplicar(
                             Forms\Components\Select::make('ocupacao')->placeholder('Selecione...')->nullable(),
                             'lote', 'ocupacao'
                         ),
 
-                        \App\Services\Coleta\CampoDominioService::aplicar(
-                            Forms\Components\Select::make('situacao_quadra')->placeholder('Selecione...')->nullable(),
-                            'lote', 'situacao_quadra'
-                        ),
+                        // Refatoração PoC Tangará: situacao_quadra e demais atributos do
+                        // município são campos customizados — seção "Campos do Município" abaixo.
 
                     ])->columns(3),
 
-                Forms\Components\Section::make('Endereço (Numeração Predial)')
-                    ->description('Herdado do cadastro tributário (dados_tributarios) e atualizado pelo gerador de numeração predial no mapa.')
+                Forms\Components\Section::make('Numeração Predial')
+                    ->description('O endereço textual vive na Unidade Imobiliária; aqui fica só o número predial do lote (gerador de numeração no mapa).')
                     ->collapsible()
                     ->schema([
-                        Forms\Components\TextInput::make('tipo_logradouro')
-                            ->label('Tipo de Logradouro')
-                            ->placeholder('Rua, Avenida...')
-                            ->maxLength(255),
-
-                        Forms\Components\TextInput::make('logradouro')
-                            ->label('Logradouro')
-                            ->maxLength(255),
-
                         Forms\Components\TextInput::make('numero_logradouro')
                             ->label('Número Predial (atual)')
                             ->helperText('Definido pelo gerador de numeração predial.')
-                            ->maxLength(255),
-
-                        Forms\Components\TextInput::make('cep')
-                            ->label('CEP')
                             ->maxLength(255),
 
                         Forms\Components\TextInput::make('numero_predial_antigo')
@@ -165,36 +150,25 @@ class LoteResource extends Resource
                                 ->nullable(),
                         ])->columnSpanFull(),
 
-                        Forms\Components\Textarea::make('observacao')
-                            ->label('Observação Geral')
-                            ->rows(3)
-                            ->nullable()
-                            ->columnSpanFull(),
+                        // Refatoração PoC Tangará: observação/inconformidade/quem/quando são
+                        // dados da COLETA (coleta_imobiliaria) — exibidos read-only aqui.
+                        Forms\Components\Placeholder::make('coleta_info')
+                            ->label('Última coleta')
+                            ->content(function (?Lote $record): string {
+                                $c = $record?->coletaVigente;
+                                if (! $c) {
+                                    return 'Nenhuma coleta registrada.';
+                                }
+                                $partes = array_filter([
+                                    $c->coletadoPor?->name,
+                                    $c->coletado_em?->format('d/m/Y H:i'),
+                                    filled($c->observacao) ? 'Obs.: '.$c->observacao : null,
+                                    filled($c->inconformidade_descricao) ? 'Inconformidade: '.$c->inconformidade_descricao : null,
+                                ]);
 
-                        Forms\Components\Textarea::make('inconformidade_descricao')
-                            ->label('Descrição da Inconformidade')
-                            ->rows(3)
-                            ->nullable()
-                            ->visible(fn (Forms\Get $get) => $get('status_cadastro') === 'inconformidade')
+                                return implode(' · ', $partes) ?: 'Coleta registrada sem detalhes.';
+                            })
                             ->columnSpanFull(),
-
-                        Forms\Components\KeyValue::make('dados_vistoria')
-                            ->label('Boletim de Campo (Dados Livres)')
-                            ->keyLabel('Campo')
-                            ->valueLabel('Valor')
-                            ->reorderable()
-                            ->nullable()
-                            ->columnSpanFull(),
-
-                        Forms\Components\Grid::make(2)->schema([
-                            Forms\Components\Select::make('coletado_por_id')
-                                ->label('Coletado por')
-                                ->relationship('coletor', 'name')
-                                ->disabled(),
-                            Forms\Components\DateTimePicker::make('coletado_em')
-                                ->label('Coletado em')
-                                ->disabled(),
-                        ])->columnSpanFull(),
                     ]),
 
                 // R67-1 — campos criados pelo município (Coleta cadastral → Campos do Município)
@@ -255,10 +229,12 @@ class LoteResource extends Resource
                     ->searchable() // <-- A MÁGICA DA PESQUISA ESTÁ AQUI!
                     ->default('Nenhum'),
 
-                Tables\Columns\TextColumn::make('logradouro')
+                // Refatoração PoC Tangará: o endereço vive na Unidade Imobiliária
+                Tables\Columns\TextColumn::make('unidadesImobiliarias.logradouro_nome')
                     ->label('Logradouro')
-                    ->formatStateUsing(fn (?string $state, Lote $record) => trim(($record->tipo_logradouro ? $record->tipo_logradouro.' ' : '').($state ?? '')) ?: '—')
-                    ->searchable(['tipo_logradouro', 'logradouro'])
+                    ->limitList(1)
+                    ->searchable()
+                    ->default('—')
                     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('numero_logradouro')
@@ -266,12 +242,6 @@ class LoteResource extends Resource
                     ->searchable()
                     ->default('—')
                     ->toggleable(),
-
-                Tables\Columns\TextColumn::make('cep')
-                    ->label('CEP')
-                    ->searchable()
-                    ->default('—')
-                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('quadra.name')
                     ->label('Quadra')
@@ -321,9 +291,11 @@ class LoteResource extends Resource
                     })
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                Tables\Columns\BadgeColumn::make('situacao_quadra')
-                    ->label(\App\Services\Coleta\CampoDominioService::label('lote', 'situacao_quadra'))
-                    ->formatStateUsing(fn ($state) => \App\Services\Coleta\CampoDominioService::rotuloValor('lote', 'situacao_quadra', $state) ?? '—')
+                // Refatoração PoC Tangará: situacao_quadra é campo customizado (JSONB)
+                Tables\Columns\TextColumn::make('dados_customizados.situacao_quadra')
+                    ->label('Situação na Quadra')
+                    ->badge()
+                    ->default('—')
                     ->color('info')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -404,7 +376,7 @@ class LoteResource extends Resource
                     ->icon('heroicon-o-document-text')
                     ->color('danger')
                     ->tooltip('Emitir Notificação de Irregularidade')
-                    ->visible(fn (Lote $record) => ! empty($record->inconformidade_descricao))
+                    ->visible(fn (Lote $record) => filled($record->coletaVigente?->inconformidade_descricao))
                     ->action(fn (Lote $record) => app(NotificacaoIrregularidadeService::class)->generatePdf($record)),
 
                 Tables\Actions\EditAction::make(),

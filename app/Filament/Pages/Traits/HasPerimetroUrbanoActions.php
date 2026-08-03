@@ -33,6 +33,11 @@ trait HasPerimetroUrbanoActions
                             : '<em style="color:#9ca3af;">Sem geometria — desenhe a área no mapa primeiro.</em>'
                     )),
 
+                TextInput::make('codigo')
+                    ->label('Código do Distrito')
+                    ->helperText('Código do cadastro municipal (item 46 do edital).')
+                    ->maxLength(50),
+
                 TextInput::make('name')
                     ->label('Nome')
                     ->required()
@@ -42,6 +47,9 @@ trait HasPerimetroUrbanoActions
                     ->label('Distrito (opcional)')
                     ->helperText('Ex: Distrito, Limite Municipal, Perímetro Urbano...')
                     ->maxLength(255),
+
+                \Filament\Forms\Components\ColorPicker::make('fill_color')
+                    ->label('Cor no mapa'),
             ])
             ->action(function (array $data) {
                 $data['tenant_id'] = $this->tenantId;
@@ -81,8 +89,10 @@ trait HasPerimetroUrbanoActions
             ->fillForm(function (): array {
                 $reg = PerimetroUrbano::find($this->perimetroUrbanoAtivoId);
                 return [
-                    'name'     => $reg?->name,
-                    'distrito' => $reg?->distrito,
+                    'name'       => $reg?->name,
+                    'codigo'     => $reg?->codigo,
+                    'distrito'   => $reg?->distrito,
+                    'fill_color' => $reg?->fill_color,
                 ];
             })
             ->form([
@@ -98,8 +108,10 @@ trait HasPerimetroUrbanoActions
                         );
                     }),
 
+                TextInput::make('codigo')->label('Código do Distrito')->maxLength(50),
                 TextInput::make('name')->label('Nome')->required()->maxLength(255),
                 TextInput::make('distrito')->label('Distrito (opcional)')->maxLength(255),
+                \Filament\Forms\Components\ColorPicker::make('fill_color')->label('Cor no mapa'),
             ])
             ->action(function (array $data) {
                 $reg = PerimetroUrbano::find($this->perimetroUrbanoAtivoId);

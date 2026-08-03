@@ -29,15 +29,16 @@ class QuadraResource extends Resource
     {
         return $form->schema([
             Forms\Components\Section::make('Identificação da Quadra')->schema([
+                Forms\Components\TextInput::make('codigo')
+                    ->label('Código da Quadra')
+                    ->helperText('Código do cadastro municipal.')
+                    ->maxLength(50),
+
                 Forms\Components\TextInput::make('name')
                     ->label('Nome / Número da Quadra')
                     ->required()
                     ->maxLength(255),
 
-                Forms\Components\TextInput::make('setor_codigo')
-                    ->label('Código do Setor')
-                    ->maxLength(20)
-                    ->nullable(),
 
                 Forms\Components\Select::make('bairro_id')
                     ->label('Bairro Pertencente')
@@ -75,8 +76,8 @@ class QuadraResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
+                Tables\Columns\TextColumn::make('codigo')->label('Código')->searchable()->sortable()->placeholder('—'),
                 Tables\Columns\TextColumn::make('name')->label('Quadra')->searchable()->weight('bold'),
-                Tables\Columns\TextColumn::make('setor_codigo')->label('Setor')->searchable()->default('—'),
                 Tables\Columns\TextColumn::make('bairro.name')->label('Bairro')->searchable(),
                 Tables\Columns\TextColumn::make('loteamento.name')->label('Loteamento')->searchable(),
                 Tables\Columns\TextColumn::make('area_geo')

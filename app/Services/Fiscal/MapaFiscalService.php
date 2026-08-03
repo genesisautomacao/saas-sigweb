@@ -80,26 +80,44 @@ class MapaFiscalService
         return $saida;
     }
 
-    /** Campos canônicos disponíveis para o de/para (Select da tela de configuração). */
-    public static function camposCanonicos(): array
+    /**
+     * Campos canônicos disponíveis para o de/para (Select da tela de configuração).
+     *
+     * Refatoração PoC Tangará: as 13 colunas fiscais foram removidas — as chaves seguem
+     * canônicas DENTRO do JSON dados_tributarios (BIC, PGV e busca leem de lá), e o
+     * de/para também pode mirar SLUGS de campos customizados da unidade (a "associação
+     * na integração" decidida pelo usuário).
+     */
+    public static function camposCanonicos(?int $tenantId = null): array
     {
-        $fiscais = array_combine(UnidadeImobiliaria::CAMPOS_FISCAIS, UnidadeImobiliaria::CAMPOS_FISCAIS);
-
-        // Chaves canônicas fora das 13 colunas, usadas pelo BIC / propagação de endereço.
-        $extras = [
+        // Chaves canônicas do JSON (consumidores conhecidos: busca, BIC, PGV, endereço).
+        $canonicos = [
             'proprietario_name' => 'proprietario_name',
             'proprietario_cpf' => 'proprietario_cpf',
             'inscricao_imobiliaria' => 'inscricao_imobiliaria',
             'codigo_imovel_tributario' => 'codigo_imovel_tributario',
+            'nome_edificio' => 'nome_edificio',
             'tipo_logradouro' => 'tipo_logradouro',
             'logradouro' => 'logradouro',
             'numero_logradouro' => 'numero_logradouro',
             'cep' => 'cep',
             'testada' => 'testada',
             'area_geo' => 'area_geo',
+            'area_edificacao' => 'area_edificacao',
+            'area_total_edificacao' => 'area_total_edificacao',
+            'valor_venal_lote' => 'valor_venal_lote',
+            'valor_venal_edificacao' => 'valor_venal_edificacao',
+            'valor_total_imposto' => 'valor_total_imposto',
         ];
 
-        return array_merge($fiscais, $extras);
+        // Slugs de campos customizados da unidade deste município (alvo do de/para).
+        if ($tenantId) {
+            foreach (\App\Services\Coleta\CampoCustomizadoService::definicoes('unidade', $tenantId) as $campo) {
+                $canonicos[$campo->slug] = $campo->slug.' (campo do município)';
+            }
+        }
+
+        return $canonicos;
     }
 
     /** Resolve a prefeitura → entrada ATIVA do catálogo global de sistemas. */

@@ -66,11 +66,16 @@ class MapDataController extends Controller
                             'name' => $item->nome ?? $item->nome_propriedade ?? $item->nome_referencia ?? $item->name ?? 'S/N',
 
                             'categoria' => $item->categoria ?? null, // Pontos de Interesse
-                            'tipo' => $item->tipo ?? null, // Localidades e Hidrografia
+                            // Refatoração PoC Tangará: nas camadas do imobiliário estes
+                            // atributos viraram campos customizados — fallback no JSONB
+                            // mantém as props do engine/tooltips sem mexer no JS.
+                            'tipo' => $item->tipo ?? ($item->dados_customizados['tipo_edificacao'] ?? null), // Localidades, Hidrografia e Edificações
                             'tipo_pavimento' => $item->tipo_pavimento ?? null, // Estradas
-                            'tipo_pavimentacao' => $item->tipo_pavimentacao ?? null, // Seções de Logradouro
-                            'estado_conservacao' => $item->estado_conservacao ?? null, // Pontos, Pontes e Meio-fio
-                            'material' => $item->material ?? null, // Meio-fio
+                            'tipo_pavimentacao' => $item->tipo_pavimentacao ?? ($item->dados_customizados['tipo_pavimentacao'] ?? null), // Seções de Logradouro
+                            'estado_conservacao' => $item->estado_conservacao ?? ($item->dados_customizados['estado_conservacao'] ?? null), // Pontos, Pontes e Meio-fio
+                            'material' => $item->material ?? ($item->dados_customizados['material'] ?? null), // Meio-fio
+                            'lado' => $item->lado ?? null, // Seções de Logradouro (item 44)
+                            'codigo' => $item->codigo ?? null, // Código municipal (itens 44-49) — rótulos/labels
                             'extensao_geo' => isset($item->extensao_geo) ? (float) $item->extensao_geo : null, // Meio-fio
                         ],
                         'geometry' => $item->geo_json
@@ -545,11 +550,20 @@ class MapDataController extends Controller
             $results = [];
 
             // --- 1. BUSCA DE LOTES E UNIDADES (COM DADOS DO JSON) ---
+            // Refatoração PoC Tangará:
+            //  - endereço vive SÓ na unidade (as cópias do lote foram removidas);
+            //  - nome_edificio virou coluna (indexada por trigram);
+            //  - proprietário busca em PESSOAS via proprietario_id (funciona também em
+            //    município SEM integração tributária), com fallback no JSON legado.
             $lotes = \Illuminate\Support\Facades\DB::table('lotes')
                 ->leftJoin('quadras', 'lotes.quadra_id', '=', 'quadras.id')
                 ->leftJoin('unidade_imobiliarias', function ($join) {
                     $join->on('unidade_imobiliarias.lote_id', '=', 'lotes.id')
                         ->whereNull('unidade_imobiliarias.deleted_at');
+                })
+                ->leftJoin('pessoas', function ($join) {
+                    $join->on('pessoas.id', '=', 'unidade_imobiliarias.proprietario_id')
+                        ->whereNull('pessoas.deleted_at');
                 })
                 ->where('lotes.tenant_id', $tenantId)
                 ->whereNotNull('lotes.geo')
@@ -561,29 +575,29 @@ class MapDataController extends Controller
                         ->orWhere('unidade_imobiliarias.logradouro_nome', 'ilike', "%{$termo}%")
                         ->orWhereRaw("CONCAT(unidade_imobiliarias.logradouro_nome, ', ', unidade_imobiliarias.numero_imovel) ILIKE ?", ["%{$termo}%"])
                         ->orWhereRaw("CONCAT(unidade_imobiliarias.logradouro_nome, ' ', unidade_imobiliarias.numero_imovel) ILIKE ?", ["%{$termo}%"])
-                        // 🆕 Endereço/numeração predial no PRÓPRIO lote (nº novo gerado + logradouro herdado).
-                        // Mantém o nº antigo (via numero_imovel acima) pesquisável durante a transição.
+                        // Nº predial do lote (número NOVO da numeração predial)
                         ->orWhere('lotes.numero_logradouro', $termo)
-                        ->orWhere('lotes.logradouro', 'ilike', "%{$termo}%")
-                        ->orWhereRaw("CONCAT(lotes.logradouro, ', ', lotes.numero_logradouro) ILIKE ?", ["%{$termo}%"])
-                        ->orWhereRaw("CONCAT(lotes.tipo_logradouro, ' ', lotes.logradouro, ', ', lotes.numero_logradouro) ILIKE ?", ["%{$termo}%"])
-                        // Busca por Nome do Edifício / Condomínio (não-sensível, permanece no modo público)
-                        ->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'nome_edificio' ILIKE ?", ["%{$termo}%"]);
+                        // Nome do Edifício / Condomínio (não-sensível, permanece no modo público)
+                        ->orWhere('unidade_imobiliarias.nome_edificio', 'ilike', "%{$termo}%");
 
                     // Campos sensíveis: só no modo logado (intranet)
                     if (! $publico) {
-                        $q->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'proprietario_name' ILIKE ?", ["%{$termo}%"])
+                        $q->orWhere('pessoas.name', 'ilike', "%{$termo}%")
+                          ->orWhere('pessoas.cpf', 'ilike', "%{$termo}%")
+                          ->orWhere('pessoas.cnpj', 'ilike', "%{$termo}%")
+                          // Fallback: unidade sem Pessoa vinculada, mas com JSON do tributário
+                          ->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'proprietario_name' ILIKE ?", ["%{$termo}%"])
                           ->orWhereRaw("unidade_imobiliarias.dados_tributarios->>'proprietario_cpf' ILIKE ?", ["%{$termo}%"]);
                     }
                 })
                 ->selectRaw("
-                    lotes.id, 
-                    lotes.numero_lote, 
-                    quadras.name as quadra_nome, 
+                    lotes.id,
+                    lotes.numero_lote,
+                    quadras.name as quadra_nome,
                     unidade_imobiliarias.codigo_imovel_tributario,
-                    unidade_imobiliarias.dados_tributarios->>'proprietario_name' as proprietario_nome,
-                    unidade_imobiliarias.dados_tributarios->>'proprietario_cpf' as proprietario_cpf,
-                    unidade_imobiliarias.dados_tributarios->>'nome_edificio' as nome_edificio,
+                    COALESCE(pessoas.name, unidade_imobiliarias.dados_tributarios->>'proprietario_name') as proprietario_nome,
+                    COALESCE(pessoas.cpf, pessoas.cnpj, unidade_imobiliarias.dados_tributarios->>'proprietario_cpf') as proprietario_cpf,
+                    unidade_imobiliarias.nome_edificio,
                     ST_AsGeoJSON(ST_Centroid(lotes.geo)) as centroide
                 ")
                 ->limit(20)
@@ -1081,11 +1095,14 @@ class MapDataController extends Controller
                 'edificacoes' => [
                     'table'       => 'edificacoes',
                     'label_col'   => 'code',
+                    // Refatoração PoC Tangará: os atributos descritivos viraram campos
+                    // customizados — o agrupamento lê o JSONB. `expr` = expressão segura
+                    // (o nome que chega do front é só a CHAVE deste array).
                     'group_fields'=> [
-                        'tipo'                    => ['label' => 'Tipo de Uso'],
-                        'tp_construcao'           => ['label' => 'Tipo de Construção'],
-                        'estado_conservacao'      => ['label' => 'Estado de Conservação'],
-                        'caracteristica_construcao'=> ['label' => 'Característica'],
+                        'tipo'                    => ['label' => 'Tipo de Edificação', 'expr' => "dados_customizados->>'tipo_edificacao'"],
+                        'tp_construcao'           => ['label' => 'Tipo de Construção', 'expr' => "dados_customizados->>'tp_construcao'"],
+                        'estado_conservacao'      => ['label' => 'Estado de Conservação', 'expr' => "dados_customizados->>'estado_conservacao'"],
+                        'caracteristica_construcao'=> ['label' => 'Característica', 'expr' => "dados_customizados->>'caracteristica_construcao'"],
                     ],
                 ],
                 'logradouros' => [
@@ -1100,9 +1117,15 @@ class MapDataController extends Controller
             if (!isset($layerConfig[$targetLayer])) {
                 return response()->json(['error' => 'Camada inválida.'], 400);
             }
- 
+
             $cfg   = $layerConfig[$targetLayer];
             $table = $cfg['table'];
+
+            // Segurança: o campo de agrupamento PRECISA estar na whitelist da camada —
+            // antes o nome ia cru para o selectRaw (injeção de SQL via group_field).
+            if (! isset($cfg['group_fields'][$groupField])) {
+                return response()->json(['error' => 'Campo de agrupamento inválido.'], 400);
+            }
  
             // ----------------------------------------------------------------
             // 2. Resolve a geometria da(s) área(s) de interesse + centroide
@@ -1206,10 +1229,13 @@ class MapDataController extends Controller
                         ];
                     }
                 } else {
-                    // Agrupamento direto por campo da tabela
+                    // Agrupamento direto: coluna da tabela ou expressão JSONB (campos
+                    // que viraram customizados). A expressão vem da whitelist, nunca do request.
+                    $groupExpr = $cfg['group_fields'][$groupField]['expr'] ?? $groupField;
+
                     $rows = (clone $q)
-                        ->selectRaw("{$groupField} as grupo_valor, COUNT(*) as quantidade")
-                        ->groupBy($groupField)
+                        ->selectRaw("{$groupExpr} as grupo_valor, COUNT(*) as quantidade")
+                        ->groupByRaw($groupExpr)
                         ->orderByDesc('quantidade')
                         ->get();
  

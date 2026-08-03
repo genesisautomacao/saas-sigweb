@@ -20,9 +20,13 @@ class Loteamento extends Model
         'sequential_id',
         'code',
         'name',
-        'setor',
+        'dados_customizados',
         'area_geo',
         'geo',
+    ];
+
+    protected $casts = [
+        'dados_customizados' => 'array', // campos do município (item 75)
     ];
 
     protected $hidden = ['geo'];

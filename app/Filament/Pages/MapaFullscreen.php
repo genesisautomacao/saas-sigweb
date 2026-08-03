@@ -61,6 +61,7 @@ class MapaFullscreen extends Page
     use HasJazigoActions;
     use HasLogradouroActions;
     use HasLogradouroCemiterioActions;
+
     // Injetando as gavetas de lógica (Traits)
     use HasLoteActions;
     use HasLoteamentoActions;
@@ -352,14 +353,14 @@ class MapaFullscreen extends Page
         $this->loteAreaCadastrada = (float) ($dadosTrib['area_geo'] ?? 0);
         $this->loteEdifCadastrada = (float) ($dadosTrib['area_edificacao'] ?? $dadosTrib['area_total_edificacao'] ?? 0);
 
-        // Dados de vistoria de campo
+        // Dados de vistoria de campo — refatoração PoC Tangará: a coleta vive em
+        // coleta_imobiliaria; situacao_quadra é campo customizado (dados_customizados).
+        $coleta = $lote?->coletaVigente;
         $this->loteStatusCadastro = $lote?->status_cadastro;
         $this->loteOcupacao = $lote?->ocupacao;
-        $this->loteSituacaoQuadra = $lote?->situacao_quadra;
-        $this->loteColetadoPor = $lote?->coletado_por_id
-            ? \App\Models\User::query()->find($lote->coletado_por_id)?->name
-            : null;
-        $this->loteColetadoEm = $lote?->coletado_em?->format('d/m/Y H:i');
+        $this->loteSituacaoQuadra = $lote?->dados_customizados['situacao_quadra'] ?? null;
+        $this->loteColetadoPor = $coleta?->coletadoPor?->name;
+        $this->loteColetadoEm = $coleta?->coletado_em?->format('d/m/Y H:i');
 
         // Processos digitais em aberto vinculados a este lote
         $this->loteProcessosAbertos = \App\Models\ProcessoDigital::query()
@@ -747,6 +748,30 @@ class MapaFullscreen extends Page
             $ext = DB::selectOne("SELECT ST_Length({$lineWKT}::geography) AS metros");
             $this->testadaExtensaoCalculada = $ext?->metros ? round((float) $ext->metros, 2) : null;
 
+            // Auto-detecção topológica (KNN): logradouro mais próximo da linha desenhada
+            // e, dentro dele, a seção mais próxima — item 42 do edital pede "Logradouro
+            // e Seção de cada testada". Ambos editáveis no modal.
+            $logradouro = DB::selectOne(
+                "SELECT id FROM logradouros
+                 WHERE tenant_id = ? AND geo IS NOT NULL AND deleted_at IS NULL
+                 ORDER BY geo::geometry <-> {$lineWKT}::geometry
+                 LIMIT 1",
+                [$this->tenantId]
+            );
+            $this->testadaLogradouroPreSelecionadoId = $logradouro?->id;
+
+            $this->testadaSecaoPreSelecionadaId = null;
+            if ($logradouro) {
+                $secao = DB::selectOne(
+                    "SELECT id FROM secoes_logradouro
+                     WHERE tenant_id = ? AND logradouro_id = ? AND geo IS NOT NULL AND deleted_at IS NULL
+                     ORDER BY geo::geometry <-> {$lineWKT}::geometry
+                     LIMIT 1",
+                    [$this->tenantId, $logradouro->id]
+                );
+                $this->testadaSecaoPreSelecionadaId = $secao?->id;
+            }
+
             $this->mountAction('criarTestada');
         } elseif ($entityType === 'loteamento') {
 
@@ -875,7 +900,9 @@ class MapaFullscreen extends Page
                     if ($lote) {
                         \App\Models\UnidadeImobiliaria::query()->where('lote_id', $lote->id)->delete();
                         Edificacao::query()->where('lote_id', $lote->id)->delete();
-                        $lote->query()->delete();
+                        // ⚠️ $lote->query() chama o método ESTÁTICO Model::query() — devolve um
+                        // builder SEM WHERE e apagava TODOS os lotes do tenant ativo.
+                        $lote->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-lote-mapa', ['id' => $this->loteAtivoId]);
                         $this->fecharFicha();
@@ -1477,10 +1504,12 @@ class MapaFullscreen extends Page
     #[\Livewire\Attributes\On('gerarPerfilAltimetrico')]
     public function gerarPerfilAltimetrico($coords)
     {
-        $apiKey = env('GOOGLE_MAPS_API_KEY');
+        // E1.5 — config() em vez de env(): com config:cache ativo, env() em runtime
+        // retorna null. A chave vem do ApiSetting "Google Maps" (/admin) ou do .env.
+        $apiKey = config('services.google_maps.key');
 
         if (! $apiKey) {
-            \Filament\Notifications\Notification::make()->title('Aviso')->body('A chave GOOGLE_MAPS_API_KEY não está configurada no .env.')->warning()->send();
+            \Filament\Notifications\Notification::make()->title('Aviso')->body('A chave do Google Maps não está configurada (Admin → Configurações de APIs → "Google Maps").')->warning()->send();
 
             return;
         }

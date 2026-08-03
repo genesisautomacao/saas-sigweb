@@ -26,6 +26,11 @@ class ZonaResource extends Resource
     {
         return $form->schema([
             Forms\Components\Section::make('Identificação da Zona')->schema([
+                Forms\Components\TextInput::make('codigo')
+                    ->label('Código do Zoneamento')
+                    ->helperText('Código do cadastro municipal.')
+                    ->maxLength(50),
+
                 Forms\Components\TextInput::make('name')
                     ->label('Nome da Zona (Ex: Zona Residencial 1)')
                     ->required()
@@ -83,6 +88,7 @@ class ZonaResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
                 Tables\Columns\TextColumn::make('sigla')->label('Sigla')->badge()->sortable()->searchable(),
+                Tables\Columns\TextColumn::make('codigo')->label('Código')->searchable()->sortable()->placeholder('—'),
                 Tables\Columns\TextColumn::make('name')->label('Nome da Zona')->sortable()->searchable()->weight('bold'),
                 
                 // CORRIGIDO: Leitura à prova de falhas para a cor na tabela

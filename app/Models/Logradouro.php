@@ -19,7 +19,11 @@ class Logradouro extends Model
         return LogOptions::defaults()->logOnly(['name'])->logOnlyDirty()->dontSubmitEmptyLogs();
     }
 
-    protected $fillable = ['tenant_id', 'sequential_id', 'code', 'name', 'extensao_geo', 'geo'];
+    protected $fillable = ['tenant_id', 'sequential_id', 'code', 'codigo', 'name', 'dados_customizados', 'extensao_geo', 'geo'];
+
+    protected $casts = [
+        'dados_customizados' => 'array', // campos do município (item 75)
+    ];
     protected $hidden = ['geo'];
     protected $appends = ['geo_json'];
 

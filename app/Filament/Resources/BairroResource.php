@@ -29,14 +29,16 @@ class BairroResource extends Resource
     {
         return $form->schema([
             Forms\Components\Section::make('Identificação do Bairro')->schema([
+                Forms\Components\TextInput::make('codigo')
+                    ->label('Código do Bairro')
+                    ->helperText('Código do cadastro municipal.')
+                    ->maxLength(50),
+
                 Forms\Components\TextInput::make('name')
                     ->label('Nome do Bairro')
                     ->required()
                     ->maxLength(255),
                 
-                Forms\Components\TextInput::make('setor')
-                    ->label('Setor (Opcional)')
-                    ->maxLength(255),
 
                 Forms\Components\TextInput::make('area_geo')
                     ->label('Área (m²)')
@@ -62,8 +64,8 @@ class BairroResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
+                Tables\Columns\TextColumn::make('codigo')->label('Código')->searchable()->sortable()->placeholder('—'),
                 Tables\Columns\TextColumn::make('name')->label('Nome')->searchable()->weight('bold'),
-                Tables\Columns\TextColumn::make('setor')->label('Setor')->searchable(),
                 Tables\Columns\TextColumn::make('area_geo')
                     ->label('Área (m²)')
                     ->numeric(decimalPlaces: 2, decimalSeparator: ',', thousandsSeparator: '.')

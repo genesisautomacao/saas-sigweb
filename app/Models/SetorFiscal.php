@@ -15,7 +15,11 @@ class SetorFiscal extends Model
 
     protected $table = 'setores_fiscais';
 
-    protected $fillable = ['tenant_id', 'sequential_id', 'pgv_parametro_id', 'nome', 'descricao', 'geo', 'area_geo'];
+    protected $fillable = ['tenant_id', 'sequential_id', 'codigo', 'pgv_parametro_id', 'nome', 'dados_customizados', 'geo', 'area_geo'];
+
+    protected $casts = [
+        'dados_customizados' => 'array', // campos do município (item 75)
+    ];
     
     protected $hidden = ['geo'];
     protected $appends = ['geo_json'];

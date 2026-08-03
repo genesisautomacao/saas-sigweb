@@ -32,14 +32,19 @@ class Quadra extends Model
     protected $fillable = [
         'tenant_id',
         'sequential_id',
+        'codigo',
         'perimetro_id',
         'bairro_id',
         'loteamento_id',
         'code',
         'name',
-        'setor_codigo',
+        'dados_customizados',
         'area_geo',
         'geo',
+    ];
+
+    protected $casts = [
+        'dados_customizados' => 'array', // campos do município (item 75)
     ];
 
     protected $hidden = ['geo'];
