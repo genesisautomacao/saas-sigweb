@@ -101,7 +101,7 @@ trait HasQuadraCemiterioActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function() {
-                        QuadraCemiterio::where('id', $this->quadraCemiterioAtivaId)->delete();
+                        QuadraCemiterio::find($this->quadraCemiterioAtivaId)?->delete();
                         Notification::make()->title('Quadra Excluída!')->success()->send();
                         $this->dispatch('remover-quadra_cemiterio-mapa', ['id' => $this->quadraCemiterioAtivaId]);
                         $this->dispatch('fechar-modal-filament');

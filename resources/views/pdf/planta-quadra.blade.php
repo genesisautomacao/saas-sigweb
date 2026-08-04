@@ -389,7 +389,7 @@
                         $ocupacaoClass =
                             ['baldio' => 'badge-baldio', 'construido' => 'badge-construido'][$l->ocupacao] ??
                             'badge-default';
-                        {{-- Refatoração PoC Tangará: situacao_quadra é campo customizado --}}
+                        // Refatoração PoC Tangará: situacao_quadra é campo customizado
                         $situacaoLabel = $l->dados_customizados['situacao_quadra'] ?? '—';
                         $areaConstrLote = $l->edificacoes->sum('area_geo');
                     @endphp

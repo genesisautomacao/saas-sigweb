@@ -139,7 +139,7 @@ trait HasMeioFioActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function () {
-                        MeioFio::where('id', $this->meioFioAtivoId)->delete();
+                        MeioFio::find($this->meioFioAtivoId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-meio_fio-mapa', ['id' => $this->meioFioAtivoId]);
                         $this->dispatch('fechar-modal-filament');

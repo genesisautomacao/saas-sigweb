@@ -464,7 +464,7 @@ class TenantResource extends Resource
                         ->icon('heroicon-o-map')
                         ->color('info')
                         ->visible(fn () => static::pode('admin_importar_gis'))
-                        ->form([
+                        ->form(fn (Tenant $record) => [
                             Forms\Components\Select::make('camada')
                                 ->label('Qual camada você está enviando?')
                                 ->options([
@@ -478,7 +478,47 @@ class TenantResource extends Resource
                                     'Edificacao' => '8. Edificações',
                                     'UnidadeImobiliaria' => '9. Unidades Imobiliárias',
                                 ])
+                                ->live()
                                 ->required(),
+
+                            // T2.6 — modos de reimportação (upsert / substituição)
+                            Forms\Components\Select::make('modo')
+                                ->label('Modo de importação')
+                                ->options([
+                                    'adicionar' => 'Adicionar — todos os registros do arquivo entram como novos',
+                                    'atualizar' => 'Atualizar — casa pelo id do arquivo: atualiza os existentes e cria os novos',
+                                    'substituir' => 'Substituir — apaga os registros atuais da camada e importa do zero',
+                                ])
+                                ->default('adicionar')
+                                ->required()
+                                ->live()
+                                ->helperText('Atualizar e Substituir casam os registros pelo id do arquivo (sequential_id). "Atualizar" é o indicado após editar a cartografia no QGIS — preserva todos os vínculos.'),
+
+                            Forms\Components\Placeholder::make('aviso_substituir')
+                                ->hiddenLabel()
+                                ->visible(fn (Forms\Get $get) => $get('modo') === 'substituir')
+                                ->content(function (Forms\Get $get) use ($record): \Illuminate\Support\HtmlString {
+                                    $camada = $get('camada');
+                                    $total = null;
+
+                                    if ($camada && class_exists('App\\Models\\'.$camada)) {
+                                        $modelClass = 'App\\Models\\'.$camada;
+                                        $total = $modelClass::withoutGlobalScopes()
+                                            ->where('tenant_id', $record->id)
+                                            ->whereNull('deleted_at')
+                                            ->count();
+                                    }
+
+                                    return new \Illuminate\Support\HtmlString(
+                                        '<div style="border:1px solid #f59e0b;background:#fffbeb;color:#92400e;border-radius:8px;padding:10px 12px;font-size:13px;">'
+                                        .'⚠️ <strong>'.($total !== null ? number_format($total, 0, ',', '.').' registro(s) atuais' : 'Todos os registros atuais')
+                                        .' desta camada irão para a lixeira</strong> (soft delete, recuperável) antes da importação. '
+                                        .'Vínculos de unidades, edificações, testadas, coletas e processos digitais são <strong>reconectados automaticamente</strong> '
+                                        .'aos novos registros de mesmo id. Se a importação falhar, nada é apagado (transação única).'
+                                        .'</div>'
+                                    );
+                                }),
+
                             Forms\Components\FileUpload::make('arquivo')
                                 ->label('Arquivo .json (GeoJSON)')
                                 ->acceptedFileTypes(['application/json'])
@@ -518,257 +558,58 @@ class TenantResource extends Resource
                                 return;
                             }
 
-                            $modelClass = 'App\\Models\\'.$data['camada'];
-                            $agrupados = [];
-
-                            // 1. INTELIGÊNCIA GEOGRÁFICA DE AGRUPAMENTO
-                            foreach ($features as $feature) {
-                                $props = $feature->properties;
-                                $id = $props->id ?? $props->fid ?? uniqid();
-
-                                if (! isset($agrupados[$id])) {
-                                    $agrupados[$id] = ['props' => $props, 'coords' => [], 'type' => null];
-                                }
-
-                                // Proteção real contra propriedades sem mapa (geometry = null)
-                                if (isset($feature->geometry) && ! empty($feature->geometry) && isset($feature->geometry->type)) {
-                                    $geomType = $feature->geometry->type;
-
-                                    if (in_array($geomType, ['Polygon', 'MultiPolygon'])) {
-                                        $agrupados[$id]['type'] = 'MultiPolygon';
-                                        if ($geomType === 'Polygon') {
-                                            $agrupados[$id]['coords'][] = $feature->geometry->coordinates;
-                                        } else {
-                                            foreach ($feature->geometry->coordinates as $poly) {
-                                                $agrupados[$id]['coords'][] = $poly;
-                                            }
-                                        }
-                                    } elseif (in_array($geomType, ['LineString', 'MultiLineString'])) {
-                                        $agrupados[$id]['type'] = 'MultiLineString';
-                                        if ($geomType === 'LineString') {
-                                            $agrupados[$id]['coords'][] = $feature->geometry->coordinates;
-                                        } else {
-                                            foreach ($feature->geometry->coordinates as $line) {
-                                                $agrupados[$id]['coords'][] = $line;
-                                            }
-                                        }
-                                    } elseif ($geomType === 'Point') {
-                                        $agrupados[$id]['type'] = 'Point';
-                                        $agrupados[$id]['coords'] = $feature->geometry->coordinates;
-                                    }
-                                }
-                            }
-
-                            \Illuminate\Support\Facades\DB::beginTransaction();
+                            // T2.6 — todo o motor (agrupamento, modos adicionar/atualizar/
+                            // substituir, campos custom e reconexão) vive no service testável.
                             try {
-
-                                // Referências do JSON que não existem nesta prefeitura (relatadas ao final)
-                                $naoResolvidos = [];
-
-                                // Helper para buscar o ID global real no banco com base no ID do JSON (salvo como sequential_id).
-                                // ⚠️ Sem correspondência o vínculo fica NULO: usar o número do JSON como id global
-                                // amarraria o registro na entidade de OUTRA prefeitura (a PK é sequência global).
-                                $resolveRelacionamento = function ($modelStr, $jsonId) use ($record, &$naoResolvidos) {
-                                    if (! $jsonId) {
-                                        return null;
-                                    }
-
-                                    $realId = $modelStr::where('tenant_id', $record->id)->where('sequential_id', $jsonId)->value('id');
-
-                                    if (! $realId) {
-                                        $rotulo = class_basename($modelStr);
-                                        $naoResolvidos[$rotulo] = ($naoResolvidos[$rotulo] ?? 0) + 1;
-                                    }
-
-                                    return $realId;
-                                };
-
-                                // R67-1 — campos customizados do município para esta camada:
-                                // uma property do GeoJSON com o mesmo nome do identificador do campo
-                                // é importada para `dados_customizados`. Carregado UMA vez (o painel
-                                // admin não tem tenant Filament → filtro explícito).
-                                $entidadeCustom = match ($data['camada']) {
-                                    'Lote' => 'lote',
-                                    'Edificacao' => 'edificacao',
-                                    'UnidadeImobiliaria' => 'unidade',
-                                    default => null,
-                                };
-
-                                $camposCustom = $entidadeCustom
-                                    ? \App\Models\CampoCustomizado::withoutGlobalScopes()
-                                        ->where('tenant_id', $record->id)
-                                        ->where('entidade', $entidadeCustom)
-                                        ->where('ativo', true)
-                                        ->whereNull('deleted_at')
-                                        ->get()
-                                    : collect();
-
-                                foreach ($agrupados as $originalId => $item) {
-                                    $props = $item['props'];
-
-                                    // 2. PREENCHIMENTO BASE
-                                    $fillData = [
-                                        'tenant_id' => $record->id,
-                                        'code' => (string) \Illuminate\Support\Str::uuid(),
-                                    ];
-
-                                    // TRATAMENTO DA GEOMETRIA (Preenche ou deixa Nulo para imóveis sem mapa)
-                                    if (! empty($item['type'])) {
-                                        $fillData['geo'] = [
-                                            'type' => $item['type'],
-                                            'coordinates' => $item['coords'],
-                                        ];
-                                    } else {
-                                        $fillData['geo'] = null;
-                                    }
-
-                                    // A REGRA DO NOME (Necessária para Perímetros, Zonas, Logradouros, etc)
-                                    $camadasComNome = ['PerimetroUrbano', 'Zona', 'Bairro', 'Loteamento', 'Quadra', 'Logradouro'];
-                                    if (in_array($data['camada'], $camadasComNome)) {
-                                        $fillData['name'] = $props->name ?? $props->numero_lote ?? 'Sem Nome';
-                                    }
-
-                                    // 3. MAPEAMENTO DINÂMICO
-                                    if (isset($props->distrito)) {
-                                        $fillData['distrito'] = $props->distrito;
-                                    }
-                                    if (isset($props->sigla)) {
-                                        $fillData['sigla'] = $props->sigla;
-                                    }
-                                    if (isset($props->rgb)) {
-                                        $fillData['rgb'] = $props->rgb;
-                                    }
-                                    // Refatoração PoC Tangará: 'setor' saiu; o código
-                                    // municipal (itens 44-49) entra pela property 'codigo'.
-                                    if (isset($props->codigo)) {
-                                        $fillData['codigo'] = $props->codigo;
-                                    }
-
-                                    // 🛑 A MÁGICA DOS RELACIONAMENTOS: Traduz o ID do JSON para o ID Real do Banco
-                                    if (isset($props->perimetro_id)) {
-                                        $fillData['perimetro_id'] = $resolveRelacionamento(\App\Models\PerimetroUrbano::class, $props->perimetro_id);
-                                    }
-                                    if (isset($props->bairro_id)) {
-                                        $fillData['bairro_id'] = $resolveRelacionamento(\App\Models\Bairro::class, $props->bairro_id);
-                                    }
-                                    if (isset($props->loteamento_id)) {
-                                        $fillData['loteamento_id'] = $resolveRelacionamento(\App\Models\Loteamento::class, $props->loteamento_id);
-                                    }
-                                    if (isset($props->quadra_id)) {
-                                        $fillData['quadra_id'] = $resolveRelacionamento(\App\Models\Quadra::class, $props->quadra_id);
-                                    }
-                                    if (isset($props->zona_id)) {
-                                        $fillData['zona_id'] = $resolveRelacionamento(\App\Models\Zona::class, $props->zona_id);
-                                    }
-                                    if (isset($props->lote_id)) {
-                                        $fillData['lote_id'] = $resolveRelacionamento(\App\Models\Lote::class, $props->lote_id);
-                                    }
-
-                                    // Demais propriedades
-                                    if (isset($props->numero_lote) || isset($props->numero_lot) || isset($props->numero)) {
-                                        $fillData['numero_lote'] = $props->numero_lote ?? $props->numero_lot ?? $props->numero;
-                                    }
-                                    if (isset($props->area_geo)) {
-                                        $fillData['area_geo'] = $props->area_geo;
-                                    }
-                                    if (isset($props->main_facade_length)) {
-                                        $fillData['main_facade_length'] = $props->main_facade_length;
-                                    }
-                                    if (isset($props->tipo)) {
-                                        $fillData['tipo'] = $props->tipo;
-                                    }
-                                    if (isset($props->tp_construcao)) {
-                                        $fillData['tp_construcao'] = $props->tp_construcao;
-                                    }
-                                    if (isset($props->caracteristica_construcao)) {
-                                        $fillData['caracteristica_construcao'] = $props->caracteristica_construcao;
-                                    }
-                                    if (isset($props->estado_conservacao)) {
-                                        $fillData['estado_conservacao'] = $props->estado_conservacao;
-                                    }
-                                    if (isset($props->codigo_imovel_tributario)) {
-                                        $fillData['codigo_imovel_tributario'] = $props->codigo_imovel_tributario;
-                                    }
-                                    if (isset($props->inscricao_imobiliaria)) {
-                                        $fillData['inscricao_imobiliaria'] = $props->inscricao_imobiliaria;
-                                    }
-
-                                    // R67-1 — CAMPOS CUSTOMIZADOS DO MUNICÍPIO
-                                    // Property do GeoJSON com o mesmo nome do identificador do campo.
-                                    // As colunas reais acima sempre vencem (o identificador é validado
-                                    // contra a lista de colunas reservadas na criação do campo).
-                                    if ($camposCustom->isNotEmpty()) {
-                                        $dadosCustom = [];
-
-                                        foreach ($camposCustom as $campoCustom) {
-                                            $slug = $campoCustom->slug;
-
-                                            if (! isset($props->{$slug}) || $props->{$slug} === '') {
-                                                continue;
-                                            }
-
-                                            $valor = $props->{$slug};
-
-                                            $dadosCustom[$slug] = match ($campoCustom->tipo) {
-                                                'numero' => is_numeric($valor) ? (float) $valor : null,
-                                                'sim_nao' => filter_var($valor, FILTER_VALIDATE_BOOLEAN),
-                                                'multipla' => is_array($valor) ? array_values($valor) : array_map('trim', explode(',', (string) $valor)),
-                                                default => is_array($valor) ? $valor : (string) $valor,
-                                            };
-
-                                            if ($dadosCustom[$slug] === null) {
-                                                unset($dadosCustom[$slug]);
-                                            }
-                                        }
-
-                                        if (! empty($dadosCustom)) {
-                                            $fillData['dados_customizados'] = $dadosCustom;
-                                        }
-                                    }
-
-                                    // 4. SALVAR NO BANCO
-                                    $entidade = new $modelClass;
-
-                                    // 🛑 O PULO DO GATO: Guarda o ID que veio do JSON dentro do "sequential_id".
-                                    // Deixamos a coluna primária "id" livre para o PostgreSQL gerar automaticamente e não dar erro Multi-Tenant.
-                                    if (is_numeric($originalId)) {
-                                        $fillData['sequential_id'] = $originalId;
-                                    }
-
-                                    $entidade->forceFill($fillData)->save();
-                                }
-
-                                \Illuminate\Support\Facades\DB::commit();
-
-                                // Limpeza do arquivo
-                                if (file_exists($filePath)) {
-                                    \Illuminate\Support\Facades\Storage::disk('local')->delete($data['arquivo']);
-                                }
-
-                                $corpo = count($agrupados).' registros foram importados para a camada '.$data['camada'].'.';
-
-                                // Vínculos que o JSON pedia e não existem nesta prefeitura: quase sempre
-                                // é a hierarquia importada fora de ordem (quadras antes dos lotes, etc.).
-                                if ($naoResolvidos !== []) {
-                                    $corpo .= ' ⚠️ Referências não encontradas (vínculo ficou vazio): '
-                                        .collect($naoResolvidos)->map(fn ($qtd, $rotulo) => "{$qtd} × {$rotulo}")->implode(', ')
-                                        .'. Importe a camada superior primeiro e reimporte esta.';
-                                }
-
-                                $notificacao = \Filament\Notifications\Notification::make()
-                                    ->title('Importação Concluída!')
-                                    ->body($corpo);
-
-                                // Aviso fica na tela até o usuário fechar (não pode passar batido)
-                                $naoResolvidos === []
-                                    ? $notificacao->success()->send()
-                                    : $notificacao->warning()->persistent()->send();
-                            } catch (\Exception $e) {
-                                \Illuminate\Support\Facades\DB::rollBack();
+                                $resumo = \App\Services\Gis\ImportadorGisService::importar(
+                                    $record,
+                                    $data['camada'],
+                                    (array) $features,
+                                    $data['modo'] ?? 'adicionar',
+                                );
+                            } catch (\Throwable $e) {
                                 \Filament\Notifications\Notification::make()
                                     ->danger()->title('Erro no Banco de Dados')
                                     ->body($e->getMessage())->send();
+
+                                return;
                             }
+
+                            // Limpeza do arquivo
+                            if (file_exists($filePath)) {
+                                \Illuminate\Support\Facades\Storage::disk('local')->delete($data['arquivo']);
+                            }
+
+                            $corpo = $resumo['total'].' registros processados na camada '.$data['camada']
+                                .' ('.$resumo['criados'].' novo(s)'
+                                .($resumo['atualizados'] > 0 ? ', '.$resumo['atualizados'].' atualizado(s)' : '')
+                                .').';
+
+                            if ($resumo['apagados'] > 0) {
+                                $corpo .= ' '.$resumo['apagados'].' registro(s) anteriores foram para a lixeira (recuperáveis).';
+                            }
+
+                            if ($resumo['reconectados'] !== []) {
+                                $corpo .= ' Vínculos reconectados: '
+                                    .collect($resumo['reconectados'])->map(fn ($qtd, $tabela) => "{$qtd} × {$tabela}")->implode(', ').'.';
+                            }
+
+                            // Vínculos que o JSON pedia e não existem nesta prefeitura: quase sempre
+                            // é a hierarquia importada fora de ordem (quadras antes dos lotes, etc.).
+                            if ($resumo['nao_resolvidos'] !== []) {
+                                $corpo .= ' ⚠️ Referências não encontradas (vínculo ficou vazio): '
+                                    .collect($resumo['nao_resolvidos'])->map(fn ($qtd, $rotulo) => "{$qtd} × {$rotulo}")->implode(', ')
+                                    .'. Importe a camada superior primeiro e reimporte esta.';
+                            }
+
+                            $notificacao = \Filament\Notifications\Notification::make()
+                                ->title('Importação Concluída!')
+                                ->body($corpo);
+
+                            // Aviso fica na tela até o usuário fechar (não pode passar batido)
+                            $resumo['nao_resolvidos'] === []
+                                ? $notificacao->success()->send()
+                                : $notificacao->warning()->persistent()->send();
                         }),
 
                     // --- AÇÃO: SIMULAÇÃO TRIBUTÁRIA (R67-5) ---

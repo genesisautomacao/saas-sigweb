@@ -40,11 +40,13 @@ class ColetaImobiliaria extends Model
         'coletado_por_id', 'coletado_em',
         'observacao', 'inconformidade_descricao',
         'inconformidade_ponto',
+        'alteracoes',
     ];
 
     protected $casts = [
         'coletado_em' => 'datetime',
         'inconformidade_ponto' => 'array', // {lat, lon} marcado pelo app na vistoria
+        'alteracoes' => 'array', // Onda 8 — antes→depois por campo, gravado no push
     ];
 
     public function coletavel(): MorphTo
@@ -79,6 +81,12 @@ class ColetaImobiliaria extends Model
             'coletavel_id' => $entidade->getKey(),
             'campanha' => $campanha ?? self::CAMPANHA_PADRAO,
         ]);
+
+        // Onda 8 — `alteracoes` ACUMULA entre envios da mesma campanha: chave repetida
+        // fica com o diff mais recente (o "de" dele já é o valor intermediário).
+        if (isset($dados['alteracoes']) && $coleta->exists) {
+            $dados['alteracoes'] = array_merge((array) $coleta->alteracoes, (array) $dados['alteracoes']);
+        }
 
         $coleta->fill($dados)->save();
 

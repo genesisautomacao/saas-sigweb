@@ -94,7 +94,7 @@ trait HasRuralHidrografiaActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function() {
-                        RuralHidrografia::where('id', $this->ruralHidrografiaAtivaId)->delete();
+                        RuralHidrografia::find($this->ruralHidrografiaAtivaId)?->delete();
                         Notification::make()->title('Excluída!')->success()->send();
                         $this->dispatch('remover-rural_hidrografia-mapa', ['id' => $this->ruralHidrografiaAtivaId]);
                         $this->dispatch('fechar-modal-filament');

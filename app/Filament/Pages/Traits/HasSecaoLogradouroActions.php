@@ -16,6 +16,39 @@ use Illuminate\Support\Str;
 
 trait HasSecaoLogradouroActions
 {
+    /**
+     * T1.3 — valida a unicidade código+lado ANTES do banco, para o usuário receber
+     * uma mensagem amigável em vez do erro SQL do índice `secoes_logradouro_codigo_lado_unique`
+     * (que permanece como trava final contra corrida).
+     */
+    protected function secaoConflitaCodigoLado(array $data, ?int $ignorarId = null): bool
+    {
+        if (blank($data['codigo'] ?? null) || blank($data['lado'] ?? null) || blank($data['logradouro_id'] ?? null)) {
+            return false;
+        }
+
+        return SecaoLogradouro::withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
+            ->where('logradouro_id', $data['logradouro_id'])
+            ->where('codigo', $data['codigo'])
+            ->where('lado', $data['lado'])
+            ->whereNull('deleted_at')
+            ->when($ignorarId, fn ($q) => $q->where('id', '!=', $ignorarId))
+            ->exists();
+    }
+
+    protected function avisarConflitoSecao(array $data): void
+    {
+        $lado = \App\Services\Coleta\CampoDominioService::rotuloValor('secao_logradouro', 'lado', $data['lado']) ?? $data['lado'];
+
+        Notification::make()
+            ->danger()
+            ->title('Código já usado neste lado')
+            ->body("Já existe a seção \"{$data['codigo']}\" do lado {$lado} neste logradouro. Use outro código — ou selecione o outro lado, se esta for a seção da calçada oposta.")
+            ->persistent()
+            ->send();
+    }
+
     public ?int $secaoLogradouroAtivoId = null;
 
     // Auto-detecção topológica + cálculo de extensão pré-criação (preenchidos em interceptarDesenho)
@@ -62,14 +95,39 @@ trait HasSecaoLogradouroActions
                     ->maxLength(255),
                 // Refatoração PoC Tangará: tipo_pavimentacao é campo customizado (kit)
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('secao_logradouro'),
+
+                // T1.7 (item 17) — foto da seção direto pelo mapa (1 foto; mais no cadastro)
+                \Filament\Forms\Components\FileUpload::make('nova_foto')
+                    ->label('Foto da Seção')
+                    ->helperText('Opcional. Para mais de uma foto, use o cadastro da seção.')
+                    ->directory('secoes_logradouro/fotos')
+                    ->image()
+                    ->maxSize(5120),
             ])
-            ->action(function (array $data) {
+            ->action(function (array $data, \Filament\Actions\Action $action) {
+                if ($this->secaoConflitaCodigoLado($data)) {
+                    $this->avisarConflitoSecao($data);
+                    $action->halt();
+                }
+
+                $novaFoto = $data['nova_foto'] ?? null;
+                unset($data['nova_foto']);
+
                 $data['tenant_id']    = $this->tenantId;
                 $data['geo']          = $this->geometriaRascunho;
                 $data['code']         = (string) Str::uuid();
                 $data['extensao_geo'] = $this->secaoLogradouroExtensaoCalculada;
 
                 $registro = SecaoLogradouro::create($data);
+
+                if ($novaFoto) {
+                    $registro->fotos()->create([
+                        'tenant_id' => $this->tenantId,
+                        'name' => 'Foto da seção',
+                        'path' => $novaFoto,
+                        'type' => 'Foto',
+                    ]);
+                }
 
                 // Recalcula extensão direto do PostGIS pra garantir precisão
                 try {
@@ -138,11 +196,59 @@ trait HasSecaoLogradouroActions
                     ->label('Nome / Identificação da Seção')
                     ->maxLength(255),
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('secao_logradouro'),
+
+                // T1.7 (item 17) — fotos atuais + inclusão rápida pelo mapa
+                Placeholder::make('fotos_atuais')
+                    ->label('Fotos da Seção')
+                    ->content(function (): HtmlString {
+                        $fotos = SecaoLogradouro::find($this->secaoLogradouroAtivoId)?->fotos ?? collect();
+
+                        if ($fotos->isEmpty()) {
+                            return new HtmlString('<em style="color:#9ca3af;">Nenhuma foto cadastrada.</em>');
+                        }
+
+                        $html = '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+                        foreach ($fotos as $foto) {
+                            $url = asset('storage/'.$foto->path);
+                            $legenda = htmlspecialchars($foto->name ?? '', ENT_QUOTES, 'UTF-8');
+                            $html .= '<a href="' . $url . '" target="_blank" title="' . $legenda . '">'
+                                . '<img src="' . $url . '" alt="' . $legenda . '" '
+                                . 'style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />'
+                                . '</a>';
+                        }
+
+                        return new HtmlString($html . '</div>');
+                    }),
+
+                \Filament\Forms\Components\FileUpload::make('nova_foto')
+                    ->label('Adicionar foto')
+                    ->helperText('Opcional. Excluir/legendar fotos: cadastro da seção.')
+                    ->directory('secoes_logradouro/fotos')
+                    ->image()
+                    ->maxSize(5120),
             ])
-            ->action(function (array $data) {
+            ->action(function (array $data, \Filament\Actions\Action $action) {
+                if ($this->secaoConflitaCodigoLado($data, $this->secaoLogradouroAtivoId)) {
+                    $this->avisarConflitoSecao($data);
+                    $action->halt();
+                }
+
+                $novaFoto = $data['nova_foto'] ?? null;
+                unset($data['nova_foto']);
+
                 $reg = SecaoLogradouro::find($this->secaoLogradouroAtivoId);
                 if ($reg) {
                     $reg->update($data);
+
+                    if ($novaFoto) {
+                        $reg->fotos()->create([
+                            'tenant_id' => $this->tenantId,
+                            'name' => 'Foto da seção',
+                            'path' => $novaFoto,
+                            'type' => 'Foto',
+                        ]);
+                    }
+
                     $this->dispatch('atualizar-label-secao_logradouro', [
                         'id'   => $reg->id,
                         'name' => $reg->name ?: ('Seção #' . $reg->sequential_id),
@@ -165,7 +271,7 @@ trait HasSecaoLogradouroActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function () {
-                        SecaoLogradouro::where('id', $this->secaoLogradouroAtivoId)->delete();
+                        SecaoLogradouro::find($this->secaoLogradouroAtivoId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-secao_logradouro-mapa', ['id' => $this->secaoLogradouroAtivoId]);
                         $this->dispatch('fechar-modal-filament');

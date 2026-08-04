@@ -21,8 +21,13 @@
 | Marco | Plenos | % acumulado | Status |
 |-------|-------:|------------:|--------|
 | Baseline (auditoria 2026-07-08) | 95/124 | 76,6% | — |
-| **Onda 1 — Estrutura de campos** | 95/124 | 76,6% | ⏳ fundacional — não move o contador, **destrava** as demais |
-| + Etapa 1 (T1.1–T1.12) | 113/124 | 91,1% | ⏳ |
+| **Onda 1 — Estrutura de campos** | 95/124 | 76,6% | ✅ 2026-08-02 — fundacional, **destravou** as demais |
+| **Onda 2 — T1.1, T1.2, T1.3, T1.5, T1.7** | **101/124** | **81,5%** | ✅ 2026-08-03 (itens 14, 15, 44, 17, 21, 3-14) |
+| **Onda 3 — T1.4, T1.6 (mapa público)** | **103/124** | **83,1%** | ✅ 2026-08-03 (itens 3-9, 3-11) |
+| **Onda 4 — T1.8, T1.9 + item 76① (filtro)** | **105/124** | **84,7%** | ✅ 2026-08-03 (itens 2.1-1, 2.1-2) |
+| **Onda 5 — T1.10, T1.11, T1.12 (motores)** | **113/124** | **91,1%** | ✅ 2026-08-03 — **ETAPA 1 COMPLETA** (itens 2.5-32/34/37, 3-18/20/23, 2.3-24, 2.6-38) |
+| **Onda 6 — T2.1, T2.2** | **118/124** | **95,2%** | ✅ 2026-08-03 — 🎯 **META INTERNA DE 95% ATINGIDA** (itens 46, 54, 64, 59, 60) |
+| **Onda 7 — T2.3, T2.4 + UI dos mapas** | **120/124** | **96,8%** | ✅ 2026-08-03 (itens 3-10, 3-12; topbar glass + painel de camadas fixo à esquerda) |
 | + Etapa 2 (T2.1–T2.5) | 121/124 | **97,6%** (meta 95% ✔) | ⏳ |
 | + Etapa 3 (T3.1 — WMS) | 122/124 | 98,4% | ⏳ |
 | + Itens 75/76 (D5 — dentro das Ondas 3 e 4) | **124/124** | **100%** | ⏳ |
@@ -183,18 +188,25 @@ Transformar o script de inventário da Onda 0 em comando artisan, para rodar **n
 > **Onda 3** = T1.8, T1.9 (`advancedSpatialQuery`) · **Onda 4** = T1.10, T1.11, T1.12 (motores genéricos do mapa — maior retorno: 9 itens).
 > Cada onda: implementação → teste do agente → teste do usuário → ok → próxima.
 
-#### T1.1 — Link "Ver histórico" na ficha do lote
-**Item PoC:** 2.1-14 · **Esforço:** 2–3 h · **Status:** ⏳ Pendente
+#### ~~T1.1 — Link "Ver histórico" na ficha do lote~~
+**Item PoC:** 2.1-14 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-A `AuditoriaPage` já loga tudo (inclusive geometria via `LogsGeometryChanges`); criar atalho na ficha lateral do lote no mapa → auditoria pré-filtrada pelo subject (lote + suas unidades/edificações).
+Botão "Ver histórico" na ficha lateral do lote (gated por `view_auditoria`) → `AuditoriaPage?lote_id=X` pré-filtrada pelo lote **e seus filhos** (unidades, edificações, testadas — com `withTrashed`, para histórico de itens excluídos). Subheading indica o foco; header action "Limpar filtro do lote".
 
-#### T1.2 — Contribuinte confrontante no Memorial Descritivo
-**Item PoC:** 2.1-15 · **Esforço:** 2–4 h · **Status:** ⏳ Pendente
+#### ~~T1.2 — Contribuinte confrontante no Memorial Descritivo~~
+**Item PoC:** 2.1-15 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-`MemorialDescritivoService` já identifica lotes confrontantes; adicionar o nome do proprietário do vizinho (via unidade imobiliária principal) no PDF `memorial_descritivo.blade.php`.
+`gerarDadosPerimetro` ganhou a coluna `confrontante_proprietario` — nome do contribuinte do lote vizinho via `pessoas` (`proprietario_id`, pós-refatoração) com fallback no JSON `dados_tributarios`. Sai no texto corrido ("confrontando com o Lote 111, de LEANDRO SOUZA GOTER") e na tabela do PDF.
 
-#### T1.3 — Seção de Logradouro: código métrico, lado e cascata de exclusão
-**Itens PoC:** 2.7-44, **2.7-52** · **Esforço:** 5–6 h · **Status:** ⏳ Pendente · *(escopo revisado em 2026-07-31 — ver decisão D4)*
+#### ~~T1.3 — Seção de Logradouro: código métrico, lado e cascata de exclusão~~
+**Itens PoC:** 2.7-44, **2.7-52** · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03 · *(colunas `codigo`/`lado` criadas na Onda 1; acabamento na Onda 2)*
+
+Entregue: código composto `{cód. logradouro}-{cód. seção}` (accessor `codigo_composto`, exibido na tabela do Resource e na ficha do logradouro no mapa, com coluna Lado), índice único parcial `(tenant_id, logradouro_id, codigo, lado) WHERE deleted_at IS NULL` (dois lados com o mesmo código = ok; duplicar o mesmo lado = bloqueado; NULL nunca colide) e a **cascata de soft delete/restore Logradouro → Seções** (item 52 — eventos `deleted`/`restoring`/`restored` no model; o restore só ressuscita seções excluídas na MESMA cascata, pelo marco do `deleted_at`).
+
+> 🐛 **Achado no teste do usuário (2026-08-03) — 22 botões de exclusão do mapa surdos a eventos.** O usuário excluiu um logradouro e a seção permaneceu: TODOS os botões "Excluir" das traits do mapa usavam `Model::where('id', $x)->delete()` — delete de **query builder**, que não dispara eventos Eloquent. Consequências: a cascata do item 52 não rodava E **nenhuma exclusão pelo mapa era registrada na Auditoria** (item 89 — o `LogsActivity` também depende de evento). Corrigidos os **22** para `Model::find($x)?->delete()`; o excluir do logradouro ganhou aviso com a contagem de seções e o front agora remove as seções da tela junto (`remover-secao_logradouro-mapa` por seção). Testado: cascata OK, log de exclusão na auditoria OK.
 
 1. Migration em `secoes_logradouro`: **`codigo`** (Código da Seção, métrico) + **`lado`**;
 2. **`lado` white-label** — registrar a entidade `secao_logradouro` em `CampoDominioService::PADROES` (default Par/Ímpar/Ambos). Fica fora de `ENTIDADES_NA_COLETA` (não é campo de coleta de campo);
@@ -205,79 +217,123 @@ A `AuditoriaPage` já loga tudo (inclusive geometria via `LogsGeometryChanges`);
 
 > 🐛 **Achado 2026-07-31 — item 2.7-52 estava marcado ✅ indevidamente.** O edital pede *"Excluir Logradouro **e Seções**"*, mas excluir um logradouro **não** exclui as seções: o `cascadeOnDelete` da FK é constraint de banco e só dispara em DELETE físico, enquanto [HasLogradouroActions.php:202](../app/Filament/Pages/Traits/HasLogradouroActions.php#L202) faz `->delete()` num model com `SoftDeletes` — só grava `deleted_at`. As seções continuam ativas e visíveis no mapa, apontando para um pai excluído (a coluna "Logradouro" da listagem fica vazia porque o `belongsTo` cai no escopo global de soft delete). Corrigir cascateando o **soft delete e o restore** do logradouro para as seções. Não altera os contadores (o item já era contado como ✅), mas era um falso positivo que quebraria ao vivo.
 
-#### T1.4 — Foto frontal + croqui na ficha pública do imóvel
-**Item PoC:** 3-9 · **Esforço:** 2–4 h · **Status:** ⏳ Pendente
+#### ~~T1.4 — Foto frontal + croqui na ficha pública do imóvel~~
+**Item PoC:** 3-9 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-`lotes.foto_frontal` já existe; exibir na ficha do `MapaPublico` (com fallback) e dar destaque ao botão "Planta/Croqui".
+Imagem frontal no topo da ficha pública (clicável p/ ampliar; placeholder "Sem imagem frontal cadastrada" como fallback) e o botão do croqui promovido a **"Planta / Croqui do Imóvel"** em destaque (azul sólido) — é a "Planta Cartográfica" que o item 3-9 pede junto da imagem.
 
-#### T1.5 — Viabilidade: metragens + parâmetros no PDF; mapImage na reimpressão
-**Itens PoC:** 2.1-21, 3-14 · **Esforço:** 4–6 h · **Status:** ⏳ Pendente
+#### ~~T1.5 — Viabilidade: metragens + parâmetros no PDF; mapImage na reimpressão~~
+**Itens PoC:** 2.1-21, 3-14 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-Incluir área do lote, testada e área construída + parâmetros da zona (`ParametroUrbano`) no `viabilidade-template.blade.php`; corrigir `mapImage=null` na reimpressão (`ViabilidadePdfService:142`).
+`enriquecerComMetragensEParametros()` no `ViabilidadePdfService` (ponto único — vale p/ intranet E público): área do lote, testada principal, área construída (SUM das edificações) + parâmetros da zona (`ParametroUrbano`), gravados **no snapshot** (a reimpressão herda; snapshot antigo é enriquecido na hora, idempotente). Template ganhou as seções "Metragens / Áreas" e "Parâmetros Urbanísticos da Zona". **Reimpressão com croqui:** o print do mapa é persistido em `storage/app/public/viabilidades/{protocolo}.b64` na emissão (viabilidade, parcelamento e unificação) e recuperado no `reimprimirPdf` — antes saía `mapImage=null`.
 
-#### T1.6 — Zona clicável no mapa público (parâmetros + usos)
-**Item PoC:** 3-11 · **Esforço:** 3–5 h · **Status:** ⏳ Pendente
+#### ~~T1.6 — Zona clicável no mapa público (parâmetros + usos)~~
+**Item PoC:** 3-11 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-Handler de `singleclick` para a camada `zonas` no `mapa-cidadao-engine.js` → popup/ficha com `ParametroUrbano` + `ZoneamentoRegra`.
+`singleclick` do `mapa-cidadao-engine.js` agora coleta TODAS as feições no pixel e escolhe por prioridade (**lote > ponto panorâmico > zona**) — a zona vira clicável sem roubar o clique de um lote sobreposto. Clique na zona → modal com swatch de cor + código, **Parâmetros Urbanísticos** (áreas/testadas mín-máx do `ParametroUrbano`) e **Usos do Solo** agrupados em permitido/permissível/proibido (badges por classificação, via `ZoneamentoRegra`), com nota direcionando análise de CNAE específico à Consulta de Viabilidade. View `ficha-zona-publica.blade.php`, listener `abrirFichaZona` no `HasFichaImovelPublico`.
 
-#### T1.7 — Fotos nas Seções de Logradouro
-**Item PoC:** 2.1-17 (base para 3-10) · **Esforço:** 4–6 h · **Status:** ⏳ Pendente
+#### ~~T1.7 — Fotos nas Seções de Logradouro~~
+**Item PoC:** 2.1-17 (base para 3-10) · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-Relação de imagens (reusar padrão morphMany `documentos` + FileUpload da UnidadeImobiliaria) + galeria na ficha do logradouro na intranet.
+`SecaoLogradouro::fotos()` = morphMany na tabela polimórfica `documentos` (type `Foto`), mesmo padrão da UnidadeImobiliaria. Upload por Repeater (legenda + imagem, `secoes_logradouro/fotos/`, 5MB) no `SecaoLogradouroResource` **e** no `SecoesRelationManager` do Logradouro. **Galeria na ficha do logradouro** (modal do mapa): coluna Fotos com até 3 miniaturas clicáveis (+N) por seção, eager-load `with('fotos')`. Base pronta para o T2.3 (ficha pública do logradouro).
 
-#### T1.8 — Filtro avançado: atributo + espacial combinados
-**Item PoC:** 2.1-1 · **Esforço:** 4–8 h · **Status:** ⏳ Pendente
+#### ~~T1.8 — Filtro avançado: atributo + espacial combinados~~
+**Item PoC:** 2.1-1 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-Em `MapDataController::advancedSpatialQuery`, aplicar o WHERE de atributo também no ramo de cruzamento espacial (ex.: "lotes na zona X **com área > Y**" numa só consulta).
+Seção "Condição de atributo (opcional)" nas abas **espacial** e **desenho** do filtro: o WHERE de atributo entra na MESMA consulta SQL do cruzamento ("lotes na zona X **com área > 400**" → 292 de 1.110 num só passo). Vale também para **campos customizados** (`custom:slug`). Rótulo do resultado inclui a condição.
 
-#### T1.9 — Delimitadores Quadra e Logradouro
-**Item PoC:** 2.1-2 · **Esforço:** 3–5 h · **Status:** ⏳ Pendente
+#### ~~T1.9 — Delimitadores Quadra e Logradouro~~
+**Item PoC:** 2.1-2 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-Adicionar Quadra (polígono direto) e Logradouro (`ST_Buffer` do eixo, N metros) como áreas de interesse no filtro avançado e nas estatísticas.
+**Logradouro** virou área de referência do cruzamento espacial via `ST_Buffer` do eixo (campo "Largura da faixa", padrão 20 m — "imóveis lindeiros da Rua X"); **Quadra** já constava como referência (polígono direto). O item 2.1-2 ("delimitar por Distrito/Setor/Bairro/Logradouro/Quadra") fica pleno na consulta; nas estatísticas, a delimitação segue Distrito/Setor/Bairro, que é exatamente o que o item 39 pede.
 
-#### T1.10 — Tematização por Valores Únicos (intranet + público)
-**Itens PoC:** 2.5-32, 2.5-34, 2.5-37, 3-18, 3-20, 3-23 · **Esforço:** 8–12 h · **Status:** ⏳ Pendente
+> **Onda 4 também entregou (2026-08-03):**
+> - **Item 76① — campos customizados nas expressões de consulta (D5):** o select de atributo das 4 abas do filtro lista os campos do município (marcados com ★), resolvidos no backend contra o JSONB `dados_customizados` (cast numérico quando o campo é número; índice GIN da Onda 1 serve a consulta). A tematização por intervalo aceita campo customizado numérico (adianta parte do 76③).
+> - 🐛 **Injeção de SQL corrigida** no `advancedSpatialQuery`: `$field` (rota atributo) e `$attr` (rota intervalo) iam interpolados crus no `selectRaw`. Agora todo campo passa por whitelist (schema da tabela ou `custom:slug` validado nas definições) — campo desconhecido → 403. Testado com payload malicioso real.
 
-Novo modo no filtro avançado: agrupa valores distintos do atributo, paleta de cores editável por valor, legenda dinâmica. Reusar o pipeline do choropleth (`mapa-engine.js:6453-6580`); backend devolve mapa `valor → cor`. Portar para `MapaPublico`/`mapa-cidadao-engine.js`. **Maior retorno da etapa (6 itens).**
+#### ~~T1.10 — Tematização por Valores Únicos (intranet + público)~~
+**Itens PoC:** 2.5-32, 2.5-34, 2.5-37, 3-18, 3-20, 3-23 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-#### T1.11 — Heatmap genérico por camada
-**Item PoC:** 2.3-24 · **Esforço:** 4–6 h · **Status:** ⏳ Pendente
+Rota `valores_unicos` no `advancedSpatialQuery` (atributo = coluna whitelisted OU `custom:slug` — item 76③; devolve feições rotuladas + resumo de valores). Aba "Tematização por Valores Únicos" no filtro da **intranet e do público**; paleta automática (ângulo áureo — cores bem separadas p/ N valores) e **legenda flutuante com `input color` por valor** — trocar a cor repinta as feições na hora (itens 34/3-20). NULL vira "Não informado". Integrada ao painel de filtros ativos e ao "limpar".
 
-Opção "Mapa de calor" para qualquer camada carregada: pontos diretos; polígonos via centroide. Generalizar o padrão `syncColetaHeatmap` sobre `window.loadedLayers[layer]`.
+#### ~~T1.11 — Heatmap genérico por camada~~
+**Item PoC:** 2.3-24 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-#### T1.12 — Estatísticas: mais camadas e atributos
-**Item PoC:** 2.6-38 (reforça 2.5-37, 3-23) · **Esforço:** 4–6 h · **Status:** ⏳ Pendente
+Aba "Mapa de Calor (qualquer camada)" no filtro avançado: reusa a rota `intervalo` com **atributo opcional** (sem atributo = densidade por contagem; com atributo numérico — inclusive `custom:` — o valor vira o **peso**, normalizado 0.15–1). Polígono entra pelo ponto interior, linha pelo centro do extent; raio configurável; camada `ol.layer.Heatmap` registrada no painel de filtros.
 
-Ampliar `estatisticasAction` além de lotes/edificações/logradouros (árvores, postes, chamados, cemitério…) com agrupamento por qualquer atributo da camada.
+#### ~~T1.12 — Estatísticas: mais camadas e atributos~~
+**Item PoC:** 2.6-38 (reforça 2.5-37, 3-23) · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+`getEstatisticas` ampliado: **+7 camadas** (quadras, seções, meios-fio, árvores, postes, chamados — com joins de categoria/fase — e grupos novos em lotes: ocupação, status). Agrupamento aceita, além da whitelist curada, **campo customizado (`custom:slug` — item 76⑤) ou qualquer coluna do schema**, validados (a injeção via `group_field` já estava fechada; a via `$field`/`$attr` do filtro foi fechada na Onda 4).
 
 ---
 
 ## Etapa 2 — Intermediária (36–58 h) → 121/124 (97,6%)
 
-#### T2.1 — Distrito formal
-**Itens PoC:** 2.7-46, 2.7-54, 2.8-64 · **Esforço:** 4–8 h · **Status:** ⏳ Pendente
+#### ~~T2.1 — Distrito formal~~
+**Itens PoC:** 2.7-46, 2.7-54, 2.8-64 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-Promover `PerimetroUrbano` a Distrito (campos código/nome/área + rótulo "Distrito" na UI e na busca) — recomendado por menor risco, já que camada e busca já operam. Alternativa: entidade dedicada no molde de Bairro.
+`PerimetroUrbano` apresentado formalmente como **Distrito**: menu/labels "Distritos" no Resource; o item 46 já estava coberto de fato pelas ondas anteriores — **código** (E1.1 + campo nos modais do mapa na correção de 2026-08-02), nome, área automática e cor. Busca por nome de Distrito e camada "Distritos/Limites" já operavam.
 
-#### T2.2 — Recalcular testadas e ocupação após desmembramento/unificação
-**Itens PoC:** 2.7-59, 2.7-60 · **Esforço:** 8–12 h · **Status:** ⏳ Pendente
+#### ~~T2.2 — Recalcular testadas e ocupação após desmembramento/unificação~~
+**Itens PoC:** 2.7-59, 2.7-60 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-Após `processarDesmembramentoLote`/`processarUnificacaoLotes`: recalcular `LoteTestada` (`ST_Intersection` do perímetro do lote com buffer das seções de logradouro) e atualizar `ocupacao`/`situacao_quadra` (esquina/meio de quadra derivável do nº de faces com logradouro).
+Novo [PosEdicaoLoteService](../app/Services/Gis/PosEdicaoLoteService.php), chamado ao confirmar **desmembramento** (nas DUAS partes) e **unificação**:
+1. **Testadas**: `ST_Intersection` do perímetro (`ST_Boundary`) com buffer de 15 m das **seções de logradouro** (fallback: eixo dos logradouros, p/ município sem seção), com `ST_CollectionExtract` blindando o resultado; a maior vira `principal` e alimenta `main_facade_length` — **na unificação isso substitui a soma cega das testadas antigas** (que contava divisa interna extinta);
+2. **Ocupação**: derivada de fato (tem edificação = `construido`; senão `baldio`);
+3. **Situação na quadra**: campo do município (D6) — o sistema **sugere** pelo nº de logradouros distintos com testada (0=Encravado, 1=Meio de Quadra, 2+=Esquina), casa o rótulo com o vocabulário do kit municipal e grava a sugestão; a notificação orienta conferir/ajustar na ficha (decisão do usuário: sugestão confirmável, não automação cega).
 
-#### T2.3 — Logradouro clicável no mapa público
-**Item PoC:** 3-10 · **Esforço:** 6–8 h · **Status:** ⏳ Pendente
+#### ~~T2.3 — Logradouro clicável no mapa público~~
+**Item PoC:** 3-10 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-Handler de clique + ficha pública do logradouro (dados + seções + fotos da T1.7), espelhando o padrão `HasFichaImovelPublico`. Depende de T1.7.
+Clique prioriza lote > ponto > **logradouro** > zona (a linha ganha do polígono de fundo). Modal `ficha-logradouro-publica`: código, extensão e nº de seções + lista de seções com **código composto, lado (rótulo do município), pavimentação (campo do kit) e as fotos da T1.7** (miniaturas clicáveis). Listener `abrirFichaLogradouro` no `HasFichaImovelPublico`.
 
-#### T2.4 — Viabilidade de Parcelamento/Desmembramento no público
-**Item PoC:** 3-12 · **Esforço:** 6–10 h · **Status:** ⏳ Pendente
+#### ~~T2.4 — Viabilidade de Parcelamento/Desmembramento no público~~
+**Item PoC:** 3-12 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
 
-Portar `ViabilidadeService::analisarParcelamento` + PDF para a ficha pública, com o mesmo protocolo de autenticação `/v/{protocolo}`.
+Botão "Viabilidade de Parcelamento" na ficha pública do imóvel → mesmo motor da intranet (`analisarParcelamento`), modal com veredito + parecer técnico e **"Gerar PDF Oficial"** que captura o croqui do mapa (lote destacado) e emite via `generateParcelamentoPdf` — **com protocolo `/v/{protocolo}` e croqui persistido** (T1.5) para reimpressão.
 
 #### T2.5 — Recodificação em cascata + entidade Piscina
 **Item PoC:** 2.7-61 · **Esforço:** 14–24 h · **Status:** ⏳ Pendente
 
 Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unidades/edificações/testadas), Quadra, Logradouro/Seções, Setor, Distrito, Bairro, Zoneamento e Meio-fio — transação única + registro Antes/Depois no activitylog. Incluir entidade **Piscina** leve (molde `MeioFio`, polígono) para cobrir a lista do edital.
+
+#### ~~T2.6 — Modos de importação GIS (Adicionar / Atualizar / Substituir) + campos custom nas 9 camadas~~
+**Origem:** pedido do usuário em 2026-08-04 (reimportação pós-edição no QGIS) · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-04 · Teste: 23/23 (tinker c/ rollback — 3 modos, reconexão de unidade/edificação/coleta/quadra→lote, FK discovery com processos_digitais, rollback em falha)
+
+(a) Importador do `TenantResource` passa a ler campos customizados nas **9 camadas** do seletor (antes só lote/edificação/unidade). (b) Select "Modo de importação": **Adicionar** (comportamento atual), **Atualizar** (upsert por `tenant_id`+`sequential_id` — preserva vínculos de processos/unidades/coletas; caso de uso: atualização externa no QGIS) e **Substituir** (soft-delete de toda a camada antes de importar, na mesma transação — falhou, nada é apagado). No Substituir, **reconexão automática dos filhos por `sequential_id`**: FKs descobertas via `information_schema` (unidades, edificações, testadas, processos digitais, faces etc.) + `coleta_imobiliaria` polimórfica passam a apontar para o registro novo de mesmo número. Extração da lógica para `App\Services\Gis\ImportadorGisService` (testável). Decisões do usuário: 3 modos + reconectar por sequential_id.
+
+---
+
+## Onda 8 — App de Coletas: fluxo completo de campo ✅ CONCLUÍDA em 2026-08-04
+
+> **Status:** ✅ Implementada e testada — 24/24 no web (tinker, transação revertida: kit, pull c/ proprietário,
+> map/data por região, push blindado, antes→depois c/ merge, relatório + PDF de 1,2MB renderizado) +
+> 21/21 na simulação Node (helpers do app) + 8 arquivos do app validados (esbuild/JSX).
+> Kit aplicado nas 3 tenants locais (2 campos novos cada). **Implantação VPS:** `php artisan migrate`
+> (coluna `alteracoes`) + `php artisan db:seed --class=KitCamposCustomizadosSeeder` + rebuild Expo.
+
+**Origem:** fluxo de 8 passos descrito pelo usuário (boletim → regiões → coleta offline → validação → tributário). Passos 1/2/4/5/7 já atendidos (boletim configurável, regiões, regras de status no app, offline, Produtividade). Frentes desta onda:
+
+- **A — Proprietário divergente (decisão do usuário: via campo customizado):** pull envia `proprietario_nome`/`proprietario_cpf_cnpj` da unidade (pessoas com fallback no JSON tributário); kit ganha 2 campos custom de unidade (`proprietario_divergente`, `cpf_cnpj_divergente`, na_coleta); app exibe o dado oficial para comparação; divergências destacadas no Relatório de Validação. Convenção: divergência que impede confirmar o cadastro → status `inconformidade`.
+- **B — Região no app (decisão: leveza primeiro):** `map/data?layer=lotes` filtrado pela região do coletor (só os delegados desenham; camada quadras segue integral como referência); push blindado (lote fora da região → rejeitado com aviso, sem derrubar o envio); app mostra o aviso.
+- **C — Progresso do coletor (passo 6):** tela "Meu Progresso" no menu (total/coletados/pendentes/inconformidades/restantes/% + detalhe por quadra, 100% offline via SQLite) + contador resumido no mapa.
+- **D — Validação e entrega (passos 7-8):** push grava antes→depois por campo em `coleta_imobiliaria.alteracoes` (jsonb); página **Validação da Coleta** (filtros campanha/coletor/status/período) com export PDF/Excel incluindo divergências de proprietário; ação "Marcar campanha como validada" (quem/quando no tenant.data) — marco antes da integração tributária.
+- **Fora da onda:** escrita no sistema tributário (1º conector real) e reset/nova campanha.
 
 ---
 

@@ -60,6 +60,19 @@ class MemorialDescritivoService
                       AND ST_DWithin(s.midpoint::geography, l.geo::geography, 2.0)
                     ORDER BY ST_Distance(s.midpoint::geography, l.geo::geography) ASC LIMIT 1
                 ) AS dist_lote,
+
+                -- T1.2 (item 15): CONTRIBUINTE do lote confrontante — via pessoas
+                -- (proprietario_id, pós-refatoração) com fallback no JSON do tributário.
+                (
+                    SELECT COALESCE(p.name, u.dados_tributarios->>'proprietario_name')
+                    FROM lotes l
+                    JOIN unidade_imobiliarias u ON u.lote_id = l.id AND u.deleted_at IS NULL
+                    LEFT JOIN pessoas p ON p.id = u.proprietario_id
+                    WHERE l.tenant_id = (SELECT tenant_id FROM lote_geom) AND l.id != :lote_id_exclude AND l.deleted_at IS NULL
+                      AND ST_DWithin(s.midpoint::geography, l.geo::geography, 2.0)
+                      AND COALESCE(p.name, u.dados_tributarios->>'proprietario_name') IS NOT NULL
+                    ORDER BY ST_Distance(s.midpoint::geography, l.geo::geography) ASC, u.id ASC LIMIT 1
+                ) AS confrontante_proprietario,
                 
                 -- Busca a Rua mais próxima (Tolerância aumentada para 15 metros, útil caso a rua seja desenhada apenas no eixo)
                 (
@@ -119,6 +132,10 @@ class MemorialDescritivoService
 
             if ($temLote) {
                 $confrontante = "confrontando com o Lote " . $seg->confrontante_lote;
+                // T1.2 (item 15): o edital pede também o CONTRIBUINTE confrontante
+                if (! empty($seg->confrontante_proprietario)) {
+                    $confrontante .= ", de " . $seg->confrontante_proprietario;
+                }
             } elseif ($temLogradouro) {
                 $confrontante = "confrontando com o Logradouro " . $seg->confrontante_logradouro;
             } else {

@@ -847,6 +847,88 @@ class MapDataController extends Controller
             'secoes_logradouro',
         ];
 
+        /**
+         * Onda 4 (PoC Tangará) — resolve um campo do filtro para expressão SQL SEGURA.
+         *
+         * Aceita coluna real (whitelist pelo schema — antes o $field ia interpolado cru
+         * no selectRaw, uma injeção de SQL) ou campo customizado do município no formato
+         * `custom:slug` (item 76① — expressões de consulta), que vira acesso ao JSONB
+         * `dados_customizados` com cast numérico quando o campo é do tipo número.
+         * Retorna null para qualquer coisa fora da whitelist.
+         */
+        $resolveCampo = function (string $tabela, ?string $campo, string $alias = '') use ($tenantId): ?array {
+            if (blank($campo)) {
+                return null;
+            }
+
+            if (str_starts_with($campo, 'custom:')) {
+                $slug = substr($campo, 7);
+
+                if (! preg_match('/^[a-z0-9_]+$/', $slug)) {
+                    return null;
+                }
+
+                $entidade = array_search($tabela, \App\Services\Coleta\CampoCustomizadoService::ENTIDADE_TABELA, true);
+
+                if ($entidade === false) {
+                    return null;
+                }
+
+                $def = \App\Services\Coleta\CampoCustomizadoService::definicoes($entidade, (int) $tenantId)
+                    ->firstWhere('slug', $slug);
+
+                if (! $def) {
+                    return null;
+                }
+
+                $expr = "{$alias}dados_customizados->>'{$slug}'";
+
+                return [
+                    'expr' => $def->tipo === 'numero' ? "({$expr})::numeric" : $expr,
+                    'numerico' => $def->tipo === 'numero',
+                    'label' => $def->label,
+                ];
+            }
+
+            if (! preg_match('/^[a-z0-9_]+$/', $campo)
+                || ! in_array($campo, \Illuminate\Support\Facades\Schema::getColumnListing($tabela), true)) {
+                return null;
+            }
+
+            return ['expr' => $alias.$campo, 'numerico' => false, 'label' => $campo];
+        };
+
+        $operadoresValidos = ['=', '!=', '>', '<', '>=', '<=', 'LIKE'];
+
+        /**
+         * T1.8 (item 2.1-1) — condição de atributo OPCIONAL aplicada junto do cruzamento
+         * espacial/desenho ("lotes na zona X COM área > Y" numa só consulta).
+         * Retorna [clausulaSql, bindings, rotulo] ou [null, [], null] quando não usada.
+         */
+        $condicaoAtributo = function (string $tabela, string $alias = '') use ($request, $resolveCampo, $operadoresValidos): array {
+            $campo = $request->input('attr_field');
+            $op = $request->input('attr_operator');
+            $valor = $request->input('attr_value');
+
+            if (blank($campo) || blank($op) || $valor === null || $valor === '') {
+                return [null, [], null];
+            }
+
+            $info = $resolveCampo($tabela, $campo, $alias);
+
+            if (! $info || ! in_array($op, $operadoresValidos, true)) {
+                return [null, [], null];
+            }
+
+            if ($op === 'LIKE') {
+                return ["AND {$info['expr']}::text ILIKE ?", ['%'.$valor.'%'], "{$info['label']} contém \"{$valor}\""];
+            }
+
+            $binding = $info['numerico'] && is_numeric($valor) ? (float) $valor : $valor;
+
+            return ["AND {$info['expr']} {$op} ?", [$binding], "{$info['label']} {$op} {$valor}"];
+        };
+
         try {
             $features = [];
             $layer = "";
@@ -878,28 +960,50 @@ class MapDataController extends Controller
                 $validOperators = ['ST_Intersects', 'ST_Within'];
                 $operator = in_array($operator, $validOperators) ? $operator : 'ST_Intersects';
 
-                // 🪄 Convertemos o array do PHP em formato IN do SQL de forma segura para os parâmetros
+                // T1.9 (item 2.1-2) — referência LINEAR (logradouro) vira área de interesse
+                // via ST_Buffer de N metros sobre o eixo. Buffer zero/ausente = geometria pura.
+                $bufferMetros = (float) $request->input('spatial_buffer', 0);
+                $bufferMetros = max(0, min($bufferMetros, 50000));
+
+                $refGeomExpr = $bufferMetros > 0
+                    ? 'ST_Buffer(ref.geo::geography, ?)::geometry'
+                    : 'ref.geo::geometry';
+
+                // T1.8 — condição de atributo combinada na MESMA consulta
+                [$attrSql, $attrBindings, $attrRotulo] = $condicaoAtributo($targetLayer, 'target.');
+
+                // 🪄 Bindings na ordem em que os ? aparecem no SQL:
+                // [buffer?] + tenant + refIds + [atributo?]
                 $placeholders = implode(',', array_fill(0, count($refIds), '?'));
-                $params = array_merge([$tenantId], $refIds);
+                $params = array_merge(
+                    $bufferMetros > 0 ? [$bufferMetros] : [],
+                    [$tenantId],
+                    $refIds,
+                    $attrBindings
+                );
 
                 $query = "
-                    SELECT 
-                        target.*, 
+                    SELECT
+                        target.*,
                         ST_AsGeoJSON(target.geo) as geo_json,
                         ref.name as searched_value
                     FROM {$targetLayer} target
-                    INNER JOIN {$refLayer} ref 
-                        ON {$operator}(target.geo::geometry, ref.geo::geometry)
-                    WHERE target.tenant_id = ? 
+                    INNER JOIN {$refLayer} ref
+                        ON {$operator}(target.geo::geometry, {$refGeomExpr})
+                    WHERE target.tenant_id = ?
                     AND target.deleted_at IS NULL
                     AND target.geo IS NOT NULL
                     AND ref.id IN ($placeholders)
+                    " . ($attrSql ? $attrSql . ' ' : '') . "
                     LIMIT 2500
                 ";
 
                 $results = \Illuminate\Support\Facades\DB::select($query, $params);
                 $layer = $targetLayer;
-                $infoLabel = "Cruzamento Espacial ({$operator} em {$refLayer})";
+                $infoLabel = "Cruzamento Espacial ({$operator} em {$refLayer}"
+                    . ($bufferMetros > 0 ? ", buffer {$bufferMetros}m" : '')
+                    . ($attrRotulo ? " + {$attrRotulo}" : '')
+                    . ')';
             }
             // ========================================================================
             // 🟢 ROTA 3: CRUZAMENTO POR DESENHO (Polígono / Retângulo)
@@ -923,26 +1027,30 @@ class MapDataController extends Controller
                 $validDrawOperators = ['ST_Intersects', 'ST_Within'];
                 $drawOperator = in_array($drawOperator, $validDrawOperators) ? $drawOperator : 'ST_Intersects';
 
+                // T1.8 — condição de atributo combinada com o desenho ("dentro da área E com área > X")
+                [$attrSql, $attrBindings, $attrRotulo] = $condicaoAtributo($targetLayer, 'target.');
+
                 // MÁGICA POSTGIS: Cruza a tabela alvo com a string GeoJSON e o operador dinâmico
                 $query = "
-                    SELECT 
-                        target.*, 
+                    SELECT
+                        target.*,
                         ST_AsGeoJSON(target.geo) as geo_json,
                         'Área Desenhada (Mouse)' as searched_value
                     FROM {$targetLayer} target
-                    WHERE target.tenant_id = ? 
+                    WHERE target.tenant_id = ?
                     AND target.deleted_at IS NULL
                     AND target.geo IS NOT NULL
                     AND {$drawOperator}(
-                        target.geo::geometry, 
+                        target.geo::geometry,
                         ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326))
                     )
+                    " . ($attrSql ? $attrSql . ' ' : '') . "
                     LIMIT 2000
                 ";
 
-                $results = \Illuminate\Support\Facades\DB::select($query, [$tenantId, $drawnGeometry]);
+                $results = \Illuminate\Support\Facades\DB::select($query, array_merge([$tenantId, $drawnGeometry], $attrBindings));
                 $layer = $targetLayer;
-                $infoLabel = "Consulta Geográfica (Desenho Livre)";
+                $infoLabel = 'Consulta Geográfica (Desenho Livre' . ($attrRotulo ? " + {$attrRotulo}" : '') . ')';
             }
             // ========================================================================
             // ROTA 2: FILTRO POR ATRIBUTO (O Tradicional)
@@ -961,24 +1069,105 @@ class MapDataController extends Controller
                     return response()->json(['error' => 'Camada não permitida'], 403);
                 }
 
+                // Onda 4 — campo validado pela whitelist (schema ou custom:slug do município).
+                // Antes o $field ia interpolado CRU no selectRaw: injeção de SQL.
+                $info = $resolveCampo($layer, $field);
+
+                if (! $info || ! in_array($operator, $operadoresValidos, true)) {
+                    return response()->json(['error' => 'Campo ou operador não permitido.'], 403);
+                }
+
                 $queryBuilder = \Illuminate\Support\Facades\DB::table($layer)
                     ->where('tenant_id', $tenantId)
                     ->whereNull('deleted_at')
                     ->whereNotNull('geo');
 
                 if ($operator === 'LIKE') {
-                    $queryBuilder->where($field, 'ilike', '%' . $value . '%');
+                    $queryBuilder->whereRaw($info['expr'] . '::text ILIKE ?', ['%' . $value . '%']);
                 } else {
-                    $queryBuilder->where($field, $operator, $value);
+                    $binding = $info['numerico'] && is_numeric($value) ? (float) $value : $value;
+                    $queryBuilder->whereRaw($info['expr'] . ' ' . $operator . ' ?', [$binding]);
                 }
 
                 $results = $queryBuilder->selectRaw('
-                    *, 
+                    *,
                     ST_AsGeoJSON(geo) as geo_json,
-                    ' . $field . ' as searched_value
+                    ' . $info['expr'] . ' as searched_value
                 ')->limit(2000)->get();
 
-                $infoLabel = "Atributo ({$field})";
+                $infoLabel = "Atributo ({$info['label']})";
+
+                // ========================================================================
+                // 🎨 ROTA 5 (T1.10): TEMATIZAÇÃO POR VALORES ÚNICOS — itens 2.5-32/34/37
+                // e 3-18/20/23. Agrupa os valores distintos do atributo (coluna ou campo
+                // customizado do município) e devolve as feições rotuladas + o resumo
+                // de valores para a legenda/paleta do front.
+                // ========================================================================
+            } elseif ($tipoFiltro === 'valores_unicos') {
+                $layer = $request->input('layer');
+                $vuAttr = $request->input('vu_attribute');
+
+                if (! $layer || ! $vuAttr) {
+                    return response()->json(['error' => 'Parâmetros incompletos para Valores Únicos'], 400);
+                }
+
+                if (! in_array($layer, $allowedTables)) {
+                    return response()->json(['error' => 'Camada não permitida'], 403);
+                }
+
+                $info = $resolveCampo($layer, $vuAttr);
+
+                if (! $info) {
+                    return response()->json(['error' => 'Atributo não permitido.'], 403);
+                }
+
+                $results = \Illuminate\Support\Facades\DB::table($layer)
+                    ->where('tenant_id', $tenantId)
+                    ->whereNull('deleted_at')
+                    ->whereNotNull('geo')
+                    ->selectRaw('
+                        id,
+                        COALESCE(' . $info['expr'] . '::text, \'Não informado\') as searched_value,
+                        ST_AsGeoJSON(geo) as geo_json
+                    ')
+                    ->limit(5000)
+                    ->get();
+
+                $resumoValores = collect($results)
+                    ->groupBy('searched_value')
+                    ->map(fn ($g, $v) => ['valor' => (string) $v, 'quantidade' => $g->count()])
+                    ->sortByDesc('quantidade')
+                    ->values()
+                    ->all();
+
+                $features = [];
+                foreach ($results as $item) {
+                    if (! empty($item->geo_json)) {
+                        // Geometria vazia (coordinates: []) derruba o parser do OpenLayers
+                        $geom = json_decode($item->geo_json);
+                        if (! $geom || empty($geom->coordinates)) {
+                            continue;
+                        }
+
+                        $features[] = [
+                            'type' => 'Feature',
+                            'properties' => [
+                                'id' => $item->id,
+                                'layer' => $layer,
+                                'valor_unico' => (string) $item->searched_value,
+                                'info' => "{$info['label']}: {$item->searched_value}",
+                            ],
+                            'geometry' => $geom,
+                        ];
+                    }
+                }
+
+                return response()->json([
+                    'type' => 'FeatureCollection',
+                    'features' => $features,
+                    'valores' => $resumoValores,
+                    'atributo_label' => $info['label'],
+                ]);
 
                 // ========================================================================
                 // 📊 ROTA 4: TEMATIZAÇÃO POR INTERVALO DE CLASSES
@@ -987,8 +1176,14 @@ class MapDataController extends Controller
                 $layer = $request->input('layer'); // 'lotes'
                 $attr = $request->input('interval_attribute'); // 'area_geo'
 
-                if (!$layer || !$attr) {
+                // T1.11 — o heatmap genérico reusa esta rota SEM atributo (peso = 1 por
+                // feição; com atributo numérico, o valor vira o peso do calor).
+                if (! $layer) {
                     return response()->json(['error' => 'Parâmetros incompletos para o Intervalo'], 400);
+                }
+
+                if (blank($attr)) {
+                    $attr = null;
                 }
 
                 if (!in_array($layer, $allowedTables)) {
@@ -1014,6 +1209,17 @@ class MapDataController extends Controller
                 ];
                 $labelCol = $labelColMap[$layer] ?? 'id';
 
+                // Onda 4 — whitelist do atributo (schema ou custom:slug numérico do município).
+                // Antes o $attr ia interpolado cru no selectRaw (injeção de SQL).
+                // T1.11 — sem atributo (heatmap por contagem): peso fixo 1.
+                $infoAttr = $attr === null
+                    ? ['expr' => '1', 'numerico' => true, 'label' => 'Contagem']
+                    : $resolveCampo($layer, $attr);
+
+                if (! $infoAttr) {
+                    return response()->json(['error' => 'Atributo não permitido.'], 403);
+                }
+
                 $results = \Illuminate\Support\Facades\DB::table($layer)
                     ->where('tenant_id', $tenantId)
                     ->whereNull('deleted_at')
@@ -1021,7 +1227,7 @@ class MapDataController extends Controller
                     ->selectRaw('
                         id,
                         ' . $labelCol . ' as label_visual,
-                        ' . $attr . ' as searched_value,
+                        ' . $infoAttr['expr'] . ' as searched_value,
                         ST_AsGeoJSON(geo) as geo_json
                     ')
                     ->limit(5000)
@@ -1038,6 +1244,13 @@ class MapDataController extends Controller
             foreach ($results as $item) {
                 if (!empty($item->geo_json)) {
 
+                    // Onda 5 — geometria vazia (coordinates: []) derruba o readFeatures
+                    // do OpenLayers em TODAS as rotas; filtra na origem.
+                    $geomComum = json_decode($item->geo_json);
+                    if (! $geomComum || empty($geomComum->coordinates)) {
+                        continue;
+                    }
+
                     $tituloVisual = $item->label_visual ?? ('ID: ' . $item->id);
 
                     $features[] = [
@@ -1050,7 +1263,7 @@ class MapDataController extends Controller
                             'info' => "{$infoLabel}: " . ($item->searched_value ?? 'N/A'),
                             'searched_value' => isset($item->searched_value) ? (float) $item->searched_value : 0,
                         ],
-                        'geometry' => json_decode($item->geo_json)
+                        'geometry' => $geomComum
                     ];
                     // Expõe o atributo numérico pelo nome original (ex: area_geo) quando for tematização por intervalo
                     if ($attr) {
@@ -1112,8 +1325,54 @@ class MapDataController extends Controller
                         'name' => ['label' => 'Nome do Logradouro'],
                     ],
                 ],
+                // T1.12 (item 2.6-38) — estatísticas para qualquer camada com item de cadastro
+                'arvores' => [
+                    'table'       => 'arvores',
+                    'label_col'   => 'sequential_id',
+                    'group_fields'=> [
+                        'botanical_species' => ['label' => 'Espécie Botânica'],
+                        'size' => ['label' => 'Porte'],
+                        'phytosanitary_condition' => ['label' => 'Condição Fitossanitária'],
+                        'general_state' => ['label' => 'Estado Geral'],
+                    ],
+                ],
+                'postes' => [
+                    'table'       => 'postes',
+                    'label_col'   => 'sequential_id',
+                    'group_fields'=> [
+                        'structural_condition' => ['label' => 'Condição Estrutural'],
+                        'luminaire_type' => ['label' => 'Tipo de Luminária'],
+                    ],
+                ],
+                'chamados' => [
+                    'table'       => 'chamados',
+                    'label_col'   => 'id',
+                    'group_fields'=> [
+                        'categoria' => ['label' => 'Categoria', 'join' => ['categorias_chamado', 'categoria_chamado_id', 'id', 'nome']],
+                        'fase' => ['label' => 'Fase', 'join' => ['fases_chamado', 'fase_chamado_id', 'id', 'nome']],
+                    ],
+                ],
+                'quadras' => [
+                    'table'       => 'quadras',
+                    'label_col'   => 'name',
+                    'group_fields'=> [
+                        'bairro_id' => ['label' => 'Bairro', 'join' => ['bairros', 'bairro_id', 'id', 'name']],
+                    ],
+                ],
+                'secoes_logradouro' => [
+                    'table'       => 'secoes_logradouro',
+                    'label_col'   => 'codigo',
+                    'group_fields'=> [
+                        'lado' => ['label' => 'Lado da Seção'],
+                    ],
+                ],
+                'meio_fios' => [
+                    'table'       => 'meio_fios',
+                    'label_col'   => 'sequential_id',
+                    'group_fields'=> [],
+                ],
             ];
- 
+
             if (!isset($layerConfig[$targetLayer])) {
                 return response()->json(['error' => 'Camada inválida.'], 400);
             }
@@ -1123,8 +1382,31 @@ class MapDataController extends Controller
 
             // Segurança: o campo de agrupamento PRECISA estar na whitelist da camada —
             // antes o nome ia cru para o selectRaw (injeção de SQL via group_field).
+            // T1.12 + item 76⑤ — fora da whitelist curada, aceita campo customizado do
+            // município (custom:slug) ou coluna real do schema, validados.
             if (! isset($cfg['group_fields'][$groupField])) {
-                return response()->json(['error' => 'Campo de agrupamento inválido.'], 400);
+                $entidadeCustom = array_search($table, \App\Services\Coleta\CampoCustomizadoService::ENTIDADE_TABELA, true);
+                $infoGrupo = null;
+
+                if (str_starts_with((string) $groupField, 'custom:') && $entidadeCustom !== false) {
+                    $slugGrupo = substr($groupField, 7);
+                    $defGrupo = preg_match('/^[a-z0-9_]+$/', $slugGrupo)
+                        ? \App\Services\Coleta\CampoCustomizadoService::definicoes($entidadeCustom, (int) $tenantId)->firstWhere('slug', $slugGrupo)
+                        : null;
+
+                    if ($defGrupo) {
+                        $infoGrupo = ['label' => $defGrupo->label, 'expr' => "dados_customizados->>'{$slugGrupo}'"];
+                    }
+                } elseif (preg_match('/^[a-z0-9_]+$/', (string) $groupField)
+                    && in_array($groupField, \Illuminate\Support\Facades\Schema::getColumnListing($table), true)) {
+                    $infoGrupo = ['label' => $groupField, 'expr' => $groupField];
+                }
+
+                if (! $infoGrupo) {
+                    return response()->json(['error' => 'Campo de agrupamento inválido.'], 400);
+                }
+
+                $cfg['group_fields'][$groupField] = $infoGrupo;
             }
  
             // ----------------------------------------------------------------

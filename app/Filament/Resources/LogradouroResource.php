@@ -22,6 +22,12 @@ class LogradouroResource extends Resource
     {
         return $form
             ->schema([
+                // Item 75 — campos customizados do município nesta camada
+                Forms\Components\Section::make('Campos do Município')
+                    ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('logradouro')->isNotEmpty())
+                    ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('logradouro'))
+                    ->columns(3),
+
                 Forms\Components\Section::make('Dados do Logradouro')
                     ->schema([
                         Forms\Components\TextInput::make('codigo')

@@ -1,0 +1,160 @@
+RELEASE — PoC TANGARÁ/SC (Ondas 1 a 7 + extras)
+Período: 2026-08-01 a 2026-08-04 · Conformidade: 95 → 121/124 itens do edital (97,6%)
+
+============================================================
+ONDA 1 — ESTRUTURA DE CAMPOS (refatoração do cadastro imobiliário)
+============================================================
+- Coluna "codigo" municipal em 7 entidades (logradouros, seções, bairros, quadras,
+  zonas, distritos, setores fiscais) — forms, tabelas, exports e busca (itens 44-49).
+- Campos padrão white-label agora separam CHAVE e RÓTULO (CampoDominioService):
+  valores normalizados ("esquina"/"Esquina" unificados), push do app traduz
+  rótulo -> chave automaticamente.
+- Campos customizados do município em 13 CAMADAS (item 75): lote, edificação,
+  unidade, quadra, bairro, logradouro, seção, testada, loteamento, zona,
+  distrito, setor fiscal e meio-fio — coluna JSONB dados_customizados + 18
+  índices GIN + pg_trgm para busca.
+- Nova tabela COLETA_IMOBILIARIA (polimórfica): campanha, status, quem/quando,
+  observação e inconformidade — recadastramento sem perder histórico; o
+  status_cadastro do lote vira cache do mapa (48 coletas migradas).
+- 34 colunas obsoletas removidas com migração de dado antes do drop (5.395
+  edificações preservadas em dados_customizados). Edificação passou a ter zero
+  campos fixos — tudo customizável por prefeitura.
+- Novos campos: secoes_logradouro.lado (par/ímpar/ambos) e
+  unidade_imobiliarias.nome_edificio (com backfill e busca trigram).
+- Busca unificada por proprietário via cadastro de Pessoas (funciona sem
+  integração tributária, com fallback no JSON legado).
+- KIT INICIAL de campos customizados: prefeitura nova já nasce com situação na
+  quadra, tipo de edificação, pavimentos, tipo de construção, estado de
+  conservação, pavimentação etc. — todos editáveis pelo município.
+- Credenciais Azure Maps e Google Maps no painel Admin (Configurações de APIs) —
+  fim de env() em runtime; basemaps Azure ocultos sem chave.
+- Comando "php artisan poc:inventario" — mede a densidade de dados da base por
+  item do edital antes da demonstração.
+- App de coletas (React Native): formulário config-driven se adapta sozinho à
+  nova estrutura; push antigo absorvido por camadas de compatibilidade.
+
+============================================================
+ONDAS 2-3 — FICHAS, PDFs E MAPA PÚBLICO (T1.1 a T1.7)
+============================================================
+- T1.1 Botão "Ver histórico" na ficha do lote -> Auditoria pré-filtrada pelo
+  lote e seus filhos (unidades, edificações, testadas, incluindo excluídos).
+- T1.2 Memorial Descritivo com CONTRIBUINTE CONFRONTANTE: nome do proprietário
+  do lote vizinho no texto e na tabela do PDF.
+- T1.3 Seções de Logradouro: código métrico + lado + CÓDIGO COMPOSTO
+  (logradouro-seção), índice único que permite os dois lados com o mesmo código,
+  e cascata de exclusão/restauração Logradouro -> Seções (item 52).
+- T1.4 Ficha pública do imóvel com FOTO FRONTAL no topo (clicável) e botão
+  "Planta / Croqui do Imóvel" em destaque; foto frontal também no mapa privado.
+- T1.5 PDF de Viabilidade com METRAGENS (área do lote, testada, área construída)
+  e PARÂMETROS URBANÍSTICOS da zona; croqui do mapa persistido por protocolo —
+  reimpressão sai idêntica à emissão original.
+- T1.6 ZONA CLICÁVEL no mapa público: parâmetros urbanísticos + usos do solo
+  (permitido/permissível/proibido) direto no mapa; mesma ficha na intranet.
+- T1.7 FOTOS nas Seções de Logradouro (upload com legenda) + galeria de
+  miniaturas na ficha do logradouro no mapa.
+
+============================================================
+ONDA 4 — FILTRO AVANÇADO (T1.8, T1.9 + segurança)
+============================================================
+- T1.8 Filtro avançado combina CRUZAMENTO ESPACIAL + CONDIÇÃO DE ATRIBUTO na
+  mesma consulta ("lotes na zona X com área > 400 m²") — vale também para
+  campos customizados do município.
+- T1.9 Novos delimitadores de consulta: QUADRA e LOGRADOURO (faixa configurável
+  ao redor do eixo — "imóveis lindeiros da Rua X").
+- Campos customizados em TODAS as expressões de consulta do filtro (item 76),
+  marcados com estrela no seletor.
+- Segurança: correção de injeção de SQL no filtro avançado — todo campo passa
+  por whitelist do schema ou validação de campo customizado.
+- Buffer circular no filtro por desenho: clique no mapa + raio em metros.
+
+============================================================
+ONDA 5 — MOTORES TEMÁTICOS DO MAPA (T1.10 a T1.12)
+============================================================
+- T1.10 TEMATIZAÇÃO POR VALORES ÚNICOS (intranet + público): uma cor por valor
+  de qualquer atributo (inclusive customizado), com legenda editável — trocar a
+  cor repinta na hora.
+- T1.11 MAPA DE CALOR GENÉRICO por camada: densidade por contagem ou ponderado
+  por atributo numérico, raio configurável.
+- T1.12 ESTATÍSTICAS ampliadas: +7 camadas (quadras, seções, meios-fio,
+  árvores, postes, chamados) e agrupamento por qualquer coluna ou campo
+  customizado.
+
+============================================================
+ONDA 6 — INTELIGÊNCIA PÓS-EDIÇÃO (T2.1, T2.2)
+============================================================
+- T2.1 DISTRITO formalizado (menu, código, nome, área automática, cor, busca).
+- T2.2 Após DESMEMBRAMENTO ou UNIFICAÇÃO de lotes o sistema recalcula
+  automaticamente: testadas (via seções de logradouro, com fallback no eixo),
+  ocupação (construído/baldio pela existência de edificação) e SUGESTÃO de
+  situação na quadra (encravado / meio de quadra / esquina) casada com o
+  vocabulário do município — a testada principal deixa de somar divisas
+  internas extintas na unificação.
+
+============================================================
+ONDA 7 — MAPA PÚBLICO AVANÇADO + UI (T2.3, T2.4)
+============================================================
+- T2.3 LOGRADOURO CLICÁVEL no mapa público: código, extensão e seções com
+  código composto, lado, pavimentação e fotos.
+- T2.4 VIABILIDADE DE PARCELAMENTO/DESMEMBRAMENTO no mapa público: mesmo motor
+  da intranet, com PDF oficial, protocolo de verificação e croqui persistido.
+- Nova barra superior dos mapas (estilo glass) e painel de camadas ancorado à
+  direita (a ficha do imóvel sobrepõe sem conflito); busca com dropdown de
+  resultados acoplado ao campo.
+
+============================================================
+FACE DE QUADRA (PGV) — REFORMA COMPLETA
+============================================================
+- Face de quadra agora nasce DE DENTRO DA QUADRA (modal pai -> filho, como
+  logradouro -> seções), com lista de faces e visibilidade por checkbox.
+- Desenho com ímã (snap) na quadra respectiva; todo desenho ativo inibe o
+  clique padrão do mapa.
+- Ao criar a face, o sistema detecta ZONA e LOGRADOURO por PREDOMINÂNCIA
+  (maior trecho acompanhado), não pelo mais próximo da ponta.
+- Modal completo da face: editar dados, editar geometria e excluir; hover com
+  destaque e tooltip (código/valor).
+
+============================================================
+IMPORTADOR GIS (ADMIN) — T2.6
+============================================================
+- Campos customizados do município importados nas 9 CAMADAS do seletor:
+  property do GeoJSON com o nome do identificador do campo -> valor gravado.
+- Novo seletor MODO DE IMPORTAÇÃO:
+  * ADICIONAR — tudo entra como registro novo (comportamento original);
+  * ATUALIZAR — casa pelo id do arquivo: atualiza os existentes e cria os
+    novos, preservando TODOS os vínculos (unidades, processos digitais,
+    coletas) — o modo indicado após editar a cartografia no QGIS;
+  * SUBSTITUIR — envia os registros atuais da camada para a lixeira
+    (recuperável) e importa do zero, com RECONEXÃO AUTOMÁTICA de unidades,
+    edificações, testadas, coletas e processos digitais aos novos registros de
+    mesmo número; transação única — se a importação falhar, nada é apagado.
+- Aviso com contagem exata de registros afetados antes do Substituir.
+
+============================================================
+CORREÇÕES IMPORTANTES
+============================================================
+- 22 botões "Excluir" do mapa não disparavam eventos (query builder): cascatas
+  e AUDITORIA de exclusão não rodavam — todos corrigidos e auditáveis.
+- Exclusão de logradouro agora exclui (e restaura) as seções em cascata, com
+  aviso de contagem e remoção imediata da tela.
+- Validação amigável para código+lado duplicados de seção (4 pontos de entrada).
+- Campos customizados apareciam só em 3 entidades — plumbados nos 7 Resources e
+  8 modais do mapa restantes (13 camadas completas).
+- Código do Setor Fiscal era exibido mas nunca salvo no modal do mapa — corrigido.
+- Erro de sintaxe na Planta de Quadra (comentário Blade dentro de @php) —
+  corrigido e todas as views compiladas em teste global.
+- Geometrias vazias no banco derrubavam o carregamento de camadas — filtradas
+  no backend e no front.
+- Dropdown de busca desacoplado da barra — reancorado ao campo de pesquisa.
+- Injeção de SQL no filtro avançado e nas estatísticas — fechada com whitelist.
+
+============================================================
+IMPLANTAÇÃO (VPS)
+============================================================
+1. Backup do banco (protege os processos digitais de Bom Princípio).
+2. php artisan migrate
+3. php artisan db:seed --class=KitCamposCustomizadosSeeder
+4. Cadastrar no /admin (Configurações de APIs): Azure Maps e Google Maps.
+5. php artisan gis:recalcular-metadata (se necessário) e
+   php artisan poc:inventario --tenant=<slug> para conferir a base da demo.
+6. Rebuild do app de coletas (Expo) somente após atribuir região aos
+   cadastradores.

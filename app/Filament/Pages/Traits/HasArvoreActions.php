@@ -137,7 +137,7 @@ trait HasArvoreActions
                                 $solicitacao->delete();
                             }
 
-                            Arvore::where('id', $this->arvoreAtivaId)->delete();
+                            Arvore::find($this->arvoreAtivaId)?->delete();
                             Notification::make()->title('Árvore Excluída!')->success()->send();
 
                             $this->dispatch('remover-arvore-mapa', ['id' => $this->arvoreAtivaId]);

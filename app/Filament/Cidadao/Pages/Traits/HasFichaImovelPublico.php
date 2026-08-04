@@ -24,6 +24,9 @@ trait HasFichaImovelPublico
     public float $loteFacePrincipal = 0.0;
     public bool $mostrarEdificacoesLoteAtivo = false;
 
+    // T1.4 (item 3-9) — imagem frontal do imóvel na ficha pública
+    public ?string $loteFotoFrontal = null;
+
     #[On('abrirFichaImovel')]
     public function abrirFichaImovel($loteId, $loteNome = 'S/N')
     {
@@ -40,8 +43,180 @@ trait HasFichaImovelPublico
         $this->loteFacePrincipal = $lote ? (float) $lote->main_facade_length : 0.0;
         $this->loteAreaConstruida = (float) Edificacao::where('lote_id', $loteId)->sum('area_geo');
         $this->loteSequentialId = $lote ? $lote->sequential_id : 'S/N';
+        $this->loteFotoFrontal = $lote?->foto_frontal ? asset('storage/'.$lote->foto_frontal) : null;
 
         $this->showFicha = true;
+    }
+
+    // ------------------------------------------------------------------------
+    // T2.3 (item 3-10) — LOGRADOURO CLICÁVEL: dados + seções + fotos (T1.7)
+    // ------------------------------------------------------------------------
+    #[On('abrirFichaLogradouro')]
+    public function abrirFichaLogradouro($logradouroId)
+    {
+        $this->mountAction('fichaLogradouro', ['logradouroId' => (int) $logradouroId]);
+    }
+
+    public function fichaLogradouroAction(): Action
+    {
+        return Action::make('fichaLogradouro')
+            ->modalHeading(function (array $arguments): string {
+                $logradouro = \App\Models\Logradouro::find($arguments['logradouroId'] ?? null);
+
+                return $logradouro?->name ?? 'Logradouro';
+            })
+            ->modalWidth('2xl')
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Fechar')
+            ->modalContent(function (array $arguments) {
+                $logradouro = \App\Models\Logradouro::with(['secoes' => fn ($q) => $q->with('fotos')->orderBy('codigo')])
+                    ->find($arguments['logradouroId'] ?? null);
+
+                if (! $logradouro) {
+                    return new HtmlString('<p class="text-sm text-gray-500">Logradouro não encontrado.</p>');
+                }
+
+                return view('filament.cidadao.components.ficha-logradouro-publica', [
+                    'logradouro' => $logradouro,
+                ]);
+            });
+    }
+
+    // ------------------------------------------------------------------------
+    // T2.4 (item 3-12) — VIABILIDADE DE PARCELAMENTO/DESMEMBRAMENTO no público.
+    // Mesmo motor da intranet (ViabilidadeService::analisarParcelamento) + PDF
+    // oficial com protocolo /v/{protocolo}.
+    // ------------------------------------------------------------------------
+    public function consultarParcelamentoAction(): Action
+    {
+        return Action::make('consultarParcelamento')
+            ->modalHeading('Viabilidade de Parcelamento / Desmembramento')
+            ->modalDescription('Simule a divisão deste imóvel e receba o parecer conforme os parâmetros da zona.')
+            ->modalWidth('md')
+            ->modalSubmitActionLabel('Analisar')
+            ->form([
+                \Filament\Forms\Components\TextInput::make('qtd_lotes')
+                    ->label('Dividir em quantos lotes?')
+                    ->numeric()
+                    ->minValue(2)
+                    ->maxValue(50)
+                    ->default(2)
+                    ->required(),
+            ])
+            ->action(function (array $data) {
+                $this->replaceMountedAction('resultadoParcelamentoPublico', ['qtd_lotes' => (int) $data['qtd_lotes']]);
+            });
+    }
+
+    public function resultadoParcelamentoPublicoAction(): Action
+    {
+        return Action::make('resultadoParcelamentoPublico')
+            ->modalHeading('Resultado da Análise — Parcelamento')
+            ->modalWidth('3xl')
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Fechar')
+            ->form(function (array $arguments) {
+                $service = new \App\Services\Viabilidade\ViabilidadeService;
+                $resultado = $service->analisarParcelamento($this->loteAtivoId, $arguments['qtd_lotes'] ?? 2);
+
+                $cor = match ($resultado['status_final'] ?? 'proibido') {
+                    'permitido' => 'success',
+                    'permissivel' => 'warning',
+                    default => 'danger',
+                };
+                $textoStatus = strtoupper($resultado['status_final'] ?? 'PROIBIDO');
+                $htmlParecer = implode('<br><br>', $resultado['parecer_tecnico'] ?? ['Nenhum parecer gerado.']);
+
+                return [
+                    \Filament\Forms\Components\Section::make('Parecer Técnico')
+                        ->schema([
+                            \Filament\Forms\Components\Placeholder::make('status')
+                                ->label('Veredito Final')
+                                ->content(new HtmlString("<span class='text-{$cor}-600 font-bold text-lg' style='color: var(--{$cor}-600);'>{$textoStatus}</span>")),
+
+                            \Filament\Forms\Components\Placeholder::make('parecer')
+                                ->label('Análise Geométrica e Matemática')
+                                ->content(new HtmlString("<div class='text-gray-700 dark:text-gray-300' style='font-size: 1rem; line-height: 1.5;'>{$htmlParecer}</div>")),
+                        ]),
+                ];
+            })
+            ->extraModalFooterActions(function (array $arguments) {
+                $qtd = $arguments['qtd_lotes'] ?? 2;
+
+                return [
+                    Action::make('imprimir_parcelamento_publico')
+                        ->label('Gerar PDF Oficial')
+                        ->color('success')
+                        ->icon('heroicon-o-printer')
+                        ->extraAttributes([
+                            'type' => 'button',
+                            'x-on:click.prevent' => "capturarMapaEImprimirParcelamento({$this->loteAtivoId}, {$qtd})",
+                        ])
+                        ->action(function () { /* o JS captura o croqui e chama imprimirParcelamento */
+                        }),
+                ];
+            });
+    }
+
+    /** Recebe o print do mapa do JS e devolve o PDF oficial (com protocolo /v/). */
+    public function imprimirParcelamento($mapImageBase64, $qtdLotes, $loteId)
+    {
+        $service = app(\App\Services\Viabilidade\ViabilidadeService::class);
+        $dadosAnalise = $service->analisarParcelamento($loteId, (int) $qtdLotes);
+
+        if (isset($dadosAnalise['error'])) {
+            Notification::make()->danger()->title('Erro')->body($dadosAnalise['error'])->send();
+
+            return;
+        }
+
+        $dadosAnalise['numero_lote'] = $this->loteAtivoNome ?? Lote::query()->find($loteId)?->numero_lote ?? 'S/N';
+
+        return app(\App\Services\Viabilidade\ViabilidadePdfService::class)
+            ->generateParcelamentoPdf($dadosAnalise, $mapImageBase64);
+    }
+
+    // ------------------------------------------------------------------------
+    // T1.6 (item 3-11) — ZONA CLICÁVEL: parâmetros urbanísticos + usos da zona
+    // ------------------------------------------------------------------------
+    #[On('abrirFichaZona')]
+    public function abrirFichaZona($zonaId)
+    {
+        $this->mountAction('fichaZona', ['zonaId' => (int) $zonaId]);
+    }
+
+    public function fichaZonaAction(): Action
+    {
+        return Action::make('fichaZona')
+            ->modalHeading(function (array $arguments): string {
+                $zona = \App\Models\Zona::find($arguments['zonaId'] ?? null);
+
+                return $zona ? "{$zona->sigla} — {$zona->name}" : 'Zona';
+            })
+            ->modalWidth('2xl')
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Fechar')
+            ->modalContent(function (array $arguments) {
+                $zona = \App\Models\Zona::find($arguments['zonaId'] ?? null);
+
+                if (! $zona) {
+                    return new HtmlString('<p class="text-sm text-gray-500">Zona não encontrada.</p>');
+                }
+
+                $parametro = \App\Models\ParametroUrbano::where('zona_id', $zona->id)->first();
+
+                $regras = \App\Models\ZoneamentoRegra::query()
+                    ->where('zona_sigla', $zona->sigla)
+                    ->orderBy('classificacao')
+                    ->get()
+                    ->groupBy('status');
+
+                return view('filament.cidadao.components.ficha-zona-publica', [
+                    'zona' => $zona,
+                    'parametro' => $parametro,
+                    'regras' => $regras,
+                ]);
+            });
     }
 
     public function fecharFicha()

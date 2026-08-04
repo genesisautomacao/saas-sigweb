@@ -20,9 +20,11 @@ class PerimetroUrbanoResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-globe-americas';
     protected static ?string $navigationGroup = 'Módulo Imobiliário';
     protected static ?int $navigationSort = -10;
-    protected static ?string $navigationLabel = 'Distritos / Limites';
-    protected static ?string $modelLabel = 'Distrito / Limite';
-    protected static ?string $pluralModelLabel = 'Distritos / Limites';
+    // T2.1 (itens 46/54/64) — apresentação FORMAL como Distrito: é o nome que a
+    // Comissão vai procurar no menu (o edital nunca diz "perímetro urbano").
+    protected static ?string $navigationLabel = 'Distritos';
+    protected static ?string $modelLabel = 'Distrito';
+    protected static ?string $pluralModelLabel = 'Distritos';
     protected static ?string $slug = 'distritos';
 
     public static function form(Form $form): Form
@@ -53,6 +55,12 @@ class PerimetroUrbanoResource extends Resource
                     ->suffix('m²'),
 
             ])->columns(2),
+
+            // Item 75 — campos customizados do município nesta camada
+            Forms\Components\Section::make('Campos do Município')
+                ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('perimetro')->isNotEmpty())
+                ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('perimetro'))
+                ->columns(3),
 
             Forms\Components\Section::make('Dados Espaciais')->schema([
                 Forms\Components\Textarea::make('geo_json_input')

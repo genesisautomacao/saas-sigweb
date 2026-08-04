@@ -21,6 +21,9 @@ class Logradouro extends Model
 
     protected $fillable = ['tenant_id', 'sequential_id', 'code', 'codigo', 'name', 'dados_customizados', 'extensao_geo', 'geo'];
 
+    /** Transiente da cascata de restore (não persiste). */
+    public ?string $marcoExclusaoAnterior = null;
+
     protected $casts = [
         'dados_customizados' => 'array', // campos do município (item 75)
     ];
@@ -46,5 +49,39 @@ class Logradouro extends Model
     public function secoes()
     {
         return $this->hasMany(SecaoLogradouro::class, 'logradouro_id');
+    }
+
+    /**
+     * Item 52 do edital ("Excluir Logradouro E Seções") — cascata do SOFT delete.
+     *
+     * O cascadeOnDelete da FK só dispara em DELETE físico; com SoftDeletes o
+     * logradouro sumia e as seções ficavam ativas no mapa apontando para um pai
+     * excluído. Aqui o soft delete e o restore propagam para as seções.
+     * O force delete não precisa: a FK cuida.
+     */
+    protected static function booted(): void
+    {
+        static::deleted(function (Logradouro $logradouro) {
+            if (! $logradouro->isForceDeleting()) {
+                $logradouro->secoes()->delete();
+            }
+        });
+
+        static::restoring(function (Logradouro $logradouro) {
+            // Guarda o deleted_at ANTES do restore zerá-lo — é o marco da cascata.
+            $logradouro->marcoExclusaoAnterior = $logradouro->getOriginal('deleted_at');
+        });
+
+        static::restored(function (Logradouro $logradouro) {
+            $query = $logradouro->secoes()->onlyTrashed();
+
+            // Restaura só as seções excluídas JUNTO com o logradouro (mesma cascata)
+            // — uma seção excluída individualmente dias antes não deve ressuscitar.
+            if ($logradouro->marcoExclusaoAnterior) {
+                $query->where('deleted_at', '>=', \Carbon\Carbon::parse($logradouro->marcoExclusaoAnterior)->subSeconds(2));
+            }
+
+            $query->restore();
+        });
     }
 }

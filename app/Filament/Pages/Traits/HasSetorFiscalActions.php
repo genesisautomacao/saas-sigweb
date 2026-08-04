@@ -51,6 +51,9 @@ trait HasSetorFiscalActions
                     ->searchable()
                     ->preload(),
 
+                // Item 75 — campos customizados do município (setor fiscal)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('setor_fiscal'),
+
             ])
             ->action(function (array $data) {
                 if (!$this->geometriaRascunho) {
@@ -120,13 +123,30 @@ trait HasSetorFiscalActions
                     ->options(fn () => PgvParametro::where('tenant_id', $this->tenantId)->pluck('nome_padrao', 'id'))
                     ->required()
                     ->default(fn () => SetorFiscal::find($this->setorFiscalAtivoId)?->pgv_parametro_id),
+
+                // Item 75 — campos customizados do município (setor fiscal)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('setor_fiscal'),
             ])
+            ->fillForm(function (): array {
+                $reg = SetorFiscal::find($this->setorFiscalAtivoId);
+
+                return [
+                    'codigo' => $reg?->codigo,
+                    'nome' => $reg?->nome,
+                    'pgv_parametro_id' => $reg?->pgv_parametro_id,
+                    'dados_customizados' => $reg?->dados_customizados ?? [],
+                ];
+            })
             ->action(function (array $data) {
                 $setor = SetorFiscal::find($this->setorFiscalAtivoId);
                 if ($setor) {
+                    // codigo e dados_customizados entram no update (o codigo era
+                    // exibido no form mas NUNCA salvo — bug herdado da Onda 1)
                     $setor->update([
                         'nome' => $data['nome'],
+                        'codigo' => $data['codigo'] ?? null,
                         'pgv_parametro_id' => $data['pgv_parametro_id'],
+                        'dados_customizados' => $data['dados_customizados'] ?? [],
                     ]);
                     Notification::make()->title('Setor Atualizado!')->success()->send();
                     $this->dispatch('atualizar-label-setor_fiscal', [

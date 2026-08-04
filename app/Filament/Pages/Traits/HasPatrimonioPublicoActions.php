@@ -88,7 +88,7 @@ trait HasPatrimonioPublicoActions
                             ->color('danger')
                             ->requiresConfirmation()
                             ->action(function () {
-                                PatrimonioPublico::where('id', $this->patrimonioPublicoAtivoId)->delete();
+                                PatrimonioPublico::find($this->patrimonioPublicoAtivoId)?->delete();
                                 Notification::make()->title('Patrimônio Excluído!')->success()->send();
                                 $this->dispatch('remover-patrimonio_publico-mapa', ['id' => $this->patrimonioPublicoAtivoId]);
                                 $this->dispatch('fechar-modal-filament');

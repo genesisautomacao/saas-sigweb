@@ -36,16 +36,68 @@
         {{-- BARRA SUPERIOR CENTRALIZADA (Cópia Fiel do seu App) --}}
         <div class="absolute top-4 left-0 w-full px-4 z-40 pointer-events-none flex items-start justify-between">
 
+            {{-- ══ Onda 7 (UI) — mesmo estilo "glass"/painel lateral do mapa da intranet ══ --}}
+            <style>
+                .gis-topbar {
+                    background: rgba(255, 255, 255, .88) !important;
+                    -webkit-backdrop-filter: blur(16px) saturate(1.5);
+                    backdrop-filter: blur(16px) saturate(1.5);
+                    border: 1px solid rgba(255, 255, 255, .6) !important;
+                    box-shadow: 0 12px 40px -12px rgba(15, 23, 42, .35) !important;
+                    border-radius: 16px !important;
+                }
+
+                .dark .gis-topbar {
+                    background: rgba(17, 24, 39, .82) !important;
+                    border-color: rgba(255, 255, 255, .08) !important;
+                }
+
+                #layers-panel {
+                    position: fixed !important;
+                    top: 76px !important;
+                    right: 0 !important;
+                    left: auto !important;
+                    bottom: 0 !important;
+                    width: 330px !important;
+                    max-width: 88vw;
+                    border-radius: 16px 0 0 0 !important;
+                    border: none !important;
+                    border-left: 1px solid rgba(120, 120, 140, .16) !important;
+                    border-top: 1px solid rgba(120, 120, 140, .16) !important;
+                    box-shadow: -16px 0 44px -20px rgba(0, 0, 0, .35) !important;
+                    z-index: 35 !important;
+                    background: rgba(255, 255, 255, .94) !important;
+                    -webkit-backdrop-filter: blur(14px);
+                    backdrop-filter: blur(14px);
+                }
+
+                .dark #layers-panel {
+                    background: rgba(17, 24, 39, .92) !important;
+                }
+
+                #layers-panel>.overflow-y-auto {
+                    max-height: none !important;
+                    flex: 1 1 auto;
+                    padding-bottom: 28px;
+                }
+
+                #layers-panel-header {
+                    cursor: default !important;
+                    padding-top: 13px !important;
+                    padding-bottom: 13px !important;
+                }
+            </style>
+
             <div class="pointer-events-auto">
                 <a href="/cidadao"
-                    class="bg-white dark:bg-gray-800/95 shadow-lg border border-gray-200 dark:border-gray-700 px-4 py-2.5 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 transition-all flex items-center gap-2">
+                    class="gis-topbar px-4 py-2.5 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 transition-all flex items-center gap-2">
                     <x-heroicon-o-arrow-left class="w-5 h-5" />
                     <span class="hidden sm:inline">Painel</span>
                 </a>
             </div>
 
             <div
-                class="flex items-center gap-2 pointer-events-auto bg-white dark:bg-gray-800 shadow-2xl border border-gray-200 dark:border-gray-700 p-1.5 rounded-2xl max-w-2xl w-full mx-4">
+                class="gis-topbar flex items-center gap-2 pointer-events-auto p-1.5 rounded-2xl max-w-2xl w-full mx-4">
 
                 {{-- Busca Integrada com AUTOCOMPLETE (Alpine.js original seu) --}}
                 <div x-data="loteSearch()"
@@ -58,11 +110,12 @@
                     <div x-show="loading" style="display: none;" class="absolute right-3">
                         <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
                     </div>
-                    {{-- Dropdown de Resultados --}}
-                    <div x-show="resultados.length > 0" style="display: none;" @click.outside="resultados = []"
-                        x-ref="dropdown" :style="dropdownStyle"
-                        class="fixed bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-[9999]">
-                        <ul class="overflow-y-auto custom-scrollbar" :style="`max-height: ${dropdownMaxHeight}px`">
+                    {{-- Dropdown de Resultados — ancorado no campo, como um seletor
+                         (o "fixed" antigo quebrou com o backdrop-filter da barra) --}}
+                    <div x-show="resultados.length > 0" style="display: none; top: calc(100% + 10px); left: 0; width: 100%; min-width: 320px;"
+                        @click.outside="resultados = []" x-ref="dropdown"
+                        class="absolute bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-[9999]">
+                        <ul class="overflow-y-auto custom-scrollbar" style="max-height: 55vh;">
                             <template x-for="(res, index) in resultados" :key="index">
                                 <li @click="voarPara(res)"
                                     class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer transition-colors flex items-start gap-3">
@@ -466,6 +519,23 @@
 
         <div class="p-6 flex-1 overflow-y-auto">
             @if ($loteAtivoId)
+                {{-- T1.4 (item 3-9) — imagem frontal do imóvel --}}
+                <div class="mb-4">
+                    @if ($loteFotoFrontal)
+                        <a href="{{ $loteFotoFrontal }}" target="_blank" title="Ampliar foto">
+                            <img src="{{ $loteFotoFrontal }}" alt="Foto frontal do imóvel"
+                                class="w-full h-36 object-cover rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm" />
+                        </a>
+                        <p class="text-[10px] text-gray-400 mt-1 text-center">Imagem frontal do imóvel</p>
+                    @else
+                        <div
+                            class="w-full h-24 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-700/30">
+                            <x-heroicon-o-photo class="w-6 h-6 text-gray-300" />
+                            <p class="text-[11px] text-gray-400 mt-1">Sem imagem frontal cadastrada</p>
+                        </div>
+                    @endif
+                </div>
+
                 <div
                     class="mb-6 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
                     <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Lote / Inscrição</p>
@@ -543,6 +613,16 @@
                         <x-heroicon-o-document-text class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
                     </button>
 
+                    {{-- T2.4 (item 3-12) — VIABILIDADE DE PARCELAMENTO --}}
+                    <button wire:click="mountAction('consultarParcelamento')"
+                        class="w-full text-left px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary-500 hover:shadow-md transition-all group flex items-center justify-between">
+                        <span
+                            class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-primary-600">
+                            Viabilidade de Parcelamento
+                        </span>
+                        <x-heroicon-o-scissors class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
+                    </button>
+
                     {{-- BOTÃO DE MEMORIAL DESCRITIVO --}}
                     <button wire:click="mountAction('gerarMemorialAction')"
                         class="w-full text-left px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-emerald-500 hover:shadow-md transition-all group flex items-center justify-between">
@@ -553,13 +633,19 @@
                         <x-heroicon-o-document-text class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
                     </button>
 
-                    {{-- BOTÃO DE CROQUI DE LOCALIZAÇÃO --}}
+                    {{-- BOTÃO DE CROQUI DE LOCALIZAÇÃO — T1.4 (item 3-9): em destaque,
+                         é a "Planta Cartográfica" que o edital pede junto da imagem frontal.
+                         Estilo inline: as classes de cor do Tailwind não estão no CSS
+                         compilado do painel cidadão (purge), então azul via CSS direto. --}}
                     <button wire:click="mountAction('exportarCroqui')"
-                        class="w-full text-left px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-blue-500 hover:shadow-md transition-all group flex items-center justify-between">
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-blue-600">
-                            Croqui de Localização
+                        style="width:100%;text-align:left;padding:12px 16px;background-color:#2563eb;border:1px solid #2563eb;border-radius:12px;box-shadow:0 2px 6px rgba(37,99,235,.35);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background-color .15s;"
+                        onmouseover="this.style.backgroundColor='#1d4ed8'"
+                        onmouseout="this.style.backgroundColor='#2563eb'">
+                        <span style="font-size:14px;font-weight:700;color:#ffffff;display:flex;align-items:center;gap:8px;">
+                            <x-heroicon-o-map style="width:16px;height:16px;color:#ffffff;" />
+                            Planta / Croqui do Imóvel
                         </span>
-                        <x-heroicon-o-document-text class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
+                        <x-heroicon-o-arrow-down-tray style="width:16px;height:16px;color:#dbeafe;" />
                     </button>
 
                     {{-- BOTÃO DO STREET VIEW --}}
@@ -668,6 +754,67 @@
         };
 
         /* IMPRIMIR CROQUI DE LOCALIZAÇÃO DO LOTE (COM DESTAQUE) */
+        // T2.4 — captura o croqui e gera o PDF oficial de PARCELAMENTO (mesma mecânica
+        // da viabilidade de funcionamento, trocando só a chamada Livewire no final)
+        window.capturarMapaEImprimirParcelamento = function(loteId, qtdLotes) {
+            let featureToHighlight = null;
+            if (window.loadedLayers && window.loadedLayers['lotes']) {
+                const source = window.loadedLayers['lotes'].getSource();
+                featureToHighlight = source.getFeatures().find(f => f.get('id') == loteId);
+                if (featureToHighlight) {
+                    featureToHighlight.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#ff0000', width: 4 }),
+                        fill: new ol.style.Fill({ color: 'rgba(250, 204, 21, 0.5)' })
+                    }));
+                }
+            }
+
+            setTimeout(() => {
+                try {
+                    const mapCanvas = document.createElement('canvas');
+                    const canvases = document.querySelectorAll('.ol-layer canvas');
+
+                    if (canvases.length > 0) {
+                        const mapaElement = document.getElementById('sigweb-map');
+                        mapCanvas.width = mapaElement.clientWidth;
+                        mapCanvas.height = mapaElement.clientHeight;
+                        const mapContext = mapCanvas.getContext('2d');
+                        mapContext.fillStyle = '#ffffff';
+                        mapContext.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
+
+                        Array.prototype.forEach.call(canvases, function(canvas) {
+                            if (canvas.width > 0) {
+                                const opacity = canvas.parentNode.style.opacity;
+                                mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+                                mapContext.setTransform(1, 0, 0, 1, 0, 0);
+                                const transform = canvas.style.transform;
+                                if (transform) {
+                                    const matrix = transform.match(/^matrix\(([^\(]*)\)$/);
+                                    if (matrix) {
+                                        const m = matrix[1].split(',').map(Number);
+                                        mapContext.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+                                    }
+                                }
+                                mapContext.drawImage(canvas, 0, 0);
+                            }
+                        });
+
+                        mapContext.globalAlpha = 1;
+                        mapContext.setTransform(1, 0, 0, 1, 0, 0);
+
+                        const dataURL = mapCanvas.toDataURL('image/jpeg', 0.8);
+                        Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id'))
+                            .imprimirParcelamento(dataURL, qtdLotes, loteId);
+                    }
+                } catch (error) {
+                    console.error("Erro na captura do mapa para o Parcelamento:", error);
+                    alert("Não foi possível capturar a imagem do mapa.");
+                } finally {
+                    if (featureToHighlight) featureToHighlight.setStyle(null);
+                }
+            }, 800);
+        };
+
         window.capturarMapaEImprimirCroqui = function(loteId) {
 
             // 🛑 MÁGICA 1: Encontrar a feature do lote e aplicar um "marca-texto" antes da foto!

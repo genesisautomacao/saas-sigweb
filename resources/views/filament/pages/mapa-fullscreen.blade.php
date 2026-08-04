@@ -51,13 +51,69 @@
             class="fixed bg-gray text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[9999] ol-tooltip-logradouro"
             style="display: none; transform: translate(-50%, -150%);"></div>
 
+        {{-- ══ Onda 7 (UI) — estilo "glass" da barra superior + painel de camadas fixo à esquerda.
+             CSS direto (com !important) para não depender de rebuild do Tailwind. ══ --}}
+        <style>
+            .gis-topbar {
+                background: rgba(255, 255, 255, .88) !important;
+                -webkit-backdrop-filter: blur(16px) saturate(1.5);
+                backdrop-filter: blur(16px) saturate(1.5);
+                border: 1px solid rgba(255, 255, 255, .6) !important;
+                box-shadow: 0 12px 40px -12px rgba(15, 23, 42, .35) !important;
+                border-radius: 16px !important;
+            }
+
+            .dark .gis-topbar {
+                background: rgba(17, 24, 39, .82) !important;
+                border-color: rgba(255, 255, 255, .08) !important;
+            }
+
+            /* Painel de camadas: de janela flutuante para BARRA LATERAL fixa à DIREITA
+               (a esquerda é da barra WMS). A ficha do lote (z-50) desliza POR CIMA
+               quando aberta; ao fechá-la, o painel reaparece. O X fecha; "Camadas" reabre. */
+            #layers-panel {
+                position: fixed !important;
+                top: 76px !important;
+                right: 0 !important;
+                left: auto !important;
+                bottom: 0 !important;
+                width: 330px !important;
+                max-width: 88vw;
+                border-radius: 16px 0 0 0 !important;
+                border: none !important;
+                border-left: 1px solid rgba(120, 120, 140, .16) !important;
+                border-top: 1px solid rgba(120, 120, 140, .16) !important;
+                box-shadow: -16px 0 44px -20px rgba(0, 0, 0, .35) !important;
+                z-index: 35 !important;
+                background: rgba(255, 255, 255, .94) !important;
+                -webkit-backdrop-filter: blur(14px);
+                backdrop-filter: blur(14px);
+            }
+
+            .dark #layers-panel {
+                background: rgba(17, 24, 39, .92) !important;
+            }
+
+            #layers-panel>.overflow-y-auto {
+                max-height: none !important;
+                flex: 1 1 auto;
+                padding-bottom: 28px;
+            }
+
+            #layers-panel-header {
+                cursor: default !important;
+                padding-top: 13px !important;
+                padding-bottom: 13px !important;
+            }
+        </style>
+
         {{-- BARRA SUPERIOR E CONTROLES --}}
         <div class="absolute top-4 left-0 w-full px-4 z-40 pointer-events-none flex items-start justify-between">
 
             {{-- seta para voltar --}}
             <div class="pointer-events-auto">
                 <a href="/app/{{ $tenantSlug }}"
-                    class="bg-white dark:bg-gray-800/95 shadow-lg border border-gray-200 dark:border-gray-700 px-4 py-2.5 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 transition-all flex items-center gap-2">
+                    class="gis-topbar px-4 py-2.5 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 transition-all flex items-center gap-2">
                     <x-heroicon-o-arrow-left class="w-5 h-5" />
                     <span class="hidden sm:inline">Painel</span>
                 </a>
@@ -65,7 +121,7 @@
 
             {{-- Painel principal de pesquisa e botões --}}
             <div
-                class="flex items-center gap-2 pointer-events-auto bg-white dark:bg-gray-800 shadow-2xl border border-gray-200 dark:border-gray-700 p-1.5 rounded-2xl max-w-4xl w-full mx-4">
+                class="gis-topbar flex items-center gap-2 pointer-events-auto p-1.5 rounded-2xl max-w-4xl w-full mx-4">
 
                 {{-- Busca Integrada com AUTOCOMPLETE (Alpine.js) --}}
                 <div x-data="loteSearch()"
@@ -81,12 +137,14 @@
                         <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
                     </div>
 
-                    {{-- Lista Suspensa de Múltiplas Escolhas --}}
-                    <div x-show="resultados.length > 0" style="display: none;" @click.outside="resultados = []"
-                        x-ref="dropdown" :style="dropdownStyle"
-                        class="fixed bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-[9999]">
+                    {{-- Lista Suspensa — ancorada no campo, como um seletor (o posicionamento
+                         fixed antigo quebrou com o backdrop-filter da barra: filtro cria
+                         containing block e o "fixed" vira relativo à barra) --}}
+                    <div x-show="resultados.length > 0" style="display: none; top: calc(100% + 10px); left: 0; width: 100%; min-width: 320px;"
+                        @click.outside="resultados = []" x-ref="dropdown"
+                        class="absolute bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-[9999]">
 
-                        <ul class="overflow-y-auto custom-scrollbar" :style="`max-height: ${dropdownMaxHeight}px`">
+                        <ul class="overflow-y-auto custom-scrollbar" style="max-height: 55vh;">
                             <template x-for="(res, index) in resultados" :key="index">
                                 <li @click="voarPara(res)"
                                     class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer transition-colors flex items-start gap-3">
@@ -566,10 +624,8 @@
                                         <x-heroicon-o-star class="w-4 h-4 text-amber-500" /> Novo Pólo Valorizante (clique)
                                     </button>
 
-                                    <button @click="openTools = false; window.pgvIniciarDesenhoFace()"
-                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 transition-colors border-b border-gray-100 pb-3 mb-1">
-                                        <x-heroicon-o-view-columns class="w-4 h-4 text-emerald-500" /> Nova Face de Quadra (desenho)
-                                    </button>
+                                    {{-- "Nova Face de Quadra" saiu daqui: a face nasce DA QUADRA
+                                         (modal da quadra → Nova Face), como logradouro → seções. --}}
 
                                     <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
 
@@ -2309,6 +2365,17 @@
 
         <div class="p-6 flex-1 overflow-y-auto">
             @if ($loteAtivoId)
+                {{-- Imagem frontal do imóvel (item 13) — mesmo padrão da ficha pública --}}
+                @if ($loteFotoFrontal)
+                    <div class="mb-4">
+                        <a href="{{ $loteFotoFrontal }}" target="_blank" title="Ampliar foto">
+                            <img src="{{ $loteFotoFrontal }}" alt="Foto frontal do imóvel"
+                                style="width:100%;height:144px;object-fit:cover;border-radius:12px;border:1px solid #e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.06);" />
+                        </a>
+                        <p class="text-[10px] text-gray-400 mt-1 text-center">Imagem frontal do imóvel</p>
+                    </div>
+                @endif
+
                 <div
                     class="mb-6 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
                     <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Lote / Inscrição</p>
@@ -2550,6 +2617,18 @@
                         </span>
                         <x-heroicon-o-document-text class="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
                     </button>
+
+                    {{-- T1.1 (item 14) — HISTÓRICO DO IMÓVEL: auditoria pré-filtrada pelo lote + filhos --}}
+                    @if (auth()->user()?->can('view_auditoria'))
+                        <a href="{{ \App\Filament\Pages\AuditoriaPage::getUrl(['lote_id' => $loteAtivoId]) }}"
+                            target="_blank"
+                            class="w-full text-left px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-amber-500 hover:shadow-md transition-all group flex items-center justify-between">
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-amber-600">
+                                Ver histórico
+                            </span>
+                            <x-heroicon-o-clock class="w-4 h-4 text-gray-400 group-hover:text-amber-500" />
+                        </a>
+                    @endif
 
                     {{-- BOTÃO DE CROQUI DE LOCALIZAÇÃO --}}
                     <button wire:click="mountAction('exportarCroqui')"

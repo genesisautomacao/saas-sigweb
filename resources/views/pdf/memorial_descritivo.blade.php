@@ -89,7 +89,7 @@
                             @if($seg->confrontante_logradouro)
                                 Rua {{ $seg->confrontante_logradouro }}
                             @elseif($seg->confrontante_lote)
-                                Lote {{ $seg->confrontante_lote }}
+                                Lote {{ $seg->confrontante_lote }}{{ !empty($seg->confrontante_proprietario) ? ' — ' . $seg->confrontante_proprietario : '' }}
                             @else
                                 Área Não Cadastrada
                             @endif

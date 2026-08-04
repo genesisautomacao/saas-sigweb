@@ -107,7 +107,7 @@ trait HasRuralPontoInteresseActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function() {
-                        RuralPontoInteresse::where('id', $this->ruralPontoInteresseAtivaId)->delete();
+                        RuralPontoInteresse::find($this->ruralPontoInteresseAtivaId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-rural_ponto_interesse-mapa', ['id' => $this->ruralPontoInteresseAtivaId]);
                         $this->dispatch('fechar-modal-filament');

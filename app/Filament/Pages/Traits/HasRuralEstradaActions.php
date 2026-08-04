@@ -114,7 +114,7 @@ trait HasRuralEstradaActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function() {
-                        RuralEstrada::where('id', $this->ruralEstradaAtivaId)->delete();
+                        RuralEstrada::find($this->ruralEstradaAtivaId)?->delete();
                         Notification::make()->title('Excluída!')->success()->send();
                         $this->dispatch('remover-rural_estrada-mapa', ['id' => $this->ruralEstradaAtivaId]);
                         $this->dispatch('fechar-modal-filament');

@@ -135,7 +135,7 @@ trait HasPosteActions
                                 $solicitacao->delete();
                             }
 
-                            Poste::where('id', $this->posteAtivoId)->delete();
+                            Poste::find($this->posteAtivoId)?->delete();
                             Notification::make()->title('Poste Excluído!')->success()->send();
 
                             $this->dispatch('remover-poste-mapa', ['id' => $this->posteAtivoId]);

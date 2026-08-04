@@ -137,7 +137,7 @@ trait HasRuralPropriedadeActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function () {
-                        RuralPropriedade::where('id', $this->ruralPropriedadeAtivaId)->delete();
+                        RuralPropriedade::find($this->ruralPropriedadeAtivaId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-rural_propriedade-mapa', ['id' => $this->ruralPropriedadeAtivaId]);
                         $this->dispatch('fechar-modal-filament');

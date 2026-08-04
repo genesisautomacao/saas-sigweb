@@ -87,7 +87,7 @@ trait HasCemiterioActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function() {
-                        Cemiterio::where('id', $this->cemiterioAtivoId)->delete();
+                        Cemiterio::find($this->cemiterioAtivoId)?->delete();
                         Notification::make()->title('Cemitério Excluído!')->success()->send();
                         
                         // 🛑 MÁGICA 3: Apaga só o polígono da memória

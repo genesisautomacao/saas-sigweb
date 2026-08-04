@@ -53,6 +53,7 @@ use Livewire\Attributes\On;
 
 class MapaFullscreen extends Page
 {
+    use \App\Filament\Concerns\MontaOpcoesFiltroMapa;
     use HasAreaReurbActions;
     use HasArvoreActions;
     use HasBairroActions;
@@ -131,6 +132,9 @@ class MapaFullscreen extends Page
 
     // Dados de vistoria de campo (Antônio Carlos PoC)
     public ?string $loteStatusCadastro = null;
+
+    // Imagem frontal do imóvel na ficha lateral (item 13) — URL pública ou null
+    public ?string $loteFotoFrontal = null;
 
     public ?string $loteOcupacao = null;
 
@@ -357,6 +361,7 @@ class MapaFullscreen extends Page
         // coleta_imobiliaria; situacao_quadra é campo customizado (dados_customizados).
         $coleta = $lote?->coletaVigente;
         $this->loteStatusCadastro = $lote?->status_cadastro;
+        $this->loteFotoFrontal = $lote?->foto_frontal ? asset('storage/'.$lote->foto_frontal) : null;
         $this->loteOcupacao = $lote?->ocupacao;
         $this->loteSituacaoQuadra = $lote?->dados_customizados['situacao_quadra'] ?? null;
         $this->loteColetadoPor = $coleta?->coletadoPor?->name;
@@ -1783,9 +1788,24 @@ class MapaFullscreen extends Page
                     )
                 ', [$novoLote->id, $loteOriginal->id, $parteDesmembrada['geojson']]);
 
-                \Filament\Notifications\Notification::make()->title('Desmembramento Concluído!')->success()->send();
+                // 5. T2.2 (item 59) — recalcula testadas, ocupação e sugere situação na
+                // quadra para AS DUAS partes (a geometria de ambas mudou).
+                $posEdicao = app(\App\Services\Gis\PosEdicaoLoteService::class);
+                $resumoOriginal = $posEdicao->atualizarAposEdicaoGeometrica($loteOriginal->fresh());
+                $resumoNovo = $posEdicao->atualizarAposEdicaoGeometrica($novoLote->fresh());
 
-                // 5. Limpa a tela e desenha os lotes novos no mapa instantaneamente
+                \Filament\Notifications\Notification::make()
+                    ->title('Desmembramento Concluído!')
+                    ->body(
+                        "Testadas recalculadas ({$resumoOriginal['testadas']} no remanescente, {$resumoNovo['testadas']} no novo lote), "
+                        .'ocupação atualizada'
+                        .($resumoNovo['situacao_sugerida'] ? " e situação na quadra sugerida (\"{$resumoNovo['situacao_sugerida']}\")" : '')
+                        .'. Confira e ajuste na ficha de cada lote, se necessário.'
+                    )
+                    ->success()
+                    ->send();
+
+                // 6. Limpa a tela e desenha os lotes novos no mapa instantaneamente
                 $this->dispatch('remover-lote-mapa', ['id' => $loteOriginal->id]);
                 $this->dispatch('adicionar-lote-mapa', ['id' => $loteOriginal->id, 'numero_lote' => $loteOriginal->numero_lote, 'geo' => json_decode($partePrincipal['geojson'])]);
                 $this->dispatch('adicionar-lote-mapa', ['id' => $novoLote->id, 'numero_lote' => $novoLote->numero_lote, 'geo' => json_decode($parteDesmembrada['geojson'])]);
@@ -1870,14 +1890,11 @@ class MapaFullscreen extends Page
                 $loteSecundario = \App\Models\Lote::query()->find($this->loteSecundarioToUnifyId);
                 $loteSecundarioIdParaDeletar = $loteSecundario->id;
 
-                $novaTestada = ($lotePrincipal->main_facade_length ?? 0) + ($loteSecundario->main_facade_length ?? 0);
-
                 // 1. ATUALIZA O LOTE PRINCIPAL (Com a solda do PostGIS)
                 // Usando o seu mutator json_decode que validamos na etapa anterior!
                 $lotePrincipal->geo = json_decode($this->previewUnificacao['geojson'], true);
                 $lotePrincipal->area_geo = $this->previewUnificacao['nova_area'];
                 $lotePrincipal->numero_lote = $data['novo_numero_lote'];
-                $lotePrincipal->main_facade_length = $novaTestada;
                 $lotePrincipal->save();
 
                 // 2. MIGRAÇÃO DE HERANÇA (Transfere Unidades e Edificações)
@@ -1887,7 +1904,22 @@ class MapaFullscreen extends Page
                 // 3. APAGA O LOTE SECUNDÁRIO (Sofre SoftDelete e sai do mapa)
                 $loteSecundario->delete();
 
-                \Filament\Notifications\Notification::make()->title('Unificação Concluída!')->success()->send();
+                // 4. T2.2 (item 60) — testadas recalculadas pela GEOMETRIA nova (antes
+                // era a soma cega das antigas: divisa interna que sumiu continuava
+                // contada), ocupação derivada das edificações herdadas e situação
+                // na quadra sugerida para o usuário confirmar na ficha.
+                $resumoUniao = app(\App\Services\Gis\PosEdicaoLoteService::class)
+                    ->atualizarAposEdicaoGeometrica($lotePrincipal->fresh());
+
+                \Filament\Notifications\Notification::make()
+                    ->title('Unificação Concluída!')
+                    ->body(
+                        "Testadas recalculadas ({$resumoUniao['testadas']}), ocupação \"{$resumoUniao['ocupacao']}\""
+                        .($resumoUniao['situacao_sugerida'] ? ", situação sugerida \"{$resumoUniao['situacao_sugerida']}\"" : '')
+                        .'. Confira e ajuste na ficha, se necessário.'
+                    )
+                    ->success()
+                    ->send();
 
                 // 4. ATUALIZA O MAPA EM TEMPO REAL
                 $this->dispatch('remover-lote-mapa', ['id' => $loteSecundarioIdParaDeletar]); // Tira o velho
@@ -2581,10 +2613,76 @@ class MapaFullscreen extends Page
                         'espacial' => 'Cruzamento Espacial (Ex: Lotes dentro de Bairro)',
                         'desenho' => 'Desenhar Área no Mapa (Polígono / Retângulo)',
                         'intervalo' => 'Tematização por Intervalo (Classes)',
+                        'valores_unicos' => 'Tematização por Valores Únicos',
+                        'heatmap' => 'Mapa de Calor (qualquer camada)',
                     ])
                     ->default('atributo')
                     ->live()
                     ->required(),
+
+                // -------------------------------------------------------------
+                // T1.10 (itens 2.5-32/34/37): VALORES ÚNICOS — uma cor por valor
+                // distinto do atributo, paleta editável na legenda do mapa.
+                // -------------------------------------------------------------
+                Forms\Components\Group::make([
+                    Forms\Components\Select::make('vu_layer')
+                        ->label('Camada / Entidade')
+                        ->options([
+                            'lotes' => 'Lotes Urbanos',
+                            'edificacoes' => 'Edificações',
+                            'quadras' => 'Quadras',
+                            'bairros' => 'Bairros',
+                            'logradouros' => 'Logradouros',
+                            'secoes_logradouro' => 'Seções de Logradouro',
+                            'meio_fios' => 'Meios-fio',
+                            'zonas' => 'Zonas Urbanas',
+                            'arvores' => 'Árvores',
+                            'postes' => 'Postes',
+                            'rural_propriedades' => 'Propriedades Rurais',
+                            'rural_estradas' => 'Estradas Rurais',
+                        ])
+                        ->live()
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'valores_unicos'),
+
+                    Forms\Components\Select::make('vu_attribute')
+                        ->label('Atributo (uma cor por valor distinto)')
+                        ->options(fn (Forms\Get $get): array => $this->opcoesCamposFiltro($get('vu_layer')))
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'valores_unicos')
+                        ->helperText('As cores de cada valor podem ser ajustadas na legenda, depois de gerar.'),
+                ])->visible(fn (Forms\Get $get) => $get('tipo_filtro') === 'valores_unicos'),
+
+                // -------------------------------------------------------------
+                // T1.11 (item 2.3-24): MAPA DE CALOR genérico — qualquer camada;
+                // polígono/linha entram pelo centro; peso opcional por atributo numérico.
+                // -------------------------------------------------------------
+                Forms\Components\Group::make([
+                    Forms\Components\Select::make('hm_layer')
+                        ->label('Camada / Entidade')
+                        ->options([
+                            'lotes' => 'Lotes Urbanos',
+                            'edificacoes' => 'Edificações',
+                            'arvores' => 'Árvores',
+                            'postes' => 'Postes',
+                            'quadras' => 'Quadras',
+                            'meio_fios' => 'Meios-fio',
+                            'secoes_logradouro' => 'Seções de Logradouro',
+                            'cemiterios' => 'Cemitérios',
+                            'rural_propriedades' => 'Propriedades Rurais',
+                            'rural_pontes' => 'Pontes Rurais',
+                        ])
+                        ->live()
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'heatmap'),
+
+                    Forms\Components\Select::make('hm_attribute')
+                        ->label('Peso do calor (opcional)')
+                        ->options(fn (Forms\Get $get): array => $this->opcoesCamposFiltro($get('hm_layer'), apenasNumericos: true))
+                        ->nullable()
+                        ->helperText('Vazio = densidade por quantidade. Com atributo numérico, o valor vira o peso.'),
+
+                    Forms\Components\TextInput::make('hm_raio')
+                        ->label('Raio (px)')
+                        ->numeric()->minValue(4)->maxValue(64)->default(18),
+                ])->visible(fn (Forms\Get $get) => $get('tipo_filtro') === 'heatmap'),
 
                 // -------------------------------------------------------------
                 // BLOCO 1: FILTRO POR ATRIBUTO
@@ -2614,20 +2712,10 @@ class MapaFullscreen extends Page
 
                     Forms\Components\Select::make('field')
                         ->label('Atributo (Campo de Busca)')
-                        ->options(fn (Forms\Get $get): array => match ($get('layer')) {
-                            'lotes' => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)', 'numero_lote' => 'Número do Lote', 'status_cadastro' => 'Status de Coleta'],
-                            'edificacoes' => ['area_geo' => 'Área Construída (m²)', 'tipo' => 'Finalidade / Uso', 'tp_construcao' => 'Material', 'estado_conservacao' => 'Conservação', 'pavimento' => 'Pavimentos'],
-                            'arvores' => ['botanical_species' => 'Espécie Botânica', 'size' => 'Porte', 'phytosanitary_condition' => 'Condição Fitossanitária', 'general_state' => 'Estado Geral', 'trunk_diameter_dap' => 'DAP (cm)', 'total_height' => 'Altura Total (m)', 'risk_potential' => 'Potencial de Risco'],
-                            'postes' => ['structural_condition' => 'Condição Estrutural', 'luminaire_type' => 'Tipo de Luminária', 'lamp_power' => 'Potência da Lâmpada', 'height' => 'Altura (m)'],
-                            'cemiterios' => ['name' => 'Nome', 'area_geo' => 'Área (m²)'],
-                            'zonas' => ['name' => 'Nome', 'sigla' => 'Sigla'],
-                            'perimetros_urbanos' => ['name' => 'Nome', 'distrito' => 'Distrito'],
-                            'loteamentos' => ['name' => 'Nome'],
-                            'rural_propriedades' => ['area_geo' => 'Área em m² (area_geo)', 'codigo_car' => 'Código CAR'],
-                            'rural_estradas' => ['extensao_geo' => 'Extensão (m)', 'tipo_pavimento' => 'Tipo de Pavimento', 'condicao_trafego' => 'Condição'],
-                            'rural_pontes' => ['capacidade_carga_toneladas' => 'Capacidade (Toneladas)', 'material_construcao' => 'Material'],
-                            default => ['name' => 'Nome / Número'],
-                        })
+                        // Onda 4 — fonte única: colunas base + campos customizados (★) do município
+                        ->options(fn (Forms\Get $get): array => $this->opcoesCamposFiltro($get('layer')))
+                        ->live()
+                        ->afterStateUpdated(fn (Forms\Set $set) => $set('value', null))
                         ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
                     Forms\Components\Select::make('operator')
@@ -2644,10 +2732,20 @@ class MapaFullscreen extends Page
                         ->default('=')
                         ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
+                    // UX Onda 4 — campo de lista? O valor vira Select com as opções do
+                    // município (grava a CHAVE, que é o que está no banco). Senão, texto livre.
+                    Forms\Components\Select::make('value')
+                        ->label('Valor da Condição')
+                        ->options(fn (Forms\Get $get): array => $this->opcoesValoresCampo($get('layer'), $get('field')) ?? [])
+                        ->searchable()
+                        ->visible(fn (Forms\Get $get) => $this->opcoesValoresCampo($get('layer'), $get('field')) !== null)
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo' && $this->opcoesValoresCampo($get('layer'), $get('field')) !== null),
+
                     Forms\Components\TextInput::make('value')
                         ->label('Valor da Condição')
                         ->placeholder('Ex: 250, Asfalto, Boa...')
-                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
+                        ->visible(fn (Forms\Get $get) => $this->opcoesValoresCampo($get('layer'), $get('field')) === null)
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo' && $this->opcoesValoresCampo($get('layer'), $get('field')) === null),
 
                     // 🎨 ESTILIZAÇÃO DA TEMATIZAÇÃO (cor + transparência do fundo, cor + espessura da borda)
                     Forms\Components\Grid::make(2)->schema([
@@ -2716,11 +2814,25 @@ class MapaFullscreen extends Page
                             'loteamentos' => 'Loteamentos',
                             'zonas' => 'Zonas Urbanas',
                             'perimetros_urbanos' => 'Distritos / Limites',
+                            // T1.9 (item 2.1-2) — logradouro como área de interesse (buffer do eixo)
+                            'logradouros' => 'Logradouro (faixa ao redor do eixo)',
                             'rural_localidades' => 'Localidades Rurais',
                             'cemiterios' => 'Cemitérios',
                         ])
                         ->live()
                         ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+
+                    // T1.9 — largura da faixa quando a referência é linear (logradouro)
+                    Forms\Components\TextInput::make('spatial_buffer')
+                        ->label('Largura da faixa (buffer, em metros)')
+                        ->helperText('Distância a partir do eixo do logradouro. Ex.: 20 m pega os imóveis lindeiros.')
+                        ->numeric()
+                        ->minValue(1)
+                        ->maxValue(50000)
+                        ->default(20)
+                        ->suffix('m')
+                        ->visible(fn (Forms\Get $get) => $get('spatial_reference_layer') === 'logradouros')
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial' && $get('spatial_reference_layer') === 'logradouros'),
 
                     Forms\Components\Select::make('spatial_reference_id')
                         ->label('Escolha o local específico')
@@ -2736,6 +2848,7 @@ class MapaFullscreen extends Page
                                 'loteamentos' => \App\Models\Loteamento::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'zonas' => \App\Models\Zona::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'perimetros_urbanos' => \App\Models\PerimetroUrbano::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'logradouros' => \App\Models\Logradouro::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id')->toArray(),
                                 'rural_localidades' => \App\Models\RuralLocalidade::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'cemiterios' => \App\Models\Cemiterio::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 default => [],
@@ -2744,6 +2857,35 @@ class MapaFullscreen extends Page
                         ->searchable()
                         ->multiple()
                         ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
+
+                    // T1.8 (item 2.1-1) — condição de atributo COMBINADA com o cruzamento
+                    // ("lotes na zona X com área > Y" numa só consulta). Opcional.
+                    Forms\Components\Section::make('Condição de atributo (opcional)')
+                        ->description('Refina o resultado do cruzamento: ex. área > 250.')
+                        ->collapsible()
+                        ->collapsed()
+                        ->schema([
+                            Forms\Components\Select::make('attr_field')
+                                ->label('Atributo do alvo')
+                                ->options(fn (Forms\Get $get): array => $this->opcoesCamposFiltro($get('spatial_target_layer')))
+                                ->live()
+                                ->afterStateUpdated(fn (Forms\Set $set) => $set('attr_value', null))
+                                ->nullable()
+                                ->columnSpanFull(),
+                            Forms\Components\Select::make('attr_operator')
+                                ->label('Condição')
+                                ->options(['=' => 'Igual (=)', '>' => 'Maior (>)', '<' => 'Menor (<)', '>=' => 'Maior ou igual', '<=' => 'Menor ou igual', 'LIKE' => 'Contém o texto', '!=' => 'Diferente'])
+                                ->default('>'),
+                            Forms\Components\Select::make('attr_value')
+                                ->label('Valor')
+                                ->options(fn (Forms\Get $get): array => $this->opcoesValoresCampo($get('spatial_target_layer'), $get('attr_field')) ?? [])
+                                ->searchable()
+                                ->visible(fn (Forms\Get $get) => $this->opcoesValoresCampo($get('spatial_target_layer'), $get('attr_field')) !== null),
+                            Forms\Components\TextInput::make('attr_value')
+                                ->label('Valor')
+                                ->placeholder('Ex: 250')
+                                ->visible(fn (Forms\Get $get) => $this->opcoesValoresCampo($get('spatial_target_layer'), $get('attr_field')) === null),
+                        ])->columns(2),
 
                     // 🎨 NOVO CAMPO: Definição de cor para Tematização (Fica fora dos grupos para aparecer em todos)
                     Forms\Components\ColorPicker::make('cor_tematizacao')
@@ -2799,6 +2941,34 @@ class MapaFullscreen extends Page
                         ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'desenho' && $get('draw_shape') === 'BufferCircular')
                         ->visible(fn (Forms\Get $get) => $get('draw_shape') === 'BufferCircular'),
 
+                    // T1.8 (item 2.1-1) — condição de atributo combinada com a área desenhada
+                    Forms\Components\Section::make('Condição de atributo (opcional)')
+                        ->description('Refina o resultado dentro da área desenhada: ex. área > 250.')
+                        ->collapsible()
+                        ->collapsed()
+                        ->schema([
+                            Forms\Components\Select::make('attr_field')
+                                ->label('Atributo do alvo')
+                                ->options(fn (Forms\Get $get): array => $this->opcoesCamposFiltro($get('draw_target_layer')))
+                                ->live()
+                                ->afterStateUpdated(fn (Forms\Set $set) => $set('attr_value', null))
+                                ->nullable()
+                                ->columnSpanFull(),
+                            Forms\Components\Select::make('attr_operator')
+                                ->label('Condição')
+                                ->options(['=' => 'Igual (=)', '>' => 'Maior (>)', '<' => 'Menor (<)', '>=' => 'Maior ou igual', '<=' => 'Menor ou igual', 'LIKE' => 'Contém o texto', '!=' => 'Diferente'])
+                                ->default('>'),
+                            Forms\Components\Select::make('attr_value')
+                                ->label('Valor')
+                                ->options(fn (Forms\Get $get): array => $this->opcoesValoresCampo($get('draw_target_layer'), $get('attr_field')) ?? [])
+                                ->searchable()
+                                ->visible(fn (Forms\Get $get) => $this->opcoesValoresCampo($get('draw_target_layer'), $get('attr_field')) !== null),
+                            Forms\Components\TextInput::make('attr_value')
+                                ->label('Valor')
+                                ->placeholder('Ex: 250')
+                                ->visible(fn (Forms\Get $get) => $this->opcoesValoresCampo($get('draw_target_layer'), $get('attr_field')) === null),
+                        ])->columns(2),
+
                     // 🎨 NOVO CAMPO: Definição de cor para Tematização (Fica fora dos grupos para aparecer em todos)
                     Forms\Components\ColorPicker::make('cor_tematizacao')
                         ->label('Cor da Tematização')
@@ -2831,17 +3001,8 @@ class MapaFullscreen extends Page
 
                     Forms\Components\Select::make('interval_attribute')
                         ->label('Atributo Numérico (Escala)')
-                        ->options(fn (Forms\Get $get): array => match ($get('interval_layer')) {
-                            'arvores' => ['trunk_diameter_dap' => 'DAP (cm)', 'total_height' => 'Altura Total (m)', 'canopy_diameter' => 'Diâmetro da Copa (m)', 'risk_potential' => 'Potencial de Risco'],
-                            'postes' => ['height' => 'Altura (m)', 'lamp_quantity' => 'Quantidade de Lâmpadas'],
-                            'cemiterios' => ['area_geo' => 'Área em m²'],
-                            'quadras' => ['area_geo' => 'Área em m²'],
-                            'bairros' => ['area_geo' => 'Área em m²'],
-                            'rural_propriedades' => ['area_geo' => 'Área em m²'],
-                            'rural_estradas' => ['extensao_geo' => 'Extensão (m)'],
-                            'rural_pontes' => ['capacidade_carga_toneladas' => 'Capacidade (Toneladas)'],
-                            default => ['area_geo' => 'Área em m²', 'main_facade_length' => 'Testada (m)'],
-                        })
+                        // Onda 4 — colunas numéricas base + campos customizados numéricos (★)
+                        ->options(fn (Forms\Get $get): array => $this->opcoesCamposFiltro($get('interval_layer'), apenasNumericos: true))
                         ->default('area_geo'),
 
                     Forms\Components\Select::make('num_classes')
@@ -2868,6 +3029,14 @@ class MapaFullscreen extends Page
                     // Manda para o novo motor de Intervalo de Classes
                     $this->dispatch('executar-tematizacao-intervalo', dados: $data);
                     \Filament\Notifications\Notification::make()->title('Calculando Densidades...')->info()->send();
+                } elseif ($data['tipo_filtro'] === 'valores_unicos') {
+                    // T1.10 — Tematização por Valores Únicos
+                    $this->dispatch('executar-tematizacao-valores-unicos', dados: $data);
+                    \Filament\Notifications\Notification::make()->title('Agrupando valores...')->info()->send();
+                } elseif ($data['tipo_filtro'] === 'heatmap') {
+                    // T1.11 — Mapa de Calor genérico
+                    $this->dispatch('executar-heatmap-generico', dados: $data);
+                    \Filament\Notifications\Notification::make()->title('Gerando mapa de calor...')->info()->send();
                 } elseif ($data['tipo_filtro'] === 'desenho') {
                     // Manda uma ordem especial para o JS ligar a ferramenta de desenho
                     $this->dispatch('iniciar-desenho-filtro', dados: $data);
@@ -2962,10 +3131,17 @@ class MapaFullscreen extends Page
                 Forms\Components\Grid::make(2)->schema([
                     Forms\Components\Select::make('target_layer')
                         ->label('Camada de Análise')
+                        // T1.12 (item 2.6-38) — estatísticas para qualquer camada com item de cadastro
                         ->options([
                             'lotes' => 'Lotes Urbanos',
                             'edificacoes' => 'Edificações',
                             'logradouros' => 'Logradouros',
+                            'quadras' => 'Quadras',
+                            'secoes_logradouro' => 'Seções de Logradouro',
+                            'meio_fios' => 'Meios-fio',
+                            'arvores' => 'Árvores (Arborização)',
+                            'postes' => 'Postes / Iluminação',
+                            'chamados' => 'Chamados (App)',
                         ])
                         ->default('lotes')
                         ->live()
@@ -2974,12 +3150,32 @@ class MapaFullscreen extends Page
                     Forms\Components\Select::make('group_field')
                         ->label('Agrupar por')
                         ->options(function (Forms\Get $get): array {
-                            return match ($get('target_layer')) {
-                                'lotes' => ['zona_id' => 'Zona Urbana', 'area_faixa' => 'Faixa de Área'],
+                            $curadas = match ($get('target_layer')) {
+                                'lotes' => ['zona_id' => 'Zona Urbana', 'area_faixa' => 'Faixa de Área', 'ocupacao' => 'Ocupação', 'status_cadastro' => 'Status de Coleta'],
                                 'edificacoes' => ['tipo' => 'Tipo de Uso', 'tp_construcao' => 'Tipo de Construção', 'estado_conservacao' => 'Estado de Conservação'],
                                 'logradouros' => ['name' => 'Nome do Logradouro'],
+                                'quadras' => ['bairro_id' => 'Bairro'],
+                                'secoes_logradouro' => ['lado' => 'Lado da Seção'],
+                                'meio_fios' => [],
+                                'arvores' => ['botanical_species' => 'Espécie Botânica', 'size' => 'Porte', 'phytosanitary_condition' => 'Condição Fitossanitária', 'general_state' => 'Estado Geral'],
+                                'postes' => ['structural_condition' => 'Condição Estrutural', 'luminaire_type' => 'Tipo de Luminária'],
+                                'chamados' => ['categoria' => 'Categoria', 'fase' => 'Fase'],
                                 default => [],
                             };
+
+                            // Item 76⑤ — campos customizados do município como dimensão
+                            $tabela = \App\Services\Coleta\CampoCustomizadoService::ENTIDADE_TABELA;
+                            $entidade = array_search($get('target_layer'), $tabela, true);
+
+                            if ($entidade !== false) {
+                                foreach (\App\Services\Coleta\CampoCustomizadoService::definicoes($entidade, $this->tenantId) as $campo) {
+                                    if ($campo->tipo !== 'numero') {
+                                        $curadas['custom:'.$campo->slug] = '★ '.$campo->label.' (campo do município)';
+                                    }
+                                }
+                            }
+
+                            return $curadas;
                         })
                         ->required(),
                 ]),

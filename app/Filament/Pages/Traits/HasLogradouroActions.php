@@ -44,6 +44,8 @@ trait HasLogradouroActions
                     ->placeholder('Ex: Rua das Flores, Avenida Brasil...')
                     ->required()
                     ->maxLength(255),
+                // Item 75 — campos customizados do município (logradouro)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('logradouro'),
             ])
             ->action(function (array $data) {
                 $data['tenant_id'] = $this->tenantId;
@@ -87,6 +89,7 @@ trait HasLogradouroActions
                 return [
                     'name'   => $logradouro ? $logradouro->name : '',
                     'codigo' => $logradouro?->codigo,
+                    'dados_customizados' => $logradouro?->dados_customizados ?? [],
                 ];
             })
             ->form([
@@ -111,10 +114,13 @@ trait HasLogradouroActions
                     ->required()
                     ->maxLength(255),
 
+                // Item 75 — campos customizados do município (logradouro)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('logradouro'),
+
                 Placeholder::make('secoes_do_logradouro')
                     ->label('Seções deste Logradouro')
                     ->content(function (): HtmlString {
-                        $secoes = SecaoLogradouro::where('logradouro_id', $this->logradouroAtivoId)
+                        $secoes = SecaoLogradouro::with('fotos')->where('logradouro_id', $this->logradouroAtivoId)
                             ->orderBy('sequential_id')
                             ->get();
 
@@ -127,9 +133,12 @@ trait HasLogradouroActions
                         $html = '<div style="overflow-x:auto;">'
                             . '<table style="width:100%;font-size:13px;border-collapse:collapse;">'
                             . '<thead><tr style="border-bottom:1px solid #e5e7eb;">'
+                            . '<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Código</th>'
                             . '<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Nome</th>'
+                            . '<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Lado</th>'
                             . '<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Pavimento</th>'
                             . '<th style="text-align:right;padding:4px 8px;font-weight:600;color:#6b7280;">Extensão</th>'
+                            . '<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Fotos</th>'
                             . '<th style="padding:4px;"></th>'
                             . '</tr></thead><tbody>';
 
@@ -140,12 +149,34 @@ trait HasLogradouroActions
                                 ->first();
 
                             $nome = htmlspecialchars($s->name ?: ('Seção #' . $s->sequential_id), ENT_QUOTES, 'UTF-8');
+                            // Item 44: código composto (logradouro + seção) e lado
+                            $codigo = htmlspecialchars($s->codigo_composto ?? '—', ENT_QUOTES, 'UTF-8');
+                            $lado = \App\Services\Coleta\CampoDominioService::rotuloValor('secao_logradouro', 'lado', $s->lado) ?? '—';
                             // Refatoração PoC Tangará: tipo_pavimentacao vive em dados_customizados
                             $pav = $s->dados_customizados['tipo_pavimentacao'] ?? null;
                             $tipo = $pav ? ucfirst($pav) : '—';
                             $ext  = $s->extensao_geo !== null
                                 ? number_format((float) $s->extensao_geo, 0, ',', '.') . ' m'
                                 : '—';
+
+                            // T1.7 (item 17): galeria — miniaturas clicáveis das fotos da seção
+                            $fotosHtml = '—';
+                            $fotos = $s->fotos ?? collect();
+                            if ($fotos->isNotEmpty()) {
+                                $fotosHtml = '<div style="display:flex;gap:4px;">';
+                                foreach ($fotos->take(3) as $foto) {
+                                    $url = asset('storage/'.$foto->path);
+                                    $legenda = htmlspecialchars($foto->name ?? '', ENT_QUOTES, 'UTF-8');
+                                    $fotosHtml .= '<a href="' . $url . '" target="_blank" title="' . $legenda . '">'
+                                        . '<img src="' . $url . '" alt="' . $legenda . '" '
+                                        . 'style="width:34px;height:34px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb;" />'
+                                        . '</a>';
+                                }
+                                if ($fotos->count() > 3) {
+                                    $fotosHtml .= '<span style="font-size:11px;color:#6b7280;align-self:center;">+' . ($fotos->count() - 3) . '</span>';
+                                }
+                                $fotosHtml .= '</div>';
+                            }
 
                             $irBtn = '';
                             if ($coords && $coords->lat && $coords->lon) {
@@ -160,9 +191,12 @@ trait HasLogradouroActions
                             }
 
                             $html .= '<tr style="border-bottom:1px solid #f3f4f6;">'
+                                . '<td style="padding:4px 8px;font-weight:600;">' . $codigo . '</td>'
                                 . '<td style="padding:4px 8px;">' . $nome . '</td>'
+                                . '<td style="padding:4px 8px;">' . htmlspecialchars($lado, ENT_QUOTES, 'UTF-8') . '</td>'
                                 . '<td style="padding:4px 8px;">' . $tipo . '</td>'
                                 . '<td style="padding:4px 8px;text-align:right;">' . $ext . '</td>'
+                                . '<td style="padding:4px 8px;">' . $fotosHtml . '</td>'
                                 . '<td style="padding:4px 8px;text-align:right;">' . $irBtn . '</td>'
                                 . '</tr>';
                         }
@@ -210,11 +244,31 @@ trait HasLogradouroActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->modalDescription(function (): ?string {
+                        $qtd = SecaoLogradouro::where('logradouro_id', $this->logradouroAtivoId)->count();
+
+                        return $qtd > 0
+                            ? "Este logradouro tem {$qtd} seção(ões), que serão excluídas junto (item 52 do edital). A exclusão é recuperável."
+                            : null;
+                    })
                     ->action(function () {
-                        Logradouro::where('id', $this->logradouroAtivoId)->delete();
+                        // ⚠️ Delete pelo MODEL, nunca por query builder: o where()->delete()
+                        // não dispara eventos Eloquent e a cascata do item 52 (soft delete
+                        // das seções em Logradouro::booted) ficava muda — a seção
+                        // continuava ativa no mapa apontando para um pai excluído.
+                        $logradouro = Logradouro::find($this->logradouroAtivoId);
+                        $secaoIds = $logradouro
+                            ? $logradouro->secoes()->pluck('id')
+                            : collect();
+
+                        $logradouro?->delete();
+
                         Notification::make()->title('Logradouro Excluído!')->success()->send();
 
-                        // 🛑 Ação Cirúrgica de Exclusão
+                        // 🛑 Ação Cirúrgica de Exclusão — remove o logradouro E as seções da tela
+                        foreach ($secaoIds as $secaoId) {
+                            $this->dispatch('remover-secao_logradouro-mapa', ['id' => $secaoId]);
+                        }
                         $this->dispatch('remover-logradouro-mapa', ['id' => $this->logradouroAtivoId]);
                         $this->dispatch('fechar-modal-filament');
                     }),

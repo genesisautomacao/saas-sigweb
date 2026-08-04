@@ -42,6 +42,8 @@ trait HasBairroActions
                     ->label('Nome do Bairro')
                     ->required()
                     ->maxLength(255),
+                // Item 75 — campos customizados do município (bairro)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('bairro'),
             ])
             ->action(function (array $data) {
                 $data['tenant_id'] = $this->tenantId;
@@ -84,6 +86,7 @@ trait HasBairroActions
                 return [
                     'name'   => $reg?->name,
                     'codigo' => $reg?->codigo,
+                    'dados_customizados' => $reg?->dados_customizados ?? [],
                 ];
             })
             ->form([
@@ -101,6 +104,8 @@ trait HasBairroActions
 
                 TextInput::make('codigo')->label('Código do Bairro')->maxLength(50),
                 TextInput::make('name')->label('Nome do Bairro')->required()->maxLength(255),
+                // Item 75 — campos customizados do município (bairro)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('bairro'),
             ])
             ->action(function (array $data) {
                 $reg = Bairro::find($this->bairroAtivoId);
@@ -126,7 +131,7 @@ trait HasBairroActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function() {
-                        Bairro::where('id', $this->bairroAtivoId)->delete();
+                        Bairro::find($this->bairroAtivoId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-bairro-mapa', ['id' => $this->bairroAtivoId]);
                         $this->dispatch('fechar-modal-filament');

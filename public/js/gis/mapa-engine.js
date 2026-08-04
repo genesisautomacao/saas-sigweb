@@ -1643,6 +1643,7 @@ document.addEventListener("DOMContentLoaded", function () {
             "pontos_panoramicos",
             "logradouros",
             "meio_fios",
+            "face_quadra",
             "secoes_logradouro",
             "zonas",
             "bairros",
@@ -1728,6 +1729,35 @@ document.addEventListener("DOMContentLoaded", function () {
                         `<strong>${titulo}</strong><br>` +
                         `${labelMaterial} · ${labelEstado}` +
                         (labelExt ? `<br><em>${labelExt}</em>` : "");
+                    featureTooltip.style.display = "block";
+                    featureTooltip.style.left = e.originalEvent.clientX + "px";
+                    featureTooltip.style.top = e.originalEvent.clientY + "px";
+                }
+            } else if (layer === "face_quadra") {
+                // Hover da face de quadra: engrossa em rosa PGV + tooltip com código/valor
+                feature.setStyle(
+                    new ol.style.Style({
+                        stroke: new ol.style.Stroke({
+                            color: "#f472b6",
+                            width: 8,
+                        }),
+                    }),
+                );
+
+                if (featureTooltip) {
+                    const code = feature.get("code");
+                    const valor = feature.get("valor");
+                    const rotulo = feature.get("rotulo");
+                    const titulo = code || rotulo || "Face de Quadra";
+                    const labelValor = valor != null
+                        ? "R$ " + Number(valor).toLocaleString("pt-BR", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                          }) + "/m²"
+                        : "";
+                    featureTooltip.innerHTML =
+                        `<strong>${titulo}</strong>` +
+                        (labelValor ? `<br><em>${labelValor}</em>` : "");
                     featureTooltip.style.display = "block";
                     featureTooltip.style.left = e.originalEvent.clientX + "px";
                     featureTooltip.style.top = e.originalEvent.clientY + "px";
@@ -2339,6 +2369,14 @@ document.addEventListener("DOMContentLoaded", function () {
     map.on("singleclick", function (evt) {
         //trava para modo de consulta de unificação
         if (window.modoUnificacao) return;
+
+        // 🛑 TRAVA GERAL DE DESENHO: qualquer ferramenta de desenho ativa inibe o
+        // clique padrão (antes, desenhar a face sobre a quadra abria o modal dela).
+        let desenhoAtivo = false;
+        map.getInteractions().forEach((i) => {
+            if (i instanceof ol.interaction.Draw && i.getActive()) desenhoAtivo = true;
+        });
+        if (desenhoAtivo) return;
 
         // 🛑 TRAVA MESTRA DE EDIÇÃO: Se estiver editando geometria, ignora cliques em outros artefatos!
         if (featureEmEdicao) {
@@ -3096,6 +3134,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "logradouros",
                 "logradouros_cemiterio",
                 "meio_fios",
+                "face_quadra", // linha da face (PGV) — acima da quadra que a contém
                 "secoes_logradouro",
                 "rural-estradas",
                 "pontos_panoramicos", // LINHAS
@@ -3169,6 +3208,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         break;
                     case "secoes_logradouro":
                         Livewire.dispatch("abrirOpcoesSecaoLogradouro", { id: id });
+                        break;
+                    case "face_quadra":
+                        Livewire.dispatch("abrirOpcoesFaceQuadra", { id: id });
                         break;
                     case "logradouros_cemiterio":
                         Livewire.dispatch("abrirOpcoesLogradouroCemiterio", {
@@ -4121,6 +4163,11 @@ document.addEventListener("DOMContentLoaded", function () {
             layer: "testada_ativa",
             cor: "#16a34a",
         },
+        {
+            evento: "iniciar-edicao-geometria-face_quadra",
+            layer: "face_quadra",
+            cor: "#db2777",
+        },
     ];
 
     // 🔄 REGISTRA TODOS OS OUVINTES DE UMA VEZ SÓ
@@ -4142,6 +4189,15 @@ document.addEventListener("DOMContentLoaded", function () {
                         .getFeatures()
                         .find((f) => f.get("id") == data.id);
                 }
+            } else if (config.layer === "face_quadra") {
+                // A face pode estar em DUAS fontes: exibida pelo modal da quadra
+                // (facesQuadraSource) ou pelo motor PGV colorido (pgvFacesSource)
+                featureAlvo = facesQuadraSource
+                    .getFeatures()
+                    .find((f) => f.get("id") == data.id)
+                    ?? pgvFacesSource
+                        .getFeatures()
+                        .find((f) => f.get("id") == data.id);
             } else {
                 // Busca o polígono/linha/ponto no cache de camadas do mapa
                 if (window.loadedLayers[config.layer]) {
@@ -4239,6 +4295,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
             if (layerName === "lotes")
                 Livewire.dispatch("salvarNovaGeometria", {
+                    id: id,
+                    geoJson: geoJson,
+                });
+            else if (layerName === "face_quadra")
+                Livewire.dispatch("salvarNovaGeometriaFaceQuadra", {
                     id: id,
                     geoJson: geoJson,
                 });
@@ -6172,6 +6233,8 @@ document.addEventListener("DOMContentLoaded", function () {
                         }),
                         valor: f.valor,
                         code: f.code,
+                        id: f.id,
+                        layer: "face_quadra", // clicável: abre o modal de opções da face
                     }),
                 );
             } catch (err) {
@@ -6184,6 +6247,13 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     window.addEventListener("limpar-faces-pgv", () => pgvFacesSource.clear());
 
+    // Exclusão da face pelo modal: remove também da camada colorida do motor PGV
+    window.addEventListener("remover-face-pgv-mapa", (e) => {
+        const d = e.detail?.[0] ?? e.detail ?? {};
+        const alvo = pgvFacesSource.getFeatures().find((f) => f.get("id") == d.id);
+        if (alvo) pgvFacesSource.removeFeature(alvo);
+    });
+
     // Clique para criar Amostra (225) / Pólo (227)
     window.pgvIniciarClique = function (tipo) {
         window.pgvCliqueModo = tipo; // 'amostra' | 'polo'
@@ -6191,20 +6261,93 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     // Desenhar Face de Quadra (233) — LineString
-    window.pgvIniciarDesenhoFace = function () {
+    window.pgvIniciarDesenhoFace = function (quadraId = null) {
         window.resetToPan();
         map.getTargetElement().style.cursor = "crosshair";
         const draw = new ol.interaction.Draw({ source: drawSource, type: "LineString" });
         window.currentDrawInteraction = draw;
+
+        // Ímã na QUADRA de origem: o traço da face gruda no contorno dela
+        // (a face nasce do modal da quadra — relação pai→filho, como logradouro→seções)
+        let snapFace = null;
+        if (quadraId && window.loadedLayers && window.loadedLayers["quadras"]) {
+            const qFeature = window.loadedLayers["quadras"]
+                .getSource()
+                .getFeatures()
+                .find((f) => f.get("id") == quadraId);
+
+            if (qFeature) {
+                snapFace = new ol.interaction.Snap({
+                    source: new ol.source.Vector({ features: [qFeature] }),
+                    pixelTolerance: 14,
+                });
+            }
+        }
+
         draw.on("drawend", function (ev) {
             const gj = formatGeoJSON.writeGeometryObject(ev.feature.getGeometry());
             setTimeout(() => drawSource.clear(), 400);
             map.removeInteraction(draw);
+            if (snapFace) map.removeInteraction(snapFace);
+            map.getTargetElement().style.cursor = "";
             window.resetToPan();
-            Livewire.dispatch("pgv-desenho-face", { geoJson: gj });
+            Livewire.dispatch("pgv-desenho-face", { geoJson: gj, quadraId: quadraId });
         });
         map.addInteraction(draw);
+        if (snapFace) map.addInteraction(snapFace); // Snap por último para prevalecer sobre o Draw
     };
+
+    // Modal da quadra → botão "Nova Face": inicia o desenho já com o ímã na quadra
+    window.addEventListener("iniciar-desenho-face-quadra", (e) => {
+        const d = e.detail?.[0] ?? e.detail ?? {};
+        window.pgvIniciarDesenhoFace(d.quadraId ?? null);
+    });
+
+    // ── FACES DA QUADRA: visualização individual a partir do modal da quadra ──
+    const facesQuadraSource = new ol.source.Vector();
+    const facesQuadraLayer = new ol.layer.Vector({
+        source: facesQuadraSource,
+        zIndex: 130,
+    });
+    map.addLayer(facesQuadraLayer);
+
+    window.addEventListener("toggle-face-quadra-mapa", (e) => {
+        const d = e.detail?.[0] ?? e.detail ?? {};
+        const existente = facesQuadraSource.getFeatureById("face_" + d.id);
+
+        // Estado explícito do servidor (checkbox): garante idempotência
+        if (d.visivel === false) {
+            if (existente) facesQuadraSource.removeFeature(existente);
+            return;
+        }
+        if (existente) {
+            if (d.visivel === undefined) facesQuadraSource.removeFeature(existente); // fallback toggle
+            return;
+        }
+
+        if (!d.geo) return;
+
+        const feat = new ol.format.GeoJSON().readFeature(
+            { type: "Feature", geometry: d.geo, properties: { id: d.id, layer: "face_quadra" } },
+            { dataProjection: "EPSG:4326", featureProjection: "EPSG:3857" },
+        );
+        feat.setId("face_" + d.id);
+        const estiloFace = new ol.style.Style({
+            stroke: new ol.style.Stroke({ color: "#db2777", width: 6 }),
+            text: new ol.style.Text({
+                text: d.rotulo || "",
+                font: "bold 12px sans-serif",
+                fill: new ol.style.Fill({ color: "#db2777" }),
+                stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                placement: "line",
+            }),
+        });
+        feat.setStyle(estiloFace);
+        // O hover restaura por esta propriedade — sem ela, a face perderia o rosa ao sair do mouse
+        feat.set("estilo_customizado", estiloFace);
+        feat.set("rotulo", d.rotulo || "");
+        facesQuadraSource.addFeature(feat);
+    });
 
     // ── CAMADA DO MARCADOR DE BUSCA (PIN LARANJA) ──────────────────
     const searchPinSource = new ol.source.Vector();
@@ -6307,6 +6450,18 @@ document.addEventListener("DOMContentLoaded", function () {
                     "spatial_reference_id",
                     dados.spatial_reference_id,
                 );
+            }
+
+            // T1.9 — buffer (faixa em metros) quando a referência é linear (logradouro)
+            if (dados.spatial_buffer) {
+                queryParams.append("spatial_buffer", dados.spatial_buffer);
+            }
+
+            // T1.8 — condição de atributo combinada com o cruzamento (opcional)
+            if (dados.attr_field && dados.attr_value !== null && dados.attr_value !== undefined && dados.attr_value !== "") {
+                queryParams.append("attr_field", dados.attr_field);
+                queryParams.append("attr_operator", dados.attr_operator || "=");
+                queryParams.append("attr_value", dados.attr_value);
             }
         } else {
             queryParams.append("layer", dados.layer);
@@ -6450,6 +6605,256 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // =========================================================================
+    // T1.10 (itens 2.5-32/34/37): TEMATIZAÇÃO POR VALORES ÚNICOS
+    // Uma cor por valor distinto do atributo (coluna ou campo customizado ★).
+    // Legenda dinâmica com <input type=color> por valor — item 34 pede a
+    // definição de cores por valor, então a paleta é editável ao vivo.
+    // =========================================================================
+    window.vuColorMap = {};
+    window.vuFiltroId = null;
+
+    function vuCorAutomatica(indice) {
+        // Ângulo áureo no matiz: cores bem separadas para N valores quaisquer
+        const hue = (indice * 137.508) % 360;
+        const h = hue / 360, s = 0.65, l = 0.52;
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        const cor = [h + 1 / 3, h, h - 1 / 3].map((t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+        });
+        return (
+            "#" +
+            cor.map((c) => Math.round(c * 255).toString(16).padStart(2, "0")).join("")
+        );
+    }
+
+    function vuEstiloDoValor(valor) {
+        const cor = window.vuColorMap[valor] || "#9ca3af";
+        return new ol.style.Style({
+            fill: new ol.style.Fill({ color: hexToRgba(cor, 0.65) }),
+            stroke: new ol.style.Stroke({ color: cor, width: 2 }),
+            image: new ol.style.Circle({
+                radius: 7,
+                fill: new ol.style.Fill({ color: cor }),
+                stroke: new ol.style.Stroke({ color: "#ffffff", width: 1.5 }),
+            }),
+        });
+    }
+
+    function vuRenderLegenda(valores, atributoLabel) {
+        let box = document.getElementById("legenda-valores-unicos");
+        if (!box) {
+            box = document.createElement("div");
+            box.id = "legenda-valores-unicos";
+            // position:FIXED — ancorada na viewport (dentro do target do mapa a âncora
+            // dependia de position:relative do container e a legenda podia sair da tela)
+            box.style.cssText =
+                "position:fixed;bottom:24px;right:12px;z-index:60;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.15);padding:10px 12px;max-height:46vh;overflow-y:auto;min-width:200px;max-width:280px;font-size:12px;";
+            document.body.appendChild(box);
+        }
+
+        let html =
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+            '<strong style="font-size:12px;">' + atributoLabel + "</strong>" +
+            '<button type="button" onclick="window.vuLimpar()" style="border:none;background:none;color:#9ca3af;cursor:pointer;font-size:14px;" title="Fechar tematização">✕</button>' +
+            "</div>";
+
+        // Legenda editável limitada aos 30 valores mais frequentes — atributo contínuo
+        // (ex.: área) gera milhares de valores distintos e inviabilizaria a lista.
+        const LIMITE_LEGENDA = 30;
+        const visiveis = valores.slice(0, LIMITE_LEGENDA);
+        const ocultos = valores.length - visiveis.length;
+
+        visiveis.forEach((v) => {
+            const corAtual = window.vuColorMap[v.valor];
+            html +=
+                '<div style="display:flex;align-items:center;gap:6px;margin:3px 0;">' +
+                '<input type="color" value="' + corAtual + '" data-vu-valor="' + encodeURIComponent(v.valor) + '" ' +
+                'style="width:22px;height:22px;border:none;padding:0;background:none;cursor:pointer;" />' +
+                '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + v.valor + '">' + v.valor + "</span>" +
+                '<span style="color:#6b7280;">' + v.quantidade + "</span>" +
+                "</div>";
+        });
+
+        if (ocultos > 0) {
+            html +=
+                '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #f3f4f6;color:#9ca3af;font-size:11px;">' +
+                "+" + ocultos + " valores com cores automáticas.<br>" +
+                "Para atributos numéricos, prefira a <strong>Tematização por Intervalo</strong>." +
+                "</div>";
+        }
+
+        box.innerHTML = html;
+
+        // Item 2.5-34/3-20 — trocar a cor repinta as feições daquele valor na hora
+        box.querySelectorAll("input[type=color]").forEach((inp) => {
+            inp.addEventListener("input", function () {
+                const valor = decodeURIComponent(this.getAttribute("data-vu-valor"));
+                window.vuColorMap[valor] = this.value;
+                querySource.getFeatures().forEach((f) => {
+                    if (f.get("filtro_id") === window.vuFiltroId && f.get("valor_unico") === valor) {
+                        const estilo = vuEstiloDoValor(valor);
+                        f.setStyle(estilo);
+                        f.set("estilo_customizado", estilo);
+                    }
+                });
+            });
+        });
+    }
+
+    window.vuLimpar = function () {
+        if (window.vuFiltroId) {
+            querySource
+                .getFeatures()
+                .filter((f) => f.get("filtro_id") === window.vuFiltroId)
+                .forEach((f) => querySource.removeFeature(f));
+            window.filtrosAtivos = (window.filtrosAtivos || []).filter((fl) => fl.id !== window.vuFiltroId);
+            window.atualizarPainelFiltros();
+        }
+        document.getElementById("legenda-valores-unicos")?.remove();
+        window.vuColorMap = {};
+        window.vuFiltroId = null;
+    };
+
+    window.addEventListener("executar-tematizacao-valores-unicos", async (e) => {
+        const dados = e.detail.dados || e.detail;
+        const url = `/api/mapa/advanced-query?tenant_id=${config.tenantId}&tipo_filtro=valores_unicos&layer=${dados.vu_layer}&vu_attribute=${encodeURIComponent(dados.vu_attribute)}`;
+
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        if (data.error) { alert("Erro: " + data.error); return; }
+
+        // Blindagem: geometria vazia/malformada derruba o readFeatures do OL
+        data.features = (data.features || []).filter(
+            (f) => f.geometry && Array.isArray(f.geometry.coordinates) && f.geometry.coordinates.length,
+        );
+
+        if (data.features.length === 0) {
+            alert("Nenhum dado encontrado para tematizar.");
+            return;
+        }
+
+        window.vuLimpar(); // remove tematização anterior
+
+        // Paleta automática (editável na legenda)
+        window.vuColorMap = {};
+        (data.valores || []).forEach((v, i) => {
+            window.vuColorMap[v.valor] = vuCorAutomatica(i);
+        });
+
+        const features = new ol.format.GeoJSON().readFeatures(data, {
+            dataProjection: "EPSG:4326",
+            featureProjection: "EPSG:3857",
+        });
+
+        window.vuFiltroId = "filtro_" + Date.now();
+        features.forEach((f) => {
+            const estilo = vuEstiloDoValor(f.get("valor_unico"));
+            f.setStyle(estilo);
+            f.set("estilo_customizado", estilo);
+            f.set("filtro_id", window.vuFiltroId);
+        });
+        querySource.addFeatures(features);
+
+        vuRenderLegenda(data.valores || [], data.atributo_label || dados.vu_attribute);
+
+        window.filtrosAtivos = window.filtrosAtivos || [];
+        window.filtrosAtivos.push({
+            id: window.vuFiltroId,
+            descricao: `Valores Únicos: ${dados.vu_layer} por ${data.atributo_label || dados.vu_attribute}`,
+            cor: Object.values(window.vuColorMap)[0] || "#9ca3af",
+            total: features.length,
+        });
+        window.atualizarPainelFiltros();
+
+        map.getView().fit(querySource.getExtent(), { padding: [50, 50, 50, 50], duration: 1000 });
+    });
+
+    // =========================================================================
+    // T1.11 (item 2.3-24): MAPA DE CALOR GENÉRICO — qualquer camada; polígonos e
+    // linhas entram pelo ponto interior; peso opcional por atributo numérico.
+    // =========================================================================
+    window.heatmapGenericoLayer = null;
+
+    window.addEventListener("executar-heatmap-generico", async (e) => {
+        const dados = e.detail.dados || e.detail;
+        const attrParam = dados.hm_attribute ? `&interval_attribute=${encodeURIComponent(dados.hm_attribute)}` : "";
+        const url = `/api/mapa/advanced-query?tenant_id=${config.tenantId}&tipo_filtro=intervalo&layer=${dados.hm_layer}${attrParam}`;
+
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        if (data.error) { alert("Erro: " + data.error); return; }
+
+        // Blindagem contra geometria vazia (mesmo caso do valores únicos)
+        data.features = (data.features || []).filter(
+            (f) => f.geometry && Array.isArray(f.geometry.coordinates) && f.geometry.coordinates.length,
+        );
+
+        if (data.features.length === 0) {
+            alert("Nenhum dado encontrado para o mapa de calor.");
+            return;
+        }
+
+        // Peso normalizado 0.15–1 (sem atributo, todo mundo = 1)
+        const pesos = data.features.map((f) => parseFloat(f.properties.searched_value) || 0);
+        const maxPeso = Math.max(...pesos, 1);
+
+        const pontos = data.features
+            .map((f) => {
+                const geom = new ol.format.GeoJSON().readGeometry(f.geometry, {
+                    dataProjection: "EPSG:4326",
+                    featureProjection: "EPSG:3857",
+                });
+                let ponto;
+                const tipo = geom.getType();
+                if (tipo === "Point") ponto = geom;
+                else if (tipo === "Polygon") ponto = geom.getInteriorPoint();
+                else if (tipo === "MultiPolygon") ponto = geom.getInteriorPoints().getPoint(0);
+                else {
+                    // Linhas: ponto médio do extent (aproximação suficiente p/ densidade)
+                    const ext = geom.getExtent();
+                    ponto = new ol.geom.Point([(ext[0] + ext[2]) / 2, (ext[1] + ext[3]) / 2]);
+                }
+                const feat = new ol.Feature({ geometry: ponto });
+                const peso = parseFloat(f.properties.searched_value) || 0;
+                feat.set("weight", Math.max(0.15, maxPeso > 0 ? peso / maxPeso : 1));
+                return feat;
+            });
+
+        if (window.heatmapGenericoLayer) {
+            map.removeLayer(window.heatmapGenericoLayer);
+        }
+
+        const raio = Math.max(4, Math.min(64, parseInt(dados.hm_raio) || 18));
+        window.heatmapGenericoLayer = new ol.layer.Heatmap({
+            source: new ol.source.Vector({ features: pontos }),
+            radius: raio,
+            blur: Math.round(raio * 0.85),
+            weight: (f) => f.get("weight"),
+            zIndex: 120,
+        });
+        map.addLayer(window.heatmapGenericoLayer);
+
+        const filtroIdHm = "filtro_" + Date.now();
+        window.heatmapGenericoLayer.set("filtro_id", filtroIdHm);
+        window.filtrosAtivos = window.filtrosAtivos || [];
+        window.filtrosAtivos.push({
+            id: filtroIdHm,
+            descricao: `Mapa de Calor: ${dados.hm_layer}` + (dados.hm_attribute ? ` (peso: ${dados.hm_attribute})` : ""),
+            cor: "#ef4444",
+            total: pontos.length,
+        });
+        window.atualizarPainelFiltros();
+    });
+
+    // =========================================================================
     // NOVO: TEMATIZAÇÃO POR INTERVALO DE CLASSES (CHOROPLETH)
     // =========================================================================
     window.addEventListener("executar-tematizacao-intervalo", async (e) => {
@@ -6463,6 +6868,13 @@ document.addEventListener("DOMContentLoaded", function () {
             `/api/mapa/advanced-query?tenant_id=${config.tenantId}&tipo_filtro=intervalo&layer=${layer}&interval_attribute=${attr}`,
         );
         const data = await response.json();
+
+        // Blindagem contra geometria vazia (mesmo caso do valores únicos)
+        if (data.features) {
+            data.features = data.features.filter(
+                (f) => f.geometry && Array.isArray(f.geometry.coordinates) && f.geometry.coordinates.length,
+            );
+        }
 
         if (!data.features || data.features.length === 0) {
             alert("Não há dados suficientes para criar o mapa temático.");
@@ -6633,6 +7045,14 @@ document.addEventListener("DOMContentLoaded", function () {
             window.atualizarPainelFiltros();
             console.log("🧹 Todos os filtros removidos.");
         }
+        // Onda 5 — limpa também a legenda de Valores Únicos e o heatmap genérico
+        document.getElementById("legenda-valores-unicos")?.remove();
+        window.vuColorMap = {};
+        window.vuFiltroId = null;
+        if (window.heatmapGenericoLayer) {
+            map.removeLayer(window.heatmapGenericoLayer);
+            window.heatmapGenericoLayer = null;
+        }
     });
 
     // ========================================================================
@@ -6766,6 +7186,13 @@ document.addEventListener("DOMContentLoaded", function () {
                     ? "ST_Within"
                     : "ST_Intersects",
             });
+
+            // T1.8 — condição de atributo combinada com o desenho (opcional)
+            if (dados.attr_field && dados.attr_value !== null && dados.attr_value !== undefined && dados.attr_value !== "") {
+                bodyParams.append("attr_field", dados.attr_field);
+                bodyParams.append("attr_operator", dados.attr_operator || "=");
+                bodyParams.append("attr_value", dados.attr_value);
+            }
 
             const url = "/api/mapa/advanced-query";
             console.log("🌐 POST cruzamento de desenho:", url);

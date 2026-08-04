@@ -89,8 +89,17 @@ class LoteSyncController extends Controller
             ->whereIn('lote_id', $loteIds)
             ->whereNull('deleted_at')
             ->get(['id', 'code', 'lote_id', 'inscricao_imobiliaria', 'codigo_imovel_tributario',
-                'logradouro_nome', 'numero_imovel', 'nome_edificio', 'dados_tributarios', 'dados_customizados'])
+                'logradouro_nome', 'numero_imovel', 'nome_edificio', 'proprietario_id',
+                'dados_tributarios', 'dados_customizados'])
             ->groupBy('lote_id');
+
+        // Onda 8/A1 — proprietário OFICIAL para o coletor comparar em campo:
+        // canônico em `pessoas` (proprietario_id, pós-refatoração), fallback no JSON
+        // tributário. Batch único (sem N+1).
+        $pessoaIds = $unidadesAgrupadas->flatten(1)->pluck('proprietario_id')->filter()->unique()->values();
+        $proprietarios = $pessoaIds->isEmpty()
+            ? collect()
+            : DB::table('pessoas')->whereIn('id', $pessoaIds)->get(['id', 'name', 'cpf', 'cnpj'])->keyBy('id');
 
         // Query 3: edificações — atributos descritivos vivem em dados_customizados
         $edificacoesAgrupadas = Edificacao::withoutGlobalScopes()
@@ -127,17 +136,28 @@ class LoteSyncController extends Controller
             // geo_json: decodificar string raw do PostGIS para objeto JSON real
             // (mobile espera {type, coordinates}, não string escapada)
             'geo_json' => $l->geo_json_raw ? json_decode($l->geo_json_raw) : null,
-            'unidades_imobiliarias' => ($unidadesAgrupadas[$l->id] ?? collect())->map(fn ($u) => [
-                'id' => $u->code,
-                'inscricao_imobiliaria' => $u->inscricao_imobiliaria,
-                'codigo_imovel_tributario' => $u->codigo_imovel_tributario,
-                'logradouro_nome' => $u->logradouro_nome,
-                'numero_imovel' => $u->numero_imovel,
-                'nome_edificio' => $u->nome_edificio,
-                'complemento' => null, // TODO: coluna ainda não existe no banco
-                'dados_tributarios' => $u->dados_tributarios,
-                'dados_customizados' => $u->dados_customizados, // R67-1
-            ])->values(),
+            'unidades_imobiliarias' => ($unidadesAgrupadas[$l->id] ?? collect())->map(function ($u) use ($proprietarios) {
+                $pessoa = $u->proprietario_id ? ($proprietarios[$u->proprietario_id] ?? null) : null;
+                $dt = (array) ($u->dados_tributarios ?? []);
+
+                return [
+                    'id' => $u->code,
+                    'inscricao_imobiliaria' => $u->inscricao_imobiliaria,
+                    'codigo_imovel_tributario' => $u->codigo_imovel_tributario,
+                    'logradouro_nome' => $u->logradouro_nome,
+                    'numero_imovel' => $u->numero_imovel,
+                    'nome_edificio' => $u->nome_edificio,
+                    'complemento' => null, // TODO: coluna ainda não existe no banco
+                    // Onda 8/A1 — proprietário oficial (pessoas → fallback JSON tributário):
+                    // exibido read-only no app; divergência vai no campo customizado
+                    // `proprietario_divergente` (kit), nunca sobrescrevendo o cadastro.
+                    'proprietario_nome' => $pessoa->name ?? ($dt['proprietario_name'] ?? $dt['proprietario_nome'] ?? null),
+                    'proprietario_cpf_cnpj' => $pessoa->cpf ?? $pessoa->cnpj
+                        ?? ($dt['proprietario_cpf_cnpj'] ?? $dt['proprietario_cpf'] ?? $dt['cpf_cnpj'] ?? $dt['cpf'] ?? null),
+                    'dados_tributarios' => $u->dados_tributarios,
+                    'dados_customizados' => $u->dados_customizados, // R67-1
+                ];
+            })->values(),
             // Atributos descritivos (tipo_edificacao, pavimento, estado...) vêm em
             // dados_customizados — o app monta o formulário pelo /api/coleta/config.
             'edificacoes' => ($edificacoesAgrupadas[$l->id] ?? collect())->map(fn ($e) => [
@@ -175,6 +195,11 @@ class LoteSyncController extends Controller
             return response()->json(['message' => 'Nada para sincronizar'], 200);
         }
 
+        // Onda 8/B2 — blindagem de região: coletor restrito só grava lotes das
+        // quadras atribuídas a ele (null = supervisor, sem restrição).
+        $quadrasPermitidas = \App\Services\Coleta\ColetaRegiaoService::quadrasPermitidas($tenantId, $userId);
+        $rejeitados = [];
+
         DB::beginTransaction();
 
         try {
@@ -188,6 +213,29 @@ class LoteSyncController extends Controller
                     continue;
                 }
 
+                if ($quadrasPermitidas !== null && ! in_array((int) $lote->quadra_id, $quadrasPermitidas, true)) {
+                    $rejeitados[] = [
+                        'id' => $loteApp['id'],
+                        'numero_lote' => $lote->numero_lote,
+                        'motivo' => $quadrasPermitidas === [] ? 'sem_regiao_atribuida' : 'fora_da_regiao',
+                    ];
+
+                    continue;
+                }
+
+                // Onda 8/D1 — snapshot ANTES das mutações (alimenta o antes→depois
+                // gravado em coleta_imobiliaria.alteracoes → Relatório de Validação)
+                $antes = [
+                    'ocupacao' => $lote->ocupacao,
+                    'custom' => (array) $lote->dados_customizados,
+                    'fotos' => [
+                        'foto_frontal' => $lote->foto_frontal,
+                        'foto_lateral_esq' => $lote->foto_lateral_esq,
+                        'foto_lateral_dir' => $lote->foto_lateral_dir,
+                    ],
+                ];
+                $alteracoes = [];
+
                 // Status: campo estrutural, com lista fixa. Ocupação: binário do sistema,
                 // com blindagem N1 (app antigo pode mandar o rótulo — traduz p/ a chave).
                 if (array_key_exists('status_cadastro', $loteApp)) {
@@ -197,6 +245,10 @@ class LoteSyncController extends Controller
                     $lote->ocupacao = \App\Services\Coleta\CampoDominioService::normalizarValor(
                         'lote', 'ocupacao', $loteApp['ocupacao'], $tenantId
                     );
+
+                    if ($lote->ocupacao != $antes['ocupacao']) {
+                        $alteracoes['lote.ocupacao'] = ['de' => $antes['ocupacao'], 'para' => $lote->ocupacao];
+                    }
                 }
 
                 // R67-1 — campos customizados do município (whitelist por slug + cast por tipo).
@@ -210,16 +262,22 @@ class LoteSyncController extends Controller
                     $custom = array_merge($loteApp['dados_vistoria'], $custom);
                 }
                 if ($custom !== []) {
-                    $lote->dados_customizados = array_merge(
-                        (array) $lote->dados_customizados,
-                        \App\Services\Coleta\CampoCustomizadoService::filtrarPayload('lote', $custom, $tenantId)
-                    );
+                    $filtrado = \App\Services\Coleta\CampoCustomizadoService::filtrarPayload('lote', $custom, $tenantId);
+
+                    foreach ($filtrado as $slug => $valorNovo) {
+                        if (($antes['custom'][$slug] ?? null) != $valorNovo) {
+                            $alteracoes["lote.custom.{$slug}"] = ['de' => $antes['custom'][$slug] ?? null, 'para' => $valorNovo];
+                        }
+                    }
+
+                    $lote->dados_customizados = array_merge((array) $lote->dados_customizados, $filtrado);
                 }
 
                 // Fotos (3 slots) — aceita base64 ou caminho existente
                 foreach (['foto_frontal', 'foto_lateral_esq', 'foto_lateral_dir'] as $fotoField) {
                     if (! empty($loteApp[$fotoField]) && str_starts_with($loteApp[$fotoField], 'data:image')) {
                         $lote->$fotoField = $this->salvarImagemBase64($loteApp[$fotoField]);
+                        $alteracoes["lote.{$fotoField}"] = ['de' => $antes['fotos'][$fotoField], 'para' => $lote->$fotoField];
                     }
                 }
 
@@ -246,9 +304,6 @@ class LoteSyncController extends Controller
                     $dadosColeta['coletado_por_id'] = $userId;
                     $dadosColeta['coletado_em'] = now();
                 }
-                if ($dadosColeta !== []) {
-                    \App\Models\ColetaImobiliaria::registrar($lote, $dadosColeta, tenantId: $tenantId);
-                }
 
                 // Retificações de edificações (opcional)
                 if (! empty($loteApp['edificacoes_updates'])) {
@@ -263,7 +318,14 @@ class LoteSyncController extends Controller
                             continue;
                         }
 
+                        // Onda 8/D1 — rótulo curto da edificação nas alterações
+                        $refEd = 'edificacao.'.($edificacao->sequential_id ?? substr((string) $edApp['id'], 0, 8));
+                        $antesEdCustom = (array) $edificacao->dados_customizados;
+
                         if (isset($edApp['area_geo'])) {
+                            if ((float) $edApp['area_geo'] != (float) ($edificacao->area_geo ?? 0)) {
+                                $alteracoes["{$refEd}.area_geo"] = ['de' => $edificacao->area_geo, 'para' => (float) $edApp['area_geo']];
+                            }
                             $edificacao->area_geo = (float) $edApp['area_geo'];
                         }
 
@@ -284,10 +346,15 @@ class LoteSyncController extends Controller
                             }
                         }
                         if ($customEd !== []) {
-                            $edificacao->dados_customizados = array_merge(
-                                (array) $edificacao->dados_customizados,
-                                \App\Services\Coleta\CampoCustomizadoService::filtrarPayload('edificacao', $customEd, $tenantId)
-                            );
+                            $filtradoEd = \App\Services\Coleta\CampoCustomizadoService::filtrarPayload('edificacao', $customEd, $tenantId);
+
+                            foreach ($filtradoEd as $slug => $valorNovo) {
+                                if (($antesEdCustom[$slug] ?? null) != $valorNovo) {
+                                    $alteracoes["{$refEd}.{$slug}"] = ['de' => $antesEdCustom[$slug] ?? null, 'para' => $valorNovo];
+                                }
+                            }
+
+                            $edificacao->dados_customizados = array_merge($antesEdCustom, $filtradoEd);
                         }
 
                         $edificacao->save();
@@ -307,17 +374,41 @@ class LoteSyncController extends Controller
                             continue;
                         }
 
-                        $unidade->dados_customizados = \App\Services\Coleta\CampoCustomizadoService::filtrarPayload(
+                        // Onda 8/D1 — referência legível (inscrição > sequencial > code)
+                        $refUni = 'unidade.'.($unidade->inscricao_imobiliaria
+                            ?? $unidade->sequential_id
+                            ?? substr((string) $unidade->code, 0, 8));
+                        $antesUniCustom = (array) $unidade->dados_customizados;
+
+                        $filtradoUni = \App\Services\Coleta\CampoCustomizadoService::filtrarPayload(
                             'unidade', (array) $uniApp['dados_customizados'], $tenantId
                         );
+
+                        foreach ($filtradoUni as $slug => $valorNovo) {
+                            if (($antesUniCustom[$slug] ?? null) != $valorNovo) {
+                                $alteracoes["{$refUni}.{$slug}"] = ['de' => $antesUniCustom[$slug] ?? null, 'para' => $valorNovo];
+                            }
+                        }
+
+                        $unidade->dados_customizados = $filtradoUni;
                         $unidade->save();
                     }
+                }
+
+                // Onda 8/D1 — a coleta é registrada DEPOIS de todas as mutações,
+                // levando o antes→depois consolidado (lote + edificações + unidades).
+                if ($alteracoes !== []) {
+                    $dadosColeta['alteracoes'] = $alteracoes;
+                }
+                if ($dadosColeta !== []) {
+                    \App\Models\ColetaImobiliaria::registrar($lote, $dadosColeta, tenantId: $tenantId);
                 }
             }
 
             DB::commit();
 
-            return response()->json(['success' => true]);
+            // Onda 8/B2 — rejeitados voltam para o app avisar o coletor
+            return response()->json(['success' => true, 'rejeitados' => $rejeitados]);
 
         } catch (\Exception $e) {
             DB::rollBack();

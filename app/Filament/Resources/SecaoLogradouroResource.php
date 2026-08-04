@@ -31,12 +31,22 @@ class SecaoLogradouroResource extends Resource
             Forms\Components\Section::make('Identificação')->schema([
                 Forms\Components\TextInput::make('codigo')
                     ->label('Código da Seção (métrico)')
-                    ->helperText('Código do cadastro municipal.')
-                    ->maxLength(50),
+                    ->helperText('Código do cadastro municipal. Único por logradouro + lado.')
+                    ->maxLength(50)
+                    // T1.3 — validação amigável da unicidade código+lado (o índice do banco é a trava final)
+                    ->unique(
+                        ignoreRecord: true,
+                        modifyRuleUsing: fn ($rule, \Filament\Forms\Get $get) => $rule
+                            ->where('tenant_id', \Filament\Facades\Filament::getTenant()?->id)
+                            ->where('logradouro_id', $get('logradouro_id'))
+                            ->where('lado', $get('lado'))
+                            ->whereNull('deleted_at'),
+                    )
+                    ->validationMessages(['unique' => 'Já existe uma seção com este código e este lado neste logradouro.']),
 
                 // Item 44 do edital — lista governada pelo sistema (rótulo white-label)
                 \App\Services\Coleta\CampoDominioService::aplicar(
-                    Forms\Components\Select::make('lado')->placeholder('Selecione...')->nullable(),
+                    Forms\Components\Select::make('lado')->placeholder('Selecione...')->nullable()->live(),
                     'secao_logradouro', 'lado'
                 ),
 
@@ -57,6 +67,36 @@ class SecaoLogradouroResource extends Resource
                 ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('secao_logradouro'))
                 ->columns(3),
 
+            // T1.7 (item 17) — "dados dos logradouros, inclusive com as IMAGENS das Seções".
+            // Reusa a tabela polimórfica `documentos` (padrão da UnidadeImobiliaria).
+            Forms\Components\Section::make('Fotos da Seção')
+                ->schema([
+                    Forms\Components\Repeater::make('fotos')
+                        ->relationship('fotos')
+                        ->hiddenLabel()
+                        ->schema([
+                            Forms\Components\Hidden::make('type')->default('Foto'),
+                            Forms\Components\TextInput::make('name')
+                                ->label('Legenda')
+                                ->placeholder('Ex: Vista do início do trecho')
+                                ->required()
+                                ->maxLength(255),
+                            Forms\Components\FileUpload::make('path')
+                                ->label('Imagem')
+                                ->directory('secoes_logradouro/fotos')
+                                ->image()
+                                ->imageEditor()
+                                ->openable()
+                                ->downloadable()
+                                ->maxSize(5120)
+                                ->required(),
+                        ])
+                        ->columns(2)
+                        ->defaultItems(0)
+                        ->addActionLabel('Adicionar Foto')
+                        ->itemLabel(fn (array $state): ?string => $state['name'] ?? null),
+                ]),
+
             Forms\Components\Section::make('Dados Espaciais')->schema([
                 Forms\Components\Textarea::make('geo_json_input')
                     ->label('Coordenadas (GeoJSON LineString)')
@@ -72,7 +112,12 @@ class SecaoLogradouroResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
-                Tables\Columns\TextColumn::make('codigo')->label('Código')->searchable()->sortable()->placeholder('—'),
+                Tables\Columns\TextColumn::make('codigo')
+                    ->label('Código')
+                    ->description(fn ($record) => $record->codigo_composto && $record->codigo_composto !== $record->codigo
+                        ? 'Completo: '.$record->codigo_composto
+                        : null)
+                    ->searchable()->sortable()->placeholder('—'),
                 Tables\Columns\TextColumn::make('name')->label('Nome')->searchable(),
                 Tables\Columns\TextColumn::make('logradouro.name')->label('Logradouro')->searchable(),
                 Tables\Columns\TextColumn::make('lado')

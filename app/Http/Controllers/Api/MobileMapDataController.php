@@ -23,7 +23,14 @@ class MobileMapDataController extends Controller
         $layer = $request->query('layer');
         $bbox = $this->parseBbox($request->query('bbox'));
 
-        $result = $this->buildLayerQuery($layer, $tenantId, $bbox);
+        // Onda 8/B1 — a camada de LOTES respeita a região do coletor (decisão do
+        // usuário: só os delegados desenham = payload leve). As demais camadas
+        // (quadras, bairros...) seguem integrais como referência do entorno.
+        $quadrasPermitidas = $layer === 'lotes'
+            ? \App\Services\Coleta\ColetaRegiaoService::quadrasPermitidas($tenantId, $request->user()->id)
+            : null;
+
+        $result = $this->buildLayerQuery($layer, $tenantId, $bbox, $quadrasPermitidas);
 
         if ($result === null) {
             return response()->json(['error' => 'Camada não encontrada'], 404);
@@ -80,11 +87,11 @@ class MobileMapDataController extends Controller
         return count($parts) === 4 ? $parts : null;
     }
 
-    private function buildLayerQuery(string $layer, int $tenantId, ?array $bbox): ?array
+    private function buildLayerQuery(string $layer, int $tenantId, ?array $bbox, ?array $quadrasPermitidas = null): ?array
     {
         switch ($layer) {
             case 'lotes':
-                return $this->layerLotes($tenantId, $bbox);
+                return $this->layerLotes($tenantId, $bbox, $quadrasPermitidas);
 
             case 'quadras':
                 return $this->layerSimples('quadras', 'name', $tenantId, $bbox);
@@ -103,12 +110,18 @@ class MobileMapDataController extends Controller
         }
     }
 
-    private function layerLotes(int $tenantId, ?array $bbox): array
+    private function layerLotes(int $tenantId, ?array $bbox, ?array $quadrasPermitidas = null): array
     {
+        // Onda 8/B1 — sem atribuição vigente = nenhum lote (mesma regra do pull)
+        if ($quadrasPermitidas !== null && $quadrasPermitidas === []) {
+            return ['type' => 'FeatureCollection', 'features' => []];
+        }
+
         $q = DB::table('lotes')
             ->where('tenant_id', $tenantId)
             ->whereNull('deleted_at')
             ->whereNotNull('geo')
+            ->when($quadrasPermitidas !== null, fn ($query) => $query->whereIn('quadra_id', $quadrasPermitidas))
             ->selectRaw('id, code, numero_lote, sequential_id, status_cadastro, ocupacao, ST_AsGeoJSON(geo, 6) as geo_json');
 
         $this->applyBbox($q, 'geo', $bbox);

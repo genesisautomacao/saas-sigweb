@@ -127,7 +127,7 @@ trait HasEdificacaoActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function () {
-                        Edificacao::where('id', $this->edificacaoAtivaId)->delete();
+                        Edificacao::find($this->edificacaoAtivaId)?->delete();
                         Notification::make()->title('Edificação Excluída!')->success()->send();
                         $this->mostrarEdificacoesLoteAtivo = false;
                         $this->toggleEdificacoesLote();

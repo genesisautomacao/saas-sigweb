@@ -76,6 +76,78 @@ class ViabilidadePdfService
     }
 
     /**
+     * T1.5 (item 21) — metragens do imóvel e parâmetros urbanísticos da zona no PDF.
+     * Enriquece ANTES do registrarEmissao: entra no snapshot → a reimpressão herda.
+     * Idempotente: se as chaves já existem (reimpressão de snapshot novo), não recalcula.
+     */
+    protected function enriquecerComMetragensEParametros(array $dadosAnalise): array
+    {
+        $loteId = $dadosAnalise['lote_id'] ?? null;
+
+        if ($loteId && ! isset($dadosAnalise['metragens'])) {
+            $lote = \Illuminate\Support\Facades\DB::table('lotes')->where('id', $loteId)->first();
+
+            if ($lote) {
+                $dadosAnalise['metragens'] = [
+                    'area_lote' => $lote->area_geo !== null ? (float) $lote->area_geo : null,
+                    'testada' => $lote->main_facade_length !== null ? (float) $lote->main_facade_length : null,
+                    'area_construida' => (float) \Illuminate\Support\Facades\DB::table('edificacoes')
+                        ->where('lote_id', $loteId)->whereNull('deleted_at')->sum('area_geo'),
+                ];
+
+                if ($lote->zona_id && ! isset($dadosAnalise['parametros_zona'])) {
+                    $parametro = \App\Models\ParametroUrbano::query()
+                        ->withoutGlobalScopes()
+                        ->where('zona_id', $lote->zona_id)
+                        ->first();
+
+                    if ($parametro) {
+                        $dadosAnalise['parametros_zona'] = [
+                            'area_minima' => $parametro->area_minima,
+                            'area_maxima' => $parametro->area_maxima,
+                            'testada_minima' => $parametro->testada_minima,
+                            'testada_maxima' => $parametro->testada_maxima,
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $dadosAnalise;
+    }
+
+    /**
+     * T1.5 (item 3-14) — persiste o print do mapa para a REIMPRESSÃO ter o croqui.
+     * Antes a reimpressão saía com $mapImage = null ("sem contexto de mapa no servidor").
+     */
+    protected function persistirMapa(string $protocolo, ?string $mapImageDataUri): void
+    {
+        if (blank($mapImageDataUri)) {
+            return;
+        }
+
+        try {
+            \Illuminate\Support\Facades\Storage::disk('public')
+                ->put("viabilidades/{$protocolo}.b64", $mapImageDataUri);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Viabilidade {$protocolo}: falha ao persistir o mapa — ".$e->getMessage());
+        }
+    }
+
+    protected function recuperarMapa(string $protocolo): ?string
+    {
+        try {
+            $disk = \Illuminate\Support\Facades\Storage::disk('public');
+
+            return $disk->exists("viabilidades/{$protocolo}.b64")
+                ? $disk->get("viabilidades/{$protocolo}.b64")
+                : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
      * Gera o PDF de Viabilidade (funcionamento/uso).
      */
     public function generatePdf(array $dadosAnalise, ?string $mapImageBase64 = null)
@@ -83,9 +155,13 @@ class ViabilidadePdfService
         $tenant = Filament::getTenant();
         $dataHora = now()->format('d/m/Y H:i:s');
 
+        $dadosAnalise = $this->enriquecerComMetragensEParametros($dadosAnalise);
+
         $emissao = $this->registrarEmissao('VIA', 'viabilidade', $dadosAnalise);
         $protocolo = $emissao['protocolo'];
         $urlValidacao = $emissao['urlValidacao'];
+
+        $this->persistirMapa($protocolo, $mapImageBase64);
 
         $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote'] ?? 'S-N');
         $fileName = 'viabilidade-' . $numeroLoteSeguro . '.pdf';
@@ -108,9 +184,13 @@ class ViabilidadePdfService
         $tenant = Filament::getTenant();
         $dataHora = now()->format('d/m/Y H:i:s');
 
+        $dadosAnalise = $this->enriquecerComMetragensEParametros($dadosAnalise);
+
         $emissao = $this->registrarEmissao('PARC', 'parcelamento', $dadosAnalise);
         $protocolo = $emissao['protocolo'];
         $urlValidacao = $emissao['urlValidacao'];
+
+        $this->persistirMapa($protocolo, $mapImageBase64);
 
         $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote'] ?? 'S-N');
         $fileName = 'parcelamento-' . $numeroLoteSeguro . '.pdf';
@@ -136,10 +216,12 @@ class ViabilidadePdfService
     {
         $tenant      = Filament::getTenant();
         $dataHora    = now()->format('d/m/Y H:i:s');
-        $dadosAnalise = $emissao->dados_snapshot ?? [];
+        // Emissões antigas não têm metragens no snapshot — enriquece na hora (idempotente).
+        $dadosAnalise = $this->enriquecerComMetragensEParametros($emissao->dados_snapshot ?? []);
         $protocolo   = $emissao->protocolo;
         $urlValidacao = url("/v/{$protocolo}");
-        $mapImage    = null; // sem contexto de mapa no servidor
+        // T1.5 (item 3-14): recupera o print do mapa persistido na emissão original.
+        $mapImage    = $this->recuperarMapa($protocolo);
 
         $view = match ($emissao->tipo) {
             'parcelamento' => 'pdf.viabilidade-parcelamento',
@@ -163,9 +245,13 @@ class ViabilidadePdfService
         $tenant = Filament::getTenant();
         $dataHora = now()->format('d/m/Y H:i:s');
 
+        $dadosAnalise = $this->enriquecerComMetragensEParametros($dadosAnalise);
+
         $emissao = $this->registrarEmissao('UNIF', 'unificacao', $dadosAnalise);
         $protocolo = $emissao['protocolo'];
         $urlValidacao = $emissao['urlValidacao'];
+
+        $this->persistirMapa($protocolo, $mapImageBase64);
 
         $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote'] ?? 'S-N');
         $fileName = 'unificacao-' . $numeroLoteSeguro . '.pdf';

@@ -49,6 +49,12 @@ class BairroResource extends Resource
                     ->suffix('m²'),
             ])->columns(2),
 
+            // Item 75 — campos customizados do município nesta camada
+            Forms\Components\Section::make('Campos do Município')
+                ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('bairro')->isNotEmpty())
+                ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('bairro'))
+                ->columns(3),
+
             Forms\Components\Section::make('Dados Espaciais')->schema([
                 Forms\Components\Textarea::make('geo_json_input')
                     ->label('Coordenadas do Perímetro (Ou GeoJSON)')

@@ -115,7 +115,7 @@ trait HasRuralPonteActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function() {
-                        RuralPonte::where('id', $this->ruralPonteAtivaId)->delete();
+                        RuralPonte::find($this->ruralPonteAtivaId)?->delete();
                         Notification::make()->title('Excluída!')->success()->send();
                         $this->dispatch('remover-rural_ponte-mapa', ['id' => $this->ruralPonteAtivaId]);
                         $this->dispatch('fechar-modal-filament');

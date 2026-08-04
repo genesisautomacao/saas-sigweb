@@ -101,7 +101,7 @@ trait HasRuralLocalidadeActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function() {
-                        RuralLocalidade::where('id', $this->ruralLocalidadeAtivaId)->delete();
+                        RuralLocalidade::find($this->ruralLocalidadeAtivaId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-rural_localidade-mapa', ['id' => $this->ruralLocalidadeAtivaId]);
                         $this->dispatch('fechar-modal-filament');

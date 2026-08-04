@@ -20,10 +20,21 @@ class SecoesRelationManager extends RelationManager
         return $form->schema([
             Forms\Components\TextInput::make('codigo')
                 ->label('Código da Seção (métrico)')
-                ->maxLength(50),
+                ->maxLength(50)
+                // T1.3 — validação amigável da unicidade código+lado neste logradouro
+                ->unique(
+                    table: 'secoes_logradouro',
+                    ignoreRecord: true,
+                    modifyRuleUsing: fn ($rule, \Filament\Forms\Get $get) => $rule
+                        ->where('tenant_id', \Filament\Facades\Filament::getTenant()?->id)
+                        ->where('logradouro_id', $this->getOwnerRecord()->id)
+                        ->where('lado', $get('lado'))
+                        ->whereNull('deleted_at'),
+                )
+                ->validationMessages(['unique' => 'Já existe uma seção com este código e este lado neste logradouro.']),
             // Item 44 do edital — lista do sistema, rótulo white-label
             \App\Services\Coleta\CampoDominioService::aplicar(
-                Forms\Components\Select::make('lado')->placeholder('Selecione...')->nullable(),
+                Forms\Components\Select::make('lado')->placeholder('Selecione...')->nullable()->live(),
                 'secao_logradouro', 'lado'
             ),
             Forms\Components\TextInput::make('name')
@@ -31,6 +42,31 @@ class SecoesRelationManager extends RelationManager
                 ->maxLength(255),
             // Refatoração PoC Tangará: tipo_pavimentacao é campo customizado (kit)
             ...\App\Services\Coleta\CampoCustomizadoService::componentes('secao_logradouro'),
+
+            // T1.7 (item 17) — fotos da seção
+            Forms\Components\Repeater::make('fotos')
+                ->relationship('fotos')
+                ->label('Fotos da Seção')
+                ->schema([
+                    Forms\Components\Hidden::make('type')->default('Foto'),
+                    Forms\Components\TextInput::make('name')
+                        ->label('Legenda')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\FileUpload::make('path')
+                        ->label('Imagem')
+                        ->directory('secoes_logradouro/fotos')
+                        ->image()
+                        ->openable()
+                        ->downloadable()
+                        ->maxSize(5120)
+                        ->required(),
+                ])
+                ->columns(2)
+                ->defaultItems(0)
+                ->addActionLabel('Adicionar Foto')
+                ->itemLabel(fn (array $state): ?string => $state['name'] ?? null)
+                ->columnSpanFull(),
         ]);
     }
 

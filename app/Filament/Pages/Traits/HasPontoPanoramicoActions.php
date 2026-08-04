@@ -82,7 +82,7 @@ trait HasPontoPanoramicoActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function() {
-                        PontoPanoramico::where('id', $this->pontoPanoramicoAtivoId)->delete();
+                        PontoPanoramico::find($this->pontoPanoramicoAtivoId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-ponto_panoramico-mapa', ['id' => $this->pontoPanoramicoAtivoId]);
                         $this->dispatch('fechar-modal-filament');

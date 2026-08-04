@@ -37,6 +37,8 @@ trait HasLoteamentoActions
                     ->label('Nome do Loteamento')
                     ->required()
                     ->maxLength(255),
+                // Item 75 — campos customizados do município (loteamento)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('loteamento'),
             ])
             ->action(function (array $data) {
                 $data['tenant_id'] = $this->tenantId;
@@ -74,6 +76,7 @@ trait HasLoteamentoActions
                 $reg = Loteamento::find($this->loteamentoAtivoId);
                 return [
                     'name' => $reg?->name,
+                    'dados_customizados' => $reg?->dados_customizados ?? [],
                 ];
             })
             ->form([
@@ -90,6 +93,8 @@ trait HasLoteamentoActions
                     }),
 
                 TextInput::make('name')->label('Nome do Loteamento')->required()->maxLength(255),
+                // Item 75 — campos customizados do município (loteamento)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('loteamento'),
             ])
             ->action(function (array $data) {
                 $reg = Loteamento::find($this->loteamentoAtivoId);
@@ -114,7 +119,7 @@ trait HasLoteamentoActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function() {
-                        Loteamento::where('id', $this->loteamentoAtivoId)->delete();
+                        Loteamento::find($this->loteamentoAtivoId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-loteamento-mapa', ['id' => $this->loteamentoAtivoId]);
                         $this->dispatch('fechar-modal-filament');

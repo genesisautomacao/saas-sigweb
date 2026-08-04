@@ -26,6 +26,31 @@ class SecaoLogradouro extends Model
         'dados_customizados' => 'array', // campos do município (item 75)
     ];
 
+    /**
+     * T1.7 (item 17): fotos da seção — reusa a tabela polimórfica `documentos`
+     * (mesmo padrão da UnidadeImobiliaria). A galeria da ficha do logradouro lê daqui.
+     */
+    public function documentos()
+    {
+        return $this->morphMany(Documento::class, 'documentable');
+    }
+
+    public function fotos()
+    {
+        return $this->documentos()->where('type', 'Foto');
+    }
+
+    /**
+     * Item 44 do edital: "Código do Logradouro + Código da Seção (métrico)".
+     * Ex.: logradouro 015, seção 0-120 → "015-0-120". Sem código do pai, sai só o da seção.
+     */
+    public function getCodigoCompostoAttribute(): ?string
+    {
+        $partes = array_filter([$this->logradouro?->codigo, $this->codigo]);
+
+        return $partes ? implode('-', $partes) : null;
+    }
+
     protected $hidden = ['geo'];
     protected $appends = ['geo_json'];
 

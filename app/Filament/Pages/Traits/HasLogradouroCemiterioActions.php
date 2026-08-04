@@ -98,7 +98,7 @@ trait HasLogradouroCemiterioActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function() {
-                        LogradouroCemiterio::where('id', $this->logradouroCemiterioAtivoId)->delete();
+                        LogradouroCemiterio::find($this->logradouroCemiterioAtivoId)?->delete();
                         Notification::make()->title('Rua Excluída!')->success()->send();
                         $this->dispatch('remover-logradouro_cemiterio-mapa', ['id' => $this->logradouroCemiterioAtivoId]);
                         $this->dispatch('fechar-modal-filament');

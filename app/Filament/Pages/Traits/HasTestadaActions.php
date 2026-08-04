@@ -125,6 +125,9 @@ trait HasTestadaActions
                     ->searchable()
                     ->nullable()
                     ->visible(fn (\Filament\Forms\Get $get) => $this->opcoesSecaoDoLogradouro($get('logradouro_id')) !== []),
+
+                // Item 75 — campos customizados do município (testada)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('lote_testada'),
             ])
             ->action(function (array $data) {
                 // Usa comprimento manual se informado, senão o calculado pela linha
@@ -196,6 +199,7 @@ trait HasTestadaActions
                     'comprimento'  => $t?->comprimento,
                     'logradouro_id' => $t?->logradouro_id,
                     'secao_logradouro_id' => $t?->secao_logradouro_id,
+                    'dados_customizados' => $t?->dados_customizados ?? [],
                 ];
             })
             ->form([
@@ -242,6 +246,9 @@ trait HasTestadaActions
                     ->searchable()
                     ->nullable()
                     ->visible(fn (\Filament\Forms\Get $get) => $this->opcoesSecaoDoLogradouro($get('logradouro_id')) !== []),
+
+                // Item 75 — campos customizados do município (testada)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('lote_testada'),
             ])
             ->action(function (array $data) {
                 $testada = LoteTestada::find($this->testadaAtivaId);

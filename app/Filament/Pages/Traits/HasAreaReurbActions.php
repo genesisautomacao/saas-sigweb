@@ -88,7 +88,7 @@ trait HasAreaReurbActions
                             ->color('danger')
                             ->requiresConfirmation()
                             ->action(function () {
-                                AreaReurb::where('id', $this->areaReurbAtivaId)->delete();
+                                AreaReurb::find($this->areaReurbAtivaId)?->delete();
                                 Notification::make()->title('Área REURB Excluída!')->success()->send();
                                 $this->dispatch('remover-area_reurb-mapa', ['id' => $this->areaReurbAtivaId]);
                                 $this->dispatch('fechar-modal-filament');

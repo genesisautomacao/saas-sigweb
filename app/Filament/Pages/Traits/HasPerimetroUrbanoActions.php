@@ -50,6 +50,8 @@ trait HasPerimetroUrbanoActions
 
                 \Filament\Forms\Components\ColorPicker::make('fill_color')
                     ->label('Cor no mapa'),
+                // Item 75 — campos customizados do município (distrito/perímetro)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('perimetro'),
             ])
             ->action(function (array $data) {
                 $data['tenant_id'] = $this->tenantId;
@@ -93,6 +95,7 @@ trait HasPerimetroUrbanoActions
                     'codigo'     => $reg?->codigo,
                     'distrito'   => $reg?->distrito,
                     'fill_color' => $reg?->fill_color,
+                    'dados_customizados' => $reg?->dados_customizados ?? [],
                 ];
             })
             ->form([
@@ -112,6 +115,8 @@ trait HasPerimetroUrbanoActions
                 TextInput::make('name')->label('Nome')->required()->maxLength(255),
                 TextInput::make('distrito')->label('Distrito (opcional)')->maxLength(255),
                 \Filament\Forms\Components\ColorPicker::make('fill_color')->label('Cor no mapa'),
+                // Item 75 — campos customizados do município (distrito/perímetro)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('perimetro'),
             ])
             ->action(function (array $data) {
                 $reg = PerimetroUrbano::find($this->perimetroUrbanoAtivoId);
@@ -136,7 +141,7 @@ trait HasPerimetroUrbanoActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function () {
-                        PerimetroUrbano::where('id', $this->perimetroUrbanoAtivoId)->delete();
+                        PerimetroUrbano::find($this->perimetroUrbanoAtivoId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-perimetro-urbano-mapa', ['id' => $this->perimetroUrbanoAtivoId]);
                         $this->dispatch('fechar-modal-filament');

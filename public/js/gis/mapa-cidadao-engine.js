@@ -879,6 +879,171 @@ document.addEventListener("DOMContentLoaded", function () {
     map.addLayer(queryLayer);
 
     // =========================================================================
+    // T1.10c (itens 3-18/3-20/3-23): TEMATIZAÇÃO POR VALORES ÚNICOS (PÚBLICO)
+    // Uma cor por valor distinto; legenda com cores editáveis (item 3-20).
+    // =========================================================================
+    window.vuColorMap = {};
+    window.vuFiltroId = null;
+
+    function vuHexToRgba(hex, alpha) {
+        const h = hex.replace("#", "");
+        const r = parseInt(h.substring(0, 2), 16);
+        const g = parseInt(h.substring(2, 4), 16);
+        const b = parseInt(h.substring(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function vuCorAutomatica(indice) {
+        const hue = (indice * 137.508) % 360;
+        const h = hue / 360, s = 0.65, l = 0.52;
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        const cor = [h + 1 / 3, h, h - 1 / 3].map((t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+        });
+        return "#" + cor.map((c) => Math.round(c * 255).toString(16).padStart(2, "0")).join("");
+    }
+
+    function vuEstiloDoValor(valor) {
+        const cor = window.vuColorMap[valor] || "#9ca3af";
+        return new ol.style.Style({
+            fill: new ol.style.Fill({ color: vuHexToRgba(cor, 0.65) }),
+            stroke: new ol.style.Stroke({ color: cor, width: 2 }),
+            image: new ol.style.Circle({
+                radius: 7,
+                fill: new ol.style.Fill({ color: cor }),
+                stroke: new ol.style.Stroke({ color: "#ffffff", width: 1.5 }),
+            }),
+        });
+    }
+
+    window.vuLimpar = function () {
+        if (window.vuFiltroId) {
+            querySource
+                .getFeatures()
+                .filter((f) => f.get("filtro_id") === window.vuFiltroId)
+                .forEach((f) => querySource.removeFeature(f));
+            window.filtrosAtivos = (window.filtrosAtivos || []).filter((fl) => fl.id !== window.vuFiltroId);
+            if (window.atualizarPainelFiltros) window.atualizarPainelFiltros();
+        }
+        document.getElementById("legenda-valores-unicos")?.remove();
+        window.vuColorMap = {};
+        window.vuFiltroId = null;
+    };
+
+    function vuRenderLegenda(valores, atributoLabel) {
+        let box = document.getElementById("legenda-valores-unicos");
+        if (!box) {
+            box = document.createElement("div");
+            box.id = "legenda-valores-unicos";
+            // position:FIXED — sempre visível na viewport
+            box.style.cssText =
+                "position:fixed;bottom:24px;right:12px;z-index:60;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.15);padding:10px 12px;max-height:46vh;overflow-y:auto;min-width:200px;max-width:280px;font-size:12px;";
+            document.body.appendChild(box);
+        }
+
+        let html =
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+            '<strong style="font-size:12px;">' + atributoLabel + "</strong>" +
+            '<button type="button" onclick="window.vuLimpar()" style="border:none;background:none;color:#9ca3af;cursor:pointer;font-size:14px;" title="Fechar tematização">✕</button>' +
+            "</div>";
+
+        // Máx. 30 valores editáveis (atributo contínuo geraria milhares de linhas)
+        const LIMITE_LEGENDA = 30;
+        const visiveis = valores.slice(0, LIMITE_LEGENDA);
+        const ocultos = valores.length - visiveis.length;
+
+        visiveis.forEach((v) => {
+            html +=
+                '<div style="display:flex;align-items:center;gap:6px;margin:3px 0;">' +
+                '<input type="color" value="' + window.vuColorMap[v.valor] + '" data-vu-valor="' + encodeURIComponent(v.valor) + '" ' +
+                'style="width:22px;height:22px;border:none;padding:0;background:none;cursor:pointer;" />' +
+                '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + v.valor + '">' + v.valor + "</span>" +
+                '<span style="color:#6b7280;">' + v.quantidade + "</span>" +
+                "</div>";
+        });
+
+        if (ocultos > 0) {
+            html +=
+                '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #f3f4f6;color:#9ca3af;font-size:11px;">' +
+                "+" + ocultos + " valores com cores automáticas.<br>" +
+                "Para atributos numéricos, prefira a <strong>Tematização por Intervalo</strong>." +
+                "</div>";
+        }
+
+        box.innerHTML = html;
+
+        box.querySelectorAll("input[type=color]").forEach((inp) => {
+            inp.addEventListener("input", function () {
+                const valor = decodeURIComponent(this.getAttribute("data-vu-valor"));
+                window.vuColorMap[valor] = this.value;
+                querySource.getFeatures().forEach((f) => {
+                    if (f.get("filtro_id") === window.vuFiltroId && f.get("valor_unico") === valor) {
+                        f.setStyle(vuEstiloDoValor(valor));
+                    }
+                });
+            });
+        });
+    }
+
+    window.addEventListener("executar-tematizacao-valores-unicos", async (e) => {
+        const dados = e.detail.dados || e.detail;
+        const url = `/api/mapa/advanced-query?tenant_id=${config.tenantId}&tipo_filtro=valores_unicos&layer=${dados.vu_layer}&vu_attribute=${encodeURIComponent(dados.vu_attribute)}`;
+
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        if (data.error) { alert("Erro: " + data.error); return; }
+
+        // Blindagem: geometria vazia derruba o readFeatures do OL
+        data.features = (data.features || []).filter(
+            (f) => f.geometry && Array.isArray(f.geometry.coordinates) && f.geometry.coordinates.length,
+        );
+
+        if (data.features.length === 0) {
+            alert("Nenhum dado encontrado para tematizar.");
+            return;
+        }
+
+        window.vuLimpar();
+
+        window.vuColorMap = {};
+        (data.valores || []).forEach((v, i) => {
+            window.vuColorMap[v.valor] = vuCorAutomatica(i);
+        });
+
+        const features = new ol.format.GeoJSON().readFeatures(data, {
+            dataProjection: "EPSG:4326",
+            featureProjection: "EPSG:3857",
+        });
+
+        window.vuFiltroId = "filtro_" + Date.now();
+        features.forEach((f) => {
+            f.setStyle(vuEstiloDoValor(f.get("valor_unico")));
+            f.set("filtro_id", window.vuFiltroId);
+        });
+        querySource.addFeatures(features);
+
+        vuRenderLegenda(data.valores || [], data.atributo_label || dados.vu_attribute);
+
+        window.filtrosAtivos = window.filtrosAtivos || [];
+        window.filtrosAtivos.push({
+            id: window.vuFiltroId,
+            descricao: `Valores Únicos: ${dados.vu_layer} por ${data.atributo_label || dados.vu_attribute}`,
+            cor: Object.values(window.vuColorMap)[0] || "#9ca3af",
+            total: features.length,
+        });
+        if (window.atualizarPainelFiltros) window.atualizarPainelFiltros();
+
+        map.getView().fit(querySource.getExtent(), { padding: [50, 50, 50, 50], duration: 1000 });
+    });
+
+    // =========================================================================
     // FILTRO AVANÇADO — Atributo, Espacial e Desenho (com cor customizada)
     // =========================================================================
     window.addEventListener("executar-filtro-avancado", (e) => {
@@ -1291,10 +1456,10 @@ document.addEventListener("DOMContentLoaded", function () {
         drawFiltroSource.clear();
         window.filtrosAtivos = [];
         window.atualizarPainelFiltros();
-    });
-
-    window.addEventListener("limpar-filtro-avancado", () => {
-        querySource.clear();
+        // T1.10c — limpa também a legenda de Valores Únicos
+        document.getElementById("legenda-valores-unicos")?.remove();
+        window.vuColorMap = {};
+        window.vuFiltroId = null;
     });
 
     // 11. TOOLTIPS E HOVER (MÃOZINHA)
@@ -1485,9 +1650,25 @@ document.addEventListener("DOMContentLoaded", function () {
     map.on("singleclick", function (e) {
         if (currentMeasureInteraction) return; // Não clica se estiver usando a reguinha
 
-        const feature = map.forEachFeatureAtPixel(e.pixel, (f) => f, {
+        // 🛑 TRAVA GERAL DE DESENHO: ferramenta de desenho ativa inibe o clique padrão
+        let desenhoAtivoPub = false;
+        map.getInteractions().forEach((i) => {
+            if (i instanceof ol.interaction.Draw && i.getActive()) desenhoAtivoPub = true;
+        });
+        if (desenhoAtivoPub) return;
+
+        // T1.6 (item 3-11): coleta TODAS as feições no pixel e escolhe por prioridade —
+        // lote > ponto panorâmico > zona. Assim a zona vira clicável sem roubar o clique
+        // de um lote desenhado por cima dela.
+        const feats = [];
+        map.forEachFeatureAtPixel(e.pixel, (f) => { feats.push(f); }, {
             hitTolerance: 5,
         });
+
+        const pick = (layerName) => feats.find((f) => f.get("layer") === layerName);
+        // T2.3 — logradouro clicável: a LINHA ganha da zona (polígono cobre tudo),
+        // mas perde para lote/ponto (alvos mais específicos do clique).
+        const feature = pick("lotes") || pick("pontos_panoramicos") || pick("logradouros") || pick("zonas") || feats[0];
 
         if (feature) {
             // Mudamos o nome da variável para evitar o erro "layer is not defined"
@@ -1507,6 +1688,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 Livewire.dispatch("abrirVisualizadorPublico360", {
                     id: featureId,
                 });
+            } else if (featureLayer === "logradouros") {
+                // T2.3 — ficha pública do logradouro (dados + seções + fotos)
+                Livewire.dispatch("abrirFichaLogradouro", { logradouroId: featureId });
+            } else if (featureLayer === "zonas") {
+                // T1.6 — ficha pública da zona (parâmetros + usos)
+                Livewire.dispatch("abrirFichaZona", { zonaId: featureId });
             }
         }
     });

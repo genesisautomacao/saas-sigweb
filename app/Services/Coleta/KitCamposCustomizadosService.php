@@ -30,6 +30,12 @@ class KitCamposCustomizadosService
         ['entidade' => 'edificacao', 'slug' => 'tp_construcao', 'label' => 'Tipo de Construção (material)', 'tipo' => 'selecao', 'opcoes' => ['Alvenaria', 'Madeira', 'Mista', 'Outro'], 'na_coleta' => true],
         ['entidade' => 'edificacao', 'slug' => 'estado_conservacao', 'label' => 'Estado de Conservação', 'tipo' => 'selecao', 'opcoes' => ['Ruim', 'Regular', 'Bom', 'Ótimo'], 'na_coleta' => true],
 
+        // Onda 8 (App de Coletas) — divergência de proprietário apontada em campo:
+        // o coletor NUNCA regrava o cadastro oficial; informa aqui e a prefeitura
+        // valida no Relatório de Validação da Coleta (decisão do usuário, 2026-08-04).
+        ['entidade' => 'unidade', 'slug' => 'proprietario_divergente', 'label' => 'Proprietário divergente (informado na coleta)', 'tipo' => 'texto', 'opcoes' => [], 'na_coleta' => true],
+        ['entidade' => 'unidade', 'slug' => 'cpf_cnpj_divergente', 'label' => 'CPF/CNPJ divergente (informado na coleta)', 'tipo' => 'texto', 'opcoes' => [], 'na_coleta' => true],
+
         ['entidade' => 'secao_logradouro', 'slug' => 'tipo_pavimentacao', 'label' => 'Tipo de Pavimentação', 'tipo' => 'selecao', 'opcoes' => ['Asfalto', 'Paralelepípedo', 'Concreto', 'Cascalho', 'Terra', 'Outro'], 'na_coleta' => false],
 
         ['entidade' => 'meio_fio', 'slug' => 'material', 'label' => 'Material', 'tipo' => 'selecao', 'opcoes' => ['Concreto', 'Granito', 'Outro'], 'na_coleta' => false],

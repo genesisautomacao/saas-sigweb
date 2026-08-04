@@ -15,6 +15,7 @@ use App\Filament\Cidadao\Pages\Traits\HasFichaImovelPublico;
 
 class MapaPublico extends Page
 {
+    use \App\Filament\Concerns\MontaOpcoesFiltroMapa;
     use HasFichaImovelPublico;
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
@@ -113,10 +114,36 @@ class MapaPublico extends Page
                         'espacial'  => 'Cruzamento Espacial (Ex: Lotes dentro de Bairro)',
                         'desenho'   => 'Desenhar Área no Mapa (Polígono / Retângulo)',
                         'intervalo' => 'Tematização por Intervalo (Classes)',
+                        'valores_unicos' => 'Tematização por Valores Únicos',
                     ])
                     ->default('atributo')
                     ->live()
                     ->required(),
+
+                // T1.10c (itens 3-18/3-20/3-23) — VALORES ÚNICOS no mapa público:
+                // uma cor por valor distinto, paleta editável na legenda.
+                Forms\Components\Group::make([
+                    Forms\Components\Select::make('vu_layer')
+                        ->label('Camada / Entidade')
+                        ->options([
+                            'lotes' => 'Lotes Urbanos',
+                            'edificacoes' => 'Edificações',
+                            'quadras' => 'Quadras',
+                            'bairros' => 'Bairros',
+                            'logradouros' => 'Logradouros',
+                            'zonas' => 'Zonas Urbanas',
+                            'arvores' => 'Árvores',
+                            'postes' => 'Postes',
+                        ])
+                        ->live()
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'valores_unicos'),
+
+                    Forms\Components\Select::make('vu_attribute')
+                        ->label('Atributo (uma cor por valor distinto)')
+                        ->options(fn (Forms\Get $get): array => $this->opcoesCamposFiltro($get('vu_layer')))
+                        ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'valores_unicos')
+                        ->helperText('As cores podem ser ajustadas na legenda, depois de gerar.'),
+                ])->visible(fn (Forms\Get $get) => $get('tipo_filtro') === 'valores_unicos'),
 
                 // BLOCO 1: FILTRO POR ATRIBUTO
                 Forms\Components\Group::make([
@@ -345,6 +372,10 @@ class MapaPublico extends Page
                 if ($data['tipo_filtro'] === 'intervalo') {
                     $this->dispatch('executar-tematizacao-intervalo', dados: $data);
                     \Filament\Notifications\Notification::make()->title('Calculando Densidades...')->info()->send();
+                } elseif ($data['tipo_filtro'] === 'valores_unicos') {
+                    // T1.10c — tematização por valores únicos no público
+                    $this->dispatch('executar-tematizacao-valores-unicos', dados: $data);
+                    \Filament\Notifications\Notification::make()->title('Agrupando valores...')->info()->send();
                 } elseif ($data['tipo_filtro'] === 'desenho') {
                     $this->dispatch('iniciar-desenho-filtro', dados: $data);
                     \Filament\Notifications\Notification::make()

@@ -142,7 +142,7 @@ trait HasJazigoActions
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function () {
-                        Jazigo::where('id', $this->jazigoAtivoId)->delete();
+                        Jazigo::find($this->jazigoAtivoId)?->delete();
                         Notification::make()->title('Jazigo Excluído!')->success()->send();
                         $this->dispatch('remover-jazigo-mapa', ['id' => $this->jazigoAtivoId]);
                         $this->dispatch('fechar-modal-filament');

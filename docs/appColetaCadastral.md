@@ -140,6 +140,35 @@ Só considera lotes `nao_visitado` **dentro da região atribuída**. Sem atribui
 
 ---
 
+## 5. Onda 8 (2026-08-04) — proprietário oficial, região reforçada e progresso
+
+**Pull — unidade imobiliária ganhou 2 chaves (read-only no app):**
+```json
+{ "proprietario_nome": "JOÃO DA SILVA", "proprietario_cpf_cnpj": "111.222.333-44" }
+```
+Resolvidas de `pessoas` (cadastro oficial) com fallback no JSON tributário. O app exibe como
+"Proprietário no cadastro oficial" na ficha da unidade — é a base de comparação em campo.
+**Divergência NUNCA sobrescreve o cadastro:** o coletor preenche os campos customizados do kit
+`proprietario_divergente` / `cpf_cnpj_divergente` (entidade `unidade`, já vêm no
+`/api/coleta/config`), e a prefeitura valida no web (Coleta cadastral → **Validação da Coleta**).
+
+**`GET /api/map/data?layer=lotes` — filtrado pela região do coletor** (mesma regra do pull:
+supervisor vê tudo; sem atribuição = nenhum lote). As demais camadas (quadras, bairros…)
+continuam integrais como referência do entorno.
+
+**`POST /api/sync/lotes/push` — resposta ganhou `rejeitados`:**
+```json
+{ "success": true, "rejeitados": [{ "id": "uuid", "numero_lote": "42", "motivo": "fora_da_regiao" }] }
+```
+Motivos: `fora_da_regiao` | `sem_regiao_atribuida`. O app tira a ficha da fila e avisa o coletor
+(reenviar nunca vai passar; o pull purga o lote). O push também grava o **antes→depois** de cada
+campo alterado em `coleta_imobiliaria.alteracoes` — alimenta o Relatório de Validação.
+
+**App:** nova tela **"Meu Progresso"** no menu (coletados/pendentes/inconformidades/restantes/%
++ detalhe por quadra, calculada do SQLite — 100% offline) e contador `✅ X/Y · Z%` no mapa.
+
+---
+
 ## Passo de implantação (importante)
 
 Antes de publicar a versão do app com esta release, **cada município ativo precisa ter as regiões atribuídas** aos seus cadastradores (painel do município → **Coleta cadastral → Regiões dos Cadastradores**). Sem isso, o cadastrador comum não baixa lotes. Supervisores (Master/Gerente) não são afetados.

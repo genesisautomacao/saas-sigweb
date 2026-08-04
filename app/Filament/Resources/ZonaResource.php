@@ -25,6 +25,12 @@ class ZonaResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
+            // Item 75 — campos customizados do município nesta camada
+            Forms\Components\Section::make('Campos do Município')
+                ->visible(fn () => \App\Services\Coleta\CampoCustomizadoService::definicoes('zona')->isNotEmpty())
+                ->schema(fn () => \App\Services\Coleta\CampoCustomizadoService::componentes('zona'))
+                ->columns(3),
+
             Forms\Components\Section::make('Identificação da Zona')->schema([
                 Forms\Components\TextInput::make('codigo')
                     ->label('Código do Zoneamento')

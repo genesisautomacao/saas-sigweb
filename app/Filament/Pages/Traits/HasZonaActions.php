@@ -50,6 +50,9 @@ trait HasZonaActions
                     ->required()
                     ->maxLength(50),
 
+                // Item 75 — campos customizados do município (zona)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('zona'),
+
                 Select::make('perimetro_id')
                     ->label('Distrito')
                     ->options(fn() => \App\Models\PerimetroUrbano::pluck('name', 'id'))
@@ -126,6 +129,7 @@ trait HasZonaActions
                     'name' => $reg?->name,
                     'codigo' => $reg?->codigo,
                     'sigla' => $reg?->sigla,
+                    'dados_customizados' => $reg?->dados_customizados ?? [],
                     'perimetro_id' => $reg?->perimetro_id,
                     'rgb' => $rgbFormatado,
                 ];
@@ -145,6 +149,8 @@ trait HasZonaActions
 
                 TextInput::make('codigo')->label('Código do Zoneamento')->maxLength(50),
                 TextInput::make('name')->label('Nome da Zona')->required()->maxLength(255),
+                // Item 75 — campos customizados do município (zona)
+                ...\App\Services\Coleta\CampoCustomizadoService::componentes('zona'),
                 TextInput::make('sigla')->label('Sigla')->required()->maxLength(50),
                 Select::make('perimetro_id')
                     ->label('Distrito')
@@ -156,6 +162,38 @@ trait HasZonaActions
                     ->label('Cor no Mapa (RGB)')
                     ->rgb()
                     ->required(),
+
+                // Item 18 do edital — parâmetros urbanísticos + usos da zona, na própria
+                // ficha do mapa (mesma view da ficha pública do T1.6).
+                \Filament\Forms\Components\Section::make('Parâmetros e Usos da Zona')
+                    ->collapsible()
+                    ->collapsed()
+                    ->schema([
+                        Placeholder::make('parametros_usos')
+                            ->hiddenLabel()
+                            ->content(function (): HtmlString {
+                                $zona = Zona::find($this->zonaAtivaId);
+
+                                if (! $zona) {
+                                    return new HtmlString('—');
+                                }
+
+                                $parametro = \App\Models\ParametroUrbano::where('zona_id', $zona->id)->first();
+                                $regras = \App\Models\ZoneamentoRegra::query()
+                                    ->where('zona_sigla', $zona->sigla)
+                                    ->orderBy('classificacao')
+                                    ->get()
+                                    ->groupBy('status');
+
+                                return new HtmlString(
+                                    view('filament.cidadao.components.ficha-zona-publica', [
+                                        'zona' => $zona,
+                                        'parametro' => $parametro,
+                                        'regras' => $regras,
+                                    ])->render()
+                                );
+                            }),
+                    ]),
             ])
             ->action(function (array $data) {
                 $reg = Zona::find($this->zonaAtivaId);

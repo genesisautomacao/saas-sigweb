@@ -225,6 +225,55 @@
         </table>
     </div>
 
+    {{-- T1.5 (itens 21 e 3-14) — METRAGENS DO IMÓVEL + PARÂMETROS DA ZONA --}}
+    @if(!empty($dadosAnalise['metragens']))
+        <div class="box">
+            <div class="box-title">Metragens / Áreas</div>
+            <table class="info-table">
+                <tr>
+                    <td width="33%">
+                        <span class="label">Área do Lote</span>
+                        <span class="value">{{ number_format((float) ($dadosAnalise['metragens']['area_lote'] ?? 0), 2, ',', '.') }} m²</span>
+                    </td>
+                    <td width="33%">
+                        <span class="label">Testada Principal</span>
+                        <span class="value">{{ $dadosAnalise['metragens']['testada'] ? number_format((float) $dadosAnalise['metragens']['testada'], 2, ',', '.') . ' m' : '—' }}</span>
+                    </td>
+                    <td width="34%">
+                        <span class="label">Área Construída</span>
+                        <span class="value">{{ number_format((float) ($dadosAnalise['metragens']['area_construida'] ?? 0), 2, ',', '.') }} m²</span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    @endif
+
+    @if(!empty($dadosAnalise['parametros_zona']))
+        <div class="box">
+            <div class="box-title">Parâmetros Urbanísticos da Zona</div>
+            <table class="info-table">
+                <tr>
+                    <td width="25%">
+                        <span class="label">Área Mínima do Lote</span>
+                        <span class="value">{{ $dadosAnalise['parametros_zona']['area_minima'] ? number_format((float) $dadosAnalise['parametros_zona']['area_minima'], 2, ',', '.') . ' m²' : '—' }}</span>
+                    </td>
+                    <td width="25%">
+                        <span class="label">Área Máxima do Lote</span>
+                        <span class="value">{{ $dadosAnalise['parametros_zona']['area_maxima'] ? number_format((float) $dadosAnalise['parametros_zona']['area_maxima'], 2, ',', '.') . ' m²' : '—' }}</span>
+                    </td>
+                    <td width="25%">
+                        <span class="label">Testada Mínima</span>
+                        <span class="value">{{ $dadosAnalise['parametros_zona']['testada_minima'] ? number_format((float) $dadosAnalise['parametros_zona']['testada_minima'], 2, ',', '.') . ' m' : '—' }}</span>
+                    </td>
+                    <td width="25%">
+                        <span class="label">Testada Máxima</span>
+                        <span class="value">{{ $dadosAnalise['parametros_zona']['testada_maxima'] ? number_format((float) $dadosAnalise['parametros_zona']['testada_maxima'], 2, ',', '.') . ' m' : '—' }}</span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    @endif
+
     {{-- MAPA --}}
     @if($mapImage)
         <div class="box">
