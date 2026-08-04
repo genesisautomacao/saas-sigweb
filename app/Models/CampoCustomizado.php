@@ -18,12 +18,16 @@ class CampoCustomizado extends Model
 
     protected $fillable = [
         'tenant_id', 'entidade', 'label', 'slug', 'tipo', 'opcoes',
-        'obrigatorio', 'na_coleta', 'ordem', 'ativo',
+        'obrigatorio', 'obrigatorio_coleta', 'leitura_coleta', 'na_coleta', 'ordem', 'ativo',
     ];
 
     protected $casts = [
         'opcoes' => 'array',
         'obrigatorio' => 'boolean',
+        // obrigatorio = formulários do sistema WEB · obrigatorio_coleta = boletim/app.
+        // São INDEPENDENTES (campo pode ser opcional no cadastro e exigido em campo).
+        'obrigatorio_coleta' => 'boolean',
+        'leitura_coleta' => 'boolean', // true = aparece no app SOMENTE leitura
         'na_coleta' => 'boolean',
         'ativo' => 'boolean',
     ];

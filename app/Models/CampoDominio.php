@@ -18,7 +18,7 @@ class CampoDominio extends Model
 
     protected $fillable = [
         'tenant_id', 'entidade', 'campo', 'label', 'opcoes',
-        'visivel', 'na_coleta', 'obrigatorio_coleta',
+        'visivel', 'na_coleta', 'obrigatorio_coleta', 'leitura_coleta',
     ];
 
     protected $casts = [
@@ -26,5 +26,6 @@ class CampoDominio extends Model
         'visivel' => 'boolean',
         'na_coleta' => 'boolean',
         'obrigatorio_coleta' => 'boolean',
+        'leitura_coleta' => 'boolean', // true = aparece no app SOMENTE leitura
     ];
 }

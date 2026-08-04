@@ -1,41 +1,46 @@
 <x-filament-panels::page>
+
+    @include('filament.partials.pagina-relatorio-css')
+
     <div wire:poll.60s>
         {{-- Filtro por fluxo --}}
-        <div class="mb-6 max-w-md">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filtrar por Fluxo</label>
-            <select wire:model.live="fluxoId"
-                class="fi-input block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 shadow-sm">
-                <option value="">Todos os fluxos</option>
-                @foreach ($this->fluxos as $id => $nome)
-                    <option value="{{ $id }}">{{ $nome }}</option>
-                @endforeach
-            </select>
+        <div class="pg-filtros">
+            <div>
+                <label>Filtrar por Fluxo</label>
+                <select wire:model.live="fluxoId" style="min-width: 280px;">
+                    <option value="">Todos os fluxos</option>
+                    @foreach ($this->fluxos as $id => $nome)
+                        <option value="{{ $id }}">{{ $nome }}</option>
+                    @endforeach
+                </select>
+            </div>
         </div>
 
         {{-- Cards de resumo --}}
         @php $r = $this->resumo; @endphp
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div class="pg-cards">
             @foreach ([
-                ['Total', $r['total'], 'text-gray-700 dark:text-gray-200'],
-                ['Em andamento', $r['em_andamento'], 'text-blue-600'],
-                ['Aguardando cidadão', $r['aguardando'], 'text-sky-600'],
-                ['Em correção', $r['pendentes'], 'text-red-600'],
-                ['Concluídos', $r['concluidos'], 'text-green-600'],
-                ['% Concluídos', $r['percentual'] . '%', 'text-emerald-600'],
+                ['Total', $r['total'], ''],
+                ['Em andamento', $r['em_andamento'], 'pg-azul'],
+                ['Aguardando cidadão', $r['aguardando'], 'pg-amarelo'],
+                ['Em correção', $r['pendentes'], 'pg-vermelho'],
+                ['Concluídos', $r['concluidos'], 'pg-verde'],
+                ['% Concluídos', $r['percentual'] . '%', 'pg-verde'],
             ] as [$label, $valor, $cor])
-                <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-sm">
-                    <div class="text-xs text-gray-500 mb-1">{{ $label }}</div>
-                    <div class="text-2xl font-bold {{ $cor }}">{{ $valor }}</div>
+                <div class="pg-card {{ $cor }}">
+                    <p class="pg-t">{{ $label }}</p>
+                    <p class="pg-v">{{ $valor }}</p>
                 </div>
             @endforeach
         </div>
 
         {{-- Gráfico de barras por etapa --}}
-        <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-sm">
-            <div class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Processos por Etapa Atual</div>
+        <div class="pg-painel">
+            <div class="pg-painel-head"><span>Processos por Etapa Atual</span></div>
+            <div style="padding: 16px;">
 
             @if (count($this->porEtapa) === 0)
-                <div class="text-sm text-gray-500 italic py-8 text-center">Nenhum processo em andamento para exibir.</div>
+                <div class="pg-vazio">Nenhum processo em andamento para exibir.</div>
             @else
                 <div
                     wire:ignore
@@ -46,6 +51,7 @@
                     <div style="height: 340px;"><canvas x-ref="canvas"></canvas></div>
                 </div>
             @endif
+            </div>
         </div>
     </div>
 

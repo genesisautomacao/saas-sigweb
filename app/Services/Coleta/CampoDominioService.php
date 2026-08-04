@@ -187,6 +187,12 @@ class CampoDominioService
         return self::dominio($entidade, $campo, $tenantId)?->na_coleta ?? true;
     }
 
+    /** O campo aparece no app SOMENTE como leitura? (modo do Boletim, 2026-08-04) */
+    public static function leituraColeta(string $entidade, string $campo, ?int $tenantId = null): bool
+    {
+        return self::dominio($entidade, $campo, $tenantId)?->leitura_coleta ?? false;
+    }
+
     /**
      * Aplica rótulo + opções + visibilidade do município num componente Filament.
      * Uso: CampoDominioService::aplicar(Select::make('tp_construcao'), 'edificacao', 'tp_construcao')
@@ -271,6 +277,8 @@ class CampoDominioService
                 'opcoes' => array_values($opcoes),
                 'valores' => array_map('strval', array_keys($opcoes)),
                 'obrigatorio' => self::obrigatorioColeta($entidade, $campo, $tenantId),
+                // true = o app mostra o valor atual SOMENTE leitura (modo do Boletim)
+                'leitura' => self::leituraColeta($entidade, $campo, $tenantId),
             ];
         }
 

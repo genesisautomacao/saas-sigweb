@@ -171,7 +171,11 @@ class CampoCustomizadoService
                 'label' => $c->label,
                 'tipo' => $c->tipo,
                 'opcoes' => $c->opcoes ?? [],
-                'obrigatorio' => (bool) $c->obrigatorio,
+                // Obrigatoriedade do BOLETIM (independente do `obrigatorio` do sistema
+                // web) — configurada em Coleta cadastral → Boletim de Coleta.
+                'obrigatorio' => (bool) $c->obrigatorio_coleta,
+                // true = o app mostra o valor atual SOMENTE leitura (modo do Boletim)
+                'leitura' => (bool) $c->leitura_coleta,
                 'ordem' => (int) $c->ordem,
             ])
             ->values()

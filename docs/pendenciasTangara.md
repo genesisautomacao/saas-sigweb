@@ -325,7 +325,16 @@ Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unid
 > map/data por região, push blindado, antes→depois c/ merge, relatório + PDF de 1,2MB renderizado) +
 > 21/21 na simulação Node (helpers do app) + 8 arquivos do app validados (esbuild/JSX).
 > Kit aplicado nas 3 tenants locais (2 campos novos cada). **Implantação VPS:** `php artisan migrate`
-> (coluna `alteracoes`) + `php artisan db:seed --class=KitCamposCustomizadosSeeder` + rebuild Expo.
+> (colunas `alteracoes` + `obrigatorio_coleta`) + `php artisan db:seed --class=KitCamposCustomizadosSeeder` + rebuild Expo.
+>
+> **Correções pós-entrega → SPEC FINAL do Boletim (2026-08-04, feedback do usuário):** TODOS os campos
+> de lote/edificação/unidade listados no Boletim, cada um com **3 estados** — "Não usar" / "Apenas
+> leitura" / "Preencher em campo" (+ Obrigatório só no Preencher, independente do sistema web).
+> Inclui os dados do cadastro oficial como leitura configurável (área/testada do lote; endereço,
+> inscrição, proprietário atual e fiscais da unidade — estes sem opção de Preencher: divergência
+> entra por campo customizado). Colunas novas `obrigatorio_coleta` + `leitura_coleta` (campo_dominios
+> e campos_customizados), `coleta_campos_base_config`/`coleta_leitura` no tenant.data, payload com
+> `leitura` em tudo + `campos_base` legado derivado. Testes: 7/7 + 8/8 + 13/13 web · 10/10 + 21/21 Node.
 
 **Origem:** fluxo de 8 passos descrito pelo usuário (boletim → regiões → coleta offline → validação → tributário). Passos 1/2/4/5/7 já atendidos (boletim configurável, regiões, regras de status no app, offline, Produtividade). Frentes desta onda:
 

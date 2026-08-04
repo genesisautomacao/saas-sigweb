@@ -167,6 +167,44 @@ campo alterado em `coleta_imobiliaria.alteracoes` — alimenta o Relatório de V
 **App:** nova tela **"Meu Progresso"** no menu (coletados/pendentes/inconformidades/restantes/%
 + detalhe por quadra, calculada do SQLite — 100% offline) e contador `✅ X/Y · Z%` no mapa.
 
+### 5.1 Boletim com 3 ESTADOS por campo (spec final, 2026-08-04)
+
+Cada campo do Boletim tem um modo: **Não usar** · **Apenas leitura** · **Preencher**
+(+ obrigatório, só no Preencher — independente da obrigatoriedade do sistema web).
+No payload isso aparece assim:
+
+- `campos_padrao.<entidade>.<campo>` e `campos_customizados.<entidade>[]` ganharam
+  **`leitura: bool`** — `true` = o app mostra o valor atual sem editar (picker vira texto);
+  campo em "Não usar" simplesmente NÃO vem no payload.
+- **`campos_base_config`** — fotos, observação e área construída da edificação com o trio:
+```json
+"campos_base_config": {
+  "lote": {
+    "observacao":      { "na_coleta": true,  "leitura": true,  "obrigatorio": false },
+    "foto_frontal":    { "na_coleta": true,  "leitura": false, "obrigatorio": true  },
+    "foto_lateral_esq":{ "na_coleta": false, "leitura": false, "obrigatorio": false },
+    "foto_lateral_dir":{ "na_coleta": true,  "leitura": false, "obrigatorio": false }
+  },
+  "edificacao": { "area_geo": { "na_coleta": true, "leitura": true, "obrigatorio": false } }
+}
+```
+  Foto em leitura = só "Ver foto" (sem capturar); observação em leitura = texto; área em
+  leitura = linha `X m²`.
+- **`leitura`** — dados do CADASTRO OFICIAL exibidos para conferência, por entidade
+  (só Não mostrar/Apenas leitura no Boletim; divergência entra por campo customizado):
+```json
+"leitura": {
+  "lote":    [{ "campo": "area_geo", "label": "Área do lote (m²)" }],
+  "unidade": [{ "campo": "proprietario_nome", "label": "Proprietário atual (nome)" }, ...]
+}
+```
+  Opções da unidade: endereço, inscrição, código tributário, nome do edifício, proprietário
+  atual (nome/CPF — de `pessoas`, fallback JSON) e as colunas fiscais visíveis (rótulo
+  white-label). Defaults (nunca configurado) = o que o app sempre mostrou.
+- O app **só valida obrigatoriedade de campo visível E preenchível**; `campos_base` (lista
+  legada) segue no payload, DERIVADA (= visível E preenchível E obrigatório) — o app
+  publicado funciona sem update.
+
 ---
 
 ## Passo de implantação (importante)

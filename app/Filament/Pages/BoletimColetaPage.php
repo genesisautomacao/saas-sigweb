@@ -18,10 +18,17 @@ use Filament\Pages\Page;
 use Illuminate\Support\Arr;
 
 /**
- * R67-3 — Boletim de Coleta: define o que o cadastrador de rua preenche no app.
- * Fonte ÚNICA da configuração do boletim — lista todos os campos disponíveis
- * (padrão do sistema + customizados do município) e marca quais vão para o app e
- * quais são obrigatórios. Criar campos e renomear rótulos fica em "Customizações".
+ * R67-3 — Boletim de Coleta: define o que o cadastrador de rua vê e preenche no app.
+ *
+ * Spec final (usuário, 2026-08-04): TODOS os campos de lote, edificação e unidade
+ * aparecem aqui, cada um com o modo de uso — "Não usar" / "Apenas leitura" /
+ * "Preencher em campo" — e, quando Preencher, o toggle de Obrigatório (que é
+ * INDEPENDENTE da obrigatoriedade do sistema web). Dados vindos do cadastro
+ * oficial/tributário (proprietário atual, fiscais, área calculada) não oferecem
+ * "Preencher": divergência entra pelos campos customizados do município.
+ *
+ * Fonte ÚNICA da configuração do boletim. Criar campos e renomear rótulos fica
+ * em "Customizações".
  */
 class BoletimColetaPage extends Page implements HasForms
 {
@@ -50,18 +57,18 @@ class BoletimColetaPage extends Page implements HasForms
         return auth()->user()?->can('gerenciar_campos_customizados') ?? false;
     }
 
+    /** uso = 'nao' | 'leitura' | 'preencher' a partir das duas flags. */
+    protected static function usoDeFlags(bool $naColeta, bool $leitura): string
+    {
+        return ! $naColeta ? 'nao' : ($leitura ? 'leitura' : 'preencher');
+    }
+
     public function mount(): void
     {
         $tenant = Filament::getTenant();
-        $base = (array) data_get($tenant->data, 'coleta_campos_base', []);
+        $estado = [];
 
-        $estado = [
-            // Campos SEM configuração própria (fotos, observação): controlados pelo tenant.data
-            'base_lote' => (array) ($base['lote'] ?? []),
-        ];
-
-        // Campos padrão com domínio (aparecem/obrigatórios) — só entidades coletadas
-        // no app (unidade fica fora: dados fiscais são somente-leitura em campo)
+        // 1) Campos padrão com domínio (ex.: lote.ocupacao)
         foreach (CampoDominioService::PADROES as $entidade => $campos) {
             if (! in_array($entidade, CampoDominioService::ENTIDADES_NA_COLETA, true)) {
                 continue;
@@ -70,32 +77,85 @@ class BoletimColetaPage extends Page implements HasForms
                 $dominio = CampoDominio::where('entidade', $entidade)->where('campo', $campo)->first();
 
                 $estado["col_{$entidade}_{$campo}"] = [
-                    'na_coleta' => $dominio?->na_coleta ?? true,
-                    'obrigatorio_coleta' => $dominio?->obrigatorio_coleta ?? false,
+                    'uso' => self::usoDeFlags($dominio?->na_coleta ?? true, $dominio?->leitura_coleta ?? false),
+                    'obrigatorio' => (bool) ($dominio?->obrigatorio_coleta ?? false),
                 ];
             }
         }
 
-        // Campos customizados do município
+        // 2) Campos base (fotos/observação do lote, área construída da edificação)
+        foreach (ColetaConfigService::baseConfig($tenant) as $entidade => $campos) {
+            foreach ($campos as $campo => $cfg) {
+                $estado["base_{$entidade}_{$campo}"] = [
+                    'uso' => self::usoDeFlags($cfg['na_coleta'], $cfg['leitura']),
+                    'obrigatorio' => $cfg['obrigatorio'],
+                ];
+            }
+        }
+
+        // 3) Dados somente-leitura (área/testada do lote; cadastro+fiscais da unidade)
+        foreach (array_keys(ColetaConfigService::CAMPOS_LEITURA) as $entidade) {
+            $selecionados = array_column(ColetaConfigService::leitura($entidade, $tenant), 'campo');
+
+            foreach (array_keys(ColetaConfigService::opcoesLeitura($entidade, $tenant->id)) as $campo) {
+                $estado["leit_{$entidade}_{$campo}"] = [
+                    'uso' => in_array($campo, $selecionados, true) ? 'leitura' : 'nao',
+                ];
+            }
+        }
+
+        // 4) Campos customizados do município (as 3 entidades coletáveis)
         foreach (CampoCustomizado::ENTIDADES_COLETAVEIS as $entidade) {
             foreach (CampoCustomizadoService::definicoes($entidade) as $campo) {
-                $estado["cus_{$campo->id}"] = ['na_coleta' => (bool) $campo->na_coleta];
+                $estado["cus_{$campo->id}"] = [
+                    'uso' => self::usoDeFlags((bool) $campo->na_coleta, (bool) $campo->leitura_coleta),
+                    'obrigatorio' => (bool) $campo->obrigatorio_coleta,
+                ];
             }
         }
 
         $this->form->fill($estado);
     }
 
+    /**
+     * Fieldset padrão de um item do boletim: Select do modo de uso + Obrigatório
+     * (visível só no modo Preencher). $permitePreencher=false = dado do cadastro
+     * oficial (só Não mostrar / Apenas leitura).
+     */
+    protected function controle(string $path, string $rotulo, bool $permitePreencher, ?string $nota = null): Forms\Components\Fieldset
+    {
+        $opcoes = $permitePreencher
+            ? ['nao' => 'Não usar no app', 'leitura' => 'Apenas leitura', 'preencher' => 'Preencher em campo']
+            : ['nao' => 'Não mostrar no app', 'leitura' => 'Apenas leitura'];
+
+        $componentes = [
+            Forms\Components\Select::make("{$path}.uso")
+                ->label('Uso no app')
+                ->options($opcoes)
+                ->selectablePlaceholder(false)
+                ->live(),
+        ];
+
+        if ($permitePreencher) {
+            $componentes[] = Forms\Components\Toggle::make("{$path}.obrigatorio")
+                ->label('Obrigatório')
+                ->helperText($nota)
+                ->visible(fn (Forms\Get $get) => $get("{$path}.uso") === 'preencher')
+                ->default(false);
+        }
+
+        return Forms\Components\Fieldset::make($rotulo)->schema($componentes)->columns(2);
+    }
+
     public function form(Form $form): Form
     {
+        $tenant = Filament::getTenant();
         $secoes = [];
 
         foreach (Arr::only(CampoCustomizado::ENTIDADES, CampoCustomizado::ENTIDADES_COLETAVEIS) as $entidade => $rotuloEntidade) {
             $itens = [];
 
-            // 1) Campos padrão do sistema (com rótulo já personalizado pelo município).
-            // Unidade NÃO entra: seus campos padrão são fiscais (somente-leitura no app) —
-            // no boletim ela só aparece com os campos customizados do município.
+            // 1) Campos padrão do sistema (rótulo já personalizado pelo município)
             $padroesColetaveis = in_array($entidade, CampoDominioService::ENTIDADES_NA_COLETA, true)
                 ? array_keys(CampoDominioService::PADROES[$entidade] ?? [])
                 : [];
@@ -105,39 +165,47 @@ class BoletimColetaPage extends Page implements HasForms
                     continue; // município não usa este campo (Customizações → Campos Padrão)
                 }
 
-                $itens[] = Forms\Components\Fieldset::make(CampoDominioService::label($entidade, $campo))
-                    ->schema([
-                        Forms\Components\Toggle::make("col_{$entidade}_{$campo}.na_coleta")
-                            ->label('Preencher no app')->default(true),
-                        Forms\Components\Toggle::make("col_{$entidade}_{$campo}.obrigatorio_coleta")
-                            ->label('Obrigatório')->default(false),
-                    ])->columns(2);
+                $itens[] = $this->controle(
+                    "col_{$entidade}_{$campo}",
+                    CampoDominioService::label($entidade, $campo).' (campo padrão)',
+                    permitePreencher: true
+                );
             }
 
-            // 2) Fotos e observação do lote (campos base sem domínio próprio)
-            if ($entidade === 'lote') {
-                $itens[] = Forms\Components\CheckboxList::make('base_lote')
-                    ->label('Registros obrigatórios em campo')
-                    ->options(array_diff_key(
-                        ColetaConfigService::CAMPOS_BASE_LOTE,
-                        CampoDominioService::PADROES['lote'] ?? []
-                    ))
-                    ->columns(2)
-                    ->bulkToggleable()
-                    ->columnSpanFull();
+            // 2) Campos base da entidade (fotos, observação, área construída)
+            $basesEntidade = match ($entidade) {
+                'lote' => ColetaConfigService::CAMPOS_BASE_LOTE,
+                'edificacao' => ColetaConfigService::CAMPOS_BASE_EDIFICACAO,
+                default => [],
+            };
+
+            foreach ($basesEntidade as $campo => $rotuloCampo) {
+                if (isset(CampoDominioService::PADROES[$entidade][$campo])) {
+                    continue; // ex.: lote.ocupacao — já listado como campo padrão acima
+                }
+
+                $itens[] = $this->controle("base_{$entidade}_{$campo}", $rotuloCampo, permitePreencher: true);
             }
 
-            // 3) Campos customizados do município
-            $customizados = CampoCustomizadoService::definicoes($entidade);
-            foreach ($customizados as $campo) {
-                $itens[] = Forms\Components\Fieldset::make($campo->label.' (campo do município)')
-                    ->schema([
-                        Forms\Components\Toggle::make("cus_{$campo->id}.na_coleta")
-                            ->label('Preencher no app')->default(true),
-                        Forms\Components\Placeholder::make("cus_{$campo->id}_info")
-                            ->label('Obrigatório')
-                            ->content($campo->obrigatorio ? 'Sim (definido no cadastro do campo)' : 'Não'),
-                    ])->columns(2);
+            // 3) Dados do cadastro oficial/tributário — SOMENTE leitura ou ocultos
+            // (divergência é apontada nos campos customizados, nunca aqui)
+            foreach (ColetaConfigService::opcoesLeitura($entidade, $tenant?->id) as $campo => $rotuloCampo) {
+                $itens[] = $this->controle(
+                    "leit_{$entidade}_{$campo}",
+                    $rotuloCampo.' (dado do cadastro)',
+                    permitePreencher: false
+                );
+            }
+
+            // 4) Campos customizados do município — Obrigatório aqui é o DO BOLETIM,
+            // independente do `obrigatorio` do formulário web
+            foreach (CampoCustomizadoService::definicoes($entidade) as $campo) {
+                $itens[] = $this->controle(
+                    "cus_{$campo->id}",
+                    $campo->label.' (campo do município)',
+                    permitePreencher: true,
+                    nota: $campo->obrigatorio ? 'No sistema web: obrigatório' : 'No sistema web: opcional'
+                );
             }
 
             if (empty($itens)) {
@@ -157,16 +225,11 @@ class BoletimColetaPage extends Page implements HasForms
         $dados = $this->form->getState();
         $tenant = Filament::getTenant();
 
-        // Fotos/observação exigidas (merge no data — map_lat/mobile_layers moram lá)
-        $tenant->data = array_merge($tenant->data ?? [], [
-            'coleta_campos_base' => [
-                'lote' => array_values($dados['base_lote'] ?? []),
-                'edificacao' => [],
-            ],
-        ]);
-        $tenant->save();
+        $uso = fn (?array $estado): string => in_array($estado['uso'] ?? null, ['nao', 'leitura', 'preencher'], true)
+            ? $estado['uso']
+            : 'preencher';
 
-        // Campos padrão: só as flags de coleta (rótulo/valores/visibilidade ficam em Customizações)
+        // 1) Campos padrão: só as flags de coleta (rótulo/valores/visibilidade ficam em Customizações)
         foreach (CampoDominioService::PADROES as $entidade => $campos) {
             foreach (array_keys($campos) as $campo) {
                 $estado = $dados["col_{$entidade}_{$campo}"] ?? null;
@@ -175,6 +238,7 @@ class BoletimColetaPage extends Page implements HasForms
                     continue; // campo oculto pelo município — não altera
                 }
 
+                $modo = $uso($estado);
                 $atual = CampoDominio::where('entidade', $entidade)->where('campo', $campo)->first();
 
                 CampoDominio::updateOrCreate(
@@ -183,21 +247,78 @@ class BoletimColetaPage extends Page implements HasForms
                         'label' => $atual?->label,
                         'opcoes' => $atual?->opcoes,
                         'visivel' => $atual?->visivel ?? true,
-                        'na_coleta' => (bool) ($estado['na_coleta'] ?? true),
-                        'obrigatorio_coleta' => (bool) ($estado['obrigatorio_coleta'] ?? false),
+                        'na_coleta' => $modo !== 'nao',
+                        'leitura_coleta' => $modo === 'leitura',
+                        'obrigatorio_coleta' => $modo === 'preencher' && (bool) ($estado['obrigatorio'] ?? false),
                     ]
                 );
             }
         }
 
-        // Campos customizados: flag "aparece no app"
+        // 2) Campos base: flags novas + lista legada derivada (app publicado:
+        // exigido = visível E preenchível E obrigatório)
+        $baseCfg = [];
+        $legado = ['lote' => [], 'edificacao' => []];
+
+        foreach (['lote' => ColetaConfigService::CAMPOS_BASE_LOTE, 'edificacao' => ColetaConfigService::CAMPOS_BASE_EDIFICACAO] as $entidade => $campos) {
+            foreach (array_keys($campos) as $campo) {
+                $estado = $dados["base_{$entidade}_{$campo}"] ?? null;
+
+                if ($estado === null) {
+                    continue;
+                }
+
+                $modo = $uso($estado);
+                $obrigatorio = $modo === 'preencher' && (bool) ($estado['obrigatorio'] ?? false);
+
+                $baseCfg[$entidade][$campo] = [
+                    'na_coleta' => $modo !== 'nao',
+                    'leitura' => $modo === 'leitura',
+                    'obrigatorio' => $obrigatorio,
+                ];
+
+                if ($obrigatorio) {
+                    $legado[$entidade][] = $campo;
+                }
+            }
+        }
+
+        // 3) Dados somente-leitura por entidade
+        $leituraSelecao = [];
+
+        foreach (array_keys(ColetaConfigService::CAMPOS_LEITURA) as $entidade) {
+            $leituraSelecao[$entidade] = [];
+
+            foreach (array_keys(ColetaConfigService::opcoesLeitura($entidade, $tenant->id)) as $campo) {
+                if ($uso($dados["leit_{$entidade}_{$campo}"] ?? ['uso' => 'nao']) === 'leitura') {
+                    $leituraSelecao[$entidade][] = $campo;
+                }
+            }
+        }
+
+        $tenant->data = array_merge($tenant->data ?? [], [
+            'coleta_campos_base_config' => $baseCfg,
+            'coleta_campos_base' => $legado,
+            'coleta_leitura' => $leituraSelecao,
+        ]);
+        $tenant->save();
+
+        // 4) Campos customizados
         foreach (CampoCustomizado::ENTIDADES_COLETAVEIS as $entidade) {
             foreach (CampoCustomizadoService::definicoes($entidade) as $campo) {
                 $estado = $dados["cus_{$campo->id}"] ?? null;
 
-                if ($estado !== null) {
-                    CampoCustomizado::whereKey($campo->id)->update(['na_coleta' => (bool) ($estado['na_coleta'] ?? true)]);
+                if ($estado === null) {
+                    continue;
                 }
+
+                $modo = $uso($estado);
+
+                CampoCustomizado::whereKey($campo->id)->update([
+                    'na_coleta' => $modo !== 'nao',
+                    'leitura_coleta' => $modo === 'leitura',
+                    'obrigatorio_coleta' => $modo === 'preencher' && (bool) ($estado['obrigatorio'] ?? false),
+                ]);
             }
         }
 
