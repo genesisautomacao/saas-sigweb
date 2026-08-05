@@ -34,7 +34,7 @@ class ProdutividadePage extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('view_produtividade') ?? false;
+        return auth()->user()?->temPermissao('view_produtividade') ?? false;
     }
 
     public int $tenantId = 0;

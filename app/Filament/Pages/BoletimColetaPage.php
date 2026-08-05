@@ -54,7 +54,7 @@ class BoletimColetaPage extends Page implements HasForms
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('gerenciar_campos_customizados') ?? false;
+        return auth()->user()?->temPermissao('gerenciar_campos_customizados') ?? false;
     }
 
     /** uso = 'nao' | 'leitura' | 'preencher' a partir das duas flags. */

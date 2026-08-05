@@ -27,7 +27,7 @@ class ProdutividadeResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('view_produtividade') ?? false;
+        return auth()->user()?->temPermissao('view_produtividade') ?? false;
     }
 
     public static function canCreate(): bool

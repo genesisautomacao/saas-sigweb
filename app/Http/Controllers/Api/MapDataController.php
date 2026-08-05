@@ -457,14 +457,24 @@ class MapDataController extends Controller
 
             case 'coleta':
                 // Camada de COLETA DE DADOS — lotes coloridos por status_cadastro. Self-contained
-                // (não depende da camada 'lotes' estar carregada).
+                // (não depende da camada 'lotes' estar carregada). O LEFT JOIN da coleta vigente
+                // traz o PONTO GPS da inconformidade (marcado pelo app), que vira um PIN no mapa.
+                $campanhaColeta = \App\Models\ColetaImobiliaria::CAMPANHA_PADRAO;
+
                 $rows = DB::table('lotes')
-                    ->where('tenant_id', $tenantId)
-                    ->whereNull('deleted_at')
-                    ->whereNotNull('geo')
-                    ->selectRaw("id, numero_lote,
-                        COALESCE(status_cadastro, 'nao_visitado') as status_cadastro,
-                        ST_AsGeoJSON(geo, 6) as geo_json")
+                    ->leftJoin('coleta_imobiliaria as ci', function ($join) use ($campanhaColeta) {
+                        $join->on('ci.coletavel_id', '=', 'lotes.id')
+                            ->where('ci.coletavel_type', '=', 'App\\Models\\Lote')
+                            ->where('ci.campanha', '=', $campanhaColeta)
+                            ->whereNull('ci.deleted_at');
+                    })
+                    ->where('lotes.tenant_id', $tenantId)
+                    ->whereNull('lotes.deleted_at')
+                    ->whereNotNull('lotes.geo')
+                    ->selectRaw("lotes.id, lotes.numero_lote,
+                        COALESCE(lotes.status_cadastro, 'nao_visitado') as status_cadastro,
+                        ci.inconformidade_descricao, ci.inconformidade_ponto,
+                        ST_AsGeoJSON(lotes.geo, 6) as geo_json")
                     ->get();
 
                 $features = [];
@@ -483,6 +493,27 @@ class MapDataController extends Controller
                         ],
                         'geometry' => $geom,
                     ];
+
+                    // PIN da inconformidade — só quando o app capturou o ponto GPS
+                    // (o coletor marca ONDE viu o problema, nem sempre o centro do lote)
+                    $ponto = $row->inconformidade_ponto ? json_decode($row->inconformidade_ponto, true) : null;
+                    if ($row->status_cadastro === 'inconformidade' && isset($ponto['lat'], $ponto['lon'])) {
+                        $features[] = [
+                            'type' => 'Feature',
+                            'properties' => [
+                                'id'          => $row->id,
+                                'layer'       => 'coleta',
+                                'tipo'        => 'inconformidade_pin',
+                                'numero_lote' => $row->numero_lote,
+                                'descricao'   => $row->inconformidade_descricao,
+                                'status_cadastro' => 'inconformidade',
+                            ],
+                            'geometry' => [
+                                'type' => 'Point',
+                                'coordinates' => [(float) $ponto['lon'], (float) $ponto['lat']],
+                            ],
+                        ];
+                    }
                 }
                 $data = ['type' => 'FeatureCollection', 'features' => $features];
                 break;

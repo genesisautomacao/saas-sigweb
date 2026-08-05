@@ -245,6 +245,25 @@ document.addEventListener("DOMContentLoaded", function () {
             style: function (feature) {
                 const st = feature.get("status_cadastro") || "nao_visitado";
                 if (!coletaStatusAtivos.includes(st)) return null; // um toggle por status
+
+                // 📍 PIN da inconformidade — ponto GPS marcado pelo coletor no app
+                // (nem sempre é o centro do lote). Clique mostra a descrição.
+                if (feature.get("tipo") === "inconformidade_pin") {
+                    return new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: 9,
+                            fill: new ol.style.Fill({ color: "#DC2626" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 2.5 }),
+                        }),
+                        text: new ol.style.Text({
+                            text: "!",
+                            font: "bold 13px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: "#ffffff" }),
+                        }),
+                        zIndex: 99,
+                    });
+                }
+
                 const cor = CORES_STATUS_COLETA[st] || "#9CA3AF";
                 let r = 156, g = 163, b = 175;
                 if (/^#[0-9a-fA-F]{6}$/.test(cor)) {
@@ -2366,6 +2385,39 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
+    // 📍 Popup do PIN de inconformidade (camada Coleta de Dados) — criado sob demanda
+    let inconfOverlay = null;
+    function mostrarPopupInconformidade(coordinate, numeroLote, descricao) {
+        if (!inconfOverlay) {
+            const el = document.createElement("div");
+            el.style.cssText =
+                "background:#fff;border:2px solid #DC2626;border-radius:10px;padding:10px 14px;max-width:280px;box-shadow:0 4px 14px rgba(0,0,0,.28);font-size:12.5px;color:#374151;";
+            inconfOverlay = new ol.Overlay({
+                element: el,
+                offset: [0, -16],
+                positioning: "bottom-center",
+            });
+            map.addOverlay(inconfOverlay);
+            el.addEventListener("click", (ev) => {
+                if (ev.target.classList.contains("inconf-fechar")) {
+                    inconfOverlay.setPosition(undefined);
+                }
+            });
+        }
+
+        const el = inconfOverlay.getElement();
+        const descSegura = descricao
+            ? String(descricao).replace(/</g, "&lt;")
+            : "Sem descrição registrada.";
+        el.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px;">
+                <strong style="color:#DC2626;">⚠️ Inconformidade — Lote ${numeroLote || "s/n"}</strong>
+                <span class="inconf-fechar" style="cursor:pointer;color:#9ca3af;font-weight:bold;padding:0 2px;">✕</span>
+            </div>
+            <div>${descSegura}</div>`;
+        inconfOverlay.setPosition(coordinate);
+    }
+
     map.on("singleclick", function (evt) {
         //trava para modo de consulta de unificação
         if (window.modoUnificacao) return;
@@ -3120,6 +3172,19 @@ document.addEventListener("DOMContentLoaded", function () {
         const features = map.getFeaturesAtPixel(evt.pixel, { hitTolerance: 5 });
 
         if (features && features.length > 0) {
+            // 📍 PIN de inconformidade da coleta — prioridade máxima: abre a descrição
+            const pinInconf = features.find(
+                (f) => f.get("tipo") === "inconformidade_pin",
+            );
+            if (pinInconf) {
+                mostrarPopupInconformidade(
+                    evt.coordinate,
+                    pinInconf.get("numero_lote"),
+                    pinInconf.get("descricao"),
+                );
+                return;
+            }
+
             // 🛑 HIERARQUIA INTELIGENTE DE CLIQUES: Quem estiver mais no topo da lista "rouba" o clique!
             const clickPriority = [
                 "edificacao_ativa", // Modo edição ganha de tudo

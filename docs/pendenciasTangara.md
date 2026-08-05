@@ -335,6 +335,11 @@ Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unid
 > entra por campo customizado). Colunas novas `obrigatorio_coleta` + `leitura_coleta` (campo_dominios
 > e campos_customizados), `coleta_campos_base_config`/`coleta_leitura` no tenant.data, payload com
 > `leitura` em tudo + `campos_base` legado derivado. Testes: 7/7 + 8/8 + 13/13 web · 10/10 + 21/21 Node.
+>
+> **Ajustes do teste em campo (2026-08-05):** botões do mapa do app reorganizados (Sync/Atualizar no canto
+> inferior direito — fim das sobreposições); Salvar desabilitado com status "Não visitado"; **pin vermelho de
+> inconformidade** na camada Coleta do mapa web (ponto GPS do coletor, popup com a descrição — 5/5 no teste).
+> Decisão: divergência de proprietário PERMANECE por slug do kit (convenção documentada), sem status novo.
 
 **Origem:** fluxo de 8 passos descrito pelo usuário (boletim → regiões → coleta offline → validação → tributário). Passos 1/2/4/5/7 já atendidos (boletim configurável, regiões, regras de status no app, offline, Produtividade). Frentes desta onda:
 

@@ -167,6 +167,20 @@ campo alterado em `coleta_imobiliaria.alteracoes` — alimenta o Relatório de V
 **App:** nova tela **"Meu Progresso"** no menu (coletados/pendentes/inconformidades/restantes/%
 + detalhe por quadra, calculada do SQLite — 100% offline) e contador `✅ X/Y · Z%` no mapa.
 
+**Ajustes 2026-08-05 (teste do usuário):** botões do mapa reorganizados (Sync no canto
+inferior direito, Atualizar acima dele, chat no topo direito — nada sobrepõe o banner de
+região nem o pill de progresso); **Salvar Ficha fica desabilitado enquanto o status for
+"Não visitado"** (salvar exige escolher Coletado, Pendente ou Inconformidade — regra 4d).
+No mapa WEB, a camada Coleta de Dados ganhou o **pin vermelho da inconformidade** no ponto
+GPS marcado pelo coletor (clique abre a descrição; coleta antiga sem ponto fica só com a cor).
+
+> ⚠️ **Convenção (decisão do usuário, 2026-08-05):** o quadro "Divergências de Proprietário"
+> da Validação da Coleta é ancorado nos **slugs do kit** `unidade.proprietario_divergente` e
+> `unidade.cpf_cnpj_divergente`. Município sem esses campos (kit não aplicado ou slug
+> diferente) não tem o quadro especial — as alterações continuam no antes→depois normal.
+> Para ativar: rodar `php artisan db:seed --class=KitCamposCustomizadosSeeder` ou criar os
+> campos com esses identificadores exatos.
+
 ### 5.1 Boletim com 3 ESTADOS por campo (spec final, 2026-08-04)
 
 Cada campo do Boletim tem um modo: **Não usar** · **Apenas leitura** · **Preencher**

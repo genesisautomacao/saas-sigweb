@@ -38,6 +38,25 @@ class User extends Authenticatable implements FilamentUser, HasTenants
     }
 
     /**
+     * Checagem de permissão À PROVA de permissão inexistente no banco.
+     *
+     * ⚠️ Incidente de produção (2026-08-05): `hasPermissionTo()`/`can()` do Spatie
+     * LANÇAM PermissionDoesNotExist quando o nome não está na tabela `permissions`
+     * (deploy sem rodar o PermissionsSeeder) — e como Policies/canAccess rodam na
+     * montagem do menu, TODA tela quebrava para usuários sem bypass. Aqui, permissão
+     * não semeada = simplesmente "não pode" (falha fechada, sem 500).
+     * Use este método em Policies e canAccess de Pages/Resources.
+     */
+    public function temPermissao(string $permissao): bool
+    {
+        try {
+            return $this->can($permissao);
+        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist) {
+            return false;
+        }
+    }
+
+    /**
      * Papéis GLOBAIS (roles.tenant_id = null) que dão acesso ao painel /admin do SaaS.
      * Master = super administrador (bypass total via Gate::before).
      * Operador = acesso restrito às capacidades marcadas no cadastro do usuário.
