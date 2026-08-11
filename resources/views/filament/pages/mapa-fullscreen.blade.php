@@ -121,11 +121,15 @@
 
             {{-- Painel principal de pesquisa e botões --}}
             <div
-                class="gis-topbar flex items-center gap-2 pointer-events-auto p-1.5 rounded-2xl max-w-4xl w-full mx-4">
+                class="gis-topbar flex items-center gap-2 pointer-events-auto p-1.5 rounded-2xl max-w-4xl w-full mx-4"
+                style="max-width: 68rem;">
+                {{-- max-width inline: os botões de zoom (itens 77/78) apertaram a barra
+                     e o flex espremia a BUSCA — mesma correção do mapa público (2026-08-06) --}}
 
                 {{-- Busca Integrada com AUTOCOMPLETE (Alpine.js) --}}
                 <div x-data="loteSearch()"
                     class="relative flex items-center flex-1 min-w-[200px] border-r border-gray-100 dark:border-gray-700 px-2"
+                    style="flex: 1 1 260px; min-width: 220px;"
                     x-ref="inputWrapper">
                     <x-heroicon-o-magnifying-glass class="w-5 h-5 text-gray-400 mr-2" />
                     <input type="text" x-model="termo" @input.debounce.500ms="buscar(); posicionarDropdown()"
@@ -197,19 +201,32 @@
                 {{-- FERRAENTAS SOLTAS NA BARRA PRINCIPAL --}}
                 <div class="flex items-center gap-1 px-1">
 
-                    {{-- BOTÃO FILTRO AVANÇADO --}}
-                    <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }"
-                        x-on:click="$wire.mountAction('filtroAvancadoAction')"
-                        class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                        title="Filtro Avançado / Tematização">
-                        <x-heroicon-o-funnel class="w-5 h-5" />
-                    </button>
+                    {{-- BOTÃO FILTRO AVANÇADO + ESTATÍSTICAS — gated por toolbar_filtros
+                         (item 86: perfil sem a permissão não vê nem usa; Master/Manager
+                         passam pelo Gate::before) --}}
+                    @if (auth()->user()?->temPermissao('toolbar_filtros'))
+                        <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }"
+                            x-on:click="$wire.mountAction('filtroAvancadoAction')"
+                            class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                            title="Filtro Avançado / Tematização">
+                            <x-heroicon-o-funnel class="w-5 h-5" />
+                        </button>
 
-                    {{-- BOTÃO ESTATÍSTICAS --}}
-                    <button type="button" x-on:click="$wire.mountAction('estatisticasAction')"
-                        class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                        title="Estatísticas por Área">
-                        <x-heroicon-o-chart-bar class="w-5 h-5" />
+                        <button type="button" x-on:click="$wire.mountAction('estatisticasAction')"
+                            class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                            title="Estatísticas por Área">
+                            <x-heroicon-o-chart-bar class="w-5 h-5" />
+                        </button>
+                    @endif
+
+                    {{-- ZOOM IN/OUT (itens 77/78 do TR — além do scroll do mouse) --}}
+                    <button onclick="window.zoomMais()" title="Aproximar (Zoom In)"
+                        class="p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                        <x-heroicon-o-magnifying-glass-plus class="w-5 h-5" />
+                    </button>
+                    <button onclick="window.zoomMenos()" title="Afastar (Zoom Out)"
+                        class="p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                        <x-heroicon-o-magnifying-glass-minus class="w-5 h-5" />
                     </button>
 
                     {{-- ZOOM EXTENSÃO + VISÃO ANTERIOR --}}
@@ -285,14 +302,17 @@
 
                     <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
 
-                    {{-- DROPDOWN DE CRIAÇÃO (COM SANFONA) (permissão toolbar_criar_artefatos) --}}
+                    {{-- DROPDOWN DE CRIAÇÃO (COM SANFONA) — gated por toolbar_criar_artefatos
+                         (item 87: o gatilho só aparece com a permissão do perfil) --}}
                     <div id="toolbar-criar-artefatos" x-data="{ openDraw: false, activeTabDraw: 'urbano' }" class="relative">
+                        @if (auth()->user()?->temPermissao('toolbar_criar_artefatos'))
                         <button type="button" @click="openDraw = !openDraw" @click.outside="openDraw = false"
                             title="Desenhar no Mapa"
                             class="p-2 hover:bg-primary-100 dark:hover:bg-primary-900/20 rounded-xl text-gray-600 dark:text-gray-400 transition-colors focus:outline-none flex items-center gap-1">
                             <x-heroicon-o-pencil-square class="w-5 h-5" />
                             <x-heroicon-o-chevron-down class="w-3 h-3" />
                         </button>
+                        @endif
 
                         {{-- A LARGURA FOI FIXADA VIA STYLE INLINE (360px) --}}
                         <div x-show="openDraw" style="display: none; width: 300px;"
@@ -546,14 +566,16 @@
                     {{-- GRUPO FERRAMENTAS (permissão toolbar_ferramentas) --}}
                     <div id="toolbar-ferramentas" class="flex items-center gap-0.5">
 
-                        {{-- 🛠️ DROPDOWN DE FERRAMENTAS 🛠️ --}}
+                        {{-- 🛠️ DROPDOWN DE FERRAMENTAS 🛠️ — gated por toolbar_ferramentas (item 87) --}}
                         <div x-data="{ openTools: false }" class="relative">
+                            @if (auth()->user()?->temPermissao('toolbar_ferramentas'))
                             <button @click="openTools = !openTools" @click.outside="openTools = false"
                                 title="Ferramentas Avançadas"
                                 class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors focus:outline-none flex items-center gap-1">
                                 <x-heroicon-o-wrench-screwdriver class="w-5 h-5" />
                                 <x-heroicon-o-chevron-down class="w-3 h-3" />
                             </button>
+                            @endif
                             <div x-show="openTools" style="display: none;"
                                 class="fixed mt-2 w-[240px] bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-[9999]"
                                 style="left: 360px;"> {{-- Ajuste a posição left se precisar --}}
@@ -709,10 +731,18 @@
                                         ];
                                     @endphp
 
+                                    {{-- Recorte por desenho (pedido do usuário, 2026-08-06): com o
+                                         check ligado, escolher a camada inicia o desenho de um
+                                         polígono no mapa e o SHP sai só com o que intersecta. --}}
+                                    <label style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 12px; color: #374151; border-bottom: 1px dashed #e5e7eb; cursor: pointer; user-select: none;">
+                                        <input type="checkbox" id="shp-recorte-chk" style="accent-color: #10b981;">
+                                        ✏️ Recortar por desenho no mapa
+                                    </label>
+
                                     <div style="max-height: 240px; overflow-y: auto;">
                                         @foreach ($camadasShp as $key => $label)
                                             <button
-                                                @click="$dispatch('exportar-camada-shp', { layer: '{{ $key }}' }); open = false"
+                                                @click="$dispatch('exportar-camada-shp', { layer: '{{ $key }}', recorte: document.getElementById('shp-recorte-chk')?.checked || false }); open = false"
                                                 style="width: 100%; text-align: left; background: none; border: none; padding: 6px 12px; font-size: 12px; color: #374151; display: flex; align-items: center; gap: 8px; cursor: pointer;"
                                                 class="hover:bg-emerald-50 rounded-lg">
                                                 <x-heroicon-o-arrow-down-tray class="w-4 h-4 text-emerald-500" />

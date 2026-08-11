@@ -311,6 +311,17 @@ Botão "Viabilidade de Parcelamento" na ficha pública do imóvel → mesmo moto
 
 Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unidades/edificações/testadas), Quadra, Logradouro/Seções, Setor, Distrito, Bairro, Zoneamento e Meio-fio — transação única + registro Antes/Depois no activitylog. Incluir entidade **Piscina** leve (molde `MeioFio`, polígono) para cobrir a lista do edital.
 
+#### ~~T2.8 — Correções do reteste manual da PoC (lista testada do usuário)~~
+**Origem:** dúvidas/erros anotados pelo usuário em `lista_texto_poc_tangara_testada.txt` (2026-08-06) · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-06 · Testes: 10/10 (bateria C, transação revertida) + blades compiladas + engines com sintaxe validada.
+- **I-12:** aba **Imóveis** no `PessoaResource` (`Pessoa::unidadesImobiliarias()` via `proprietario_id` + `ImoveisRelationManager` read-only).
+- **I-59/60:** testadas do desmembramento/unificação agora filtram por **ÂNGULO** (`PosEdicaoLoteService::segmentosParalelosARua` — perímetro decomposto em segmentos; só os ≈paralelos ao eixo da rua, ≤35°, viram testada; fim do "L" das laterais). Meio de quadra: 1 testada = frente exata; esquina: 2 testadas + sugestão "Esquina".
+- **I-77/78 (+ Internet 24/25):** botões **Zoom in/out** (`window.zoomMais/zoomMenos`) nos DOIS mapas.
+- **I-86/87:** os **4 grupos da barra** do mapa gated de verdade (eram só comentários): Filtro+Estatísticas (`toolbar_filtros`), Criar artefatos (`toolbar_criar_artefatos`), Ferramentas (`toolbar_ferramentas`) — via `temPermissao()`.
+- **I-30 (novo recurso):** export SHP com **recorte por desenho** — checkbox no menu, polígono no mapa, rota aceita POST (`drawn_geometry` validado; `ST_Intersects`), 4.437→2 feições no teste.
+- Respostas registradas item a item na própria `lista_texto_poc_tangara_testada.txt` (Bing→Azure, cruzamento espacial, SHP por camada). QGIS (Téc-3): diagnóstico com prints — conexão criada no provedor WMS/WMTS (errado) + WFS mínimo não atende o provedor nativo; workaround GeoJSON documentado; upgrade no T3.1.
+- **I-60 round 2 (2026-08-06):** o motor formal de unificação estava correto (reprodução fiel 7/7); o defeito relatado era o **"Unir" do CAD** (item 043), que soft-deletava as origens e criava lote novo genérico. Correção: `PosEdicaoLoteService::herdarLotesUnidos()` (herança de unidades/edificações com guard `ST_Intersects` + mesmo pós-processo), acionado via `MapaFullscreen::$unirLotesOrigemIds` (setado no `excluirArtefatosUnir`) e consumido no `criarLoteAction` — 8/8 no teste.
+
 #### ~~T2.7 — Performance do carregamento de camadas do mapa (N+1 do geo_json + gzip)~~
 **Origem:** lentidão relatada pelo usuário (2026-08-06) em municípios de 5-6 mil lotes · **Status:** ✅ Concluído
 **Concluído em:** 2026-08-06 · Medido: lotes de Bom Princípio (6.610) **11,9 s → 0,31 s** (38×); Santa Cecília (4.435) **9,0 s → 0,21 s**; edificações 2,5 s → 0,77 s. Causa: accessor `geo_json` = 1 query/registro, acessado 3× por item nos loops do `MapDataController` (~20 mil queries por carregamento). Correção: `ST_AsGeoJSON` em **1 query por camada** (`buildFeatureCollection` + cases lotes/patrimônios/REURB). Extra: middleware [ComprimirJsonMapa](../app/Http/Middleware/ComprimirJsonMapa.php) nas rotas `gis-data`/`advanced-query` (3,7 MB → 0,47 MB na rede; 7/7 no teste). **Evolução futura registrada:** vector tiles (MVT) para municípios 50 mil+ lotes.
@@ -357,10 +368,10 @@ Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unid
 
 ## Etapa 3 — Complexa (16–24 h) → 122/124 (98,4%)
 
-#### T3.1 — WMS servidor no endpoint OGC
+#### T3.1 — WMS servidor no endpoint OGC + WFS "nível QGIS"
 **Item PoC:** 1-3 · **Esforço:** 16–24 h · **Status:** ⏳ Pendente
 
-`OgcController` hoje só serve WFS. Implementar `GetCapabilities` + `GetMap` WMS. Rota recomendada para a PoC: renderização PNG em PHP (GD) a partir do PostGIS. Evolução futura: sidecar GeoServer/QGIS Server com proxy autenticado por tenant.
+`OgcController` hoje só serve WFS mínimo (GetCapabilities + GetFeature em GeoJSON). Implementar: (a) **WMS** `GetCapabilities` + `GetMap` (renderização PNG em PHP/GD a partir do PostGIS); (b) **WFS compatível com o provedor nativo do QGIS** — diagnóstico de 2026-08-06 com prints do engenheiro: além do erro de uso (conexão criada como WMS/WMTS), o provedor WFS nativo exige `DescribeFeatureType`, capabilities com a seção `<Capability><Request>` (endpoints DCPType) e formato de saída anunciado (GML2/GeoJSON). Workaround documentado na lista testada: carregar as camadas no QGIS via "Protocolo HTTP(S) → GeoJSON" com a URL do GetFeature. Evolução futura: sidecar GeoServer/QGIS Server com proxy autenticado por tenant.
 
 > **T3.2 (EAV)** foi movido para o **Plano de Ação Futura** como item **F2** (decisão D2 de 2026-07-08) — ver seção logo abaixo dos contadores.
 

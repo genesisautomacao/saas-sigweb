@@ -195,6 +195,8 @@ class PessoaResource extends Resource
     public static function getRelations(): array
     {
         return [
+            // TR Tangará #12 — imóveis onde a pessoa é proprietária
+            PessoaResource\RelationManagers\ImoveisRelationManager::class,
             PessoaResource\RelationManagers\ContatosRelationManager::class,
             PessoaResource\RelationManagers\EnderecosRelationManager::class,
             PessoaResource\RelationManagers\DocumentosRelationManager::class,

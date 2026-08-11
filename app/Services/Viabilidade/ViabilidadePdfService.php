@@ -134,6 +134,35 @@ class ViabilidadePdfService
         }
     }
 
+    /**
+     * Item Internet 14 ("Viabilidade com IMAGEM, croqui, ...") — foto frontal
+     * do imóvel em base64 p/ o DomPDF (mesmo padrão do BicPdfService).
+     * Resolvida na hora do render (não vai ao snapshot): a reimpressão sai
+     * com a foto vigente do lote; sem foto = seção não aparece (degradação limpa).
+     */
+    protected function fotoFrontalBase64(array $dadosAnalise): ?string
+    {
+        $loteId = $dadosAnalise['lote_id'] ?? null;
+        if (! $loteId) {
+            return null;
+        }
+
+        try {
+            $fotoPath = \Illuminate\Support\Facades\DB::table('lotes')
+                ->where('id', $loteId)->value('foto_frontal');
+
+            $disk = \Illuminate\Support\Facades\Storage::disk('public');
+            if ($fotoPath && $disk->exists($fotoPath)) {
+                return 'data:'.$disk->mimeType($fotoPath).';base64,'
+                    .base64_encode($disk->get($fotoPath));
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Viabilidade: falha ao carregar foto frontal — '.$e->getMessage());
+        }
+
+        return null;
+    }
+
     protected function recuperarMapa(string $protocolo): ?string
     {
         try {
@@ -167,10 +196,11 @@ class ViabilidadePdfService
         $fileName = 'viabilidade-' . $numeroLoteSeguro . '.pdf';
 
         $mapImage = $mapImageBase64;
+        $fotoFrontal = $this->fotoFrontalBase64($dadosAnalise);
 
         $pdf = Pdf::loadView(
             'pdf.viabilidade-template',
-            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImage', 'urlValidacao')
+            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImage', 'urlValidacao', 'fotoFrontal')
         );
         $pdf->setPaper('a4', 'portrait');
 
@@ -196,10 +226,11 @@ class ViabilidadePdfService
         $fileName = 'parcelamento-' . $numeroLoteSeguro . '.pdf';
 
         $mapImage = $mapImageBase64;
+        $fotoFrontal = $this->fotoFrontalBase64($dadosAnalise);
 
         $pdf = Pdf::loadView(
             'pdf.viabilidade-parcelamento',
-            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImage', 'urlValidacao')
+            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImage', 'urlValidacao', 'fotoFrontal')
         );
         $pdf->setPaper('A4', 'portrait');
 
@@ -222,6 +253,7 @@ class ViabilidadePdfService
         $urlValidacao = url("/v/{$protocolo}");
         // T1.5 (item 3-14): recupera o print do mapa persistido na emissão original.
         $mapImage    = $this->recuperarMapa($protocolo);
+        $fotoFrontal = $this->fotoFrontalBase64($dadosAnalise);
 
         $view = match ($emissao->tipo) {
             'parcelamento' => 'pdf.viabilidade-parcelamento',
@@ -232,7 +264,7 @@ class ViabilidadePdfService
         $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote'] ?? 'S-N');
         $fileName = 'reimpr-' . $protocolo . '-' . $numeroLoteSeguro . '.pdf';
 
-        $pdf = Pdf::loadView($view, compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImage', 'urlValidacao'));
+        $pdf = Pdf::loadView($view, compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImage', 'urlValidacao', 'fotoFrontal'));
         $pdf->setPaper('a4', 'portrait');
 
         return response()->streamDownload(function () use ($pdf) {
@@ -256,9 +288,11 @@ class ViabilidadePdfService
         $numeroLoteSeguro = str_replace(['/', '\\'], '-', $dadosAnalise['numero_lote'] ?? 'S-N');
         $fileName = 'unificacao-' . $numeroLoteSeguro . '.pdf';
 
+        $fotoFrontal = $this->fotoFrontalBase64($dadosAnalise);
+
         $pdf = Pdf::loadView(
             'pdf.viabilidade-unificacao',
-            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImageBase64', 'urlValidacao')
+            compact('dadosAnalise', 'tenant', 'dataHora', 'protocolo', 'mapImageBase64', 'urlValidacao', 'fotoFrontal')
         );
         $pdf->setPaper('A4', 'portrait');
 

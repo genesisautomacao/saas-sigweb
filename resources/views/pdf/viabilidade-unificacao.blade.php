@@ -59,6 +59,13 @@
         </div>
     </div>
 
+    @if($fotoFrontal ?? null)
+        <div class="box" style="text-align: center;">
+            <h3>Imagem do Imóvel (Fachada)</h3>
+            <img src="{{ $fotoFrontal }}" style="max-width: 100%; max-height: 230px; border: 1px solid #999;">
+        </div>
+    @endif
+
     @if($mapImageBase64)
         <div class="box" style="text-align: center;">
             <h3>Croqui de Unificação</h3>

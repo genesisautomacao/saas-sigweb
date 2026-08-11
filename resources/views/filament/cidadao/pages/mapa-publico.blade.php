@@ -97,11 +97,15 @@
             </div>
 
             <div
-                class="gis-topbar flex items-center gap-2 pointer-events-auto p-1.5 rounded-2xl max-w-2xl w-full mx-4">
+                class="gis-topbar flex items-center gap-2 pointer-events-auto p-1.5 rounded-2xl max-w-2xl w-full mx-4"
+                style="max-width: 56rem;">
+                {{-- max-width inline: os botões de zoom (itens 24/25) estouravam os 672px
+                     do max-w-2xl e o flex espremia a BUSCA até sumir (2026-08-06) --}}
 
                 {{-- Busca Integrada com AUTOCOMPLETE (Alpine.js original seu) --}}
                 <div x-data="loteSearch()"
                     class="relative flex items-center flex-1 min-w-[200px] border-r border-gray-100 dark:border-gray-700 px-2"
+                    style="flex: 1 1 220px; min-width: 200px;"
                     x-ref="inputWrapper">
                     <x-heroicon-o-magnifying-glass class="w-5 h-5 text-gray-400 mr-2" />
                     <input type="text" x-model="termo" @input.debounce.500ms="buscar(); posicionarDropdown()"
@@ -163,6 +167,23 @@
                 </button>
 
                 <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
+                {{-- ZOOM IN/OUT (itens 24/25 do TR Internet) — no celular ficam ocultos
+                     (pinça/scroll cobrem) para a busca nunca ser espremida --}}
+                <button onclick="window.zoomMais()" title="Aproximar (Zoom In)"
+                    class="btn-zoom-passo p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                    <x-heroicon-o-magnifying-glass-plus class="w-5 h-5" />
+                </button>
+                <button onclick="window.zoomMenos()" title="Afastar (Zoom Out)"
+                    class="btn-zoom-passo p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                    <x-heroicon-o-magnifying-glass-minus class="w-5 h-5" />
+                </button>
+                <style>
+                    /* Telas estreitas: esconde o zoom por botão para preservar a busca */
+                    @media (max-width: 768px) {
+                        .btn-zoom-passo { display: none !important; }
+                    }
+                </style>
 
                 {{-- ZOOM EXTENSÃO + VISÃO ANTERIOR --}}
                 <button onclick="window.zoomExtensao()" title="Visão Geral (Zoom Extensão)"

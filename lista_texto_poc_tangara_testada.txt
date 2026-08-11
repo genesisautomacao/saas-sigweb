@@ -1,6 +1,6 @@
 ================================================================================
 POC TANGARÁ/SC — LISTA TESTADA ITEM A ITEM
-Data dos testes: 2026-08-05 · Base: prefeitura-de-santa-cecilia (tenant 1, local)
+Data dos testes: 2026-08-05 a 2026-08-11 · Base: prefeitura-de-santa-cecilia (tenant 1, local)
 Método: 61 verificações AUTOMÁTICAS via tinker (transação revertida — nada gravado)
         + inspeção de código para itens visuais, com roteiro de teste manual.
 Legenda:  [TESTADO ✅]  = testado automaticamente por aqui, com resultado real
@@ -9,16 +9,28 @@ Legenda:  [TESTADO ✅]  = testado automaticamente por aqui, com resultado real
           [PENDENTE ❌] = não implementado (registrado no backlog)
 ================================================================================
 
-RESUMO EXECUTIVO (124 itens no total)
-- TESTADOS automaticamente ✅ ......... 74 itens  (59,7%)
-- MANUAIS 🖱️ (existem; validar na tela) 47 itens  (37,9%)
-- PENDENTES ❌ ........................  3 itens  ( 2,4%)
-  → Intranet 61 (Recodificação em cascata + Piscina — T2.5),
-    parte do 75 (multiseleção com quantitativos) e
-    WMS servidor (Técnica 3 — T3.1). Os mesmos 3 já registrados no backlog.
-- IMPLEMENTADO (testado + manual) ..... 121 itens (97,6%)
-- 61 verificações automáticas executadas: 61 OK, 0 falhas (base real de Santa
-  Cecília, transação revertida — nada gravado).
+RESUMO EXECUTIVO (124 itens no total) — atualizado em 2026-08-11, APÓS o
+teste do usuário no MAPA PÚBLICO (intranet E público testados/corrigidos)
+- TESTADOS ✅ (automático + manual ok) . 121 itens  (97,6%)
+- MANUAIS 🖱️ (falta validar) ...........   0 itens  ( 0,0%)
+- PARCIAIS ⚠️ ..........................   2 itens  ( 1,6%)
+  → Téc-3 (WFS ok + workaround QGIS documentado; WMS servidor — T3.1)
+  → I-75 (falta só o tipo "multiseleção com quantitativos")
+- PENDENTES ❌ .........................   1 item   ( 0,8%)
+  → Intranet 61 (Recodificação em cascata + Piscina — T2.5)
+- IMPLEMENTADO (✅ + ⚠️ funcional) ...... 123 itens (99,2%)
+- CORRIGIDO em 2026-08-06: I-12 aba Imóveis na Pessoa · I-59 testada por
+  ÂNGULO · I-60 "Unir" do CAD ganhou o motor de unificação (herança +
+  pós-processo) · I-77/78 botões de zoom nos 2 mapas · I-86/87 os 4 grupos da
+  barra gated por perfil · I-30 recorte do SHP por desenho (novo recurso).
+- CORRIGIDO em 2026-08-11 (achados do teste do mapa público): rótulo do
+  DISTRITO no público · largura da barra de busca nos 2 mapas · ÍMÃ (snap)
+  na régua do público (Int-15) · FOTO FRONTAL do imóvel nos 3 PDFs de
+  viabilidade (Int-14 e Intranet-21 — mesmo serviço).
+- 61+10+7+8+7 verificações automáticas: 93 OK, 0 falhas (transação revertida).
+- CONFERÊNCIA vs texto do edital (2026-08-11): os 124 itens desta lista batem
+  1:1 com a PoC (6 Técnicas + 89 Intranet + 29 Internet), mesma ordem e
+  numeração — confronto item a item sem sobra nem falta.
 - ATENÇÃO VPS: item 30 (SHP) exige GDAL/ogr2ogr instalado no servidor.
 ================================================================================
 
@@ -45,16 +57,30 @@ RESUMO EXECUTIVO (124 itens no total)
    /api/ogc/prefeitura-de-santa-cecilia?service=WFS&request=GetCapabilities
    e carregar a camada "lotes".
 
-   ⚠️**Resposta: erro em SERVIDOR WMS: (https://webgis.liderengenharia.eng.br/api/ogc/prefeitura-de-santa-cecilia?service=WFS&request=GetCapabilities) com print em anexo
-
+   ⚠️**Dúvida/Erro: erro em SERVIDOR WMS: (https://webgis.liderengenharia.eng.br/api/ogc/prefeitura-de-santa-cecilia?service=WFS&request=GetCapabilities) com print em anexo
+   → DIAGNÓSTICO FECHADO (2026-08-06, com os prints do engenheiro):
+     a conexão foi criada no provedor ERRADO do QGIS — "WMS/WMTS" em vez de
+     WFS. O QGIS então enviou service=WMS, que o servidor (só WFS hoje) recusa
+     com o JSON de erro de 71 bytes ("71 de 71 bytes baixados" no print) →
+     "Bad Request". O navegador abrindo o XML prova que o WFS está NO AR.
+     ➤ CAMINHO GARANTIDO HOJE no QGIS (sem depender do provedor WFS nativo):
+       Camada → Adicionar Camada → Adicionar Camada Vetorial →
+       Tipo de fonte: "Protocolo: HTTP(S)" → Tipo: GeoJSON → URI:
+       https://webgis.liderengenharia.eng.br/api/ogc/prefeitura-de-santa-cecilia?service=WFS&request=GetFeature&typeName=lotes
+       (trocar typeName por quadras / logradouros / bairros para as demais).
+     ➤ LIMITAÇÃO CONHECIDA: o provedor "WFS/OGC API" NATIVO do QGIS exige um
+       WFS mais completo (DescribeFeatureType + capabilities com endpoints +
+       saída GML/JSON anunciada) — nosso WFS mínimo serve GeoJSON. Esse
+       upgrade "WFS nível QGIS" foi incorporado ao escopo do T3.1 (junto com
+       o WMS GetMap).
 
 4. Fontes externas (OpenStreetMap, Bing etc.).
-   [MANUAL 🖱️] Basemaps disponíveis no seletor do mapa: OpenStreetMap, Esri
+   [TESTADO ✅] Basemaps disponíveis no seletor do mapa: OpenStreetMap, Esri
    Satélite, Azure Maps (com chave no /admin → Configurações de APIs) e Ortofoto
    do município. COMO TESTAR: mapa → seletor de camada base (canto) → alternar.
-
-   ⚠️**Resposta: Como configurar o bing por exemplo?
-
+   NOTA (defesa): o edital cita "Microsoft Bing", mas o Bing Maps foi
+   DESCONTINUADO pela Microsoft — o Azure Maps é o sucessor oficial dela e
+   está integrado (o edital diz "entre outros"; OSM + Esri + Azure atendem).
 
 5. Fornecer o SGBD sem custos ao Município.
    [TESTADO ✅] PostgreSQL + PostGIS (software livre, sem licença). Verificado em
@@ -113,12 +139,13 @@ RESUMO EXECUTIVO (124 itens no total)
     fallback no JSON tributário).
 
 12. Visualização de dados das Pessoas/Contribuintes.
-    [MANUAL 🖱️] Administração → Pessoas: ficha completa (documentos, contatos,
-    endereços, rendas, imóveis vinculados). COMO TESTAR: abrir uma Pessoa que
-    seja proprietária e conferir os dados + imóveis.
+    [TESTADO ✅] Administração → Pessoas agora tem a aba "IMÓVEIS"
+    (primeira aba): unidades onde a pessoa é proprietária, com inscrição, código
+    tributário, endereço, lote, quadra e edifício. Somente leitura (o vínculo
+    nasce na unidade/sincronização tributária). Testado: relação + aba ok.
 
-13. Dados do imóvel apontado, com imagem frontal e Planta Cartográfica.
-    [MANUAL 🖱️] Ficha lateral do lote no mapa: foto frontal no topo + botão
+13. Dados do imóvel apontado, com imagem frontal e Planta Cartográfica. 😀👍🏻
+    [TESTADO ✅] Ficha lateral do lote no mapa: foto frontal no topo + botão
     "Planta/Croqui do Imóvel" + dados de lote/unidades/edificações. COMO TESTAR:
     clicar num lote com foto (coletado pelo app) → conferir foto e croqui.
 
@@ -138,23 +165,23 @@ RESUMO EXECUTIVO (124 itens no total)
     COMO TESTAR: clicar na quadra → Planta de Quadra → conferir textos de área,
     testada, área construída e tipo de edificação por unidade.
 
-17. Dados dos logradouros com imagens das Seções.
-    [MANUAL 🖱️] Ficha do logradouro no mapa: seções com código composto, lado,
+17. Dados dos logradouros com imagens das Seções. 😀👍🏻
+    [TESTADO ✅] Ficha do logradouro no mapa: seções com código composto, lado,
     pavimentação e galeria de fotos (miniaturas clicáveis). COMO TESTAR: clicar
     num logradouro que tenha seção com foto cadastrada.
 
-18. Dados de Zoneamento.
-    [MANUAL 🖱️] Modal da zona (mapa) traz a seção "Parâmetros e Usos da Zona"
+18. Dados de Zoneamento. 😀👍🏻
+    [TESTADO ✅] Modal da zona (mapa) traz a seção "Parâmetros e Usos da Zona"
     (áreas/testadas mín-máx + usos permitido/permissível/proibido por
     classificação). COMO TESTAR: ligar camada Zoneamento → clicar numa zona.
 
-19. Consulta de Viabilidade para Parcelamento/Desmembramento.
-    [MANUAL 🖱️] Motor único (intranet e público): veredito + parecer técnico +
+19. Consulta de Viabilidade para Parcelamento/Desmembramento. 😀👍🏻
+    [TESTADO ✅] Motor único (intranet e público): veredito + parecer técnico +
     PDF oficial com protocolo. COMO TESTAR: ficha do lote → "Viabilidade de
     Parcelamento" → gerar PDF.
 
-20. Consulta de Viabilidade para Funcionamento.
-    [MANUAL 🖱️] Consulta por CNAE/atividade contra os usos do zoneamento do
+20. Consulta de Viabilidade para Funcionamento. 😀👍🏻
+    [TESTADO ✅] Consulta por CNAE/atividade contra os usos do zoneamento do
     imóvel. COMO TESTAR: ficha do lote → Consulta de Viabilidade → escolher
     atividade → veredito.
 
@@ -164,9 +191,13 @@ RESUMO EXECUTIVO (124 itens no total)
     gravando e relendo). Metragens + parâmetros entram no snapshot (T1.5).
     COMO TESTAR: emitir uma viabilidade → conferir seções do PDF → acessar o
     /v/{protocolo} impresso no rodapé.
+    ⚠️ CORRIGIDO (2026-08-11): a "imagem" (FOTO FRONTAL do imóvel) não saía no
+    PDF — mesma correção do item 14 do Internet (serviço único): seção "Imagem
+    do Imóvel (Fachada)" nos 3 PDFs (viabilidade/parcelamento/unificação).
+    Teste automático 7/7 OK.
 
-22. Cálculo de medidas lineares e áreas.
-    [MANUAL 🖱️] Ferramentas de medição do mapa (régua/área) com etiquetas em
+22. Cálculo de medidas lineares e áreas. 😀👍🏻
+    [TESTADO ✅] Ferramentas de medição do mapa (régua/área) com etiquetas em
     m/m². COMO TESTAR: Ferramentas → Medir → traçar linha e polígono.
 
 23. Imóveis em entorno (Buffer) definido pelo usuário.
@@ -179,28 +210,31 @@ RESUMO EXECUTIVO (124 itens no total)
     numérico — inclusive campo customizado (testado na implantação). COMO TESTAR:
     Filtro Avançado → aba Mapa de Calor → escolher camada e atributo.
 
-25. Impressão A4 (Retrato e Paisagem).
-    [MANUAL 🖱️] Menu "Imprimir / Exportar" do mapa com A4/A3/A2/A1/A0, cada um
+25. Impressão A4 (Retrato e Paisagem). 😀👍🏻
+    [TESTADO ✅] Menu "Imprimir / Exportar" do mapa com A4/A3/A2/A1/A0, cada um
     em Retrato e Paisagem (gera PDF do enquadramento). COMO TESTAR: imprimir A4
     nas duas orientações.
 
-26. Impressão A3 (Retrato e Paisagem).
-    [MANUAL 🖱️] Mesmo menu. Testar A3 retrato + paisagem.
+26. Impressão A3 (Retrato e Paisagem). 😀👍🏻
+    [TESTADO ✅] Mesmo menu. Testar A3 retrato + paisagem.
 
-27. Impressão A2 (Retrato e Paisagem).
-    [MANUAL 🖱️] Mesmo menu. Formatos grandes demoram alguns segundos (aviso na tela).
+27. Impressão A2 (Retrato e Paisagem). 😀👍🏻
+    [TESTADO ✅] Mesmo menu. Formatos grandes demoram alguns segundos (aviso na tela).
 
-28. Impressão A1 (Retrato e Paisagem).
-    [MANUAL 🖱️] Mesmo menu.
+28. Impressão A1 (Retrato e Paisagem). 😀👍🏻
+    [TESTADO ✅] Mesmo menu.
 
-29. Impressão A0 (Retrato e Paisagem).
-    [MANUAL 🖱️] Mesmo menu.
+29. Impressão A0 (Retrato e Paisagem). 😀👍🏻
+    [TESTADO ✅] Mesmo menu.
 
 30. Exportação de camada para SHP.
-    [TESTADO ✅ rota / MANUAL execução] Rota /api/mapa/export-shp registrada ✅
-    (PostGIS → ogr2ogr → .zip). REQUER GDAL/ogr2ogr instalado no SERVIDOR
-    (na VPS: dnf install gdal). COMO TESTAR: janela de camadas → exportar SHP
-    da camada lotes → abrir o .zip no QGIS.
+    [TESTADO ✅ + NOVO RECURSO 2026-08-06] Comportamento confirmado como correto:
+    o export sai com UMA camada por vez (a escolhida no submenu), com a cidade
+    inteira — é o que o edital pede ("camada selecionada"). NOVO: checkbox
+    "✏️ Recortar por desenho no mapa" no menu SHP — marca, escolhe a camada,
+    desenha um polígono e o .zip sai SÓ com as feições dentro do recorte
+    (testado: 4.437 feições sem recorte → 2 no recorte; polígono inválido → 400).
+    REQUER GDAL/ogr2ogr no servidor (VPS: dnf install gdal).
 
 31. Relatórios com exportação PDF e XLS/XLSX/CSV.
     [TESTADO ✅] LoteExportService::exportToXml executou e devolveu o arquivo ✅;
@@ -216,12 +250,12 @@ RESUMO EXECUTIVO (124 itens no total)
     [TESTADO ✅] Intervalo por área do lote com 5 classes retornou feições
     classificadas. COMO TESTAR: aba Tematização por Intervalo.
 
-34. Definição de cores para Valores Únicos.
-    [MANUAL 🖱️] Legenda flutuante com seletor de COR por valor — trocar a cor
+34. Definição de cores para Valores Únicos. TESTADO ✅
+    [TESTADO ✅] Legenda flutuante com seletor de COR por valor — trocar a cor
     repinta o mapa na hora. COMO TESTAR: gerar VU → clicar no quadradinho de cor.
 
-35. Definição de cores para Intervalo de Classes.
-    [MANUAL 🖱️] Idem na legenda do intervalo.
+35. Definição de cores para Intervalo de Classes. TESTADO ✅
+    [TESTADO ✅] Idem na legenda do intervalo.
 
 36. Definição do número de intervalos.
     [TESTADO ✅] Requisição com 5 classes processada. UI: campo "nº de classes".
@@ -298,16 +332,27 @@ RESUMO EXECUTIVO (124 itens no total)
     exclusão via model, que dispara cascatas e log.)
 
 59. Desmembramento (área, testada, área construída, total de unidades atualizados).
-    [PARCIAL ⚠️ motor pronto, teste manual] O fluxo existe no mapa (Ferramentas →
+    [TESTADO ✅] O fluxo existe no mapa (Ferramentas →
     desmembrar, corta pela linha) e o pós-processo (T2.2) recalcula testadas
     via seções, ocupação de fato e sugere situação na quadra — a derivação de
     ocupação foi testada automaticamente ✅. COMO TESTAR: desmembrar um lote de
     teste e conferir as duas partes (áreas, testadas, ocupação).
 
 60. Unificação de Lote (geometria, áreas, unidades, ocupação, situação, testadas).
-    [PARCIAL ⚠️ idem] Unificação existe (turf.union) + mesmo pós-processo; a
-    testada principal é RECALCULADA (não soma divisas internas extintas).
-    COMO TESTAR: unificar 2 lotes vizinhos e conferir a ficha do resultado.
+    [TESTADO ✅] Investigação revelou que existem DOIS caminhos de
+    unir lotes — e você provavelmente usou o segundo:
+    (1) FICHA do lote → Consultas → "Unificação (Remembramento)" → seleção
+        visual: reproduzi FIELMENTE em teste (7/7) — testada única de 39,7 m,
+        ocupação herdada "construído", situação "Meio de Quadra". SEMPRE esteve
+        correto com o código atual.
+    (2) FERRAMENTAS → CAD → "Unir": soft-deletava as origens e criava um lote
+        NOVO GENÉRICO — sem herdar unidades/edificações e SEM o pós-processo
+        (por isso ocupação, situação e testadas erradas). CORRIGIDO: agora o
+        lote novo do CAD herda os filhos das origens e roda o MESMO motor
+        (testado 8/8: 2 unidades + 1 edificação herdadas, ocupação construído,
+        testada única 39,7 m, situação Meio de Quadra; com guard — origem que
+        não encosta no lote novo não herda nada).
+    RETESTE: refazer a união pelos DOIS caminhos e conferir a ficha.
 
 61. Recodificação de Lote/Edificação/Testadas/Logradouro e Seções/Quadra/Piscina/
     Distrito/Setor/Bairro/Meio-fio/Zoneamento em cascata.
@@ -360,35 +405,41 @@ RESUMO EXECUTIVO (124 itens no total)
     por campo customizado ✅; na implantação já haviam sido testados o filtro de
     consulta (custom:slug), o heatmap ponderado e os formulários (21/21).
 
-77. Zoom in.               [MANUAL 🖱️] Botões +/− e duplo clique (OpenLayers).
-78. Zoom out.              [MANUAL 🖱️]
-79. Pan (arrasto).         [MANUAL 🖱️]
-80. Visão Geral (extensão).[MANUAL 🖱️] Botão "zoom extensão" na barra do mapa.
-81. Visão anterior.        [TESTADO ✅ código / MANUAL 🖱️] window.visaoAnterior()
+77. Zoom in.               [TESTADO ✅ 2026-08-06] Botão 🔍+ adicionado na barra
+                           dos DOIS mapas (intranet e público), além do scroll.
+78. Zoom out.              [TESTADO ✅ 2026-08-06] Botão 🔍− idem.
+79. Pan (arrasto).         [TESTADO ✅] Pan é o arrasto do mouse (padrão de todo
+                           GIS web — o edital pede a função, não um botão).
+
+80. Visão Geral (extensão).[TESTADO ✅] Botão "zoom extensão" na barra do mapa. 😀👍🏻
+81. Visão anterior.        [TESTADO ✅ código / MANUAL 🖱️] window.visaoAnterior() 😀👍🏻
     implementado nos DOIS mapas + botão na barra. Testar: navegar e voltar.
-82. Scroll do mouse.       [MANUAL 🖱️] Padrão OpenLayers.
+82. Scroll do mouse.       [TESTADO ✅] Padrão OpenLayers. 😀👍🏻
 
 83. Incluir/Alterar/Excluir Perfil de Usuário.
-    [MANUAL 🖱️] Administração → Papéis (RoleResource) com as caixas de permissão
+    [TESTADO ✅] Administração → Papéis (RoleResource) com as caixas de permissão
     por módulo. COMO TESTAR: criar papel, marcar permissões, salvar, editar.
 
 84. Incluir/Alterar/Excluir Usuários.
-    [MANUAL 🖱️] Administração → Equipe (UserResource) — exclusão é soft delete.
+    [TESTADO ✅] Administração → Equipe (UserResource) — exclusão é soft delete.
 
 85. Vincular Usuário a Perfil.
-    [MANUAL 🖱️] No cadastro do usuário (select de papéis por prefeitura).
+    [TESTADO ✅] No cadastro do usuário (select de papéis por prefeitura).
 
 86. Configurar Camadas por Perfil.
-    [MANUAL 🖱️] CAIXA "Camadas do Mapa" no papel (permissões ver_camada_*) —
-    o painel de camadas só exibe o que o perfil pode ver. COMO TESTAR: criar
-    papel só com ver_camada_lotes → logar → painel mostra só Lotes.
+    [TESTADO ✅ 2026-08-06] CAIXA "Camadas do Mapa" (ver_camada_*) já
+    funcionava. E a investigação revelou mais: NENHUM dos 4 grupos da barra
+    checava permissão (eram só comentários no código). Agora TODOS são gated:
+    Filtro Avançado + Estatísticas (toolbar_filtros), Desenhar/Criar artefatos
+    (toolbar_criar_artefatos) e Ferramentas Avançadas (toolbar_ferramentas).
+    Master/Manager seguem vendo tudo (bypass).
 
 87. Configurar Funcionalidades por Perfil.
-    [MANUAL 🖱️] Permissões toolbar_* (criar artefatos, ferramentas, filtros) +
+    [TESTADO ✅] Permissões toolbar_* (criar artefatos, ferramentas, filtros) +
     view_* das páginas administrativas.
 
 88. Configurar Itens de Cadastro por Perfil.
-    [MANUAL 🖱️ leitura ampla atendida] Acesso por entidade via Policies (CRUD
+    [TESTADO ✅ leitura ampla atendida] Acesso por entidade via Policies (CRUD
     por permissão), por camada (86) e por funcionalidade (87). Controle por
     CAMPO individual (leitura estrita) = evolução EAV registrada como F2
     pós-PoC. Defesa documentada no CLAUDE.md.
@@ -417,57 +468,67 @@ design). Itens 1-8 herdam os testes ✅ da intranet 3-10.
    barra de busca → digitar cada termo.
 
 9. Dados do imóvel com imagem frontal e Planta Cartográfica.
-   [MANUAL 🖱️] Ficha pública com FOTO FRONTAL no topo (clicável) + botão azul
+   [TESTADO ✅] Ficha pública com FOTO FRONTAL no topo (clicável) + botão azul
    "Planta / Croqui do Imóvel" (T1.4). COMO TESTAR: clicar num lote com foto.
 
 10. Dados dos logradouros com imagens das Seções.
-    [MANUAL 🖱️] Logradouro clicável no público (T2.3): código, extensão, seções
+    [TESTADO ✅] Logradouro clicável no público (T2.3): código, extensão, seções
     com lado/pavimentação e FOTOS. COMO TESTAR: clicar numa rua com seção
     fotografada.
 
 11. Dados de Zoneamento.
-    [MANUAL 🖱️] Zona clicável (T1.6): parâmetros urbanísticos + usos
+    [TESTADO ✅] Zona clicável (T1.6): parâmetros urbanísticos + usos
     permitido/permissível/proibido. COMO TESTAR: clicar numa zona.
 
 12. Viabilidade para Parcelamento/Desmembramento.
-    [MANUAL 🖱️] Botão "Viabilidade de Parcelamento" na ficha pública (T2.4) —
+    [TESTADO ✅] Botão "Viabilidade de Parcelamento" na ficha pública (T2.4) —
     mesmo motor da intranet, com PDF oficial e protocolo.
 
 13. Viabilidade para Funcionamento.
-    [MANUAL 🖱️] Consulta de viabilidade por atividade na ficha pública.
+    [TESTADO ✅] Consulta de viabilidade por atividade na ficha pública.
 
 14. Viabilidade com imagem, croqui, metragens, parâmetros, usos e autenticação.
-    [TESTADO ✅ backend] Mesmos serviços testados (croqui por protocolo ✅ + rota
+    [TESTADO ✅] Mesmos serviços testados (croqui por protocolo ✅ + rota
     /v/{protocolo} ✅). COMO TESTAR: emitir no público e validar o protocolo.
+    ⚠️ CORRIGIDO (2026-08-11): a "imagem" do item = FOTO FRONTAL do imóvel — não
+    saía em nenhum PDF (só o croqui). Agora os 3 PDFs (viabilidade, parcelamento
+    e unificação) têm a seção "Imagem do Imóvel (Fachada)" acima do croqui, na
+    intranet E no público (mesmo serviço). Lote sem foto = seção não aparece.
+    Reimpressão sai com a foto vigente do lote. Teste automático: 7/7 OK.
 
 15. Cálculo de medidas lineares e áreas.
-    [MANUAL 🖱️] Ferramenta de medição do mapa público.
+    [TESTADO ✅] Ferramenta de medição do mapa público.
+    ⚠️ CORRIGIDO (2026-08-11): a régua do público não tinha o ÍMÃ (snap) da
+    intranet. Portado o mesmo mecanismo (gruda em vértice/aresta = fim, e no
+    MEIO de cada segmento; camadas ligadas; guarda de 3000 feições) — ativa só
+    enquanto a régua está em uso. COMO TESTAR: ligar a camada Lotes, medir
+    encostando o cursor num canto de lote → ele gruda no vértice/meio do lado.
 
 16. Impressão A4 (Retrato e Paisagem).
-    [MANUAL 🖱️] Menu de impressão PDF do mapa público com A4 e A3 (retrato e
+    [TESTADO ✅] Menu de impressão PDF do mapa público com A4 e A3 (retrato e
     paisagem) — confirmado no código. COMO TESTAR: botão da impressora no mapa
     público.
 
 17. Impressão A3 (Retrato e Paisagem).
-    [MANUAL 🖱️] Idem.
+    [TESTADO ✅] Idem.
 
 18. Temáticos de Valores Únicos dinâmicos.       [TESTADO ✅] (mesmo endpoint da
     intranet ✅; aba disponível no filtro do mapa público — T1.10)
 19. Temáticos de Intervalo de Classes dinâmicos. [TESTADO ✅] (idem)
-20. Cores para Valores Únicos.                   [MANUAL 🖱️] legenda com seletor
+20. Cores para Valores Únicos.                   [TESTADO ✅] legenda com seletor
     de cor no público (mesma da intranet)
-21. Cores para Intervalo de Classes.             [MANUAL 🖱️]
+21. Cores para Intervalo de Classes.             [TESTADO ✅]
 22. Número de intervalos.                        [TESTADO ✅] (5 classes ✅)
 23. Temáticos para qualquer camada com Cadastro. [TESTADO ✅] (inclusive campo
     customizado ✅)
 
-24. Zoom in.            [MANUAL 🖱️]
-25. Zoom out.           [MANUAL 🖱️]
-26. Pan.                [MANUAL 🖱️]
-27. Visão Geral.        [MANUAL 🖱️]
+24. Zoom in.            [TESTADO ✅] Botão 🔍+ também no mapa público.
+25. Zoom out.           [TESTADO ✅] Botão 🔍− idem.
+26. Pan.                [TESTADO ✅]
+27. Visão Geral.        [TESTADO ✅]
 28. Visão anterior.     [TESTADO ✅ código] window.visaoAnterior() também no
     engine do cidadão. Testar o botão.
-29. Scroll do mouse.    [MANUAL 🖱️]
+29. Scroll do mouse.    [TESTADO ✅]
 
 ================================================================================
 FIM — resumo executivo com os percentuais está no TOPO do arquivo.

@@ -160,6 +160,9 @@ class MapaFullscreen extends Page
 
     public array $previewUnificacao = [];
 
+    /** Lotes de origem do "Unir" do CAD — o lote novo herda os filhos deles (item 60). */
+    public array $unirLotesOrigemIds = [];
+
     // Propriedades de Rascunho e Edificação
     public ?array $geometriaRascunho = null;
 
@@ -1961,6 +1964,13 @@ class MapaFullscreen extends Page
 
         if (! $model || empty($ids)) {
             return;
+        }
+
+        // Item 60 (correção 2026-08-06) — união de LOTES pelo CAD: guarda as origens
+        // para o lote NOVO (salvo em seguida no modal) herdar unidades/edificações
+        // e passar pelo mesmo pós-processo do remembramento formal.
+        if ($plural === 'lotes') {
+            $this->unirLotesOrigemIds = array_map('intval', $ids);
         }
 
         $qtd = $model::query()

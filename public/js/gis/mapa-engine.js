@@ -1311,6 +1311,16 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         );
     };
+
+    // Zoom in/out por botão (itens 77/78 do TR — além do scroll do mouse)
+    window.zoomMais = function () {
+        const v = map.getView();
+        v.animate({ zoom: (v.getZoom() || 0) + 1, duration: 250 });
+    };
+    window.zoomMenos = function () {
+        const v = map.getView();
+        v.animate({ zoom: (v.getZoom() || 0) - 1, duration: 250 });
+    };
     // ────────────────────────────────────────────────────────────────
 
     // 4. LÓGICA DE TROCA DE MAPA BASE
@@ -7666,15 +7676,8 @@ document.addEventListener("DOMContentLoaded", function () {
     // Antes usava cloud externo (ogre.adc4gis.com); agora chama nosso endpoint
     // /api/mapa/export-shp que serve PostGIS → ogr2ogr → .zip no servidor.
     // =========================================================================
-    window.addEventListener("exportar-camada-shp", (e) => {
-        const data = e.detail[0] || e.detail;
-        const layerName = data.layer;
-        if (!layerName) {
-            alert("⚠️ Camada não informada para exportação.");
-            return;
-        }
-
-        // Aviso amigável: a exportação pega TODA a camada do tenant, não só o que está visível
+    // Executa o download do SHP (com ou sem recorte por polígono desenhado)
+    function executarExportShp(layerName, drawnGeometry) {
         const overlay = document.getElementById("print-loading-overlay");
         const statusText = document.getElementById("print-status-text");
         if (overlay) overlay.style.display = "flex";
@@ -7682,7 +7685,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const url = `/api/mapa/export-shp?layer=${encodeURIComponent(layerName)}&tenant_id=${config.tenantId}`;
 
-        fetch(url, { credentials: "same-origin" })
+        // Com recorte, o polígono vai por POST (coordenadas estourariam a querystring)
+        const opcoes = drawnGeometry
+            ? {
+                  method: "POST",
+                  credentials: "same-origin",
+                  headers: {
+                      "Content-Type": "application/x-www-form-urlencoded",
+                      "X-CSRF-TOKEN":
+                          document.querySelector('meta[name="csrf-token"]')?.content || "",
+                  },
+                  body: new URLSearchParams({
+                      layer: layerName,
+                      tenant_id: config.tenantId,
+                      drawn_geometry: drawnGeometry,
+                  }),
+              }
+            : { credentials: "same-origin" };
+
+        fetch(url, opcoes)
             .then(async (resp) => {
                 if (!resp.ok) {
                     const txt = await resp.text();
@@ -7708,6 +7729,51 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (overlay) overlay.style.display = "none";
                 if (statusText) statusText.textContent = "Processando Mapa...";
             });
+    }
+
+    window.addEventListener("exportar-camada-shp", (e) => {
+        const data = e.detail[0] || e.detail;
+        const layerName = data.layer;
+        if (!layerName) {
+            alert("⚠️ Camada não informada para exportação.");
+            return;
+        }
+
+        // ✏️ RECORTE POR DESENHO (pedido do usuário, 2026-08-06): desenha um polígono
+        // e o SHP sai só com as feições da camada que o intersectam.
+        if (data.recorte) {
+            const fonteRecorte = new ol.source.Vector();
+            const camadaRecorte = new ol.layer.Vector({
+                source: fonteRecorte,
+                zIndex: 999,
+                style: new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: "#10b981", width: 2, lineDash: [8, 6] }),
+                    fill: new ol.style.Fill({ color: "rgba(16,185,129,0.08)" }),
+                }),
+            });
+            map.addLayer(camadaRecorte);
+
+            const desenhoShp = new ol.interaction.Draw({ source: fonteRecorte, type: "Polygon" });
+            map.addInteraction(desenhoShp);
+            map.getTargetElement().style.cursor = "crosshair";
+
+            desenhoShp.on("drawend", (ev) => {
+                map.removeInteraction(desenhoShp);
+                map.getTargetElement().style.cursor = "";
+
+                const geojson = new ol.format.GeoJSON().writeGeometryObject(
+                    ev.feature.getGeometry(),
+                    { featureProjection: "EPSG:3857", dataProjection: "EPSG:4326" },
+                );
+
+                // Deixa o recorte visível durante o export e limpa em seguida
+                setTimeout(() => map.removeLayer(camadaRecorte), 4000);
+                executarExportShp(layerName, JSON.stringify(geojson));
+            });
+            return;
+        }
+
+        executarExportShp(layerName, null);
     });
 
     // =========================================================================

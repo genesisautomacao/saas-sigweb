@@ -28,6 +28,15 @@ class PosEdicaoLoteService
     /** Comprimento mínimo (m) para um segmento contar como testada. */
     private const COMPRIMENTO_MINIMO_M = 1.0;
 
+    /**
+     * Ângulo máximo (graus) entre o segmento do perímetro e o eixo da rua para
+     * o segmento contar como testada. Correção de 2026-08-06 (teste do usuário):
+     * o corte por distância pura deixava as LATERAIS do lote (perpendiculares à
+     * rua, mas dentro da faixa de 15 m) entrarem na testada — o "L" visto no
+     * desmembramento/unificação. Paralelo (≤35°) = frente; perpendicular = lateral.
+     */
+    private const ANGULO_MAX_TESTADA = 35.0;
+
     /** Rótulos padrão da sugestão (o kit municipal pode ter renomeado — casa por comparável). */
     private const SUGESTOES = [
         0 => 'Encravado',
@@ -49,6 +58,43 @@ class PosEdicaoLoteService
     }
 
     /**
+     * Item 60 via CAD (correção 2026-08-06): o "Unir" do CAD soft-deleta os lotes
+     * de origem e cria um lote NOVO — que nascia genérico, sem herdar
+     * unidades/edificações e sem pós-processo (ocupação/situação/testadas erradas,
+     * relatado pelo usuário). Este método dá ao caminho CAD o MESMO motor do
+     * remembramento formal: migra os filhos das origens e roda o pós-processo.
+     *
+     * Guard: só herda de origem que INTERSECTA a nova geometria — um id perdido
+     * no estado da página (ex.: modal cancelado) vira no-op inofensivo.
+     */
+    public function herdarLotesUnidos(Lote $loteNovo, array $origemIds): array
+    {
+        $origemIds = array_values(array_filter(array_map('intval', (array) $origemIds)));
+        $herdadas = ['unidades' => 0, 'edificacoes' => 0];
+
+        if ($origemIds !== []) {
+            $validas = DB::table('lotes as origem')
+                ->whereIn('origem.id', $origemIds)
+                ->where('origem.tenant_id', $loteNovo->tenant_id)
+                ->whereRaw('ST_Intersects(origem.geo::geometry, (SELECT geo::geometry FROM lotes WHERE id = ?))', [$loteNovo->id])
+                ->pluck('origem.id')
+                ->all();
+
+            if ($validas !== []) {
+                $herdadas['unidades'] = \App\Models\UnidadeImobiliaria::withoutGlobalScopes()
+                    ->whereIn('lote_id', $validas)->whereNull('deleted_at')
+                    ->update(['lote_id' => $loteNovo->id]);
+
+                $herdadas['edificacoes'] = Edificacao::withoutGlobalScopes()
+                    ->whereIn('lote_id', $validas)->whereNull('deleted_at')
+                    ->update(['lote_id' => $loteNovo->id]);
+            }
+        }
+
+        return array_merge($this->atualizarAposEdicaoGeometrica($loteNovo->fresh()), $herdadas);
+    }
+
+    /**
      * Substitui as testadas do lote (a geometria antiga não vale mais) pelas derivadas
      * da nova geometria. Retorna a lista criada (logradouro_id, secao_id, comprimento).
      */
@@ -57,52 +103,12 @@ class PosEdicaoLoteService
         // As testadas antigas descrevem o polígono ANTERIOR — soft delete (recuperável).
         LoteTestada::query()->where('lote_id', $lote->id)->delete();
 
-        $faixa = self::FAIXA_TESTADA_M;
+        // 1ª escolha: seções de logradouro (item 42 — "Logradouro e Seção de cada testada");
+        // fallback: eixo dos logradouros (município sem seções). Ambos com filtro por ÂNGULO.
+        $segmentos = $this->segmentosParalelosARua($lote, 'secoes');
 
-        // 1ª escolha: seções de logradouro (item 42 — "Logradouro e Seção de cada testada")
-        $segmentos = DB::select("
-            SELECT
-                s.id AS secao_id,
-                s.logradouro_id,
-                ST_AsGeoJSON(ST_CollectionExtract(ST_Intersection(
-                    ST_Boundary(l.geo::geometry),
-                    ST_Buffer(s.geo::geography, {$faixa})::geometry
-                ), 2)) AS seg_json,
-                ST_Length(ST_CollectionExtract(ST_Intersection(
-                    ST_Boundary(l.geo::geometry),
-                    ST_Buffer(s.geo::geography, {$faixa})::geometry
-                ), 2)::geography) AS comprimento
-            FROM lotes l
-            JOIN secoes_logradouro s
-              ON s.tenant_id = l.tenant_id
-             AND s.deleted_at IS NULL
-             AND s.geo IS NOT NULL
-             AND ST_DWithin(ST_Boundary(l.geo::geometry)::geography, s.geo::geography, {$faixa})
-            WHERE l.id = ?
-        ", [$lote->id]);
-
-        // Fallback: município sem seções — deriva pelo eixo dos logradouros
         if (empty($segmentos)) {
-            $segmentos = DB::select("
-                SELECT
-                    NULL::bigint AS secao_id,
-                    lg.id AS logradouro_id,
-                    ST_AsGeoJSON(ST_CollectionExtract(ST_Intersection(
-                        ST_Boundary(l.geo::geometry),
-                        ST_Buffer(lg.geo::geography, {$faixa})::geometry
-                    ), 2)) AS seg_json,
-                    ST_Length(ST_CollectionExtract(ST_Intersection(
-                        ST_Boundary(l.geo::geometry),
-                        ST_Buffer(lg.geo::geography, {$faixa})::geometry
-                    ), 2)::geography) AS comprimento
-                FROM lotes l
-                JOIN logradouros lg
-                  ON lg.tenant_id = l.tenant_id
-                 AND lg.deleted_at IS NULL
-                 AND lg.geo IS NOT NULL
-                 AND ST_DWithin(ST_Boundary(l.geo::geometry)::geography, lg.geo::geography, {$faixa})
-                WHERE l.id = ?
-            ", [$lote->id]);
+            $segmentos = $this->segmentosParalelosARua($lote, 'logradouros');
         }
 
         $criadas = [];
@@ -135,6 +141,90 @@ class PosEdicaoLoteService
         }
 
         return $criadas;
+    }
+
+    /**
+     * Segmentos do PERÍMETRO do lote que são testada de verdade: perto da rua
+     * (faixa) E aproximadamente PARALELOS ao eixo dela (ângulo ≤ ANGULO_MAX).
+     *
+     * Como funciona: o perímetro é decomposto em segmentos (vértice a vértice);
+     * cada segmento casa com a rua mais próxima do seu ponto médio; o azimute do
+     * segmento é comparado ao azimute local da rua (trecho em torno do ponto mais
+     * próximo). Laterais (perpendiculares) e fundos fora da faixa ficam de fora —
+     * correção do "L" na testada pós-desmembramento/unificação (2026-08-06).
+     *
+     * @param  string  $fonte  'secoes' | 'logradouros'
+     * @return array<object{secao_id: ?int, logradouro_id: int, seg_json: string, comprimento: float}>
+     */
+    protected function segmentosParalelosARua(Lote $lote, string $fonte): array
+    {
+        $faixa = self::FAIXA_TESTADA_M;
+        $angulo = self::ANGULO_MAX_TESTADA;
+
+        $ruasCte = $fonte === 'secoes'
+            ? "SELECT s.id AS secao_id, s.logradouro_id,
+                      (ST_Dump(ST_LineMerge(s.geo::geometry))).geom AS rua
+               FROM secoes_logradouro s, lote l
+               WHERE s.tenant_id = l.tenant_id AND s.deleted_at IS NULL AND s.geo IS NOT NULL
+                 AND ST_DWithin(l.g::geography, s.geo::geography, {$faixa})"
+            : "SELECT NULL::bigint AS secao_id, lg.id AS logradouro_id,
+                      (ST_Dump(ST_LineMerge(lg.geo::geometry))).geom AS rua
+               FROM logradouros lg, lote l
+               WHERE lg.tenant_id = l.tenant_id AND lg.deleted_at IS NULL AND lg.geo IS NOT NULL
+                 AND ST_DWithin(l.g::geography, lg.geo::geography, {$faixa})";
+
+        return DB::select("
+            WITH lote AS (
+                SELECT geo::geometry AS g, tenant_id FROM lotes WHERE id = ?
+            ),
+            bordas AS (
+                SELECT (ST_Dump(ST_Boundary(l.g))).geom AS linha FROM lote l
+            ),
+            segs AS (
+                SELECT ST_MakeLine(ST_PointN(b.linha, i), ST_PointN(b.linha, i + 1)) AS seg
+                FROM bordas b, generate_series(1, ST_NPoints(b.linha) - 1) AS i
+            ),
+            segs_validos AS (
+                SELECT seg,
+                       ST_LineInterpolatePoint(seg, 0.5) AS meio,
+                       degrees(ST_Azimuth(ST_StartPoint(seg), ST_EndPoint(seg))) AS az_seg
+                FROM segs
+                WHERE ST_Length(seg::geography) > 0.05
+            ),
+            ruas AS ({$ruasCte}),
+            casados AS (
+                -- cada segmento casa com UMA rua: a mais próxima do seu ponto médio
+                SELECT DISTINCT ON (sv.seg)
+                    r.secao_id, r.logradouro_id, sv.seg, sv.az_seg, r.rua,
+                    ST_LineLocatePoint(r.rua, ST_ClosestPoint(r.rua, sv.meio)) AS frac
+                FROM segs_validos sv
+                JOIN ruas r ON ST_DWithin(sv.meio::geography, r.rua::geography, {$faixa})
+                ORDER BY sv.seg, ST_Distance(sv.meio::geography, r.rua::geography)
+            ),
+            com_angulo AS (
+                SELECT c.secao_id, c.logradouro_id, c.seg, c.az_seg,
+                    degrees(ST_Azimuth(
+                        ST_LineInterpolatePoint(c.rua, GREATEST(c.frac - 0.02, 0.0)),
+                        ST_LineInterpolatePoint(c.rua, LEAST(c.frac + 0.02, 1.0))
+                    )) AS az_rua
+                FROM casados c
+                WHERE GREATEST(c.frac - 0.02, 0.0) < LEAST(c.frac + 0.02, 1.0)
+            ),
+            paralelos AS (
+                SELECT secao_id, logradouro_id, seg
+                FROM com_angulo
+                WHERE az_rua IS NOT NULL AND az_seg IS NOT NULL
+                  AND LEAST(
+                        MOD(ABS(az_seg - az_rua)::numeric, 180),
+                        180 - MOD(ABS(az_seg - az_rua)::numeric, 180)
+                      ) <= {$angulo}
+            )
+            SELECT secao_id, logradouro_id,
+                   ST_AsGeoJSON(ST_Multi(ST_LineMerge(ST_Collect(seg)))) AS seg_json,
+                   ST_Length(ST_Collect(seg)::geography) AS comprimento
+            FROM paralelos
+            GROUP BY secao_id, logradouro_id
+        ", [$lote->id]);
     }
 
     /** Item 60: "Ocupação do Lote (Baldio ou Construído)" — derivada de fato, não chutada. */

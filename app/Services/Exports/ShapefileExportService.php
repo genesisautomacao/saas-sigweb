@@ -99,7 +99,7 @@ class ShapefileExportService
     /**
      * Alternativa stream-friendly: gera o ZIP e retorna como streamDownload (com cleanup do diretório).
      */
-    public function exportStream(string $layer, int $tenantId)
+    public function exportStream(string $layer, int $tenantId, ?string $drawnGeometry = null)
     {
         if (! in_array($layer, self::ALLOWED_LAYERS, true)) {
             abort(403, 'Camada não permitida para exportação.');
@@ -109,9 +109,11 @@ class ShapefileExportService
             abort(500, 'GDAL (ogr2ogr) não está instalado no servidor. Solicite ao administrador a instalação para habilitar a exportação SHP.');
         }
 
-        $geojson = $this->buildGeoJSON($layer, $tenantId);
+        $geojson = $this->buildGeoJSON($layer, $tenantId, $drawnGeometry);
         if ($geojson['features'] === []) {
-            abort(404, 'A camada selecionada não tem registros para exportar.');
+            abort(404, $drawnGeometry
+                ? 'Nenhum registro da camada dentro do recorte desenhado.'
+                : 'A camada selecionada não tem registros para exportar.');
         }
 
         $base = storage_path('app/tmp/shp-'.uniqid('', true));
@@ -173,7 +175,7 @@ class ShapefileExportService
      * Monta uma FeatureCollection GeoJSON da camada, escopada pelo tenant.
      * Filtra colunas geográficas/binárias do select para não estourar o GeoJSON com lixo.
      */
-    protected function buildGeoJSON(string $layer, int $tenantId): array
+    protected function buildGeoJSON(string $layer, int $tenantId, ?string $drawnGeometry = null): array
     {
         // Descobre as colunas escalares (todas exceto a geo)
         $cols = DB::getSchemaBuilder()->getColumnListing($layer);
@@ -186,6 +188,22 @@ class ShapefileExportService
 
         $selectAttrs = implode(', ', array_map(fn ($c) => "\"$c\"", $attrCols));
 
+        // ✏️ Recorte por desenho (2026-08-06): só as feições que INTERSECTAM o polígono.
+        // O GeoJSON é validado antes de entrar na query (nunca interpolado cru).
+        $filtroRecorte = '';
+        $bindings = [$tenantId];
+
+        if ($drawnGeometry !== null) {
+            $geom = json_decode($drawnGeometry, true);
+
+            if (! is_array($geom) || ! in_array($geom['type'] ?? '', ['Polygon', 'MultiPolygon'], true) || empty($geom['coordinates'])) {
+                abort(400, 'Polígono de recorte inválido.');
+            }
+
+            $filtroRecorte = 'AND ST_Intersects(geo::geometry, ST_SetSRID(ST_GeomFromGeoJSON(?), 4326))';
+            $bindings[] = json_encode($geom);
+        }
+
         $rows = DB::select("
             SELECT
                 {$selectAttrs},
@@ -194,7 +212,8 @@ class ShapefileExportService
             WHERE tenant_id = ?
               AND deleted_at IS NULL
               AND geo IS NOT NULL
-        ", [$tenantId]);
+              {$filtroRecorte}
+        ", $bindings);
 
         $features = [];
         foreach ($rows as $row) {

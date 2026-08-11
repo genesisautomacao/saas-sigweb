@@ -98,7 +98,27 @@ trait HasLoteActions
                     }
                 }
 
-                Notification::make()->title('Sucesso!')->body('Lote e Unidade Imobiliária cadastrados.')->success()->send();
+                // Item 60 (correção 2026-08-06) — lote vindo do "Unir" do CAD: herda
+                // unidades/edificações dos lotes de origem e roda o MESMO pós-processo
+                // do remembramento formal (testadas por ângulo, ocupação, situação).
+                if (! empty($this->unirLotesOrigemIds)) {
+                    $resumoUniao = app(\App\Services\Gis\PosEdicaoLoteService::class)
+                        ->herdarLotesUnidos($lote, $this->unirLotesOrigemIds);
+                    $this->unirLotesOrigemIds = [];
+
+                    Notification::make()
+                        ->title('Lote unificado cadastrado!')
+                        ->body(
+                            "Herdadas {$resumoUniao['unidades']} unidade(s) e {$resumoUniao['edificacoes']} edificação(ões) dos lotes de origem; "
+                            ."testadas recalculadas ({$resumoUniao['testadas']}), ocupação \"{$resumoUniao['ocupacao']}\""
+                            .($resumoUniao['situacao_sugerida'] ? ", situação sugerida \"{$resumoUniao['situacao_sugerida']}\"" : '')
+                            .'. Confira na ficha.'
+                        )
+                        ->success()
+                        ->send();
+                } else {
+                    Notification::make()->title('Sucesso!')->body('Lote e Unidade Imobiliária cadastrados.')->success()->send();
+                }
 
                 $this->dispatch('adicionar-lote-mapa', [
                     'id' => $lote->id,

@@ -85,6 +85,15 @@ class Pessoa extends Model
         return $this->hasMany(PessoaRenda::class);
     }
 
+    /**
+     * Imóveis (unidades imobiliárias) onde esta pessoa é a PROPRIETÁRIA —
+     * aba "Imóveis" da ficha (TR Tangará Intranet #12, correção de 2026-08-06).
+     */
+    public function unidadesImobiliarias()
+    {
+        return $this->hasMany(UnidadeImobiliaria::class, 'proprietario_id');
+    }
+
     public function deficiencias()
     {
         return $this->hasMany(PessoaDeficiencia::class);

@@ -47,10 +47,32 @@ document.addEventListener("DOMContentLoaded", function () {
         perimetros: {
             z: 10,
             minZoom: 0,
-            style: new ol.style.Style({
-                stroke: new ol.style.Stroke({ color: "#ef4444", width: 3 }),
-                fill: new ol.style.Fill({ color: "rgba(239, 68, 68, 0.05)" }),
-            }),
+            // Rótulo com o NOME do distrito (2026-08-06): o público tinha estilo
+            // estático sem texto — espelha o comportamento da intranet.
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: "#ef4444", width: 3 }),
+                    fill: new ol.style.Fill({ color: "rgba(239, 68, 68, 0.05)" }),
+                });
+                if (zoom >= 12) {
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name")
+                                ? feature.get("name").toString()
+                                : "",
+                            font: "bold 14px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: "#991b1b" }),
+                            stroke: new ol.style.Stroke({
+                                color: "#ffffff",
+                                width: 3,
+                            }),
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
         },
         zonas: {
             z: 20,
@@ -696,6 +718,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 navegandoHistorico = false;
             },
         );
+    };
+
+    // Zoom in/out por botão (itens 24/25 do TR Internet)
+    window.zoomMais = function () {
+        const v = map.getView();
+        v.animate({ zoom: (v.getZoom() || 0) + 1, duration: 250 });
+    };
+    window.zoomMenos = function () {
+        const v = map.getView();
+        v.animate({ zoom: (v.getZoom() || 0) - 1, duration: 250 });
     };
     // ────────────────────────────────────────────────────────────────
 
@@ -1578,9 +1610,85 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let currentMeasureInteraction = null;
 
+    // ÍMÃ (SNAP) NAS MEDIÇÕES — espelho do enableUniversalSnap da intranet
+    // (item Internet 15): gruda em vértice/aresta (fim) e no MEIO de cada
+    // segmento das camadas visíveis. Ligado só enquanto a régua está ativa.
+    let medicaoSnaps = [];
+    const medicaoMidpointSource = new ol.source.Vector();
+
+    function medicaoSegmentMidpoints(geometry) {
+        const mids = [];
+        const t = geometry.getType();
+        const ring = (coords) => {
+            for (let i = 0; i < coords.length - 1; i++) {
+                const a = coords[i],
+                    b = coords[i + 1];
+                if (a && b && a.length >= 2 && b.length >= 2) {
+                    mids.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+                }
+            }
+        };
+        if (t === "LineString") ring(geometry.getCoordinates());
+        else if (t === "MultiLineString" || t === "Polygon")
+            geometry.getCoordinates().forEach(ring);
+        else if (t === "MultiPolygon")
+            geometry.getCoordinates().forEach((poly) => poly.forEach(ring));
+        return mids;
+    }
+
+    function desligarSnapMedicao() {
+        medicaoSnaps.forEach((snap) => map.removeInteraction(snap));
+        medicaoSnaps = [];
+        medicaoMidpointSource.clear();
+    }
+
+    function ligarSnapMedicao() {
+        desligarSnapMedicao();
+
+        Object.keys(window.loadedLayers).forEach((layerName) => {
+            const layer = window.loadedLayers[layerName];
+            if (!layer || !layer.getVisible() || !layer.getSource) return;
+
+            const source = layer.getSource();
+            if (!(source instanceof ol.source.Vector)) return;
+
+            const snap = new ol.interaction.Snap({
+                source: source,
+                pixelTolerance: 12,
+            });
+            map.addInteraction(snap);
+            medicaoSnaps.push(snap);
+
+            // Meio de segmento — guarda de performance p/ camadas gigantes
+            // (o snap de vértice/aresta acima continua valendo).
+            const feats = source.getFeatures();
+            if (feats.length <= 3000) {
+                feats.forEach((f) => {
+                    const geom = f.getGeometry();
+                    if (!geom) return;
+                    medicaoSegmentMidpoints(geom).forEach((mid) => {
+                        medicaoMidpointSource.addFeature(
+                            new ol.Feature(new ol.geom.Point(mid)),
+                        );
+                    });
+                });
+            }
+        });
+
+        if (medicaoMidpointSource.getFeatures().length > 0) {
+            const midSnap = new ol.interaction.Snap({
+                source: medicaoMidpointSource,
+                pixelTolerance: 12,
+            });
+            map.addInteraction(midSnap);
+            medicaoSnaps.push(midSnap);
+        }
+    }
+
     const resetToPan = () => {
         if (currentMeasureInteraction)
             map.removeInteraction(currentMeasureInteraction);
+        desligarSnapMedicao();
         drawSource.clear();
         measureTooltipElement.style.display = "none";
         map.getTargetElement().style.cursor = "";
@@ -1627,10 +1735,14 @@ document.addEventListener("DOMContentLoaded", function () {
                     : geom.getInteriorPoint().getCoordinates(),
             );
             map.removeInteraction(currentMeasureInteraction);
+            desligarSnapMedicao();
             map.getTargetElement().style.cursor = "";
         });
 
         map.addInteraction(currentMeasureInteraction);
+
+        // 🧲 Snap DEPOIS do Draw (ordem importa p/ o OpenLayers interceptar o clique)
+        ligarSnapMedicao();
     };
 
     document

@@ -274,6 +274,16 @@
         </div>
     @endif
 
+    {{-- IMAGEM DO IMÓVEL (foto frontal — item Internet 14) --}}
+    @if($fotoFrontal ?? null)
+        <div class="box">
+            <div class="box-title">Imagem do Imóvel (Fachada)</div>
+            <div style="text-align: center;">
+                <img src="{{ $fotoFrontal }}" style="max-width: 100%; max-height: 230px; border: 1px solid #999; border-radius: 4px;">
+            </div>
+        </div>
+    @endif
+
     {{-- MAPA --}}
     @if($mapImage)
         <div class="box">

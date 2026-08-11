@@ -22,16 +22,19 @@ Route::match(['get', 'post'], '/api/mapa/advanced-query', [MapDataController::cl
     ->middleware(\App\Http\Middleware\ComprimirJsonMapa::class);
 Route::get('/api/mapa/estatisticas', [MapDataController::class, 'getEstatisticas']);
 
-// Exportação de camada em Shapefile (.zip) — TR Tangará Intranet #30
-Route::middleware(['web', 'auth'])->get('/api/mapa/export-shp', function (\Illuminate\Http\Request $request) {
-    $layer = (string) $request->query('layer');
-    $tenantId = (int) $request->query('tenant_id');
+// Exportação de camada em Shapefile (.zip) — TR Tangará Intranet #30.
+// POST = com recorte por polígono desenhado no mapa (2026-08-06); GET = camada inteira.
+Route::middleware(['web', 'auth'])->match(['get', 'post'], '/api/mapa/export-shp', function (\Illuminate\Http\Request $request) {
+    $layer = (string) $request->input('layer');
+    $tenantId = (int) $request->input('tenant_id');
+    $drawnGeometry = $request->input('drawn_geometry'); // GeoJSON do polígono de recorte (opcional)
 
     if (! $layer || ! $tenantId) {
         abort(400, 'Parâmetros layer e tenant_id são obrigatórios.');
     }
 
-    return app(\App\Services\Exports\ShapefileExportService::class)->exportStream($layer, $tenantId);
+    return app(\App\Services\Exports\ShapefileExportService::class)
+        ->exportStream($layer, $tenantId, is_string($drawnGeometry) ? $drawnGeometry : null);
 })->name('api.mapa.export-shp');
 
 // Rota exclusiva para o Mapa do Portal do Cidadão
