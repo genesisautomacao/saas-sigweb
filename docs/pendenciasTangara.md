@@ -311,6 +311,10 @@ Botão "Viabilidade de Parcelamento" na ficha pública do imóvel → mesmo moto
 
 Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unidades/edificações/testadas), Quadra, Logradouro/Seções, Setor, Distrito, Bairro, Zoneamento e Meio-fio — transação única + registro Antes/Depois no activitylog. Incluir entidade **Piscina** leve (molde `MeioFio`, polígono) para cobrir a lista do edital.
 
+#### ~~T2.7 — Performance do carregamento de camadas do mapa (N+1 do geo_json + gzip)~~
+**Origem:** lentidão relatada pelo usuário (2026-08-06) em municípios de 5-6 mil lotes · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-06 · Medido: lotes de Bom Princípio (6.610) **11,9 s → 0,31 s** (38×); Santa Cecília (4.435) **9,0 s → 0,21 s**; edificações 2,5 s → 0,77 s. Causa: accessor `geo_json` = 1 query/registro, acessado 3× por item nos loops do `MapDataController` (~20 mil queries por carregamento). Correção: `ST_AsGeoJSON` em **1 query por camada** (`buildFeatureCollection` + cases lotes/patrimônios/REURB). Extra: middleware [ComprimirJsonMapa](../app/Http/Middleware/ComprimirJsonMapa.php) nas rotas `gis-data`/`advanced-query` (3,7 MB → 0,47 MB na rede; 7/7 no teste). **Evolução futura registrada:** vector tiles (MVT) para municípios 50 mil+ lotes.
+
 #### ~~T2.6 — Modos de importação GIS (Adicionar / Atualizar / Substituir) + campos custom nas 9 camadas~~
 **Origem:** pedido do usuário em 2026-08-04 (reimportação pós-edição no QGIS) · **Status:** ✅ Concluído
 **Concluído em:** 2026-08-04 · Teste: 23/23 (tinker c/ rollback — 3 modos, reconexão de unidade/edificação/coleta/quadra→lote, FK discovery com processos_digitais, rollback em falha)

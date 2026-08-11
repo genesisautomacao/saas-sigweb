@@ -38,8 +38,30 @@ class MapDataController extends Controller
 
         $buildFeatureCollection = function ($items, $layerName) {
             $features = [];
+
+            // ⚡ PERF (2026-08-06): o accessor geo_json roda 1 QUERY POR REGISTRO no
+            // banco, e este loop o acessava 3× por item — com 6.000+ lotes eram
+            // ~20 mil queries e >10 s de resposta. A conversão ST_AsGeoJSON agora
+            // sai numa ÚNICA query por camada (mapa id → geometria decodificada).
+            $geoPorId = collect();
+            $primeiro = collect($items)->first();
+            if ($primeiro instanceof \Illuminate\Database\Eloquent\Model) {
+                $ids = collect($items)->pluck('id')->filter();
+                if ($ids->isNotEmpty()) {
+                    $geoPorId = DB::table($primeiro->getTable())
+                        ->whereIn('id', $ids)
+                        ->whereNotNull('geo')
+                        ->selectRaw('id, ST_AsGeoJSON(geo, 6) AS gj')
+                        ->pluck('gj', 'id')
+                        ->map(fn ($gj) => json_decode($gj));
+                }
+            }
+
             foreach ($items as $item) {
-                if (!empty($item->geo_json) && !empty($item->geo_json->coordinates)) {
+                $geom = $geoPorId[$item->id]
+                    ?? ($primeiro instanceof \Illuminate\Database\Eloquent\Model ? null : ($item->geo_json ?? null));
+
+                if ($geom && !empty($geom->coordinates)) {
 
                     $features[] = [
                         'type' => 'Feature',
@@ -78,7 +100,7 @@ class MapDataController extends Controller
                             'codigo' => $item->codigo ?? null, // Código municipal (itens 44-49) — rótulos/labels
                             'extensao_geo' => isset($item->extensao_geo) ? (float) $item->extensao_geo : null, // Meio-fio
                         ],
-                        'geometry' => $item->geo_json
+                        'geometry' => $geom
                     ];
                 }
             }
@@ -106,9 +128,13 @@ class MapDataController extends Controller
                     ->with('tipo')
                     ->select('id', 'sequential_id', 'name', 'geo', 'tipo_patrimonio_id', 'address')
                     ->get();
+                // ⚡ PERF: geometrias numa query só (o accessor geo_json é 1 query/registro)
+                $geosPat = DB::table('patrimonio_publicos')->whereIn('id', $items->pluck('id'))
+                    ->whereNotNull('geo')->selectRaw('id, ST_AsGeoJSON(geo, 6) AS gj')->pluck('gj', 'id');
                 $features = [];
                 foreach ($items as $item) {
-                    if (!empty($item->geo_json) && !empty($item->geo_json->coordinates)) {
+                    $geom = isset($geosPat[$item->id]) ? json_decode($geosPat[$item->id]) : null;
+                    if ($geom && !empty($geom->coordinates)) {
                         $features[] = [
                             'type' => 'Feature',
                             'properties' => [
@@ -119,7 +145,7 @@ class MapDataController extends Controller
                                 'address'       => $item->address,
                                 'layer'         => 'patrimonio_publicos',
                             ],
-                            'geometry' => $item->geo_json,
+                            'geometry' => $geom,
                         ];
                     }
                 }
@@ -128,9 +154,13 @@ class MapDataController extends Controller
 
             case 'areas_reurb':
                 $areas = AreaReurb::where('tenant_id', $tenantId)->get();
+                // ⚡ PERF: geometrias numa query só (o accessor geo_json é 1 query/registro)
+                $geosReurb = DB::table('areas_reurb')->whereIn('id', $areas->pluck('id'))
+                    ->whereNotNull('geo')->selectRaw('id, ST_AsGeoJSON(geo, 6) AS gj')->pluck('gj', 'id');
                 $features = [];
                 foreach ($areas as $area) {
-                    if ($area->geo_json) {
+                    $geom = isset($geosReurb[$area->id]) ? json_decode($geosReurb[$area->id]) : null;
+                    if ($geom) {
                         $features[] = [
                             'type' => 'Feature',
                             'properties' => [
@@ -142,7 +172,7 @@ class MapDataController extends Controller
                                 'area_geo' => $area->area_geo,
                                 'layer' => 'areas_reurb',
                             ],
-                            'geometry' => $area->geo_json,
+                            'geometry' => $geom,
                         ];
                     }
                 }
@@ -179,7 +209,11 @@ class MapDataController extends Controller
             case 'lotes':
                 // 🛑 A MÁGICA: Buscamos os lotes e já trazemos a contagem de vulnerabilidades sociais!
                 $lotes = Lote::query()->where('lotes.tenant_id', $tenantId)
-                    ->select('lotes.id', 'lotes.sequential_id', 'lotes.numero_lote', 'lotes.numero_logradouro', 'lotes.area_geo', 'lotes.geo', 'lotes.code', 'lotes.status_cadastro')
+                    ->select('lotes.id', 'lotes.sequential_id', 'lotes.numero_lote', 'lotes.numero_logradouro', 'lotes.area_geo', 'lotes.code', 'lotes.status_cadastro')
+                    // ⚡ PERF (2026-08-06): geometria convertida NA MESMA query — o accessor
+                    // geo_json fazia 1 query por lote (×3 acessos no loop = ~20 mil queries
+                    // e >10 s num município de 6.000 lotes).
+                    ->selectRaw('ST_AsGeoJSON(lotes.geo, 6) AS gj')
                     ->withExists([
                         // Verifica se existe alguma Unidade no Lote que tenha um Cadastro Social em Área de Risco
                         'unidadesImobiliarias as tem_area_risco' => function ($query) {
@@ -223,7 +257,8 @@ class MapDataController extends Controller
                 // Customizamos o construtor do GeoJSON só para os lotes para injetar essas variáveis
                 $features = [];
                 foreach ($lotes as $lote) {
-                    if (!empty($lote->geo_json) && !empty($lote->geo_json->coordinates)) {
+                    $geomLote = $lote->gj ? json_decode($lote->gj) : null;
+                    if ($geomLote && !empty($geomLote->coordinates)) {
                         $proc = $processosPorLote[$lote->id] ?? null;
                         $features[] = [
                             'type' => 'Feature',
@@ -246,7 +281,7 @@ class MapDataController extends Controller
                                 'processo_etapa_nome' => $proc?->processo_etapa_nome,
                                 'codigo_processo' => $proc?->codigo_processo,
                             ],
-                            'geometry' => $lote->geo_json
+                            'geometry' => $geomLote
                         ];
                     }
                 }

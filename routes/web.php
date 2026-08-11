@@ -10,13 +10,16 @@ use Illuminate\Support\Facades\Route;
 Route::redirect('/', '/app');
 
 // Rota pública/protegida para o mapa consumir
-Route::get('/api/gis-data', [MapDataController::class, 'getMapData'])->name('api.gis-data');
+Route::get('/api/gis-data', [MapDataController::class, 'getMapData'])
+    ->middleware(\App\Http\Middleware\ComprimirJsonMapa::class)
+    ->name('api.gis-data');
 Route::get('/api/search-lote', [MapDataController::class, 'searchLote']);
 
 // Adicione isto junto das suas outras rotas de mapa:
 // Aceita GET (consultas por atributo / espacial / intervalo — payload pequeno)
 // e POST (consultas por desenho com GeoJSON longo — evita 414 URI Too Long)
-Route::match(['get', 'post'], '/api/mapa/advanced-query', [MapDataController::class, 'advancedSpatialQuery']);
+Route::match(['get', 'post'], '/api/mapa/advanced-query', [MapDataController::class, 'advancedSpatialQuery'])
+    ->middleware(\App\Http\Middleware\ComprimirJsonMapa::class);
 Route::get('/api/mapa/estatisticas', [MapDataController::class, 'getEstatisticas']);
 
 // Exportação de camada em Shapefile (.zip) — TR Tangará Intranet #30

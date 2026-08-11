@@ -1,0 +1,133 @@
+### Características Técnicas
+1. Ter suporte para os principais navegadores de internet atualmente disponíveis, no mínimo, Microsoft Internet Explorer, Microsoft Edge, Mozilla Firefox e Google Chrome.
+2. Não necessitar da instalação/ download de plug-ins, applets ou activeX nas estações cliente para seu funcionamento.
+3. Apresentar Interoperabilidade da Base dos Dados devendo utilizar padrões do Open Geospatial Consortium (OGC), no mínimo Web Map Services (WMS) e Web Feature Service (WFS).
+4. Possibilidade de utilização de fontes externas, como OpenStreetMap, Microsoft Bing, entre outros.
+5. A Contratada deverá fornecer o Sistema Gerenciador de Banco de Dados, seja ele Software Livre ou Proprietário, sem custos para o Município.
+6. O Sistema deverá operar através de navegador de internet, preferencialmente na modalidade SaaS.
+
+---
+
+### Ambiente Intranet
+1. Consulta de Dados: Criação de expressões de consulta definidas pelo usuário, que permita o cruzamento de duas ou mais camadas.
+2. Consulta de Dados: Possibilidade de delimitar área de interesse através de Distrito ou Setor ou Bairro ou Logradouro ou Quadra.
+3. Consulta de Dados: Localizar imóvel através de Endereço.
+4. Consulta de Dados: Localizar imóvel através de Inscrição Imobiliária.
+5. Consulta de Dados: Localizar Edifício por nome de Edifício.
+6. Consulta de Dados: Localizar Loteamento, Quadra ou Lote de Loteamento.
+7. Consulta de Dados: Localizar Quadra através do número da Quadra.
+8. Consulta de Dados: Localizar Distrito através do nome do Distrito.
+9. Consulta de Dados: Localizar Setor através do nome do Setor.
+10. Consulta de Dados: Localizar Bairro através do nome do Bairro.
+11. Consulta de Dados: Localizar imóveis de Contribuinte através de Nome ou parte do Nome ou CPF/CNPJ.
+12. Visualização de dados das Pessoas/ Contribuintes.
+13. Consulta de Dados: Visualização de dados de determinado imóvel apontado pelo usuário, inclusive com a imagem frontal e Planta Cartográfica do mesmo.
+14. Visualização do histórico de alterações cartográficas e de atributos de imóvel apontado pelo usuário.
+15. Consulta de Dados: Geração e visualização de Memorial Descritivo de imóvel, apresentando lotes confrontantes, contribuintes confrontantes e coordenadas dos vértices.
+16. Consulta de Dados: Visualização de dados de determinada Planta de Quadra apontada pelo usuário, gerada a partir da Base de Dados, listando os imóveis existentes na Quadra e Planta Cartográfica da mesma contendo os Lotes, Edificações, Logradouros, Área dos Lotes (texto), Testadas (texto), Área Construída de cada unidade (texto), Tipo de Edificação de cada unidade (texto).
+17. Consulta de Dados: Visualização de dados dos logradouros, inclusive com as imagens das Seções.
+18. Consulta de Dados: Visualizar dados de Zoneamento.
+19. Consulta de Dados: Realizar Consulta de Viabilidade para Parcelamento/ Desmembramento.
+20. Consulta de Dados: Realizar Consulta de Viabilidade para Funcionamento.
+21. Consulta de Dados: Geração e visualização nas Consultas de Viabilidade, imagem do imóvel, croqui de localização, metragens/áreas, parâmetros do zoneamento, usos permitidos ou permissíveis e código de autenticação.
+22. Análise Espacial: Realizar cálculo de medidas lineares e áreas.
+23. Análise Espacial: Visualização de imóveis localizados em determinado entorno (Buffer) definido pelo usuário.
+24. Geração de Mapa de Calor (Hotmaps) para qualquer camada que possuir um ou mais itens de Cadastro.
+25. Impressão/Exportação de Dados: Apresentar formato de impressão A4 (Retrato e Paisagem).
+26. Impressão/Exportação de Dados: Apresentar formato de impressão A3 (Retrato e Paisagem).
+27. Impressão/ Exportação de Dados: Apresentar formato de impressão A2 (Retrato e Paisagem).
+28. Impressão/ Exportação de Dados: Apresentar formato de impressão A1 (Retrato e Paisagem).
+29. Impressão/ Exportação de Dados: Apresentar formato de impressão A0 (Retrato e Paisagem).
+30. Impressão/Exportação de Dados: Exportação de camada selecionada pelo usuário para o formato SHP.
+31. Impressão/Exportação de Dados: Os relatórios gerados deverão apresentar a opção de exportação para PDF e XLS (ou XLSX ou CSV).
+32. Tematização: Geração de Mapas Temáticos de Valores únicos de forma dinâmica.
+33. Tematização: Geração de Mapas Temáticos de Intervalo de Classes de forma dinâmica (gerado no momento da requisição do usuário).
+34. Tematização: Definição de cores para tematização por Valores únicos.
+35. Tematização: Definição de cores para tematização por Intervalo de Classes.
+36. Tematização: Definição do número de intervalos para tematização por Intervalo de Classes.
+37. Tematização: Geração de Mapas Temáticos para qualquer camada que possuir um ou mais itens de Cadastro.
+38. Estatísticas: Geração de dados estatísticos para qualquer camada que possuir um ou mais itens de Cadastro.
+39. Estatísticas: Possibilidade de delimitar área de interesse através de Distrito ou Setor ou Bairro.
+40. Estatísticas: Apresentar informações do item de Cadastro selecionado, apresentando quantitativo, percentual e gráfico (coluna ou pizza).
+41. Estatísticas: Ao gerar estatísticas do item de Cadastro, possibilitar ao usuário também visualizar os gráficos diretamente no mapa de navegação (exemplo: no centro de cada Bairro) de acordo com a delimitação selecionada (Distrito ou Setor ou Bairro), permitindo assim, uma visão especializada do item de interesse.
+42. Edição Cartográfica: Incluir e geocodificar Lote (geometria, inscrição imobiliária, área do Lote, testada (s), Logradouro e Seção de cada testada, ocupação do Lote (Baldio ou Construído) e Situação na Quadra (meio de quadra, esquina ou encravado)).
+43. Edição Cartográfica: Incluir e geocodificar Edificação (geometria, inscrição imobiliária, área da Edificação/ Unidade, Tipo de Edificação, Pavimento da Unidade).
+44. Edição Cartográfica: Incluir e geocodificar Logradouro e Seções (geométrica, Código do Logradouro + Código da Seção (métrico) + Lado da Seção, comprimento).
+45. Edição Cartográfica: Incluir e geocodificar Quadra (geometria, Código do Distrito + Código do Setor + Número da Quadra, área da Quadra).
+46. Edição Cartográfica: Incluir e geocodificar Distrito (geometria, Código do Distrito, nome do Distrito, área do Distrito).
+47. Edição Cartográfica: Incluir e geocodificar Setor (geometria, Código do Distrito + Código do Setor, nome do Setor, área do Setor).
+48. Edição Cartográfica: Incluir e geocodificar Bairro (geometria, Código do Bairro, nome do Bairro, área do Bairro).
+49. Edição Cartográfica: Incluir e geocodificar Zoneamento (geometria, Código do Zoneamento, área do zoneamento, cor do zoneamento (conforme Mapa aprovado em Lei)).
+50. Edição Cartográfica: Excluir Lote.
+51. Edição Cartográfica: Excluir Edificação/ Unidade (atualizar os campos área total construída, número de unidades no Lote, Ocupação do Lote).
+52. Edição Cartográfica: Excluir Logradouro e Seções.
+53. Edição Cartográfica: Excluir Quadra.
+54. Edição Cartográfica: Excluir Distrito.
+55. Edição Cartográfica: Excluir Setor.
+56. Edição Cartográfica: Excluir Bairro.
+57. Edição Cartográfica: Excluir Meiofio-/Calçada.
+58. Edição Cartográfica: Excluir Zoneamento.
+59. Edição Cartográfica: Realizar Desmembramentos (todos os procedimentos de cadastro envolvidos no desmembramento devem estar presentes e atualizados ao fim do processo, como atualização da área do Lote, Testada, Área Total Construída, Total de unidades).
+60. Edição Cartográfica: Realizar Unificação de Lote (atualizar geometria, área construída, área total construída, número de unidades no Lote, Ocupação do Lote (Baldio ou Construído) e Situação na Quadra (meio de quadra, esquina ou encravado), testada (s)).
+61. Edição Cartográfica: Realizar Recodificação de Lote, Edificação, Testadas, Logradouro e Seções, Quadra, Piscina, Distrito, Setor, Bairro, Meio-Fio/Calçada e Zoneamento (todos os procedimentos de cadastro envolvidos na recodificação devem estar presentes e atualizados ao fim do processo, como recodificando um Lote, todas suas unidades devem ser recodificadas no processo).
+62. Edição de Atributos: Incluir/ Excluir/ Alterar informações de Contribuinte/ Proprietário.
+63. Edição de Atributos: Incluir/ Excluir/Alterar informações de Pessoa.
+64. Edição de Atributos: Incluir/ Excluir/ Alterar informações de Distrito.
+65. Edição de Atributos: Incluir/ Excluir/Alterar informações de Setor.
+66. Edição de Atributos: Incluir/ Excluir/Alterar informações de Bairro.
+67. Edição de Atributos: Incluir/Excluir/Alterar informações de Quadra.
+68. Edição de Atributos: Incluir/ Excluir/Alterar informações de Lote.
+69. Edição de Atributos: Incluir/ Excluir/ Alterar informações de Edificação/ Unidade.
+70. Edição de Atributos: Incluir/ Excluir/ Alterar informações de Logradouro e Seções.
+71. Edição de Atributos: Incluir/ Excluir/ Alterar informações de Parâmetros de Zoneamento.
+72. Edição de Atributos: Incluir/Excluir/Alterar Usos de Zoneamento.
+73. Edição de Atributos: Replicar unidades imobiliárias.
+74. Edição de Atributos: Vincular imagem de documentos (CPF, RG, CNH, etc.) a determinado imóvel.
+75. Edição de Atributos: Incluir, excluir, alterar itens de cadastro, ou seja, customizar campos de dados, definindo o nome do campo e o tipo de entrada de dados (numérico, texto, seleção, multiseleção ou multiseleção com quantitativos) vinculando o mesmo a sua respectiva Camada (Layer).
+76. Edição de Atributos: Os itens criados deverão estar disponíveis/ visíveis nas funcionalidades de Identificação/ Edição de Atributos da Camada, Mapa Temático, Criação de expressões de consultas, Mapa de Calor e Estatísticas.
+77. Navegação: Aproximar (Zoom in).
+78. Navegação: Afastar (Zoom out).
+79. Navegação: Arrasto (Pan).
+80. Navegação: Visão Geral (Zoom extensão).
+81. Navegação: Visão anterior.
+82. Navegação: Uso de scroll do mouse para Aproximar e Afastar.
+83. Manutenção de Usuários: Incluir, Alterar e Excluir Perfil de Usuário.
+84. Manutenção de Usuários: Incluir, Alterar e Excluir Usuários.
+85. Manutenção de Usuários: Vincular Usuário (s) a determinado Perfil.
+86. Manutenção de Usuários: Configuração da utilização/ visualização de Camadas em determinado Perfil.
+87. Manutenção de Usuários: Configuração da utilização/ visualização de Funcionalidades em determinado Perfil.
+88. Manutenção de Usuários: Configuração da utilização/ visualização de Itens de Cadastro em determinado Perfil.
+89. Manutenção de Usuários: Apresentar ferramenta de auditoria, permitindo visualizar as alterações/cadastros realizadas por determinado usuário, tipo de operação realizada (inclusão, alteração ou exclusão), bem como a data e hora da operação.
+
+---
+
+### Ambiente Internet
+1. Consulta de Dados: Localizar imóvel através de Endereço.
+2. Consulta de Dados: Localizar imóvel através de Inscrição Imobiliária.
+3. Consulta de Dados: Localizar Edifício por nome de Edifício.
+4. Consulta de Dados: Localizar Loteamento, Quadra ou Lote de Loteamento.
+5. Consulta de Dados: Localizar Quadra através do número da Quadra.
+6. Consulta de Dados: Localizar Distrito através do nome do Distrito.
+7. Consulta de Dados: Localizar Setor através do nome do Setor.
+8. Consulta de Dados: Localizar Bairro através do nome do Bairro.
+9. Consulta de Dados: Visualização de dados de determinado imóvel apontado pelo usuário, inclusive com a imagem frontal e Planta Cartográfica do mesmo.
+10. Consulta de Dados: Visualização de dados dos logradouros, inclusive com as imagens das Seções.
+11. Consulta de Dados: Visualizar dados de Zoneamento.
+12. Consulta de Dados: Realizar Consulta de Viabilidade para Parcelamento/ Desmembramento.
+13. Consulta de Dados: Realizar Consulta de Viabilidade para Funcionamento.
+14. Consulta de Dados: Geração e visualização nas Consultas de Viabilidade, imagem do imóvel, croqui de localização, metragens/áreas, parâmetros do zoneamento, usos permitidos ou permissíveis e código de autenticação.
+15. Análise Espacial: Realizar cálculo de medidas lineares e áreas.
+16. Impressão/Exportação de Dados: Apresentar formato de impressão A4 (Retrato e Paisagem).
+17. Impressão/Exportação de Dados: Apresentar formato de impressão A3 (Retrato e Paisagem).
+18. Tematização: Geração de Mapas Temáticos de Valores únicos de forma dinâmica (gerado no momento da requisição do usuário).
+19. Tematização: Geração de Mapas Temáticos de Intervalo de Classes de forma dinâmica (gerado no momento da requisição do usuário).
+20. Tematização: Definição de cores para tematização por Valores únicos.
+21. Tematização: Definição de cores para tematização por Intervalo de Classes.
+22. Tematização: Definição do número de intervalos para tematização por Intervalo de Classes.
+23. Tematização: Geração de Mapas Temáticos para qualquer camada que possuir um ou mais itens de Cadastro.
+24. Navegação: Aproximar (Zoom in).
+25. Navegação: Afastar (Zoom out).
+26. Navegação: Arrasto (Pan).
+27. Navegação: Visão Geral (Zoom extensão).
+28. Navegação: Visão anterior.
+29. Navegação: Uso de scroll do mouse para Aproximar e Afastar.
