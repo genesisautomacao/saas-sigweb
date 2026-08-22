@@ -1,0 +1,342 @@
+================================================================================
+POC ANTÔNIO CARLOS/MG — LISTA DE CONFORMIDADE + PLANO DE AÇÃO
+Gerada em: 2026-08-22 · Base do confronto: sistema ATUAL (pós-aprovação Tangará)
+Fonte: Checklist_PoC_Antonio_Carlos.pdf (30 itens — 17 WEB + 13 MOBILE)
+
+⚠️ IMPORTANTE: os status do PDF ("Atendido/Parcial/Não atendido") são um retrato
+ANTIGO, anterior à implementação das Frentes A/B (app de coletas, monitoramento,
+chat, produtividade, boletim configurável) e a toda a evolução da PoC de Tangará.
+Esta lista reavalia CADA item contra o sistema de hoje — o "PDF dizia" fica
+registrado em cada item para mostrar a evolução na apresentação.
+
+Legenda:  ✅ ATENDIDO  = funciona hoje (com roteiro de demonstração)
+          ⚠️ PARCIAL   = núcleo pronto, falta um ajuste pontual (descrito)
+          ❌ PENDENTE  = não implementado
+================================================================================
+
+RESUMO EXECUTIVO (30 itens) — atualizado em 2026-08-22 (Fase 1 EXECUTADA)
+- ATENDIDOS ✅ ......... 29 itens  (96,7%)
+- PARCIAIS ⚠️ ..........  1 item   ( 3,3%)  → item 1 (BDG — insumo externo)
+- PENDENTES ❌ .........  0 itens  ( 0,0%)
+
+A única parcial é o item 1 (base cartográfica BDG/CTM-Geo): o motor de
+importação está pronto e o MUNICÍPIO JÁ FOI ACIONADO — está preparando o DWG
+para a equipe converter em JSON e importar. Com a base importada: 30/30.
+
+FASE 1 CONCLUÍDA em 2026-08-22 (8 verificações automáticas, 0 falhas):
+  → Item 8: escala atual DINÂMICA no quadrinho de coordenadas (2 mapas).
+  → Item 12: ferramenta "Capturar Coordenadas" (Ferramentas → clique →
+    notificação com lat/lon + botão Copiar).
+  → Item 6: Auditoria com filtro por USUÁRIO + Exportar PDF/Excel.
+  → Bônus de robustez: trilha de auditoria preserva o NOME de usuário já
+    excluído da equipe (withTrashed na coluna, no filtro e nos exports).
+ACHADOS DO USUÁRIO corrigidos em 2026-08-22 (2ª rodada):
+  → Item 7: cores DINÂMICAS por camada (picker por linha + restaurar padrão;
+    só camadas sem cor de lei/regra) + camada EDIFICAÇÕES com checkbox
+    próprio no painel. Futuro: cor padrão por entidade no Resource (Manager).
+  → Item 9: toponímia ganhou REPOSICIONAR no mapa + hover no ponto.
+  → Item 12: painel "ir para coordenada" virou input único que aceita COLAR
+    o "lat, lon" copiado da captura.
+  → Item 6: botão Exportar no padrão cinza + coluna "Registro" legível
+    (#id — numero_lote/nome), inclusive para registros excluídos.
+
+Comparativo com o PDF: ele apontava 12 "Atendido", 8 "Parcial" e 10 "Não
+atendido" — TODOS os 10 "não atendido" já existem hoje (9 deles são o app de
+coletas inteiro, construído depois daquele retrato).
+
+================================================================================
+### MÓDULO WEB (17 itens)
+
+1. Acesso ao Banco de Dados Geográfico (BDG/CTM-Geo) via internet.
+   [PARCIAL ⚠️ — bloqueio externo]  (PDF dizia: Parcial)
+   O QUE JÁ TEMOS: todo o motor de entrada de dados — "Importar Mapa (GIS)" com
+   3 modos (Adicionar/Atualizar/Substituir + reconexão de filhos), 9 camadas,
+   campos customizados no GeoJSON; consumo de WMS externo; servidor WFS
+   (/api/ogc); conversão via ogr2ogr (GDAL já instalado na VPS).
+   O QUE FALTA: a BASE da prefeitura (formato DWG/BDG citado no TR). DWG não é
+   formato de banco — precisa de conversão (ogr2ogr/QGIS) antes do import.
+   AÇÃO: Fase 2 do plano (pedir a base + pipeline de conversão + importar).
+   DEFESA NA POC: os 3 cenários já documentados (arquivo / WMS-WFS / conexão
+   direta) — a arquitetura está pronta para qualquer um; demonstrar com a base
+   que eles entregarem OU importação ao vivo de um SHP/GeoJSON.
+
+2. Controle de login, senhas e perfis de acesso.
+   [ATENDIDO ✅]  (PDF dizia: Atendido)
+   Login por usuário/senha (Filament) + papéis por prefeitura (RoleResource).
+   Os 3 perfis pedidos (cadastrador/supervisor/administrador) são papéis com
+   caixas de permissão — criar os 3 no tenant da demo (Fase 3).
+   DEMO: logar com cada perfil e mostrar as diferenças de menu.
+
+3. Controle de permissões com trilha de auditoria.
+   [ATENDIDO ✅]  (PDF dizia: Atendido)
+   Permissão por função (CRUD por Policy, camada por ver_camada_*, ferramenta
+   por toolbar_*) + spatie/activitylog gravando quem/quando/o quê.
+   DEMO: Administração → Auditoria (modal Antes/Depois; croqui de geometria).
+
+4. Painel administrativo completo (usuários, grupos, permissões, camadas).
+   [ATENDIDO ✅]  (PDF dizia: Atendido)
+   RoleResource (caixas por módulo, camadas do mapa, ferramentas), UserResource
+   (equipe, vínculo a papéis), controle de edição espacial via toolbar_criar/
+   ferramentas. DEMO: criar papel ao vivo marcando caixas.
+
+5. Menus e barras de ferramentas gerados automaticamente por perfil.
+   [ATENDIDO ✅]  (PDF dizia: Parcial)
+   O menu do Filament se monta sozinho pelas Policies (recurso sem permissão
+   nem aparece) e a barra do mapa é gated por perfil (correção da PoC Tangará:
+   os 4 grupos — Filtros, Estatísticas, Criar, Ferramentas — checam permissão).
+   DEMO: logar como cadastrador (menu enxuto) × admin (menu cheio).
+
+6. Histórico operacional completo por usuário.
+   [ATENDIDO ✅ — concluído em 2026-08-22]  (PDF dizia: Atendido)
+   Auditoria com filtro por USUÁRIO (busca; inclui usuários já excluídos da
+   equipe — o histórico deles permanece recuperável e com o NOME correto) +
+   botão "Exportar" com PDF e Excel respeitando os filtros aplicados
+   (usuário/operação/período; teto de 10.000 linhas). Testes 8/8 + 6/6.
+   REFINADO (feedback do usuário, 2026-08-22): botão Exportar no padrão
+   CINZA dos demais (igual Lotes) e a coluna "ID" virou "REGISTRO" —
+   "#id — identificador legível" (numero_lote p/ Lote, nome/inscrição p/
+   as demais; funciona até para registro já excluído). Vale na tela E nos
+   exports.
+   DEMO: Administração → Auditoria → filtrar por um usuário → Exportar PDF.
+
+7. Gerenciamento de camadas do mapa (ligar, desligar, cores, estilos).
+   [ATENDIDO ✅ — completado em 2026-08-22]  (PDF dizia: Atendido)
+   ⚠️ ACHADO DO USUÁRIO: o literal pede "cores" NA CAMADA — a tematização
+   (análise) não bastava. Implementado: SELETOR DE COR em cada camada
+   estrutural do painel (distritos, setores, bairros, loteamentos, quadras,
+   lotes, edificações, logradouros, seções) — trocou a cor, a camada repinta
+   NA HORA (contorno + preenchimento translúcido; rótulos preservados) e a
+   bolinha da linha acompanha. Preferência salva POR USUÁRIO no navegador
+   (por tenant) + botão "↺ restaurar cores padrão" no topo do painel.
+   Camadas com cor de LEI/REGRA ficam fora por design (defesa na PoC): zonas
+   (cor da lei, editável no cadastro), processos (cor do fluxo), chamados
+   (categoria), coleta (status), postes/árvores (condição), meio-fios
+   (conservação) — nessas, a cor é governada pelo DADO. Estados sociais do
+   lote (risco/benefício/PCD) prevalecem sobre a cor personalizada.
+   BÔNUS: camada "EDIFICAÇÕES" ganhou checkbox próprio no painel (abaixo de
+   Lotes) — liga TODAS sem depender da ficha do lote (backend/estilo já
+   existiam); clique na edificação abre a modal de opções; permissão herda
+   de lotes. A ficha do lote mantém o toggle por lote, como era.
+   REFINADO (2ª rodada de teste do usuário, 2026-08-22): (a) o HOVER agora
+   segue a cor personalizada — traço sólido na cor escolhida e preenchimento
+   MAIS opaco que o normal (lotes/quadras/bairros/loteamentos/logradouros/
+   seções + hover novo para edificações); sem cor personalizada, destaque
+   padrão de sempre. (b) Painel de camadas repaginado: linhas viram cartões
+   com hover, controles da direita em colunas fixas ([Rót.] [campo] [cor] —
+   seletores de cor alinhados verticalmente), picker 20px arredondado com
+   zoom no hover, botão "restaurar" em pill.
+   ITEM FUTURO (decisão do usuário): cor PADRÃO da entidade editável pelo
+   Manager no Resource (permissão específica) — evolução pós-PoC.
+   DEMO: painel de camadas → trocar a cor de Lotes no seletor → repinta ao
+   vivo → "restaurar cores padrão" volta tudo · ligar "Edificações" → clicar
+   numa edificação → modal abre.
+
+8. Ferramentas básicas de navegação no mapa.
+   [ATENDIDO ✅ — concluído em 2026-08-22]  (PDF dizia: Atendido)
+   Zoom in/out (botões + scroll), pan, zoom extensão, visão anterior E agora a
+   ESCALA ATUAL dinâmica no quadrinho de coordenadas (canto inferior esquerdo,
+   "Escala 1:2.500", atualiza a cada zoom) nos DOIS mapas — mesma convenção do
+   "ir para escala", então digitar 2000 no painel e ler 1:2.000 batem sempre.
+   DEMO: dar zoom com o scroll observando o quadrinho mudar.
+
+9. Inserção de textos de toponímia com posicionamento dinâmico.
+   [ATENDIDO ✅ — completado em 2026-08-22]  (PDF dizia: Não atendido!)
+   Entidade Toponimia + ação no mapa + camada própria já existiam (criar/
+   editar/excluir). ⚠️ ACHADO DO TESTE do usuário: faltava REPOSICIONAR —
+   corrigido: botão "Reposicionar no mapa" no modal de opções → clique no
+   novo local (Esc cancela) → texto move na hora e persiste no PostGIS.
+   Bônus: HOVER no ponto (mãozinha + anel laranja + ponto maior) sinalizando
+   que o texto é clicável/editável. Teste automático da persistência: 6/6.
+   DEMO: Criar → Toponímia → texto → passar o mouse (anel) → clicar →
+   Reposicionar no mapa → clicar no novo local.
+
+10. Exibição de rótulos nas entidades geográficas.
+    [ATENDIDO ✅]  (PDF dizia: Parcial)
+    Toggle de rótulos por camada + SELETOR DE CAMPO (código, nome, área...) —
+    era o item 11 do TR anterior, fechado com seletor de atributo.
+    DEMO: ligar rótulos de lotes trocando o campo exibido.
+
+11. Criação de mapas temáticos por atributo.
+    [ATENDIDO ✅]  (PDF dizia: Atendido)
+    Valores Únicos + Intervalos de Classes, cores configuráveis, nº de classes,
+    inclusive por CAMPO CUSTOMIZADO do município. DEMO: Filtro Avançado →
+    Tematização.
+
+12. Leitura de coordenadas e localização por coordenada.
+    [ATENDIDO ✅ — concluído em 2026-08-22]  (PDF dizia: Parcial)
+    Trio completo: (1) quadrinho com a coordenada AO VIVO do cursor (UTM
+    SIRGAS 2000 + Lat/Lon — já existia); (2) "ir para coordenada" (B2); e
+    (3) NOVA ferramenta "Capturar Coordenadas" (Ferramentas, abaixo das
+    medições): clique num ponto → notificação no topo com Lat/Lon e botão
+    COPIAR (vai para a área de transferência) — o clique de captura não abre
+    a ficha do que estiver embaixo.
+    REFINADO (feedback do usuário, 2026-08-22): o painel "ir para coordenada"
+    virou um INPUT ÚNICO de texto — cola o "lat, lon" copiado direto nele e
+    clica Ir (aceita vírgula, espaço ou ponto-e-vírgula como separador).
+    Fluxo redondo: Capturar → Copiar → Colar → Ir.
+    DEMO: Ferramentas → Capturar Coordenadas → Copiar → colar no painel
+    de coordenada → Ir (o mapa voa e pisca o marcador no ponto).
+
+13. Geração de relatórios com dados coletados em campo e anexos.
+    [ATENDIDO ✅]  (PDF dizia: Parcial)
+    BIC em PDF por unidade (boletim + foto frontal + print do mapa), tela de
+    Validação da Coleta (antes→depois por campo, export PDF/Excel, carimbo de
+    campanha validada), exports XLS/PDF/CSV/XML nas listas.
+    DEMO: coletar um lote no app → BIC em PDF + Validação da Coleta.
+
+14. Visualização do mapa CTM completo com códigos geográficos.
+    [ATENDIDO ✅]  (PDF dizia: Atendido)
+    Quadras, lotes, edificações, logradouros, seções (código composto), faces
+    de quadra (PGV), todos com código municipal (colunas `codigo` — itens
+    44-49 de Tangará). DEMO: mapa com rótulos de código ligados.
+
+24. Troca de plano de fundo do mapa (basemap e WMS).
+    [ATENDIDO ✅]  (PDF dizia: Atendido)
+    OSM, Esri Satélite, Azure Maps, Ortofoto + WMS externos persistidos por
+    categoria (e quick-add avulso). DEMO: alternar basemaps + ligar um WMS
+    público (IBGE/estado).
+
+28. Retorno ao zoom/enquadramento original do projeto.
+    [ATENDIDO ✅]  (PDF dizia: Parcial)
+    O admin salva o enquadramento padrão ("Salvar enquadramento" grava
+    map_lat/lon/zoom do tenant) e o botão de extensão retorna a ele.
+    DEMO: navegar longe → botão de extensão → volta ao enquadramento salvo.
+
+29. Sistema 100% web compatível com Chrome, Edge e Firefox.
+    [ATENDIDO ✅]  (PDF dizia: Atendido)
+    Laravel/Filament/OpenLayers — zero plugin. Mesma defesa de Tangará Téc-1/2.
+
+--------------------------------------------------------------------------------
+### MÓDULO MOBILE (13 itens) — app-coletas (React Native/Expo)
+
+Nota geral: o PDF marcava quase tudo "Não atendido" porque o app AINDA NÃO
+EXISTIA naquele retrato. Hoje o app está completo e evoluiu nas PoCs seguintes
+(boletim 3 estados, regiões por cadastrador, antes→depois, Meu Progresso).
+
+15. Geolocalização automática e indicação do imóvel mais próximo.
+    [ATENDIDO ✅]  (PDF dizia: Não atendido)
+    GPS contínuo no app + GET /api/lotes/nearest (KNN PostGIS) sugere o lote
+    não visitado mais próximo. DEMO: abrir o app em campo → "mais próximo".
+
+16. Boletim eletrônico responsivo com campos dinâmicos.
+    [ATENDIDO ✅]  (PDF dizia: Não atendido)
+    Boletim 100% config-driven (/api/coleta/config): a prefeitura define quais
+    campos aparecem, quais são leitura e quais obrigatórios (3 estados) — e
+    campos customizados por entidade. Dinâmica por conteúdo: edificações/
+    unidades aparecem conforme o lote. VALIDAR (Fase 3): fluxo baldio ×
+    construído no app da demo.
+
+17. Captura e anexação de fotos de fachada e laterais.
+    [ATENDIDO ✅]  (PDF dizia: Parcial)
+    Câmera integrada no app: frontal + lateral esq/dir, vinculadas ao lote,
+    sobem no push (base64 → storage). DEMO: fotografar e ver no WEB (ficha).
+
+18. Registro de inconformidades geométricas diretamente no app.
+    [ATENDIDO ✅]  (PDF dizia: Não atendido)
+    Status "inconformidade" + descrição textual no app; no WEB o lote fica
+    vermelho e há PIN de inconformidade com popup da descrição (camada
+    coleta). DEMO: marcar inconformidade no app → sync → ver o pin no mapa.
+
+19. Envio dos dados ao banco central com um único comando.
+    [ATENDIDO ✅]  (PDF dizia: Não atendido)
+    Botão único de sincronização (fila offline → push com confirmação; fichas
+    rejeitadas voltam avisadas — blindagem por região). DEMO: coletar offline
+    → 1 toque → conferir no WEB.
+
+20. Monitoramento em tempo real dos cadastradores no mapa.
+    [ATENDIDO ✅]  (PDF dizia: Não atendido)
+    MonitoramentoCampoPage: mapa + cards (nome, coletados hoje, último ping),
+    auto-refresh 30s; app pinga GPS a cada 60s. DEMO: página aberta durante a
+    coleta de campo.
+
+21. Canal de comunicação integrado entre cadastrador e supervisor.
+    [ATENDIDO ✅]  (PDF dizia: Não atendido)
+    Chat WEB (MensagensPage) ↔ app (API /api/mensagens) com push Expo no
+    celular. DEMO: mandar mensagem do WEB → notificação no app → responder.
+
+22. Relatórios de produtividade com filtros por cadastrador, setor e quadra.
+    [ATENDIDO ✅]  (PDF dizia: Não atendido)
+    ProdutividadePage: filtros por período + cadastrador, tabela por QUADRA
+    designada (% cumprido, barra), 6 cards de resumo, export PDF; API
+    /api/reports/productivity. Defesa do "setor": o recorte oficial é a
+    REGIÃO DESIGNADA do cadastrador (quadras/bairros) — mais preciso que
+    setor fiscal para gestão de coleta.
+
+23. Identificação visual dos lotes já cadastrados no mapa.
+    [ATENDIDO ✅]  (PDF dizia: Parcial)
+    4 status × 4 cores (cinza/verde/amarelo/vermelho) no app E no WEB (camada
+    "Coleta de Dados" self-contained + heatmap por status).
+    DEMO: mapa de avanço da coleta no WEB e no app (pill ✅ X/Y · Z%).
+
+25. Centralizar mapa na posição atual do usuário pelo GPS.
+    [ATENDIDO ✅]  (PDF dizia: Não atendido)
+    O mapa do app acompanha o GPS (MapScreen). VALIDAR (Fase 3): botão de
+    mira/centralizar explícito — se não houver, é ajuste pequeno no app.
+
+26. Popup com resumo do imóvel ao selecioná-lo no mapa.
+    [ATENDIDO ✅]  (PDF dizia: Atendido)
+    Tocar no lote abre o resumo (código, endereço, status, proprietário
+    oficial p/ conferência) e dali entra no boletim. DEMO: tocar → coletar.
+
+27. Validações e críticas em tempo real no formulário.
+    [ATENDIDO ✅]  (PDF dizia: Não atendido)
+    Obrigatoriedade validada NO APP (campo visível e preenchível), máscaras
+    (CPF/CNPJ/telefone), tipos numéricos. Nota: crítica CRUZADA (ex.: área
+    construída > área do lote) não existe — se cobrarem, é evolução pontual.
+
+30. Aplicativo compatível com Android e/ou iOS.
+    [ATENDIDO ✅]  (PDF dizia: Não atendido)
+    App React Native/Expo rodando em Android (o "e/ou" do TR atende com um
+    só). GPS + câmera + SQLite offline. AÇÃO Fase 3: build EAS/APK atualizado
+    para a demo (fora do Expo Go).
+
+================================================================================
+### PLANO DE AÇÃO — CHECKLIST PARA 100%
+(execução das fases SÓ após o "ok" — padrão do projeto)
+
+FASE 1 — Ajustes rápidos de código → CONCLUÍDA em 2026-08-22 (29/30 ✅)
+[x] A1. Escala atual dinâmica no quadrinho de coordenadas dos DOIS mapas
+        (decisão do usuário: no quadrinho, não barra separada; convenção
+        resolution×3780 = a mesma do "ir para escala").
+[x] A2. Ferramenta "Capturar Coordenadas" no menu Ferramentas (clique único →
+        toast com Lat/Lon + Copiar; o quadrinho ao vivo já existia).
+[x] A3. Auditoria: filtro por usuário (withTrashed) + Exportar PDF/Excel
+        (AuditoriaExportService, respeita filtros, teto 10.000 linhas) +
+        nome de usuário excluído preservado na trilha (coluna e exports).
+[x] A4. Bateria automática: 8 verificações, 0 falhas (transação revertida);
+        node --check nos 2 engines; blades recompiladas. Lista atualizada.
+
+FASE 2 — Item 1 (BDG/CTM-Geo) — depende da prefeitura
+[ ] B1. Comercial: solicitar a base cartográfica de Antônio Carlos e o
+        FORMATO (SHP/GeoJSON/GPKG importam direto; DWG exige conversão).
+[ ] B2. Se vier DWG: pipeline de conversão (ogr2ogr/QGIS → GeoJSON por
+        camada, na ordem hierárquica: distritos → ... → quadras → lotes).
+[ ] B3. Criar/usar tenant antonio-carlos + "Importar Mapa (GIS)" modo
+        Adicionar + "Recalcular Áreas (GIS)" + poc:inventario.
+[ ] B4. PLANO B (sem base entregue): demonstrar a importação ao vivo com um
+        SHP/GeoJSON de amostra + WMS público (IBGE) + defesa dos 3 cenários
+        de integração (arquivo / WMS-WFS / conexão direta) do CLAUDE.md.
+
+FASE 3 — Validações manuais no app + preparo da demo
+[ ] C1. Validar no app (Expo Go): botão centralizar GPS (25), fluxo baldio ×
+        construído no boletim (16), validações de obrigatório/máscara (27).
+[x] C2. Toponímia validada pelo usuário (9): faltava reposicionar → botão
+        "Reposicionar no mapa" + hover implementados em 2026-08-22.
+[ ] C3. Montar o tenant da demo: 3 papéis (cadastrador/supervisor/admin),
+        regiões atribuídas aos cadastradores, boletim configurado, seeds,
+        enquadramento padrão salvo.
+[ ] C4. Build EAS/APK atualizado do app (item 30) — agendar com folga
+        (fila do EAS).
+[ ] C5. Ensaio geral da demo: roteiro WEB (mapa → coleta → validação →
+        relatórios) + roteiro campo (app → sync → monitoramento ao vivo).
+
+FASE 4 — Rito final (o mesmo de Tangará)
+[ ] D1. Bateria item a item com verificações automáticas (transação
+        revertida) + atualizar status/percentuais NESTA lista.
+[ ] D2. pg_dump da VPS antes de qualquer carga de dados de Antônio Carlos
+        (+ agendar backup diário no cron — pendência já combinada).
+[ ] D3. Registrar no CLAUDE.md e no backlog o que a PoC exigir de novo.
+
+================================================================================
+FIM — resumo executivo com os percentuais está no TOPO do arquivo.
+================================================================================

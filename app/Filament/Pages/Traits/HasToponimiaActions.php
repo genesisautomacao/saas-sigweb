@@ -144,6 +144,17 @@ trait HasToponimiaActions
                     ]),
             ])
             ->extraModalFooterActions([
+                // PoC AC item 9 — o modal fecha e o JS entra no modo "clique no
+                // novo local" (Esc cancela); o clique devolve moverToponimia().
+                Action::make('reposicionarToponimia')
+                    ->label('Reposicionar no mapa')
+                    ->color('info')
+                    ->icon('heroicon-o-arrows-pointing-out')
+                    ->action(function (): void {
+                        $this->dispatch('iniciar-mover-toponimia', ['id' => $this->toponimiaAtivaId]);
+                        $this->dispatch('fechar-modal-filament');
+                    }),
+
                 Action::make('excluirToponimia')
                     ->label('Excluir')
                     ->color('danger')
@@ -176,5 +187,30 @@ trait HasToponimiaActions
                 ]);
                 Notification::make()->title('Texto atualizado')->success()->send();
             });
+    }
+
+    // -------------------------------------------------------------------------
+    // PoC AC item 9 — persiste o novo local escolhido no mapa (a feição já foi
+    // movida em memória pelo engine; aqui grava lat/lon + geo PostGIS).
+    // -------------------------------------------------------------------------
+    #[On('moverToponimia')]
+    public function moverToponimia(string $id, float $lat, float $lon): void
+    {
+        $top = Toponimia::find($id);
+        if (! $top) {
+            return;
+        }
+
+        $top->lat = $lat;
+        $top->lon = $lon;
+        $top->save();
+
+        \Illuminate\Support\Facades\DB::table('toponimias')
+            ->where('id', $top->id)
+            ->update(['geo' => \Illuminate\Support\Facades\DB::raw(
+                "ST_SetSRID(ST_MakePoint({$lon},{$lat}),4326)"
+            )]);
+
+        Notification::make()->title('Texto reposicionado')->success()->send();
     }
 }

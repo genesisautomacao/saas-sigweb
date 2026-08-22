@@ -28,6 +28,15 @@
 
         {{-- O MAPA E TOOLTIPS --}}
         <div id="sigweb-map" class="absolute inset-0 z-0 w-full h-full"></div>
+
+        {{-- PoC AC item 8 — escala atual dinâmica (espelho do quadrinho da intranet) --}}
+        <div id="coord-escala-atual"
+            style="position:absolute;bottom:8px;left:16px;z-index:30;
+                   background:rgba(17,24,39,.75);color:#f9fafb;
+                   font:700 11px monospace;padding:4px 10px;border-radius:8px;
+                   pointer-events:none;border:1px solid rgba(255,255,255,.1);">
+            Escala 1: —</div>
+
         <div id="measure-tooltip" class="ol-tooltip" style="display: none;"></div>
         <div id="feature-tooltip"
             class="fixed bg-gray text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[9999] ol-tooltip-logradouro"

@@ -24,7 +24,7 @@ class ListProdutividade extends ListRecords
                             ->info()
                             ->send();
                         $lotes = $livewire->getFilteredTableQuery()
-                            ->with(['quadra', 'zona', 'coletor', 'unidadesImobiliarias', 'edificacoes'])
+                            ->with(['quadra', 'zona', 'coletaVigente.coletadoPor', 'unidadesImobiliarias', 'edificacoes'])
                             ->get();
                         return $exportService->exportToExcel($lotes);
                     }),
@@ -38,7 +38,7 @@ class ListProdutividade extends ListRecords
                             ->info()
                             ->send();
                         $lotes = $livewire->getFilteredTableQuery()
-                            ->with(['quadra', 'zona', 'coletor', 'unidadesImobiliarias', 'edificacoes'])
+                            ->with(['quadra', 'zona', 'coletaVigente.coletadoPor', 'unidadesImobiliarias', 'edificacoes'])
                             ->get();
                         return $exportService->exportToPdf($lotes);
                     }),

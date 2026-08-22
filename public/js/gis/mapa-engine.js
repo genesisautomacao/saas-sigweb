@@ -1180,6 +1180,245 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // ── ESCALA ATUAL DINÂMICA (PoC AC item 8) ────────────────────────────────
+    // Mesma convenção do irParaEscala (escala = resolution × 3780), para o
+    // "ir para escala 1:2000" e esta leitura baterem sempre.
+    const coordEscalaAtual = document.getElementById("coord-escala-atual");
+    if (coordEscalaAtual) {
+        const escalaFmt = new Intl.NumberFormat("pt-BR");
+        const atualizarEscalaAtual = function () {
+            const res = map.getView().getResolution();
+            if (res) {
+                coordEscalaAtual.textContent =
+                    "Escala 1:" + escalaFmt.format(Math.round(res * 3780));
+            }
+        };
+        map.getView().on("change:resolution", atualizarEscalaAtual);
+        atualizarEscalaAtual();
+    }
+
+    // ── 🎨 CORES DINÂMICAS POR CAMADA (PoC AC item 7) ────────────────────────
+    // Só camadas SEM cor de lei/regra sistêmica. Ficam de fora (cor governada
+    // pelo dado): zonas (lei), coleta (status), processos (fluxo), chamados
+    // (categoria), postes/árvores (condição/manutenção) e meio-fios
+    // (estado de conservação). Preferência é POR USUÁRIO/navegador
+    // (localStorage por tenant) + botão "restaurar cores padrão".
+    // FUTURO: cor padrão da entidade editável pelo Manager no Resource.
+    const CAMADAS_PERSONALIZAVEIS = {
+        perimetros: "#ef4444",
+        setores_fiscais: "#f59e0b",
+        bairros: "#3b82f6",
+        loteamentos: "#2563eb",
+        quadras: "#f97316",
+        lotes: "#10b981",
+        edificacoes: "#b45309",
+        logradouros: "#3675ce",
+        secoes_logradouro: "#7c3aed",
+    };
+    const CHAVE_CORES =
+        "sigweb_cores_camadas_" +
+        (window.location.pathname.split("/")[2] || "global");
+    try {
+        window.coresCamadas =
+            JSON.parse(localStorage.getItem(CHAVE_CORES)) || {};
+    } catch (e) {
+        window.coresCamadas = {};
+    }
+
+    // Estados SOCIAIS do lote (risco/benefício/PCD) mantêm a cor semântica
+    // mesmo com cor personalizada ativa.
+    const PRESERVAR_COR_FEATURE = {
+        lotes: function (feature) {
+            return (
+                (feature.get("social_risco") && filtroRiscoAtivo) ||
+                (feature.get("social_beneficio") && filtroBeneficioAtivo) ||
+                (feature.get("social_pcd") && filtroPcdAtivo)
+            );
+        },
+    };
+
+    function hexParaRgba(hex, alpha) {
+        const h = String(hex).replace("#", "");
+        const r = parseInt(h.substring(0, 2), 16);
+        const g = parseInt(h.substring(2, 4), 16);
+        const b = parseInt(h.substring(4, 6), 16);
+        return "rgba(" + r + ", " + g + ", " + b + ", " + alpha + ")";
+    }
+
+    // Hover acompanha a cor personalizada (traço sólido; preenchimento mais
+    // opaco que o normal) — sem cor personalizada, mantém o destaque padrão.
+    function corHoverCamada(layerName, padrao) {
+        return window.coresCamadas[layerName] || padrao;
+    }
+    function fillHoverCamada(layerName, padraoRgba, alpha) {
+        const cor = window.coresCamadas[layerName];
+        return cor ? hexParaRgba(cor, alpha) : padraoRgba;
+    }
+
+    function aplicarCorCamada(layerName) {
+        if (!(layerName in CAMADAS_PERSONALIZAVEIS)) return;
+        const layer = window.loadedLayers[layerName];
+        if (!layer) return;
+
+        if (!layer.get("estiloOriginalSigweb")) {
+            layer.set("estiloOriginalSigweb", layer.getStyle());
+        }
+        const original = layer.get("estiloOriginalSigweb");
+        const cor = window.coresCamadas[layerName];
+
+        if (!cor) {
+            layer.setStyle(original);
+            layer.changed();
+            return;
+        }
+
+        const preservar = PRESERVAR_COR_FEATURE[layerName];
+        layer.setStyle(function (feature, resolution) {
+            let estilos =
+                typeof original === "function"
+                    ? original(feature, resolution)
+                    : original;
+            if (!estilos) return estilos;
+            if (preservar && preservar(feature)) return estilos;
+
+            const lista = Array.isArray(estilos) ? estilos : [estilos];
+            return lista.map(function (s) {
+                const clone = s.clone();
+                if (clone.getStroke()) clone.getStroke().setColor(cor);
+                if (clone.getFill())
+                    clone.getFill().setColor(hexParaRgba(cor, 0.2));
+                const img = clone.getImage();
+                if (img && img.getFill && img.getFill())
+                    img.getFill().setColor(cor);
+                // Rótulo (texto) mantém a cor original — legibilidade
+                return clone;
+            });
+        });
+        layer.changed();
+    }
+    window.aplicarCorCamada = aplicarCorCamada;
+
+    // (A bolinha decorativa da linha é OCULTADA via CSS nas camadas com picker
+    //  — o próprio seletor mostra a cor escolhida, sem duplicar.)
+    function definirCorCamada(layerName, cor) {
+        window.coresCamadas[layerName] = cor;
+        try {
+            localStorage.setItem(
+                CHAVE_CORES,
+                JSON.stringify(window.coresCamadas),
+            );
+        } catch (e) {}
+        aplicarCorCamada(layerName);
+    }
+
+    // Injeta um seletor de cor em cada linha elegível do painel de camadas.
+    // ⚠️ IDEMPOTENTE e re-executável: o morph do Livewire REMOVE elementos
+    // injetados por JS a cada re-render — por isso a injeção roda de novo
+    // após cada commit do Livewire (hook abaixo).
+    const pickersCamada = {};
+    function injetarPickersCamadas() {
+        Object.keys(CAMADAS_PERSONALIZAVEIS).forEach(function (layerName) {
+            const chk = document.querySelector(
+                'input.layer-toggle[data-layer="' + layerName + '"]',
+            );
+            if (!chk) return;
+            const label = chk.closest("label");
+            const row = label ? label.parentElement : null;
+
+            // Linha já tem picker (sobreviveu ao morph)? Só garante o valor.
+            const existente = row
+                ? row.querySelector(".camada-cor-picker")
+                : null;
+            if (existente) {
+                pickersCamada[layerName] = existente;
+                existente.value =
+                    window.coresCamadas[layerName] ||
+                    CAMADAS_PERSONALIZAVEIS[layerName];
+                return;
+            }
+
+            const picker = document.createElement("input");
+            picker.type = "color";
+            picker.className = "camada-cor-picker";
+            picker.title = "Personalizar a cor desta camada";
+            picker.value =
+                window.coresCamadas[layerName] ||
+                CAMADAS_PERSONALIZAVEIS[layerName];
+            picker.style.cssText =
+                "width:18px;height:18px;padding:0;border:none;border-radius:4px;" +
+                "background:transparent;cursor:pointer;flex-shrink:0;";
+            picker.addEventListener("input", function () {
+                definirCorCamada(layerName, picker.value);
+            });
+            picker.addEventListener("click", function (e) {
+                e.stopPropagation();
+            });
+
+            const controles =
+                row && row.lastElementChild && row.lastElementChild !== label
+                    ? row.lastElementChild
+                    : null;
+            // Picker sempre por ÚLTIMO na linha → coluna de cores alinhada à direita
+            if (controles) controles.append(picker);
+            else if (label) label.appendChild(picker);
+
+            pickersCamada[layerName] = picker;
+        });
+    }
+    injetarPickersCamadas();
+    window.injetarPickersCamadas = injetarPickersCamadas;
+
+    // Reinjeta após CADA atualização do Livewire (o morph derruba os pickers)
+    function registrarReinjecaoPickers() {
+        try {
+            window.Livewire.hook("commit", function (ctx) {
+                if (ctx && typeof ctx.succeed === "function") {
+                    ctx.succeed(function () {
+                        setTimeout(injetarPickersCamadas, 60);
+                    });
+                }
+            });
+        } catch (e) {
+            /* Livewire indisponível — sem reinjeção automática */
+        }
+    }
+    if (window.Livewire && typeof window.Livewire.hook === "function") {
+        registrarReinjecaoPickers();
+    } else {
+        document.addEventListener("livewire:init", registrarReinjecaoPickers, {
+            once: true,
+        });
+    }
+
+    // Rede de segurança: se por qualquer caminho (timing do hook, morph
+    // atípico) os pickers caírem, a checagem periódica os reconstrói.
+    setInterval(function () {
+        const chkGuarda = document.querySelector(
+            'input.layer-toggle[data-layer="lotes"]',
+        );
+        if (!chkGuarda) return;
+        const rowGuarda = chkGuarda.closest("label")?.parentElement;
+        if (rowGuarda && !rowGuarda.querySelector(".camada-cor-picker")) {
+            injetarPickersCamadas();
+        }
+    }, 1500);
+
+    document
+        .getElementById("btn-restaurar-cores")
+        ?.addEventListener("click", function () {
+            window.coresCamadas = {};
+            try {
+                localStorage.removeItem(CHAVE_CORES);
+            } catch (e) {}
+            Object.keys(CAMADAS_PERSONALIZAVEIS).forEach(function (layerName) {
+                aplicarCorCamada(layerName);
+                if (pickersCamada[layerName]) {
+                    pickersCamada[layerName].value =
+                        CAMADAS_PERSONALIZAVEIS[layerName];
+                }
+            });
+        });
+
     // ── PERMISSÕES DE CAMADAS E TOOLBAR ────────────────────────────
     if (config.permissionsUrl) {
         fetch(config.permissionsUrl, { credentials: "same-origin" })
@@ -1199,6 +1438,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         quadras_cemiterio:     'cemiterios',
                         logradouros_cemiterio: 'cemiterios',
                         jazigos:               'cemiterios',
+                        edificacoes:           'lotes', // camada geral herda a permissão de lotes
                     };
 
                     document
@@ -1455,6 +1695,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     });
                     map.addLayer(vectorLayer);
                     window.loadedLayers[layerName] = vectorLayer;
+                    // 🎨 Reaplica a cor personalizada do usuário (PoC AC item 7)
+                    aplicarCorCamada(layerName);
                 }
             })
             .catch((err) =>
@@ -1690,6 +1932,8 @@ document.addEventListener("DOMContentLoaded", function () {
             "rural-hidrografias",
             "rural-pontes",
             "rural-pontos-interesse",
+            "toponimias",
+            "edificacoes",
         ];
         const isHoverable =
             feature && hoverableLayers.includes(feature.get("layer"));
@@ -1707,12 +1951,46 @@ document.addEventListener("DOMContentLoaded", function () {
                 hoveredFeature = feature;
             }
 
+            // ✍️ Toponímia (PoC AC item 9): anel laranja + ponto maior no hover,
+            // sinalizando que o texto é clicável (abre o modal de opções).
+            if (layer === "toponimias") {
+                const estiloTop = feature.get("estilo") || {};
+                const tamTop = parseInt(estiloTop.tamanho || "16", 10);
+                const corTop = estiloTop.cor || "#1f2937";
+                feature.setStyle(
+                    new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: 8,
+                            fill: new ol.style.Fill({ color: corTop }),
+                            stroke: new ol.style.Stroke({
+                                color: "#f59e0b",
+                                width: 3,
+                            }),
+                        }),
+                        text: new ol.style.Text({
+                            text: feature.get("texto") || "",
+                            font: "bold " + tamTop + "px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: corTop }),
+                            stroke: new ol.style.Stroke({
+                                color: "#ffffff",
+                                width: 3,
+                            }),
+                            overflow: true,
+                            offsetY: -16,
+                            textBaseline: "bottom",
+                        }),
+                    }),
+                );
+            }
+
             if (layer === "logradouros" || layer === "logradouros_cemiterio") {
                 feature.setStyle(
                     new ol.style.Style({
                         stroke: new ol.style.Stroke({
                             color:
-                                layer === "logradouros" ? "#38bdf8" : "#94a3b8",
+                                layer === "logradouros"
+                                    ? corHoverCamada("logradouros", "#38bdf8")
+                                    : "#94a3b8",
                             width: 6,
                         }),
                     }),
@@ -1796,7 +2074,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 feature.setStyle(
                     new ol.style.Style({
                         stroke: new ol.style.Stroke({
-                            color: "#a78bfa",
+                            color: corHoverCamada("secoes_logradouro", "#a78bfa"),
                             width: 6,
                             lineDash: [4, 8],
                         }),
@@ -1832,11 +2110,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     feature.setStyle(
                         new ol.style.Style({
                             stroke: new ol.style.Stroke({
-                                color: "#3b82f6",
+                                color: corHoverCamada("bairros", "#3b82f6"),
                                 width: 3,
                             }),
                             fill: new ol.style.Fill({
-                                color: "rgba(59, 130, 246, 0.4)",
+                                color: fillHoverCamada("bairros", "rgba(59, 130, 246, 0.4)", 0.55),
                             }), // Fundo mais forte
                             text:
                                 zoom >= 14
@@ -1859,11 +2137,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     feature.setStyle(
                         new ol.style.Style({
                             stroke: new ol.style.Stroke({
-                                color: "#f97316",
+                                color: corHoverCamada("quadras", "#f97316"),
                                 width: 2,
                             }),
                             fill: new ol.style.Fill({
-                                color: "rgba(249, 115, 22, 0.5)",
+                                color: fillHoverCamada("quadras", "rgba(249, 115, 22, 0.5)", 0.55),
                             }), // Fundo mais forte
                             text:
                                 zoom >= 16
@@ -1886,11 +2164,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     feature.setStyle(
                         new ol.style.Style({
                             stroke: new ol.style.Stroke({
-                                color: "#0ea5e9",
+                                color: corHoverCamada("lotes", "#0ea5e9"),
                                 width: 2,
                             }),
                             fill: new ol.style.Fill({
-                                color: "rgba(14, 165, 233, 0.4)",
+                                color: fillHoverCamada("lotes", "rgba(14, 165, 233, 0.4)", 0.55),
                             }), // Fundo mais forte
                             text:
                                 zoom >= 18
@@ -1907,6 +2185,25 @@ document.addEventListener("DOMContentLoaded", function () {
                                           overflow: true,
                                       })
                                     : null,
+                        }),
+                    );
+                } else if (layer === "edificacoes") {
+                    // Camada geral de edificações (PoC AC): acende seguindo a
+                    // cor personalizada (ou o marrom padrão)
+                    const corEdif = corHoverCamada("edificacoes", "#b45309");
+                    feature.setStyle(
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: corEdif,
+                                width: 2,
+                            }),
+                            fill: new ol.style.Fill({
+                                color: fillHoverCamada(
+                                    "edificacoes",
+                                    "rgba(180, 83, 9, 0.65)",
+                                    0.6,
+                                ),
+                            }),
                         }),
                     );
                 } else if (layer === "postes") {
@@ -2304,12 +2601,12 @@ document.addEventListener("DOMContentLoaded", function () {
                     feature.setStyle(
                         new ol.style.Style({
                             stroke: new ol.style.Stroke({
-                                color: "#1d4ed8",
+                                color: corHoverCamada("loteamentos", "#1d4ed8"),
                                 width: 4,
                                 lineDash: [8, 4],
                             }), // Azul mais forte
                             fill: new ol.style.Fill({
-                                color: "rgba(37, 99, 235, 0.3)",
+                                color: fillHoverCamada("loteamentos", "rgba(37, 99, 235, 0.3)", 0.5),
                             }), // Fundo mais visível
                             text:
                                 zoom >= 14
@@ -2429,6 +2726,39 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     map.on("singleclick", function (evt) {
+        // 📍 CAPTURAR COORDENADAS (PoC AC item 12): consome o clique — toast
+        // com lat/lon + copiar, sem abrir ficha/modal do que estiver embaixo.
+        if (window.capturaCoordAtiva) {
+            window.capturaCoordAtiva = false;
+            map.getTargetElement().style.cursor = "";
+            const [lonCap, latCap] = ol.proj.toLonLat(evt.coordinate);
+            window.mostrarToastCoordenada(latCap, lonCap);
+            return;
+        }
+
+        // ✍️ REPOSICIONAR TOPONÍMIA (PoC AC item 9): o clique define o novo
+        // local do texto — move a feição em memória e persiste via Livewire.
+        if (window.movendoToponimiaId) {
+            const idMove = window.movendoToponimiaId;
+            window.movendoToponimiaId = null;
+            map.getTargetElement().style.cursor = "";
+            document.getElementById("toponimia-move-hint")?.remove();
+
+            const [lonMove, latMove] = ol.proj.toLonLat(evt.coordinate);
+            const fMove = window.loadedLayers["toponimias"]
+                ?.getSource()
+                .getFeatures()
+                .find((f) => f.get("id") == idMove);
+            if (fMove) fMove.setGeometry(new ol.geom.Point(evt.coordinate));
+
+            Livewire.dispatch("moverToponimia", {
+                id: idMove,
+                lat: latMove,
+                lon: lonMove,
+            });
+            return;
+        }
+
         //trava para modo de consulta de unificação
         if (window.modoUnificacao) return;
 
@@ -3215,6 +3545,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "pontos_panoramicos", // LINHAS
                 "jazigos", // Polígono Micro
                 "rural-hidrografias", // Pode ser misto, prioridade alta
+                "edificacoes", // Camada geral (PoC AC) — em cima do lote que a contém
                 "lotes",
                 "rural-propriedades", // Polígonos Pequenos
                 "quadras_cemiterio",
@@ -3250,6 +3581,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 // Envia a ação dependendo da camada que ganhou a prioridade
                 switch (clickedLayer) {
                     case "edificacao_ativa":
+                    case "edificacoes": // Camada geral (PoC AC) — mesma modal da ficha
                         Livewire.dispatch("abrirOpcoesEdificacao", { id: id });
                         break;
                     case "testada_ativa":
@@ -3979,6 +4311,32 @@ document.addEventListener("DOMContentLoaded", function () {
                 layer: "toponimias",
             });
             window.loadedLayers["toponimias"].getSource().addFeature(feature);
+        }
+    });
+
+    // ✍️ Modo "Reposicionar no mapa" (PoC AC item 9) — ativado pelo modal de
+    // opções da toponímia; o próximo clique no mapa vira o novo local (Esc cancela).
+    window.movendoToponimiaId = null;
+    window.addEventListener("iniciar-mover-toponimia", (e) => {
+        const data = e.detail[0] || e.detail;
+        window.movendoToponimiaId = data.id;
+        map.getTargetElement().style.cursor = "crosshair";
+
+        document.getElementById("toponimia-move-hint")?.remove();
+        const hint = document.createElement("div");
+        hint.id = "toponimia-move-hint";
+        hint.style.cssText =
+            "position:fixed;top:76px;left:50%;transform:translateX(-50%);z-index:99999;" +
+            "background:#1e3a8a;color:#fff;padding:8px 14px;border-radius:12px;" +
+            "box-shadow:0 12px 30px -8px rgba(0,0,0,.5);font-size:13px;font-weight:600;";
+        hint.textContent = "✍️ Clique no novo local do texto (Esc cancela)";
+        document.body.appendChild(hint);
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && window.movendoToponimiaId) {
+            window.movendoToponimiaId = null;
+            map.getTargetElement().style.cursor = "";
+            document.getElementById("toponimia-move-hint")?.remove();
         }
     });
 
@@ -4712,6 +5070,74 @@ document.addEventListener("DOMContentLoaded", function () {
     window.addEventListener("esconder-testadas-lote", () =>
         testadasAtivasSource.clear(),
     );
+
+    // ── 📍 CAPTURAR COORDENADAS (PoC AC item 12) ─────────────────────────────
+    window.capturaCoordAtiva = false;
+
+    window.mostrarToastCoordenada = function (lat, lon) {
+        document.getElementById("coord-capture-toast")?.remove();
+        const texto = lat.toFixed(6) + ", " + lon.toFixed(6);
+
+        const toast = document.createElement("div");
+        toast.id = "coord-capture-toast";
+        toast.style.cssText =
+            "position:fixed;top:76px;left:50%;transform:translateX(-50%);z-index:99999;" +
+            "background:#111827;color:#fff;padding:10px 14px;border-radius:12px;" +
+            "box-shadow:0 12px 30px -8px rgba(0,0,0,.5);font-size:13px;" +
+            "display:flex;align-items:center;gap:10px;";
+        toast.innerHTML =
+            '<span style="font-weight:700;">📍 Coordenadas capturadas</span>' +
+            '<span style="font-family:monospace;">Lat: ' + lat.toFixed(6) +
+            "&nbsp;&nbsp;Lon: " + lon.toFixed(6) + "</span>" +
+            '<button id="coord-capture-copy" style="background:#3b82f6;border:none;color:#fff;' +
+            'padding:4px 10px;border-radius:8px;cursor:pointer;font-weight:600;">Copiar</button>' +
+            '<button id="coord-capture-close" style="background:transparent;border:none;' +
+            'color:#9ca3af;cursor:pointer;font-size:15px;line-height:1;">✕</button>';
+        document.body.appendChild(toast);
+
+        document
+            .getElementById("coord-capture-copy")
+            .addEventListener("click", function () {
+                const btn = this;
+                const fallbackCopy = function () {
+                    const ta = document.createElement("textarea");
+                    ta.value = texto;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand("copy");
+                    ta.remove();
+                };
+                const done = function () {
+                    btn.textContent = "Copiado!";
+                    btn.style.background = "#10b981";
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(texto).then(done).catch(function () {
+                        fallbackCopy();
+                        done();
+                    });
+                } else {
+                    fallbackCopy();
+                    done();
+                }
+            });
+        document
+            .getElementById("coord-capture-close")
+            .addEventListener("click", function () {
+                toast.remove();
+            });
+        setTimeout(function () {
+            toast.remove();
+        }, 30000);
+    };
+
+    const btnCapturarCoord = document.getElementById("btn-tool-capturar-coord");
+    if (btnCapturarCoord) {
+        btnCapturarCoord.addEventListener("click", function () {
+            window.capturaCoordAtiva = true;
+            map.getTargetElement().style.cursor = "crosshair";
+        });
+    }
 
     // 15. FERRAMENTAS DE MEDIÇÃO E NAVEGAÇÃO
     const btnPan = document.getElementById("btn-pan");
@@ -8154,6 +8580,18 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     window.irParaCoordenada = function (lat, lon, zoom) {
+        // Aceita colar "lat, lon" num campo só — o formato copiado pela
+        // ferramenta Capturar Coordenadas (também vale "lat lon" e "lat; lon").
+        if (
+            typeof lat === "string" &&
+            (lon === undefined || lon === null || String(lon).trim() === "")
+        ) {
+            const partes = lat.trim().split(/[\s;,]+/).filter(Boolean);
+            if (partes.length >= 2) {
+                lon = partes[1];
+                lat = partes[0];
+            }
+        }
         const latF = parseFloat(lat);
         const lonF = parseFloat(lon);
         if (isNaN(latF) || isNaN(lonF)) {

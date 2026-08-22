@@ -81,7 +81,7 @@ class AuditoriaPage extends Page implements HasTable
             });
         }
 
-        return $query->latest();
+        return $query->with(['causer', 'subject'])->latest();
     }
 
     protected function getHeaderActions(): array
@@ -93,6 +93,36 @@ class AuditoriaPage extends Page implements HasTable
                 ->color('gray')
                 ->visible(fn () => $this->loteId !== null)
                 ->action('limparFocoLote'),
+
+            // PoC AC item 6 — exporta respeitando os filtros da tabela
+            // (usuário/operação/período). Teto de 10.000 linhas por arquivo.
+            \Filament\Actions\ActionGroup::make([
+                \Filament\Actions\Action::make('export_excel')
+                    ->label('Exportar Excel')
+                    ->icon('heroicon-o-table-cells')
+                    ->action(function (\App\Services\Exports\AuditoriaExportService $service) {
+                        \Filament\Notifications\Notification::make()->title('Exportando para Excel')->info()->send();
+
+                        return $service->exportToExcel(
+                            $this->getFilteredTableQuery()->with(['causer', 'subject'])->limit(10000)->get()
+                        );
+                    }),
+
+                \Filament\Actions\Action::make('export_pdf')
+                    ->label('Exportar PDF')
+                    ->icon('heroicon-o-document-text')
+                    ->action(function (\App\Services\Exports\AuditoriaExportService $service) {
+                        \Filament\Notifications\Notification::make()->title('Exportando para PDF')->info()->send();
+
+                        return $service->exportToPdf(
+                            $this->getFilteredTableQuery()->with(['causer', 'subject'])->limit(10000)->get()
+                        );
+                    }),
+            ])
+                ->label('Exportar')
+                ->icon('heroicon-m-arrow-down-tray')
+                ->button()
+                ->color('gray'),
         ];
     }
 
@@ -107,6 +137,15 @@ class AuditoriaPage extends Page implements HasTable
             Tables\Columns\TextColumn::make('causer.name')
                 ->label('Usuário')
                 ->default('Sistema')
+                // Usuário soft-deletado: o morphTo devolve null e a trilha
+                // perderia o autor — recupera o nome na lixeira (withTrashed).
+                ->getStateUsing(function (Activity $record) {
+                    return $record->causer->name
+                        ?? ($record->causer_type === \App\Models\User::class && $record->causer_id
+                            ? \App\Models\User::withTrashed()->find($record->causer_id)?->name
+                            : null)
+                        ?? 'Sistema';
+                })
                 ->searchable(),
 
             Tables\Columns\BadgeColumn::make('event')
@@ -129,7 +168,11 @@ class AuditoriaPage extends Page implements HasTable
                 ->searchable(),
 
             Tables\Columns\TextColumn::make('subject_id')
-                ->label('ID')
+                ->label('Registro')
+                // PoC AC — além do ID, o identificador legível da entidade
+                // (numero_lote p/ Lote, name/nome/inscrição p/ as demais),
+                // inclusive de registros já excluídos (busca sem escopos).
+                ->getStateUsing(fn (Activity $record) => \App\Services\Exports\AuditoriaExportService::rotuloRegistro($record))
                 ->sortable(),
 
             Tables\Columns\TextColumn::make('description')
@@ -147,6 +190,24 @@ class AuditoriaPage extends Page implements HasTable
     protected function getTableFilters(): array
     {
         return [
+            // PoC AC item 6 — histórico POR USUÁRIO (inclui excluídos: o
+            // histórico de quem saiu da equipe continua recuperável).
+            Tables\Filters\SelectFilter::make('usuario')
+                ->label('Usuário')
+                ->searchable()
+                ->options(function () {
+                    $tenantId = filament()->getTenant()?->id;
+
+                    return \App\Models\User::withTrashed()
+                        ->when($tenantId, fn ($q) => $q->whereHas('tenants', fn ($q) => $q->where('tenants.id', $tenantId)))
+                        ->orderBy('name')
+                        ->pluck('name', 'id');
+                })
+                ->query(fn (Builder $query, array $data) => $query->when(
+                    $data['value'] ?? null,
+                    fn ($q, $v) => $q->where('causer_type', \App\Models\User::class)->where('causer_id', $v)
+                )),
+
             Tables\Filters\SelectFilter::make('event')
                 ->label('Operação')
                 ->options([

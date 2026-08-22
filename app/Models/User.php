@@ -161,14 +161,27 @@ class User extends Authenticatable implements FilamentUser, HasTenants
                 $roleId = \Spatie\Permission\Models\Role::whereNull('tenant_id')
                     ->where('name', $papel)->value('id');
 
-                if ($roleId) {
-                    \Illuminate\Support\Facades\DB::table('model_has_roles')->insert([
-                        'role_id' => $roleId,
-                        'model_type' => $this->getMorphClass(),
-                        'model_id' => $this->getKey(),
+                // Autocura: ambiente onde o AdminAcessoSeeder ainda não rodou.
+                // Sem isto o vínculo era pulado EM SILÊNCIO e o usuário nascia
+                // sem acesso ao /admin (incidente VPS 2026-08-11). DB::table
+                // (não Role::create) para o resolver de teams do Spatie não
+                // injetar tenant_id da sessão.
+                if (! $roleId) {
+                    $roleId = \Illuminate\Support\Facades\DB::table('roles')->insertGetId([
+                        'name' => $papel,
+                        'guard_name' => 'web',
                         'tenant_id' => null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ]);
                 }
+
+                \Illuminate\Support\Facades\DB::table('model_has_roles')->insert([
+                    'role_id' => $roleId,
+                    'model_type' => $this->getMorphClass(),
+                    'model_id' => $this->getKey(),
+                    'tenant_id' => null,
+                ]);
             }
 
             // 2) Capacidades: permissões diretas globais (só as admin_*)
@@ -179,7 +192,18 @@ class User extends Authenticatable implements FilamentUser, HasTenants
                 ->whereIn('permission_id', \Spatie\Permission\Models\Permission::whereIn('name', array_keys(self::CAPACIDADES_ADMIN))->pluck('id'))
                 ->delete();
 
-            foreach (\Spatie\Permission\Models\Permission::whereIn('name', $capacidades)->pluck('id') as $permissionId) {
+            foreach ($capacidades as $capacidade) {
+                // Mesma autocura do papel: permissão admin_* ausente é criada
+                // na hora (o seeder segue idempotente por firstOrCreate).
+                $permissionId = \Spatie\Permission\Models\Permission::where('name', $capacidade)
+                    ->where('guard_name', 'web')->value('id')
+                    ?? \Illuminate\Support\Facades\DB::table('permissions')->insertGetId([
+                        'name' => $capacidade,
+                        'guard_name' => 'web',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
                 \Illuminate\Support\Facades\DB::table('model_has_permissions')->insert([
                     'permission_id' => $permissionId,
                     'model_type' => $this->getMorphClass(),

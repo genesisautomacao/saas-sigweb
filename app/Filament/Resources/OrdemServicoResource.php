@@ -233,7 +233,14 @@ class OrdemServicoResource extends Resource
                     ->label('Artefato')
                     ->formatStateUsing(function (string $state, $record) {
                         $tipo = class_basename($state);
-                        return $tipo === 'Poste' ? "💡 Poste #{$record->asset->sequential_id}" : "🌳 Árvore #{$record->asset->sequential_id}";
+                        $icone = $tipo === 'Poste' ? '💡' : '🌳';
+                        // Artefato na lixeira (soft delete): o morphTo devolve null —
+                        // recupera com withTrashed p/ manter o número e rotula.
+                        $asset = $record->asset ?? $record->asset()->withTrashed()->first();
+
+                        return $asset
+                            ? "{$icone} {$tipo} #{$asset->sequential_id}".($asset->deleted_at ? ' (excluído)' : '')
+                            : "{$icone} {$tipo} (excluído)";
                     }),
 
                 Tables\Columns\TextColumn::make('status')

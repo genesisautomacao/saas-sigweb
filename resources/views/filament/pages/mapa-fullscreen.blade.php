@@ -41,6 +41,8 @@
                    display:flex;flex-direction:column;gap:1px;">
             <div id="coord-utm">E: —&nbsp;&nbsp;N: —&nbsp;&nbsp;EPSG: —</div>
             <div id="coord-latlon" style="opacity:.65;font-size:10px;">Lat: —&nbsp;&nbsp;Lon: —</div>
+            {{-- PoC AC item 8 — escala atual dinâmica (mesma convenção do "ir para escala") --}}
+            <div id="coord-escala-atual" style="opacity:.9;font-size:10px;font-weight:700;">Escala 1: —</div>
         </div>
 
         {{-- TOOLTIP DE MEDIÇÃO (Escondido) --}}
@@ -68,6 +70,94 @@
                 border-color: rgba(255, 255, 255, .08) !important;
             }
 
+            /* ── Painel de Camadas — alinhamento e polimento (PoC AC item 7) ──
+               Cada linha de camada vira um "cartão" sutil com hover; os controles
+               da direita ([Rót.] [campo] [🎨 cor]) ficam em colunas fixas, então
+               os seletores de cor se alinham verticalmente. */
+            #layers-panel div.justify-between:has(> label input.layer-toggle) {
+                padding: 5px 6px;
+                margin: 0;
+                border-radius: 10px;
+                transition: background-color .15s ease;
+            }
+
+            /* Nome da camada alinhado à ESQUERDA (trunca se faltar espaço)... */
+            #layers-panel div.justify-between:has(> label input.layer-toggle) > label {
+                min-width: 0;
+            }
+
+            /* ...e a bolinha decorativa SOME em TODAS as linhas estruturadas —
+               sempre, desde o carregamento (antes ela só sumia quando o picker
+               era injetado, causando "pisca" e margens diferentes por linha;
+               em linhas sem picker sobrava uma bolinha invisível ocupando
+               espaço). O picker é quem mostra a cor. */
+            #layers-panel div.justify-between:has(> label input.layer-toggle) .layer-label > div {
+                display: none !important;
+            }
+
+            /* Respiro uniforme entre o check e o nome (a bolinha oculta era
+               quem dava esse espaço) — igual para TODAS as linhas. */
+            #layers-panel div.justify-between:has(> label input.layer-toggle) .layer-label {
+                margin-left: 8px;
+            }
+
+            #layers-panel div.justify-between:has(> label input.layer-toggle):hover {
+                background: rgba(59, 130, 246, .07);
+            }
+
+            .dark #layers-panel div.justify-between:has(> label input.layer-toggle):hover {
+                background: rgba(255, 255, 255, .06);
+            }
+
+            #layers-panel div.justify-between:has(> label input.layer-toggle) > div:last-child {
+                display: flex;
+                align-items: center;
+                gap: 7px;
+                justify-content: flex-end;
+                flex-shrink: 0;   /* controles da direita nunca são espremidos */
+                margin-left: 10px;
+            }
+
+            #layers-panel select[id$="-label-field"] {
+                width: 74px !important;
+                max-width: 74px !important;
+                border-radius: 6px !important;
+            }
+
+            #layers-panel .camada-cor-picker {
+                width: 20px !important;
+                height: 20px !important;
+                border-radius: 6px !important;
+                border: 1px solid rgba(148, 163, 184, .55) !important;
+                box-shadow: 0 1px 2px rgba(15, 23, 42, .18);
+                background: transparent !important;
+            }
+
+            #layers-panel .camada-cor-picker::-webkit-color-swatch-wrapper {
+                padding: 1px;
+            }
+
+            #layers-panel .camada-cor-picker::-webkit-color-swatch {
+                border: none;
+                border-radius: 5px;
+            }
+
+            #layers-panel .camada-cor-picker:hover {
+                transform: scale(1.15);
+                transition: transform .12s ease;
+            }
+
+            #btn-restaurar-cores {
+                border: 1px solid rgba(148, 163, 184, .35);
+                border-radius: 999px;
+                padding: 2px 10px;
+            }
+
+            #btn-restaurar-cores:hover {
+                border-color: rgba(59, 130, 246, .5);
+                background: rgba(59, 130, 246, .06);
+            }
+
             /* Painel de camadas: de janela flutuante para BARRA LATERAL fixa à DIREITA
                (a esquerda é da barra WMS). A ficha do lote (z-50) desliza POR CIMA
                quando aberta; ao fechá-la, o painel reaparece. O X fecha; "Camadas" reabre. */
@@ -77,8 +167,8 @@
                 right: 0 !important;
                 left: auto !important;
                 bottom: 0 !important;
-                width: 330px !important;
-                max-width: 88vw;
+                width: 420px !important;
+                max-width: 94vw;
                 border-radius: 16px 0 0 0 !important;
                 border: none !important;
                 border-left: 1px solid rgba(120, 120, 140, .16) !important;
@@ -260,16 +350,16 @@
                         <div x-show="aberto" x-cloak @keydown.escape="aberto = false"
                             class="absolute top-10 left-0 z-50 bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 rounded-xl p-3 min-w-[300px] space-y-2">
 
-                            {{-- Linha 1: Lat/Lon --}}
+                            {{-- Linha 1: Lat/Lon — campo ÚNICO de texto: aceita colar
+                                 "lat, lon" direto do Capturar Coordenadas (ou digitar
+                                 separado por espaço/vírgula/ponto-e-vírgula) --}}
                             <div class="flex gap-2 items-center">
-                                <input id="coord-lat" type="number" step="any" placeholder="Latitude"
-                                    @keydown.enter="window.irParaCoordenada(document.getElementById('coord-lat').value, document.getElementById('coord-lon').value); aberto = false"
-                                    class="w-28 text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 outline-none">
-                                <input id="coord-lon" type="number" step="any" placeholder="Longitude"
-                                    @keydown.enter="window.irParaCoordenada(document.getElementById('coord-lat').value, document.getElementById('coord-lon').value); aberto = false"
-                                    class="w-28 text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 outline-none">
+                                <input id="coord-latlon-input" type="text"
+                                    placeholder="Lat, Lon — ex: -26.957000, -50.402000"
+                                    @keydown.enter="window.irParaCoordenada(document.getElementById('coord-latlon-input').value); aberto = false"
+                                    class="flex-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-primary-500 outline-none">
                                 <button
-                                    @click="window.irParaCoordenada(document.getElementById('coord-lat').value, document.getElementById('coord-lon').value); aberto = false"
+                                    @click="window.irParaCoordenada(document.getElementById('coord-latlon-input').value); aberto = false"
                                     class="px-3 py-1.5 text-xs bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
                                     Ir
                                 </button>
@@ -660,6 +750,12 @@
                                     <button id="btn-measure-area" @click="openTools = false"
                                         class="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
                                         <x-heroicon-o-view-columns class="w-4 h-4 text-gray-500" /> Medir Área
+                                    </button>
+
+                                    {{-- PoC AC item 12 — clique único captura lat/lon com botão copiar --}}
+                                    <button id="btn-tool-capturar-coord" @click="openTools = false"
+                                        class="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
+                                        <x-heroicon-o-map-pin class="w-4 h-4 text-gray-500" /> Capturar Coordenadas
                                     </button>
                                 </div>
                             </div>
@@ -1472,6 +1568,14 @@
                     <div x-show="activeTab === 'base'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
 
+                        {{-- PoC AC item 7 — as cores das camadas estruturais são personalizáveis
+                             (seletor de cor em cada linha, salvo no navegador do usuário). --}}
+                        <div class="flex justify-end -mb-1 mt-1">
+                            <button type="button" id="btn-restaurar-cores"
+                                class="text-[11px] text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                                title="Voltar às cores padrão do sistema">↺ restaurar cores padrão</button>
+                        </div>
+
                         <div class="flex items-center justify-between w-full mt-2">
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                 <input type="checkbox" data-layer="perimetros"
@@ -1649,6 +1753,23 @@
                                     <option value="sequential_id">Seq. ID</option>
                                 </select>
                             </div>
+                        </div>
+
+                        {{-- PoC AC — camada geral de EDIFICAÇÕES (liga/desliga TODAS; a ficha
+                             do lote mantém o toggle por lote). Clique na edificação abre a
+                             modal de opções (HasEdificacaoActions). Permissão: herda de lotes
+                             (alias no engine). --}}
+                        <div class="flex items-center justify-between w-full mt-2">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="edificacoes"
+                                    class="layer-toggle rounded border-gray-300 text-amber-700 focus:ring-amber-600 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-3 rounded-full opacity-70 shadow-sm flex-shrink-0"
+                                        style="background:#b45309;"></div>
+                                    <span class="layer-text truncate">Edificações</span>
+                                </span>
+                            </label>
+                            <div class="flex items-center gap-1 ml-2 flex-shrink-0"></div>
                         </div>
 
                         {{-- "Status de Coleta" movido para o acordeon "Coleta de Dados" (abaixo). --}}

@@ -680,6 +680,22 @@ document.addEventListener("DOMContentLoaded", function () {
         view: view,
     });
 
+    // ── ESCALA ATUAL DINÂMICA (PoC AC item 8) — espelho da intranet ─────────
+    // Mesma convenção do irParaEscala (escala = resolution × 3780).
+    const coordEscalaAtual = document.getElementById("coord-escala-atual");
+    if (coordEscalaAtual) {
+        const escalaFmt = new Intl.NumberFormat("pt-BR");
+        const atualizarEscalaAtual = function () {
+            const res = map.getView().getResolution();
+            if (res) {
+                coordEscalaAtual.textContent =
+                    "Escala 1:" + escalaFmt.format(Math.round(res * 3780));
+            }
+        };
+        map.getView().on("change:resolution", atualizarEscalaAtual);
+        atualizarEscalaAtual();
+    }
+
     // ── ZOOM EXTENSÃO + VISÃO ANTERIOR ──────────────────────────────
     // Guarda a view inicial diretamente do config do tenant
     const initialCenter = ol.proj.fromLonLat([config.mapLon, config.mapLat]);

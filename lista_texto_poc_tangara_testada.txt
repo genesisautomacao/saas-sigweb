@@ -56,6 +56,7 @@ teste do usuário no MAPA PÚBLICO (intranet E público testados/corrigidos)
    do backlog). COMO TESTAR WFS: no QGIS, adicionar conexão WFS com a URL
    /api/ogc/prefeitura-de-santa-cecilia?service=WFS&request=GetCapabilities
    e carregar a camada "lotes".
+   Mostrar as camadas de WMS que já estão no sistema, aquelas do IBGE e etc... criando fixos ou aqueles avulsos no mapa
 
    ⚠️**Dúvida/Erro: erro em SERVIDOR WMS: (https://webgis.liderengenharia.eng.br/api/ogc/prefeitura-de-santa-cecilia?service=WFS&request=GetCapabilities) com print em anexo
    → DIAGNÓSTICO FECHADO (2026-08-06, com os prints do engenheiro):
@@ -144,7 +145,7 @@ teste do usuário no MAPA PÚBLICO (intranet E público testados/corrigidos)
     tributário, endereço, lote, quadra e edifício. Somente leitura (o vínculo
     nasce na unidade/sincronização tributária). Testado: relação + aba ok.
 
-13. Dados do imóvel apontado, com imagem frontal e Planta Cartográfica. 😀👍🏻
+13. Dados do imóvel apontado, com imagem frontal e Planta Cartográfica. 
     [TESTADO ✅] Ficha lateral do lote no mapa: foto frontal no topo + botão
     "Planta/Croqui do Imóvel" + dados de lote/unidades/edificações. COMO TESTAR:
     clicar num lote com foto (coletado pelo app) → conferir foto e croqui.
