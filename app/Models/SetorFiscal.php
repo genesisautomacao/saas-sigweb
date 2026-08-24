@@ -8,10 +8,29 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use App\Traits\LogsGeometryChanges;
 
 class SetorFiscal extends Model
 {
-    use HasFactory, SoftDeletes, BelongsToTenant, HasTenantSequentialId;
+    use HasFactory, SoftDeletes, BelongsToTenant, HasTenantSequentialId, LogsActivity, LogsGeometryChanges;
+
+    /** Croqui Antes/Depois na Auditoria (PoC AC 2026-08-23). */
+    public function geometryLogLabel(): string
+    {
+        return 'Geometria do setor fiscal alterada';
+    }
+
+    /** Auditoria (PoC AC 2026-08-23): loga qualquer campo alterado; geo fica de fora. */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logExcept(['geo', 'created_at', 'updated_at'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
 
     protected $table = 'setores_fiscais';
 

@@ -209,8 +209,8 @@ Faz upsert em `unidades_imobiliarias.dados_tributarios` por `inscricao_imobiliar
 - The `tenant.data` JSON column stores freeform config (logo, brand color `#rrggbb`, `map_lat`, `map_lon`, `map_zoom`).
 - API controllers use `$request->user()->tenants()->first()->id` for tenant isolation (no global scope in API layer).
 - `cadastrador_locations` table: upsert por `user_id` — um registro por usuário, atualizado a cada ping GPS.
-- Activity log (`spatie/laravel-activitylog`) instalado. Models logados: `Lote`, `Edificacao`, `Quadra`, `Logradouro`, `Bairro`, `Pessoa`. Para logar um novo model, adicionar o trait `LogsActivity` + definir `$recordEvents` e `logOnly([...])`.
-- **Histórico cartográfico** (croqui Antes/Depois na Auditoria): trait [`LogsGeometryChanges`](app/Traits/LogsGeometryChanges.php) registra uma atividade dedicada (`old`/`attributes` com `geo_json`) sempre que a coluna `geo` muda. Aplicado em `Lote`, `Quadra`, `Bairro`. Como `LogsActivity`+`logOnlyDirty` não vê a coluna `geo` (raw PostGIS), este trait é o que faz a **alteração de geometria** aparecer na Auditoria. Requer accessor `geo_json` + `setGeoAttribute`; sobrescreva `geometryLogLabel()` para o rótulo. Para incluir outra entidade GIS (Logradouro, Loteamento, Zona, PerímetroUrbano…), basta adicionar o trait ao model.
+- Activity log (`spatie/laravel-activitylog`) instalado em **todo o cadastro base** (14 models — lista na seção Auditoria). Para logar um novo model: trait `LogsActivity` + `getActivitylogOptions()` com `logAll()->logExcept(['geo','created_at','updated_at'])->logOnlyDirty()->dontSubmitEmptyLogs()` — **não** usar `logOnly` com lista fixa (campo novo ficaria mudo na auditoria). Updates via `DB::table`/`DB::statement` NÃO logam (só Eloquent dispara eventos).
+- **Histórico cartográfico** (croqui Antes/Depois na Auditoria): trait [`LogsGeometryChanges`](app/Traits/LogsGeometryChanges.php) registra uma atividade dedicada (`old`/`attributes` com `geo_json`) sempre que a coluna `geo` muda. Aplicado em **todas as 13 entidades GIS do cadastro base** (PoC AC 2026-08-23 — antes só Lote/Quadra/Bairro; o achado foi geometria de logradouro editada sem log). Como `LogsActivity`+`logOnlyDirty` não vê a coluna `geo` (raw PostGIS), este trait é o que faz a **alteração de geometria** aparecer na Auditoria. Requer accessor `geo_json` + `setGeoAttribute`; sobrescreva `geometryLogLabel()` para o rótulo. ⚠️ Só dispara em updates via ELOQUENT (`$model->update(['geo' => ...])`) — geometria gravada por `DB::statement` não loga.
 
 ---
 
@@ -488,11 +488,11 @@ A `Planta de Quadra` (`pdf.planta-quadra`) exibe a área da quadra (`$quadra->ar
 - Rota: `/app/{tenant}/auditoria` (aparece em Administração → Auditoria)
 - Lista operações registradas pelo `spatie/laravel-activitylog` filtradas pelo tenant
 - Colunas: Data/Hora · Usuário · Operação (badge criado/atualizado/excluído) · Entidade · ID
-- Filtros: **usuário** (searchable, `withTrashed` — histórico de quem saiu da equipe continua recuperável), tipo de operação (select) e período (date range)
+- Filtros: **usuário** (searchable; SÓ equipe ativa — `tipo='prefeitura'`, sem soft-deletados, isolado por tenant, falha-fechada sem tenant — decisão do usuário 2026-08-23: filtros/buscas sempre isolados por tenant), tipo de operação (select) e período (date range). As LINHAS/exports continuam resolvendo o nome de autor já excluído (`withTrashed` na coluna)
 - **Exportar PDF/Excel** (PoC Antônio Carlos item 6, 2026-08-22): `ActionGroup` no header → [AuditoriaExportService](app/Services/Exports/AuditoriaExportService.php), respeita os filtros da tabela (`getFilteredTableQuery`), teto 10.000 linhas. ⚠️ Usuário soft-deletado some do morphTo `causer` (viraria "Sistema") — a coluna da tabela e o export recuperam o nome com `User::withTrashed()` (memo no service)
 - Ação "Ver detalhes": modal com tabela Antes/Depois dos campos alterados
-- Models com log ativo: `Lote`, `Edificacao`, `Quadra`, `Logradouro`, `Bairro`, `Pessoa`
-- Alteração de **geometria** (croqui Antes/Depois) via trait `LogsGeometryChanges` em `Lote`, `Quadra`, `Bairro`
+- Models com log ativo (PoC AC 2026-08-23 — **todo o cadastro base**): `Lote`, `Edificacao`, `UnidadeImobiliaria`, `LoteTestada`, `Quadra`, `Logradouro`, `SecaoLogradouro`, `Bairro`, `Loteamento`, `Zona`, `PerimetroUrbano`, `SetorFiscal`, `MeioFio`, `Pessoa`. Convenção: `logAll()->logExcept(['geo','created_at','updated_at'])` (+ `dados_tributarios` na Unidade — sync em massa inundaria o log) — **campo novo entra no log sozinho**; NUNCA voltar a `logOnly` com lista fixa (foi o bug: quadra editada em `codigo` não logava nada)
+- Alteração de **geometria** (croqui Antes/Depois) via trait `LogsGeometryChanges` em **todo o cadastro base** (PoC AC 2026-08-23): `Lote`, `Quadra`, `Bairro`, `Logradouro`, `SecaoLogradouro`, `Edificacao`, `UnidadeImobiliaria`, `LoteTestada`, `Loteamento`, `Zona`, `PerimetroUrbano`, `SetorFiscal`, `MeioFio`
 
 #### Monitoramento de Campo (`app/Filament/Pages/MonitoramentoCampoPage.php`)
 

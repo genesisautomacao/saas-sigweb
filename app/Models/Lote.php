@@ -17,8 +17,11 @@ class Lote extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
+        // Auditoria completa (PoC AC 2026-08-23): qualquer campo alterado entra
+        // no log — geo fica com o LogsGeometryChanges (croqui Antes/Depois).
         return LogOptions::defaults()
-            ->logOnly(['numero_lote', 'status_cadastro', 'ocupacao', 'dados_customizados'])
+            ->logAll()
+            ->logExcept(['geo', 'created_at', 'updated_at'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

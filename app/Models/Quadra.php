@@ -18,7 +18,13 @@ class Quadra extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults()->logOnly(['name'])->logOnlyDirty()->dontSubmitEmptyLogs();
+        // Auditoria completa (PoC AC 2026-08-23): QUALQUER campo alterado entra
+        // no log (código, campos do município...) — geo fica com o LogsGeometryChanges.
+        return LogOptions::defaults()
+            ->logAll()
+            ->logExcept(['geo', 'created_at', 'updated_at'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 
     /** Histórico cartográfico da quadra na Auditoria (B13 / item 044). */

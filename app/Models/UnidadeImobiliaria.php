@@ -7,10 +7,33 @@ use App\Traits\HasTenantSequentialId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use App\Traits\LogsGeometryChanges;
 
 class UnidadeImobiliaria extends Model
 {
-    use BelongsToTenant, HasTenantSequentialId, SoftDeletes;
+    use BelongsToTenant, HasTenantSequentialId, SoftDeletes, LogsActivity, LogsGeometryChanges;
+
+    /** Croqui Antes/Depois na Auditoria (PoC AC 2026-08-23). */
+    public function geometryLogLabel(): string
+    {
+        return 'Geometria da unidade imobiliária alterada';
+    }
+
+    /**
+     * Auditoria (PoC AC 2026-08-23): loga qualquer campo alterado. `dados_tributarios`
+     * fica de fora (a sincronização tributária em massa inundaria o log com JSONs
+     * gigantes — as 13 colunas fiscais promovidas são logadas individualmente).
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logExcept(['geo', 'created_at', 'updated_at', 'dados_tributarios'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
 
     protected $fillable = [
         'tenant_id',

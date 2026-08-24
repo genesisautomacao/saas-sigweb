@@ -9,14 +9,26 @@ use App\Traits\BelongsToTenant;
 use App\Traits\HasTenantSequentialId;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use App\Traits\LogsGeometryChanges;
 
 class Logradouro extends Model
 {
-    use SoftDeletes, BelongsToTenant, HasTenantSequentialId, LogsActivity;
+    use SoftDeletes, BelongsToTenant, HasTenantSequentialId, LogsActivity, LogsGeometryChanges;
+
+    /** Croqui Antes/Depois na Auditoria (achado do usuário, PoC AC 2026-08-23). */
+    public function geometryLogLabel(): string
+    {
+        return 'Geometria do logradouro alterada';
+    }
 
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults()->logOnly(['name'])->logOnlyDirty()->dontSubmitEmptyLogs();
+        // Auditoria completa (PoC AC 2026-08-23): qualquer campo alterado entra no log.
+        return LogOptions::defaults()
+            ->logAll()
+            ->logExcept(['geo', 'created_at', 'updated_at'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 
     protected $fillable = ['tenant_id', 'sequential_id', 'code', 'codigo', 'name', 'dados_customizados', 'extensao_geo', 'geo'];

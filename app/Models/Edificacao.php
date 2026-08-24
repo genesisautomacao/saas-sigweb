@@ -9,17 +9,26 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use App\Traits\LogsGeometryChanges;
 
 class Edificacao extends Model
 {
-    use BelongsToTenant, HasTenantSequentialId, LogsActivity, SoftDeletes;
+    use BelongsToTenant, HasTenantSequentialId, LogsActivity, SoftDeletes, LogsGeometryChanges;
+
+    /** Croqui Antes/Depois na Auditoria (PoC AC 2026-08-23). */
+    public function geometryLogLabel(): string
+    {
+        return 'Geometria da edificação alterada';
+    }
 
     public function getActivitylogOptions(): LogOptions
     {
         // Os atributos descritivos (tipo_edificacao, pavimento, estado etc.) vivem em
         // dados_customizados desde a refatoração da PoC Tangará — logar o JSON cobre todos.
+        // Auditoria completa (PoC AC 2026-08-23): qualquer campo alterado entra no log.
         return LogOptions::defaults()
-            ->logOnly(['area_geo', 'dados_customizados'])
+            ->logAll()
+            ->logExcept(['geo', 'created_at', 'updated_at'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

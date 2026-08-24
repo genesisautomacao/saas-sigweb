@@ -190,16 +190,23 @@ class AuditoriaPage extends Page implements HasTable
     protected function getTableFilters(): array
     {
         return [
-            // PoC AC item 6 — histórico POR USUÁRIO (inclui excluídos: o
-            // histórico de quem saiu da equipe continua recuperável).
+            // PoC AC item 6 — histórico POR USUÁRIO. O filtro oferece SÓ a
+            // equipe ATIVA da prefeitura (tipo 'prefeitura', sem soft-deletados,
+            // isolado por tenant; sem tenant = lista vazia, falha fechada).
+            // As LINHAS/exports continuam mostrando o nome de autores já
+            // excluídos (trilha preservada via withTrashed na coluna).
             Tables\Filters\SelectFilter::make('usuario')
                 ->label('Usuário')
                 ->searchable()
                 ->options(function () {
                     $tenantId = filament()->getTenant()?->id;
+                    if (! $tenantId) {
+                        return [];
+                    }
 
-                    return \App\Models\User::withTrashed()
-                        ->when($tenantId, fn ($q) => $q->whereHas('tenants', fn ($q) => $q->where('tenants.id', $tenantId)))
+                    return \App\Models\User::query()
+                        ->where('tipo', 'prefeitura')
+                        ->whereHas('tenants', fn ($q) => $q->where('tenants.id', $tenantId))
                         ->orderBy('name')
                         ->pluck('name', 'id');
                 })

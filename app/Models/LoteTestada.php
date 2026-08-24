@@ -6,10 +6,29 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use App\Traits\LogsGeometryChanges;
 
 class LoteTestada extends Model
 {
-    use SoftDeletes, BelongsToTenant;
+    use SoftDeletes, BelongsToTenant, LogsActivity, LogsGeometryChanges;
+
+    /** Croqui Antes/Depois na Auditoria (PoC AC 2026-08-23). */
+    public function geometryLogLabel(): string
+    {
+        return 'Geometria da testada alterada';
+    }
+
+    /** Auditoria (PoC AC 2026-08-23): loga qualquer campo alterado; geo fica de fora. */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logExcept(['geo', 'created_at', 'updated_at'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
 
     protected $table = 'lote_testadas';
 

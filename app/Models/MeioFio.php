@@ -7,10 +7,29 @@ use App\Traits\HasTenantSequentialId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use App\Traits\LogsGeometryChanges;
 
 class MeioFio extends Model
 {
-    use SoftDeletes, BelongsToTenant, HasTenantSequentialId;
+    use SoftDeletes, BelongsToTenant, HasTenantSequentialId, LogsActivity, LogsGeometryChanges;
+
+    /** Croqui Antes/Depois na Auditoria (PoC AC 2026-08-23). */
+    public function geometryLogLabel(): string
+    {
+        return 'Geometria do meio-fio alterada';
+    }
+
+    /** Auditoria (PoC AC 2026-08-23): loga qualquer campo alterado; geo fica de fora. */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logExcept(['geo', 'created_at', 'updated_at'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
 
     protected $table = 'meio_fios';
 

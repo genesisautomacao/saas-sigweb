@@ -1,5 +1,6 @@
 @php
-    $props = $activity->properties;
+    // Trilhas antigas podem vir sem properties (null) — colhe vazio, não quebra
+    $props = $activity->properties ?? collect();
     $atributos = $props->get('attributes', []);
     $antes = $props->get('old', []);
 
@@ -9,7 +10,20 @@
     $temGeo = !empty($geoAntigo) || !empty($geoNovo);
 
     // Campos "normais" (sem a geometria) para a tabela Antes/Depois
-    $camposTabela = collect($atributos)->except('geo_json');
+    $camposTabela = collect($atributos)->except(['geo_json', 'geo']);
+
+    // Valor legível p/ a célula: array/objeto (ex.: dados_customizados) vira
+    // JSON — imprimir array cru estourava o htmlspecialchars do Blade.
+    $fmtValor = function ($v) {
+        if ($v === null || $v === '') {
+            return '—';
+        }
+        if (is_bool($v)) {
+            return $v ? 'true' : 'false';
+        }
+
+        return is_scalar($v) ? $v : json_encode($v, JSON_UNESCAPED_UNICODE);
+    };
 
     // Operação em português (traduz o "created"/"updated"/"deleted" padrão do Spatie)
     $operacaoBruta = $activity->description ?: $activity->event;
@@ -57,8 +71,8 @@
                         @foreach($camposTabela as $campo => $valorNovo)
                             <tr class="border-t border-gray-200 dark:border-gray-700">
                                 <td class="px-3 py-2 font-mono text-gray-600">{{ $campo }}</td>
-                                <td class="px-3 py-2 text-red-500">{{ $antes[$campo] ?? '—' }}</td>
-                                <td class="px-3 py-2 text-green-600">{{ is_scalar($valorNovo) ? $valorNovo : json_encode($valorNovo) }}</td>
+                                <td class="px-3 py-2 text-red-500">{{ $fmtValor($antes[$campo] ?? null) }}</td>
+                                <td class="px-3 py-2 text-green-600">{{ $fmtValor($valorNovo) }}</td>
                             </tr>
                         @endforeach
                     </tbody>

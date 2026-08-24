@@ -18,7 +18,12 @@ class Bairro extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
-        return LogOptions::defaults()->logOnly(['name'])->logOnlyDirty()->dontSubmitEmptyLogs();
+        // Auditoria completa (PoC AC 2026-08-23): qualquer campo alterado entra no log.
+        return LogOptions::defaults()
+            ->logAll()
+            ->logExcept(['geo', 'created_at', 'updated_at'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 
     /** Histórico cartográfico do bairro na Auditoria (B13 / item 044). */

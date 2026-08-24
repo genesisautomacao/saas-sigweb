@@ -71,6 +71,19 @@ coletas inteiro, construído depois daquele retrato).
    [ATENDIDO ✅]  (PDF dizia: Atendido)
    Permissão por função (CRUD por Policy, camada por ver_camada_*, ferramenta
    por toolbar_*) + spatie/activitylog gravando quem/quando/o quê.
+   ⚠️ CORRIGIDO (achado do usuário, 2026-08-23): editar CÓDIGO/campos do
+   município numa quadra NÃO gerava log (a lista logOnly só via o "name") e
+   8 entidades do imobiliário não logavam NADA. Agora TODO o cadastro base
+   audita QUALQUER campo alterado (14 entidades: lote, edificação, unidade,
+   testada, quadra, logradouro, seção, bairro, loteamento, zona, distrito,
+   setor fiscal, meio-fio, pessoa) — campo novo entra sozinho (logAll);
+   geometria segue no croqui Antes/Depois; o JSON tributário da unidade fica
+   fora (anti-inundação do sync em massa). Teste automático 9/9.
+   + CORRIGIDO (2º achado, 2026-08-23): o croqui de GEOMETRIA Antes/Depois
+   só existia em lote/quadra/bairro — geometria de LOGRADOURO editada não
+   logava. Estendido às 13 entidades GIS do cadastro base (logradouro,
+   seção, edificação, unidade, testada, loteamento, zona, distrito, setor,
+   meio-fio...). Teste automático 6/6.
    DEMO: Administração → Auditoria (modal Antes/Depois; croqui de geometria).
 
 4. Painel administrativo completo (usuários, grupos, permissões, camadas).
@@ -88,8 +101,9 @@ coletas inteiro, construído depois daquele retrato).
 
 6. Histórico operacional completo por usuário.
    [ATENDIDO ✅ — concluído em 2026-08-22]  (PDF dizia: Atendido)
-   Auditoria com filtro por USUÁRIO (busca; inclui usuários já excluídos da
-   equipe — o histórico deles permanece recuperável e com o NOME correto) +
+   Auditoria com filtro por USUÁRIO (busca; SÓ a equipe ativa da prefeitura —
+   tipo 'prefeitura', sem excluídos, isolado por tenant [ajuste 2026-08-23];
+   as linhas/exports seguem mostrando o nome de autor já excluído) +
    botão "Exportar" com PDF e Excel respeitando os filtros aplicados
    (usuário/operação/período; teto de 10.000 linhas). Testes 8/8 + 6/6.
    REFINADO (feedback do usuário, 2026-08-22): botão Exportar no padrão
@@ -97,6 +111,12 @@ coletas inteiro, construído depois daquele retrato).
    "#id — identificador legível" (numero_lote p/ Lote, nome/inscrição p/
    as demais; funciona até para registro já excluído). Vale na tela E nos
    exports.
+   REFINADO (2026-08-23): exports (PDF e Excel) ganharam a coluna
+   "ALTERAÇÕES" — cada linha mostra os campos afetados no formato
+   "campo: antes → depois" (created lista os valores iniciais; GEOMETRIA
+   não despeja GeoJSON — vira a nota "geometria: alterada, croqui em
+   Auditoria → Ver detalhes"; valores longos truncados; trilha antiga sem
+   properties sai "—"). Teste automático 7/7.
    DEMO: Administração → Auditoria → filtrar por um usuário → Exportar PDF.
 
 7. Gerenciamento de camadas do mapa (ligar, desligar, cores, estilos).
