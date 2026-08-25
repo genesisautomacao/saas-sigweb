@@ -521,7 +521,9 @@ class TenantResource extends Resource
 
                             Forms\Components\FileUpload::make('arquivo')
                                 ->label('Arquivo .json (GeoJSON)')
-                                ->acceptedFileTypes(['application/json'])
+                                // Mesmo caso do importador de panorâmicas: JSON pretty-printed
+                                // pode vir como text/plain no libmagic da VPS.
+                                ->acceptedFileTypes(['application/json', 'application/geo+json', 'text/plain', 'application/octet-stream'])
                                 ->maxSize(51200)
                                 ->disk('local')
                                 ->directory('imports/gis')
@@ -640,7 +642,12 @@ class TenantResource extends Resource
 
                             Forms\Components\FileUpload::make('arquivo')
                                 ->label('GeoJSON de imageamento')
-                                ->acceptedFileTypes(['application/json', 'application/geo+json'])
+                                // ⚠️ A validação usa o MIME detectado pelo CONTEÚDO, e JSON não
+                                // tem assinatura binária: o libmagic do Linux (VPS) devolve
+                                // text/plain para o mesmo arquivo que o Windows lê como
+                                // application/json. A validação REAL (parse + features) é feita
+                                // na ação — aqui só um filtro largo.
+                                ->acceptedFileTypes(['application/json', 'application/geo+json', 'text/plain', 'application/octet-stream'])
                                 ->maxSize(102400)
                                 ->disk('local')
                                 ->directory('imports/panoramicas')
@@ -725,7 +732,7 @@ class TenantResource extends Resource
                             Forms\Components\FileUpload::make('arquivo')
                                 ->label('JSON de simulação (substitui o atual)')
                                 ->helperText('Array de imóveis ou {"imoveis": [...]}. Pode usar os nomes de campo do sistema de origem — o de/para traduz na entrada.')
-                                ->acceptedFileTypes(['application/json'])
+                                ->acceptedFileTypes(['application/json', 'text/plain', 'application/octet-stream'])
                                 ->maxSize(51200)
                                 ->disk('local')
                                 ->directory('imports/tributario')
