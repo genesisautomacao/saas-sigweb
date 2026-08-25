@@ -35,7 +35,7 @@ class ApiSettingResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Section::make('Detalhes da Integração')
-                    ->description('Credenciais globais usadas por todas as prefeituras. Nomes reconhecidos pelo sistema: "Resend" (RESEND_API_KEY, MAIL_FROM_ADDRESS, MAIL_FROM_NAME) · "Azure Maps" (AZURE_MAPS_KEY — basemaps do mapa) · "Google Maps" (GOOGLE_MAPS_API_KEY — Street View e perfil altimétrico) · "Portal" (VIDEO_TUTORIAL_URL).')
+                    ->description('Credenciais globais usadas por todas as prefeituras. Nomes reconhecidos pelo sistema: "Resend" (RESEND_API_KEY, MAIL_FROM_ADDRESS, MAIL_FROM_NAME) · "Azure Maps" (AZURE_MAPS_KEY — basemaps do mapa) · "Google Maps" (GOOGLE_MAPS_API_KEY — Street View e perfil altimétrico) · "Portal" (VIDEO_TUTORIAL_URL) · "Cloudflare R2" (R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_ENDPOINT — bucket único de mídias: panorâmicas 360 etc.).')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->label('Nome da API')

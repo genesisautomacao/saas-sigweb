@@ -86,6 +86,19 @@ class AppServiceProvider extends ServiceProvider
                 if ($google && ! empty($google->data['GOOGLE_MAPS_API_KEY'])) {
                     Config::set('services.google_maps.key', $google->data['GOOGLE_MAPS_API_KEY']);
                 }
+
+                // Cloudflare R2 (disk "midia" — bucket único de mídias pesadas:
+                // panorâmicas 360 etc.). Sem a linha cadastrada, o disk fica com
+                // o fallback do .env (ou inoperante) — nada quebra.
+                $r2 = $settings->get('Cloudflare R2');
+                if ($r2 && ! empty($r2->data['R2_ACCESS_KEY_ID'])) {
+                    $d = $r2->data;
+
+                    Config::set('filesystems.disks.midia.key', $d['R2_ACCESS_KEY_ID']);
+                    Config::set('filesystems.disks.midia.secret', $d['R2_SECRET_ACCESS_KEY'] ?? null);
+                    Config::set('filesystems.disks.midia.bucket', $d['R2_BUCKET'] ?? 'sigweb-midia');
+                    Config::set('filesystems.disks.midia.endpoint', $d['R2_ENDPOINT'] ?? null);
+                }
             }
         } catch (\Throwable $e) {
             // Banco fora do ar / migration ainda não rodada: ignora silenciosamente.

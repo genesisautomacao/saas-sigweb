@@ -612,6 +612,91 @@ class TenantResource extends Resource
                                 : $notificacao->warning()->persistent()->send();
                         }),
 
+                    // --- AÇÃO: IMPORTAR PANORÂMICAS 360 (GeoJSON de imageamento) ---
+                    // Só os DADOS passam por aqui; as fotos sobem direto ao bucket
+                    // R2 via rclone, no caminho que o importador grava em cada ponto:
+                    // {slug}/panoramicas/{dia}/{image_name}.jpg
+                    Tables\Actions\Action::make('importar_panoramicas')
+                        ->label('Importar Panorâmicas 360')
+                        ->icon('heroicon-o-camera')
+                        ->color('info')
+                        ->visible(fn () => static::pode('admin_importar_gis'))
+                        ->modalHeading(fn (Tenant $record) => "Panorâmicas 360 — {$record->name}")
+                        ->modalDescription('Envie o GeoJSON de imageamento (padrão Líder: features POINT com image_name, trajectory, azimuth). Reimportar o arquivo atualizado é seguro: pontos já importados são pulados.')
+                        ->form(fn (Tenant $record) => [
+                            Forms\Components\Placeholder::make('status_panoramicas')
+                                ->label('Situação atual')
+                                ->content(function () use ($record): string {
+                                    $total = \App\Models\PontoPanoramico::withoutGlobalScopes()
+                                        ->where('tenant_id', $record->id)
+                                        ->whereNull('deleted_at')
+                                        ->count();
+                                    $r2 = config('filesystems.disks.midia.key')
+                                        ? 'bucket R2 configurado ✓'
+                                        : '⚠️ bucket R2 SEM credenciais (cadastre "Cloudflare R2" em Configurações de APIs)';
+
+                                    return "{$total} ponto(s) panorâmico(s) hoje · {$r2} · Destino das fotos: sigweb-midia/{$record->slug}/panoramicas/{dia}/";
+                                }),
+
+                            Forms\Components\FileUpload::make('arquivo')
+                                ->label('GeoJSON de imageamento')
+                                ->acceptedFileTypes(['application/json', 'application/geo+json'])
+                                ->maxSize(102400)
+                                ->disk('local')
+                                ->directory('imports/panoramicas')
+                                ->required(),
+                        ])
+                        ->action(function (Tenant $record, array $data) {
+                            ini_set('memory_limit', '2048M');
+                            set_time_limit(900);
+
+                            $filePath = storage_path('app/private/'.$data['arquivo']);
+
+                            if (! file_exists($filePath)) {
+                                Notification::make()->danger()->title('Arquivo não encontrado no disco!')->send();
+
+                                return;
+                            }
+
+                            $json = json_decode(file_get_contents($filePath));
+
+                            if (json_last_error() !== JSON_ERROR_NONE) {
+                                Notification::make()->danger()->title('Erro ao ler JSON: '.json_last_error_msg())->send();
+
+                                return;
+                            }
+
+                            $features = $json->features ?? [];
+
+                            if (empty($features)) {
+                                Notification::make()->danger()->title('Nenhuma feature encontrada no arquivo!')->send();
+
+                                return;
+                            }
+
+                            try {
+                                $resumo = \App\Services\Gis\ImportadorPanoramicasService::importar($record, (array) $features);
+                            } catch (\Throwable $e) {
+                                Notification::make()->danger()->title('Erro na importação')->body($e->getMessage())->send();
+
+                                return;
+                            }
+
+                            \Illuminate\Support\Facades\Storage::disk('local')->delete($data['arquivo']);
+
+                            $corpo = "{$resumo['total']} feature(s) no arquivo: {$resumo['criados']} ponto(s) criado(s)"
+                                .($resumo['pulados'] > 0 ? ", {$resumo['pulados']} já existiam (pulados)" : '')
+                                .($resumo['invalidos'] > 0 ? ", {$resumo['invalidos']} inválida(s) — sem image_name/coordenadas" : '')
+                                .'. Agora suba as fotos via rclone para sigweb-midia/'.$record->slug.'/panoramicas/ (mesma árvore de pastas por dia).';
+
+                            Notification::make()
+                                ->title('Panorâmicas importadas!')
+                                ->body($corpo)
+                                ->success()
+                                ->persistent()
+                                ->send();
+                        }),
+
                     // --- AÇÃO: SIMULAÇÃO TRIBUTÁRIA (R67-5) ---
                     // Upload do JSON que alimenta a integração tributária em modo simulação
                     // (storage/app/mocks/{slug}.json — lido pelo IntegraPrefeituraService nos

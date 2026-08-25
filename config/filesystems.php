@@ -60,6 +60,23 @@ return [
             'report' => false,
         ],
 
+        // Bucket ÚNICO de mídias pesadas do SaaS (Cloudflare R2, protocolo S3) —
+        // panorâmicas 360, e futuramente ortofotos/anexos/fotos de lote.
+        // Estrutura interna: {tenant_slug}/panoramicas/..., {tenant_slug}/lotes/...
+        // As credenciais reais vêm do ApiSetting "Cloudflare R2" (injetadas no
+        // AppServiceProvider::boot, molde do Resend); o .env é só fallback local.
+        'midia' => [
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY_ID'),
+            'secret' => env('R2_SECRET_ACCESS_KEY'),
+            'region' => 'auto', // R2 exige "auto"
+            'bucket' => env('R2_BUCKET', 'sigweb-midia'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'use_path_style_endpoint' => true,
+            'throw' => false,
+            'report' => false,
+        ],
+
     ],
 
     /*

@@ -93,10 +93,17 @@ trait HasPontoPanoramicoActions
                 $ponto = PontoPanoramico::find($this->pontoPanoramicoAtivoId);
                 if (!$ponto) return new HtmlString('Ponto não encontrado.');
 
-                // Lógica de Simulação: Se não tiver imagem upada, usamos uma de teste do Pannellum
-                $imagemUrl = $ponto->image_path 
-                    ? asset('storage/' . $ponto->image_path) 
-                    : 'https://pannellum.org/images/alma.jpg'; 
+                // Cascata do accessor: URL externa → bucket R2 (URL assinada; null se a
+                // foto ainda não subiu) → storage local. Sem imagem = demo + aviso.
+                $imagemUrl = $ponto->imagem_url;
+                $badge = null;
+
+                if (! $imagemUrl) {
+                    $badge = $ponto->image_path
+                        ? '📤 Foto ainda não enviada ao bucket'
+                        : 'MODO SIMULAÇÃO';
+                    $imagemUrl = 'https://pannellum.org/images/alma.jpg';
+                }
                 
                 // Gera um ID único para evitar conflitos no DOM
                 $uniqueId = 'pano-' . $ponto->id;
@@ -124,9 +131,12 @@ trait HasPontoPanoramicoActions
                             setTimeout(() => {
                                 pannellum.viewer('{{ $uniqueId }}', {
                                     'type': 'equirectangular',
-                                    'panorama': '{{ $imagemUrl }}',
+                                    'panorama': {{ \Illuminate\Support\Js::from($imagemUrl) }},
                                     'autoLoad': true,
                                     'compass': true,
+                                    // Azimuth da captura (importação Líder): alinha a bússola
+                                    // com o norte verdadeiro.
+                                    'northOffset': {{ (float) ($ponto->azimuth ?? 0) }},
                                     'showZoomCtrl': true,
                                     'mouseZoom': true
                                 });
@@ -140,9 +150,9 @@ trait HasPontoPanoramicoActions
                             <x-heroicon-o-camera class="w-6 h-6 text-blue-500" />
                             {{ $ponto->titulo }}
                         </h3>
-                        @if(!$ponto->image_path)
+                        @if($badge)
                             <span class="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded border border-amber-200">
-                                MODO SIMULAÇÃO
+                                {{ $badge }}
                             </span>
                         @endif
                     </div>
@@ -158,6 +168,7 @@ trait HasPontoPanoramicoActions
                 return new HtmlString(Blade::render($bladeView, [
                     'ponto' => $ponto,
                     'imagemUrl' => $imagemUrl,
+                    'badge' => $badge,
                     'uniqueId' => $uniqueId
                 ]));
             });

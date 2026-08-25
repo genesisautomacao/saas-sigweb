@@ -676,15 +676,34 @@ document.addEventListener("DOMContentLoaded", function () {
         },
 
         pontos_panoramicos: {
-            style: new ol.style.Style({
-                image: new ol.style.Icon({
-                    src: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%233b82f6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
-                    scale: 1.0,
-                    anchor: [0.5, 0.5],
-                }),
-            }),
-            z: 100, // Câmeras sempre por cima das quadras e lotes!
-            minZoom: 14, // Só aparece quando der um certo zoom
+            // Imageamento 360 em massa (46 mil pontos): até o zoom de rua a
+            // feição é uma BOLINHA discreta (o "traçado de cobertura"); o ícone
+            // de câmera só aparece bem perto. Estilos CACHEADOS fora da função —
+            // criar estilo por feição a 46k pontos derrubaria o render.
+            z: 100, // Sempre por cima das quadras e lotes
+            minZoom: 15,
+            style: (function () {
+                const bolinha = new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 3.5,
+                        fill: new ol.style.Fill({ color: "#3b82f6" }),
+                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 1 }),
+                    }),
+                });
+                const camera = new ol.style.Style({
+                    image: new ol.style.Icon({
+                        src: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%233b82f6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
+                        scale: 1.0,
+                        anchor: [0.5, 0.5],
+                    }),
+                });
+
+                return function (feature, resolution) {
+                    return view.getZoomForResolution(resolution) >= 17
+                        ? camera
+                        : bolinha;
+                };
+            })(),
         },
 
         cemiterios: {

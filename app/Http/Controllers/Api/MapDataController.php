@@ -323,10 +323,31 @@ class MapDataController extends Controller
                 break;
 
             case 'pontos_panoramicos':
-                $pontos = PontoPanoramico::where('tenant_id', $tenantId)
-                    ->select('id', 'titulo as name', 'code', 'geo', 'image_path') // 'titulo as name' faz a ponte automática com o seu FeatureCollection
+                // ⚡ Imageamento 360 em massa (46 mil pontos): payload ENXUTO —
+                // só id/name/layer por feição — e SEM hidratar milhares de models
+                // Eloquent (query direta + build manual). Com o gzip do middleware,
+                // a camada inteira desce em ~600KB em vez de ~20MB.
+                $rows = DB::table('pontos_panoramicos')
+                    ->where('tenant_id', $tenantId)
+                    ->whereNull('deleted_at')
+                    ->whereNotNull('geo')
+                    ->selectRaw('id, titulo, ST_AsGeoJSON(geo, 6) AS gj')
                     ->get();
-                $data = $buildFeatureCollection($pontos, 'pontos_panoramicos');
+
+                $features = [];
+                foreach ($rows as $row) {
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'id' => $row->id,
+                            'name' => $row->titulo,
+                            'layer' => 'pontos_panoramicos',
+                        ],
+                        'geometry' => json_decode($row->gj),
+                    ];
+                }
+
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
                 break;
 
             case 'cemiterios': // <-- NOVO BLOCO
