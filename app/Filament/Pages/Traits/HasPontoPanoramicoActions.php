@@ -6,12 +6,10 @@ use App\Models\PontoPanoramico;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\FileUpload; // 👈 NOVA IMPORTAÇÃO
+use Filament\Forms\Components\FileUpload;
 use Filament\Notifications\Notification;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\HtmlString;
-use Illuminate\Support\Facades\Blade;
 
 trait HasPontoPanoramicoActions
 {
@@ -28,7 +26,7 @@ trait HasPontoPanoramicoActions
                     ->label('Título do Local (Ex: Praça Matriz)')
                     ->required()
                     ->maxLength(255),
-                    
+
                 DatePicker::make('data_captura')
                     ->label('Data')
                     ->default(now()),
@@ -43,11 +41,11 @@ trait HasPontoPanoramicoActions
             ])
             ->action(function (array $data) {
                 $data['tenant_id'] = $this->tenantId;
-                $data['geo'] = $this->geometriaRascunho; 
+                $data['geo'] = $this->geometriaRascunho;
                 // O code já é gerado pelo Model graças à nossa última correção!
 
                 $registro = PontoPanoramico::create($data);
-                
+
                 Notification::make()->title('Ponto 360º Registrado!')->success()->send();
 
                 $this->dispatch('adicionar-ponto_panoramico-mapa', [
@@ -59,7 +57,90 @@ trait HasPontoPanoramicoActions
             });
     }
 
-   public function opcoesPontoPanoramicoAction(): Action
+    /**
+     * 🚗 Navegação estilo Street View: dados do panorama + SETAS para os
+     * vizinhos. Chamado pelo viewer via $wire a cada passo (o clique numa seta
+     * troca a foto sem fechar o modal).
+     */
+    public function panoramaDados(int $id): ?array
+    {
+        $ponto = PontoPanoramico::find($id);
+
+        return $ponto ? $this->montarDadosPanorama($ponto) : null;
+    }
+
+    /**
+     * Vizinhos navegáveis: da MESMA trajetória, só o ponto imediatamente
+     * anterior/seguinte (andar pela rua); de OUTRAS trajetórias, o mais próximo
+     * de cada uma num raio de 15 m (virar no cruzamento). Direção (bearing) e
+     * distância calculadas no PostGIS; setas quase na mesma direção (< 20°)
+     * são deduplicadas ficando a mais próxima. Máximo de 4 setas.
+     */
+    protected function montarDadosPanorama(PontoPanoramico $ponto): array
+    {
+        $candidatos = DB::select('
+            SELECT p.id, p.titulo, p.trajectory,
+                   ST_Distance(p.geo::geography, ref.geo::geography) AS dist,
+                   degrees(ST_Azimuth(ref.geo::geometry, p.geo::geometry)) AS bearing
+            FROM pontos_panoramicos p
+            CROSS JOIN (SELECT geo FROM pontos_panoramicos WHERE id = ?) ref
+            WHERE p.tenant_id = ?
+              AND p.id <> ?
+              AND p.deleted_at IS NULL
+              AND p.geo IS NOT NULL
+              AND ST_DWithin(p.geo::geography, ref.geo::geography, 15)
+            ORDER BY dist
+            LIMIT 12
+        ', [$ponto->id, $ponto->tenant_id, $ponto->id]);
+
+        // Mesma trajetória: o nome do arquivo é sequencial → o vizinho imediato
+        // em cada sentido é o de menor distância com título maior/menor.
+        $mesma = collect($candidatos)->filter(fn ($c) => $c->trajectory === $ponto->trajectory);
+        $proximo = $mesma->filter(fn ($c) => $c->titulo > $ponto->titulo)->sortBy('dist')->first();
+        $anterior = $mesma->filter(fn ($c) => $c->titulo < $ponto->titulo)->sortBy('dist')->first();
+
+        // Cruzamentos: o ponto mais próximo de CADA outra trajetória
+        $cruzamentos = collect($candidatos)
+            ->filter(fn ($c) => $c->trajectory !== $ponto->trajectory)
+            ->groupBy('trajectory')
+            ->map(fn ($grupo) => $grupo->sortBy('dist')->first())
+            ->values();
+
+        $setas = [];
+
+        foreach (collect([$proximo, $anterior])->merge($cruzamentos)->filter() as $c) {
+            $bearing = fmod((float) $c->bearing + 360, 360);
+
+            // Duas setas praticamente na mesma direção = fica só a primeira
+            // (anterior/próximo têm prioridade sobre cruzamentos).
+            foreach ($setas as $s) {
+                $delta = abs($s['bearing'] - $bearing);
+                if (min($delta, 360 - $delta) < 20) {
+                    continue 2;
+                }
+            }
+
+            $setas[] = [
+                'id' => (int) $c->id,
+                'bearing' => round($bearing, 1),
+                'dist' => round((float) $c->dist, 1),
+            ];
+
+            if (count($setas) >= 4) {
+                break;
+            }
+        }
+
+        return [
+            'id' => $ponto->id,
+            'titulo' => $ponto->titulo,
+            'url' => $ponto->imagem_url,
+            'azimuth' => (float) ($ponto->azimuth ?? 0),
+            'setas' => $setas,
+        ];
+    }
+
+    public function opcoesPontoPanoramicoAction(): Action
     {
         return Action::make('opcoesPontoPanoramico')
             ->hiddenLabel()
@@ -88,89 +169,32 @@ trait HasPontoPanoramicoActions
                         $this->dispatch('fechar-modal-filament');
                     }),
             ])
-            // A MÁGICA: O Visualizador 360º embutido na própria Modal usando Pannellum via Alpine.js!
+            // Viewer 360 (Pannellum) com navegação Street View: as setas dentro
+            // do panorama trocam a foto via $wire.panoramaDados() sem fechar o modal.
             ->modalContent(function () {
                 $ponto = PontoPanoramico::find($this->pontoPanoramicoAtivoId);
                 if (!$ponto) return new HtmlString('Ponto não encontrado.');
 
-                // Cascata do accessor: URL externa → bucket R2 (URL assinada; null se a
-                // foto ainda não subiu) → storage local. Sem imagem = demo + aviso.
-                $imagemUrl = $ponto->imagem_url;
+                $dados = $this->montarDadosPanorama($ponto);
                 $badge = null;
 
-                if (! $imagemUrl) {
+                // Cascata do accessor: URL externa → bucket R2 (URL assinada; null
+                // se a foto ainda não subiu) → storage local. Sem imagem = demo +
+                // aviso, e sem setas (não há para onde navegar na demo).
+                if (! $dados['url']) {
                     $badge = $ponto->image_path
                         ? '📤 Foto ainda não enviada ao bucket'
                         : 'MODO SIMULAÇÃO';
-                    $imagemUrl = 'https://pannellum.org/images/alma.jpg';
+                    $dados['url'] = 'https://pannellum.org/images/alma.jpg';
+                    $dados['setas'] = [];
                 }
-                
-                // Gera um ID único para evitar conflitos no DOM
-                $uniqueId = 'pano-' . $ponto->id;
 
-                $bladeView = <<<'BLADE'
-                <div class="flex flex-col gap-2" 
-                    x-data="{
-                        initPannellum() {
-                            if (typeof pannellum === 'undefined') {
-                                let link = document.createElement('link');
-                                link.rel = 'stylesheet';
-                                link.href = 'https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css';
-                                document.head.appendChild(link);
-
-                                let script = document.createElement('script');
-                                script.src = 'https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js';
-                                script.onload = () => this.renderizarPanorama();
-                                document.head.appendChild(script);
-                            } else {
-                                this.renderizarPanorama();
-                            }
-                        },
-                        renderizarPanorama() {
-                            // Dá um delay de 300ms para a modal terminar a animação de abrir e ter altura calculada
-                            setTimeout(() => {
-                                pannellum.viewer('{{ $uniqueId }}', {
-                                    'type': 'equirectangular',
-                                    'panorama': {{ \Illuminate\Support\Js::from($imagemUrl) }},
-                                    'autoLoad': true,
-                                    'compass': true,
-                                    // Azimuth da captura (importação Líder): alinha a bússola
-                                    // com o norte verdadeiro.
-                                    'northOffset': {{ (float) ($ponto->azimuth ?? 0) }},
-                                    'showZoomCtrl': true,
-                                    'mouseZoom': true
-                                });
-                            }, 300);
-                        }
-                    }" 
-                    x-init="initPannellum()">
-                    
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                            <x-heroicon-o-camera class="w-6 h-6 text-blue-500" />
-                            {{ $ponto->titulo }}
-                        </h3>
-                        @if($badge)
-                            <span class="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded border border-amber-200">
-                                {{ $badge }}
-                            </span>
-                        @endif
-                    </div>
-                    
-                    {{-- Container protegido do Livewire para o JS poder brincar com o Canvas livremente --}}
-                    <div wire:ignore>
-                        <div id="{{ $uniqueId }}" class="w-full rounded-xl overflow-hidden shadow-inner border border-gray-300 dark:border-gray-700 bg-gray-200" style="height: 500px;"></div>
-                    </div>
-                    
-                </div>
-                BLADE;
-
-                return new HtmlString(Blade::render($bladeView, [
+                return view('filament.pages.panorama-viewer', [
                     'ponto' => $ponto,
-                    'imagemUrl' => $imagemUrl,
+                    'dados' => $dados,
                     'badge' => $badge,
-                    'uniqueId' => $uniqueId
-                ]));
+                    'uniqueId' => 'pano-' . $ponto->id,
+                ]);
             });
     }
 }
