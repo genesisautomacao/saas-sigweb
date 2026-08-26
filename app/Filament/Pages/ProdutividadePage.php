@@ -111,7 +111,7 @@ class ProdutividadePage extends Page
         $vazio = [
             'linhas' => [],
             'resumo' => [
-                'quadras' => 0, 'total' => 0, 'coletados' => 0, 'pendentes' => 0,
+                'quadras' => 0, 'total' => 0, 'coletados' => 0, 'atendidos' => 0, 'pendentes' => 0,
                 'inconformidades' => 0, 'nao_visitados' => 0, 'no_periodo' => 0, 'percentual' => 0,
             ],
         ];
@@ -147,6 +147,11 @@ class ProdutividadePage extends Page
                 $s = $stats[$quadraId] ?? null;
                 $total = (int) ($s->total ?? 0);
                 $coletados = (int) ($s->coletados ?? 0);
+                $inconformidades = (int) ($s->inconformidades ?? 0);
+                // Decisão 2026-08-26: inconformidade é VISITA CONCLUÍDA (o trabalho
+                // aconteceu; o desfecho apontou problema) — conta como atendido no
+                // % e nos restantes, consistente com o por_cadastrador da API.
+                $atendidos = $coletados + $inconformidades;
 
                 $linhas[] = [
                     'quadra_id' => $quadraId,
@@ -155,11 +160,12 @@ class ProdutividadePage extends Page
                     'periodo' => $this->rotuloPeriodo($atribuicao),
                     'total' => $total,
                     'coletados' => $coletados,
+                    'atendidos' => $atendidos,
                     'no_periodo' => (int) ($s->no_periodo ?? 0),
                     'pendentes' => (int) ($s->pendentes ?? 0),
-                    'inconformidades' => (int) ($s->inconformidades ?? 0),
+                    'inconformidades' => $inconformidades,
                     'nao_visitados' => (int) ($s->nao_visitados ?? 0),
-                    'percentual' => $total > 0 ? round($coletados * 100 / $total, 1) : 0.0,
+                    'percentual' => $total > 0 ? round($atendidos * 100 / $total, 1) : 0.0,
                 ];
             }
         }
@@ -174,8 +180,9 @@ class ProdutividadePage extends Page
         // O resumo agrega por QUADRA DISTINTA: a mesma quadra em duas atribuições
         // dentro do período não pode contar duas vezes.
         $resumo = [
-            'quadras' => count($quadraIds), 'total' => 0, 'coletados' => 0, 'pendentes' => 0,
-            'inconformidades' => 0, 'nao_visitados' => 0, 'no_periodo' => 0, 'percentual' => 0,
+            'quadras' => count($quadraIds), 'total' => 0, 'coletados' => 0, 'atendidos' => 0,
+            'pendentes' => 0, 'inconformidades' => 0, 'nao_visitados' => 0, 'no_periodo' => 0,
+            'percentual' => 0,
         ];
 
         foreach ($stats as $s) {
@@ -187,8 +194,11 @@ class ProdutividadePage extends Page
             $resumo['no_periodo'] += (int) $s->no_periodo;
         }
 
+        // atendidos = coletados + inconformidades (visita concluída)
+        $resumo['atendidos'] = $resumo['coletados'] + $resumo['inconformidades'];
+
         $resumo['percentual'] = $resumo['total'] > 0
-            ? round($resumo['coletados'] * 100 / $resumo['total'], 1)
+            ? round($resumo['atendidos'] * 100 / $resumo['total'], 1)
             : 0;
 
         return ['linhas' => $linhas, 'resumo' => $resumo];

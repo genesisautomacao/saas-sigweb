@@ -52,7 +52,7 @@
             <p class="pg-v">{{ number_format($r['inconformidades']) }}</p>
         </div>
         <div class="pg-card pg-azul">
-            <p class="pg-t">Cumprido</p>
+            <p class="pg-t">Atendido</p>
             <p class="pg-v">{{ $r['percentual'] }}%</p>
             <div class="pg-barra" style="margin-top: 8px;">
                 <div class="pg-trilho"><div class="pg-preenchido" style="width: {{ min($r['percentual'], 100) }}%; background: #1d4ed8;"></div></div>
@@ -77,7 +77,7 @@
                         <th style="text-align: right;">Coletados no período</th>
                         <th style="text-align: right;">Coletados (total)</th>
                         <th style="text-align: right;">Restantes</th>
-                        <th>% cumprido</th>
+                        <th>% atendido</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -91,7 +91,8 @@
                                 <span class="pg-badge pg-b-verde">{{ $l['no_periodo'] }}</span>
                             </td>
                             <td style="text-align: right; color: #059669;">{{ $l['coletados'] }}</td>
-                            <td style="text-align: right; color: #6b7280;">{{ $l['total'] - $l['coletados'] }}</td>
+                            {{-- Restantes = ainda não atendidos (coletado + inconformidade contam como visita feita) --}}
+                            <td style="text-align: right; color: #6b7280;">{{ $l['total'] - $l['atendidos'] }}</td>
                             <td>
                                 <div class="pg-barra">
                                     <div class="pg-trilho">

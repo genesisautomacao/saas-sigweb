@@ -62,7 +62,7 @@
             <div class="val">{{ number_format($resumo['inconformidades']) }}</div>
         </div>
         <div class="card">
-            <div class="rot">Cumprido</div>
+            <div class="rot">Atendido</div>
             <div class="val">{{ $resumo['percentual'] }}%</div>
         </div>
     </div>
@@ -82,7 +82,7 @@
                     <th class="num">Restantes</th>
                     <th class="num">Pendentes</th>
                     <th class="num">Inconf.</th>
-                    <th style="width: 120px;">% cumprido</th>
+                    <th style="width: 120px;">% atendido</th>
                 </tr>
             </thead>
             <tbody>
@@ -94,7 +94,7 @@
                         <td class="num">{{ $l['total'] }}</td>
                         <td class="num">{{ $l['no_periodo'] }}</td>
                         <td class="num">{{ $l['coletados'] }}</td>
-                        <td class="num">{{ $l['total'] - $l['coletados'] }}</td>
+                        <td class="num">{{ $l['total'] - $l['atendidos'] }}</td>
                         <td class="num">{{ $l['pendentes'] }}</td>
                         <td class="num">{{ $l['inconformidades'] }}</td>
                         <td>

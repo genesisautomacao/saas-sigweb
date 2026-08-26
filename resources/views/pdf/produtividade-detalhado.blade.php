@@ -22,11 +22,14 @@
         table.data th, table.data td { border: 1px solid #d1d5db; padding: 2px 4px; text-align: left; font-size: 8.5px; }
         table.data th { background: #f3f4f6; }
         .photos { display: table; width: 100%; margin-top: 5px; }
-        .photos .photo { display: table-cell; width: 33%; padding: 2px; vertical-align: top; }
-        .photos img { width: 100%; height: 70px; object-fit: cover; border: 1px solid #d1d5db; border-radius: 3px; }
+        .photos .photo { display: table-cell; width: 33%; padding: 2px; vertical-align: top; text-align: center; }
+        /* Proporção PRESERVADA (2026-08-26): a caixa fixa 100%×70px + object-fit
+           esmagava a foto vertical em paisagem — o DomPDF IGNORA object-fit e
+           deforma em vez de recortar. max-height/max-width mantém a foto em pé. */
+        .photos img { max-height: 140px; max-width: 100%; width: auto; height: auto; border: 1px solid #d1d5db; border-radius: 3px; }
         .photo-label { font-size: 7px; text-align: center; color: #6b7280; margin-top: 1px; }
         .section-title { font-weight: bold; font-size: 9.5px; margin-top: 5px; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 1px; }
-        .placeholder { height: 70px; background: #f3f4f6; border: 1px dashed #d1d5db; border-radius: 3px; }
+        .placeholder { height: 140px; background: #f3f4f6; border: 1px dashed #d1d5db; border-radius: 3px; }
         .inconf-box { background: #fef2f2; border-left: 3px solid #ef4444; padding: 4px 8px; margin-top: 4px; font-size: 8.5px; }
         .empty-section { color: #9ca3af; font-style: italic; font-size: 8.5px; }
         .doc-footer { text-align: center; font-size: 7.5px; color: #9ca3af; margin-top: 4px; }

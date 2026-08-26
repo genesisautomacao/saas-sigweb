@@ -584,6 +584,25 @@ Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unid
 
 ---
 
+## Itens extra-backlog — App de Coletas: correções urgentes de campo (2026-08-26)
+
+**Status:** ✅ Concluído
+**Concluído em:** 2026-08-26
+
+Cinco bugs reportados do uso em campo, todos corrigidos **no app RN** (`app-coletas` — nenhuma migração de banco; backend intocado):
+
+1. **Mapa offline-first** — fechar o app sem internet deixava só os pendentes no mapa (a base da região já estava no SQLite via pull, mas nunca era desenhada). Fetch por bbox falhou → fallback da base local (`getLotesBaseLeves` + cache de centróides + filtro de viewport em JS).
+2. **Área edificação > área do lote não bloqueia mais o salvar** — virou aviso âmbar + Alert oferecendo "Marcar Inconformidade" (seta status e pré-preenche descrição) ou "Salvar assim mesmo". Área construída pode legitimamente superar o terreno (2+ pavimentos).
+3. **Botão Sync sob a barra do Android** — edge-to-edge obrigatório do Expo SDK 54; FABs do MapScreen e bottom sheet agora somam `insets.bottom` (SafeAreaProvider no App.js).
+4. **Número do lote sobre o polígono** — o app lia `properties.numero_lote`, mas o `MobileMapDataController` manda em `properties.name`; visibilidade por zoom lia ref durante o render (nunca re-renderizava) → virou state booleano; threshold 0.015→0.03.
+5. **Lentidão/fechamento silencioso (OOM)** — fotos base64 saíram do state do mapa e dos params de navegação (bottom sheet usa `getLoteResumo`, sem fotos; EditLote hidrata tudo do SQLite no mount via `loteBase` — de quebra corrige data-loss ao reabrir ficha pendente, que apagava fotos/observação no re-save); teto de render 500→300 polígonos.
+
+> Recomendação registrada: instrumentar crashes do app (Sentry/`adb logcat`) — hoje não há visibilidade de OOM em produção.
+
+**Complemento (mesmo dia, builds 1.1.1→1.1.3 + Sentry):** Sentry integrado (org `genesis-16`) e caçada guiada por eventos reais de campo: teto de labels (ANR), troca de camadas num render só + sem `strokeDashArray` + recarga adiada por `InteractionManager` (SIGSEGV/SIGABRT no ShadowNode do Fabric), "Próximo imóvel" **offline** (haversine na base local — item #15 do TR de AC), câmera **sem tela de recorte** + preview adiado (crash na volta da câmera), **rascunho automático da ficha** (crash não perde mais preenchimento; recuperação por prompt), **"atendidos" = coletados + inconformidades** nos percentuais (app + ProdutividadePage + API + PDFs) e fotos do PDF detalhado com proporção preservada. Pendência conhecida (pós-PoC): upgrade `react-native-maps`/Sentry≥8.5 p/ extinguir a família ShadowNode.
+
+---
+
 ## Pontos fortes a destacar na demonstração
 
 1. Estatísticas com **gráficos plotados no mapa** (centroide de cada bairro) — item 2.6-41;

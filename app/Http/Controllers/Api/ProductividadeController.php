@@ -112,21 +112,26 @@ class ProductividadeController extends Controller
                 'nome_quadra'     => $r->nome_quadra ?? 'Sem quadra',
                 'total'           => (int) $r->total,
                 'coletados'       => (int) $r->coletados,
+                // Decisão 2026-08-26: inconformidade = visita concluída → conta no %
+                'atendidos'       => (int) $r->coletados + (int) $r->inconformidades,
                 'pendentes'       => (int) $r->pendentes,
                 'inconformidades' => (int) $r->inconformidades,
                 'nao_visitados'   => (int) $r->nao_visitados,
-                'percentual'      => $r->total > 0 ? round(($r->coletados / $r->total) * 100, 1) : 0,
+                'percentual'      => $r->total > 0 ? round((($r->coletados + $r->inconformidades) / $r->total) * 100, 1) : 0,
             ]);
+
+        $totalAtendidos = $totalColetados + $totalInconform;
 
         return response()->json([
             'data'            => $data,
             'setor_id'        => $setorId,
             'total_lotes'     => $totalLotes,
             'coletados'       => $totalColetados,
+            'atendidos'       => $totalAtendidos,
             'pendentes'       => $totalPendentes,
             'inconformidades' => $totalInconform,
             'nao_visitados'   => $totalNaoVisitados,
-            'percentual_geral'=> $totalLotes > 0 ? round(($totalColetados / $totalLotes) * 100, 1) : 0,
+            'percentual_geral'=> $totalLotes > 0 ? round(($totalAtendidos / $totalLotes) * 100, 1) : 0,
             'por_cadastrador' => $porCadastrador,
             'por_quadra'      => $porQuadra,
         ]);
