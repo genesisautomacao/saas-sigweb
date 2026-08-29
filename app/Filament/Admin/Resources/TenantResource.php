@@ -371,7 +371,85 @@ class TenantResource extends Resource
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\EditAction::make(),
 
-                    Tables\Actions\DeleteAction::make(),
+                    // --- EXCLUSÃO DEFINITIVA (2026-08-27, só Master) ---
+                    // Substituiu o DeleteAction cru: mostra a PRÉVIA DE IMPACTO e
+                    // exige digitar o slug. O motor (cascata + usuários exclusivos +
+                    // arquivos/R2) vive no TenantExclusaoService. IRREVERSÍVEL —
+                    // faça o dump (phpPgAdmin) antes de excluir produção.
+                    Tables\Actions\Action::make('excluir_definitivo')
+                        ->label('Excluir prefeitura (definitivo)')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->visible(fn () => static::ehMaster())
+                        ->modalHeading(fn (Tenant $record) => "Excluir {$record->name} — DEFINITIVO")
+                        ->modalSubmitActionLabel('Excluir tudo, sem volta')
+                        ->form(fn (Tenant $record) => [
+                            Forms\Components\Placeholder::make('impacto')
+                                ->hiddenLabel()
+                                ->content(function () use ($record): \Illuminate\Support\HtmlString {
+                                    $p = \App\Services\Saas\TenantExclusaoService::previa($record);
+
+                                    $topo = collect($p['contagens'])->take(12)
+                                        ->map(fn ($n, $t) => number_format($n, 0, ',', '.')." × {$t}")
+                                        ->implode('<br>');
+                                    $resto = count($p['contagens']) - 12;
+
+                                    return new \Illuminate\Support\HtmlString(
+                                        '<div style="border:1px solid #ef4444;background:#fef2f2;color:#7f1d1d;border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.6;">'
+                                        .'<strong>⚠️ Exclusão FÍSICA e irreversível.</strong> Serão apagados '
+                                        .'<strong>'.number_format($p['total_linhas'], 0, ',', '.').' registro(s)</strong> em '
+                                        .count($p['contagens']).' tabela(s), <strong>'.$p['usuarios_excluir'].' usuário(s)</strong>'
+                                        .($p['usuarios_desvincular'] > 0 ? ' (outros '.$p['usuarios_desvincular'].' com papel global/vínculo em outra prefeitura serão apenas desvinculados)' : '')
+                                        .' e <strong>'.number_format($p['arquivos'], 0, ',', '.').' arquivo(s)</strong> '
+                                        .'(fotos/anexos, mock tributário, nuvem de pontos e prefixo no bucket R2).'
+                                        .'<br><br><strong>Maiores tabelas:</strong><br>'.($topo ?: '—')
+                                        .($resto > 0 ? "<br>… e mais {$resto} tabela(s)." : '')
+                                        .'<br><br>💾 Garanta que o <strong>dump do banco</strong> (phpPgAdmin) está em dia antes de confirmar.'
+                                        .'</div>'
+                                    );
+                                }),
+
+                            Forms\Components\TextInput::make('confirmacao')
+                                ->label("Para confirmar, digite o slug: {$record->slug}")
+                                ->required()
+                                ->autocomplete(false),
+                        ])
+                        ->action(function (Tenant $record, array $data) {
+                            if (($data['confirmacao'] ?? '') !== $record->slug) {
+                                Notification::make()->danger()
+                                    ->title('Confirmação incorreta')
+                                    ->body('O texto digitado não confere com o slug — nada foi excluído.')
+                                    ->send();
+
+                                return;
+                            }
+
+                            ini_set('memory_limit', '2048M');
+                            set_time_limit(900);
+
+                            try {
+                                $resumo = \App\Services\Saas\TenantExclusaoService::excluir($record);
+                            } catch (\Throwable $e) {
+                                Notification::make()->danger()
+                                    ->title('Exclusão falhou — nada foi apagado no banco')
+                                    ->body($e->getMessage())
+                                    ->persistent()
+                                    ->send();
+
+                                return;
+                            }
+
+                            Notification::make()->success()->persistent()
+                                ->title("Prefeitura {$resumo['nome']} excluída definitivamente")
+                                ->body(
+                                    "{$resumo['usuarios_excluidos']} usuário(s) excluído(s), {$resumo['usuarios_desvinculados']} desvinculado(s). "
+                                    ."Arquivos: {$resumo['arquivos']['arquivos_public']} no storage"
+                                    .($resumo['arquivos']['nuvem_pontos'] ? ', nuvem de pontos removida' : '')
+                                    .($resumo['arquivos']['mock'] ? ', mock tributário removido' : '')
+                                    .'. R2: '.$resumo['arquivos']['r2'].'.'
+                                )
+                                ->send();
+                        }),
 
                     // PT-1 — landing pública de links do município (para o site da prefeitura)
                     Tables\Actions\Action::make('link_portal')
@@ -937,11 +1015,9 @@ class TenantResource extends Resource
 
                 ])->tooltip('Ações'),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+            // Sem bulk delete: exclusão de prefeitura é SEMPRE uma a uma, pela
+            // ação dedicada (prévia de impacto + slug digitado) — nunca em massa.
+            ->bulkActions([]);
     }
 
     public static function getRelations(): array

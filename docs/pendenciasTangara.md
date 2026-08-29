@@ -603,6 +603,20 @@ Cinco bugs reportados do uso em campo, todos corrigidos **no app RN** (`app-cole
 
 ---
 
+## Itens extra-backlog — Exclusão definitiva de prefeitura + limpeza de órfãos (2026-08-27)
+
+**Status:** ✅ Concluído
+**Concluído em:** 2026-08-27
+
+Pedido do usuário pós-PoC de Antônio Carlos (aprovada em 2026-08-28... na véspera — vitória! 🏆): exclusão FÍSICA de tenant com tudo que lhe pertence.
+
+- **Achado do levantamento:** o `DeleteAction` cru já apagava fisicamente (~97 FKs `cascadeOnDelete`; `Tenant` nunca teve SoftDeletes) — sem prévia nem confirmação forte, e deixando órfãos: usuários, roles Spatie, viabilidades, arquivos locais/R2.
+- **Entregue:** [TenantExclusaoService](../app/Services/Saas/TenantExclusaoService.php) (prévia de impacto via information_schema, varredura pós-cascata genérica, usuários exclusivos hard-delete com proteção de papel global/multi-tenant, arquivos coletados antes do delete + R2/nuvem-pontos/mock), ação "Excluir prefeitura (definitivo)" no `TenantResource` (só Master, slug digitado; bulk delete removido) e comando **`tenant:limpar-orfaos`** (dry-run por padrão, `--executar` aplica) p/ restos de exclusões antigas.
+- **Testado:** ponta a ponta na base local com tenant descartável (kit cascateado ✓, usuário exclusivo hard-deleted ✓, role órfã capturada pela varredura ✓) + dry-run do comando.
+- Relacionado: parte 3 da release especificada [releaseNuvemFerramentasAdmin.md](releaseNuvemFerramentasAdmin.md) (o gate de pacote de exportação/7 dias fica p/ a release; dump manual via phpPgAdmin é o mitigador atual).
+
+---
+
 ## Pontos fortes a destacar na demonstração
 
 1. Estatísticas com **gráficos plotados no mapa** (centroide de cada bairro) — item 2.6-41;
