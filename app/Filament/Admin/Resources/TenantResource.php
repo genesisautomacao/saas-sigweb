@@ -239,6 +239,43 @@ class TenantResource extends Resource
                             ->columnSpanFull(),
                     ])->columns(3),
 
+                // --- SEÇÃO 4b: ORTOFOTOS (2026-08-27) ---
+                // N camadas de imagem por prefeitura (ex.: 2025 e 2026), servidas
+                // como tiles XYZ de qualquer origem (R2 público, VPS /mapas/...).
+                // Viram opções de mapa de fundo no web (seletor de basemaps) e no
+                // app (botão "Mapas" da barra inferior). Tabela `ortofotos`.
+                Forms\Components\Section::make('Ortofotos (mapas de fundo)')
+                    ->icon('heroicon-o-photo')
+                    ->description('Camadas de imagem aérea da prefeitura. A URL é um template de tiles XYZ com {z}/{x}/{y} — ex.: https://tiles.exemplo.com/prefeitura-x/ortofoto-2025/{z}/{x}/{y}.png')
+                    ->schema([
+                        Forms\Components\Repeater::make('ortofotos')
+                            ->relationship('ortofotos')
+                            ->hiddenLabel()
+                            ->orderColumn('ordem')
+                            ->reorderable()
+                            ->defaultItems(0)
+                            ->addActionLabel('Adicionar ortofoto')
+                            ->schema([
+                                Forms\Components\TextInput::make('nome')
+                                    ->label('Nome (aparece no seletor)')
+                                    ->placeholder('Ortofoto 2025')
+                                    ->required()
+                                    ->maxLength(100),
+                                Forms\Components\TextInput::make('url')
+                                    ->label('URL dos tiles (template XYZ)')
+                                    ->placeholder('https://.../{z}/{x}/{y}.png')
+                                    ->required()
+                                    ->maxLength(500)
+                                    ->rule('regex:#\{z\}.*\{x\}.*\{y\}#')
+                                    ->validationMessages(['regex' => 'A URL precisa conter os marcadores {z}, {x} e {y}.']),
+                                Forms\Components\Toggle::make('ativo')
+                                    ->label('Ativa')
+                                    ->default(true)
+                                    ->inline(false),
+                            ])
+                            ->columns(3),
+                    ]),
+
                 // --- SEÇÃO 5: INTEGRAÇÃO TRIBUTÁRIA (R67-5) ---
                 // O de/para de campos vive no catálogo global (Configurações Globais →
                 // Sistemas Tributários); aqui só se aponta QUAL sistema a prefeitura usa.

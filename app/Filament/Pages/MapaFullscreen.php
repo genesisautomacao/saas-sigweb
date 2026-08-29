@@ -225,6 +225,9 @@ class MapaFullscreen extends Page
     // Filtro
     public bool $filtroAvancadoAtivo = false;
 
+    // Ortofotos da prefeitura (2026-08-27) — viram basemaps dinâmicos no seletor
+    public array $ortofotos = [];
+
     public function mount()
     {
         $tenant = Filament::getTenant();
@@ -235,6 +238,11 @@ class MapaFullscreen extends Page
             $this->mapLat = (float) data_get($tenant->data, 'map_lat', -26.9658952);
             $this->mapLon = (float) data_get($tenant->data, 'map_lon', -50.4182571);
             $this->mapZoom = (int) data_get($tenant->data, 'map_zoom', 14);
+
+            $this->ortofotos = $tenant->ortofotos()
+                ->where('ativo', true)
+                ->get(['id', 'nome', 'url'])
+                ->toArray();
 
             $this->zonasTipos = Zona::query()->where('tenant_id', $this->tenantId)
                 ->select('id', 'name', 'sigla', 'rgb')

@@ -617,6 +617,19 @@ Pedido do usuário pós-PoC de Antônio Carlos (aprovada em 2026-08-28... na vé
 
 ---
 
+## Itens extra-backlog — Fundos de mapa no app + ortofotos por tenant + labels (2026-08-27)
+
+**Status:** ✅ Concluído
+**Concluído em:** 2026-08-27
+
+Pedido do usuário (build 1.1.4 do app + web/admin):
+
+1. **Satélite no app**: `mapType` nativo do Google (`hybrid` = satélite com nomes de rua) — sem custo, sem tiles externos; Azure descartado no app (chave exposta + custo por tile p/ o mesmo resultado).
+2. **Ortofotos N-por-tenant**: tabela `ortofotos` (nome + URL template XYZ + ativo + ordem; FK cascade → entra sozinha na exclusão definitiva), Repeater no `TenantResource`, basemaps dinâmicos no seletor do mapa web e opções no botão **"Mapas"** da bottom bar do app (payload `tenant.ortofotos` no login; `UrlTile` sobre satélite). URL livre → decisão de hospedagem (R2 público/VPS) virou operacional, não de código.
+3. **Números dos lotes por demanda**: teto de 150 labels deixou de ser tudo-ou-nada — escolhe os mais próximos do centro da tela; + correção do label vazio do Android (`collapsable={false}`).
+
+---
+
 ## Pontos fortes a destacar na demonstração
 
 1. Estatísticas com **gráficos plotados no mapa** (centroide de cada bairro) — item 2.6-41;

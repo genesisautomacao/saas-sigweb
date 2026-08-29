@@ -23,6 +23,7 @@
                 mapLon: {{ $mapLon }},
                 mapZoom: {{ $mapZoom }},
                 azureMapsKey: '{{ config('services.azure_maps.key', '') }}',
+                ortofotos: @json($ortofotos),
                 permissionsUrl: '/gis/{{ $tenantSlug }}/map-permissions'
             };
         </script>
@@ -932,19 +933,22 @@
                                     <x-heroicon-o-check x-show="activeBasemap === 'esri_sat'" class="w-4 h-4" />
                                 </button>
 
-                                {{-- Futuras Ortofotos --}}
-                                <button
-                                    @click="activeBasemap = 'ortofoto_2025'; $dispatch('switch-basemap', 'ortofoto_2025'); open = false"
-                                    class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 text-sm transition-colors"
-                                    x-bind:class="activeBasemap === 'ortofoto_2025' ? 'text-primary-600 font-bold' :
-                                        'text-gray-700 dark:text-gray-300'">
-                                    <div class="flex flex-col items-start leading-tight">
+                                {{-- Ortofotos CADASTRADAS da prefeitura (tabela `ortofotos`, 2026-08-27) --}}
+                                @foreach ($ortofotos as $orto)
+                                    <button
+                                        @click="activeBasemap = 'ortofoto_{{ $orto['id'] }}'; $dispatch('switch-basemap', 'ortofoto_{{ $orto['id'] }}'); open = false"
+                                        class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 text-sm transition-colors"
+                                        x-bind:class="activeBasemap === 'ortofoto_{{ $orto['id'] }}' ? 'text-primary-600 font-bold' :
+                                            'text-gray-700 dark:text-gray-300'">
                                         <span class="flex items-center gap-2"><x-heroicon-o-sparkles
-                                                class="w-4 h-4" /> Ortofoto Municipal</span>
-                                        <span class="text-[9px] text-gray-400 ml-6">Ano de Referência: 2025</span>
-                                    </div>
-                                    <x-heroicon-o-check x-show="activeBasemap === 'ortofoto_2025'" class="w-4 h-4" />
-                                </button>
+                                                class="w-4 h-4" /> {{ $orto['nome'] }}</span>
+                                        <x-heroicon-o-check x-show="activeBasemap === 'ortofoto_{{ $orto['id'] }}'" class="w-4 h-4" />
+                                    </button>
+                                @endforeach
+
+                                {{-- Sem ortofoto cadastrada = sem opção (a config da
+                                     prefeitura manda — decisão 2026-08-29; a entrada
+                                     fixa legada /mapas/{slug}/ foi removida) --}}
                             </div>
                         </div>
                     </div>

@@ -96,17 +96,27 @@ document.addEventListener("DOMContentLoaded", function () {
             visible: false,
             zIndex: 1,
         }),
-        ortofoto_2025: new ol.layer.Tile({
+    };
+
+    // Ortofotos CADASTRADAS da prefeitura (2026-08-27, tabela `ortofotos`):
+    // cada uma vira um basemap `ortofoto_<id>` — o handler do switch-basemap já
+    // trata qualquer chave que comece com "ortofoto" (liga o satélite por baixo,
+    // zIndex 2, para cobrir as bordas fora da área imageada).
+    // ⚠️ A config MANDA sozinha (decisão 2026-08-29): sem cadastro na tabela,
+    // NENHUMA opção de ortofoto aparece — a entrada fixa legada /mapas/{slug}/
+    // foi removida (aparecia para qualquer tenant, apontando p/ pasta inexistente).
+    (config.ortofotos || []).forEach((orto) => {
+        basemaps["ortofoto_" + orto.id] = new ol.layer.Tile({
             source: new ol.source.XYZ({
-                url: `/mapas/${config.tenantSlug}/{z}/{x}/{y}.png`,
+                url: orto.url,
                 minZoom: 12,
                 maxZoom: 22,
                 crossOrigin: "anonymous",
             }),
             visible: false,
-            zIndex: 2, // 🛑 CORREÇÃO: Elevado para 2 para ficar por cima do Esri Satélite (1)
-        }),
-    };
+            zIndex: 2,
+        });
+    });
 
     // Adiciona todas ao mapa (apenas a OSM inicia visível)
     const basemapLayers = Object.values(basemaps);

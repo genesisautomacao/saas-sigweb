@@ -151,6 +151,12 @@ class Tenant extends Model implements HasAvatar
         return null;
     }
 
+    /** Ortofotos (tiles XYZ) da prefeitura — opções de fundo no web e no app. */
+    public function ortofotos(): HasMany
+    {
+        return $this->hasMany(Ortofoto::class)->orderBy('ordem');
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class);
