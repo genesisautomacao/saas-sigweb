@@ -341,7 +341,7 @@ Ambos opcionais. Retorna resumo geral + `por_cadastrador[]` + `por_quadra[]`, ca
 #### `GET /api/map/data?layer=lotes&bbox=minLon,minLat,maxLon,maxLat`
 
 Layer `lotes` inclui nas properties: `status_cadastro` e `ocupacao`. Paleta recomendada para o mobile:
-- `nao_visitado` → `#9CA3AF` (cinza)
+- `nao_visitado` → `#00FFFF` (CIANO — trocado do cinza em 2026-08-30 a pedido do campo: legível sobre satélite/ortofoto; mesma cor no web `CORES_STATUS_COLETA` e no app `LOTE_STATUS_COLOR`, com fill leve e badge `#0891B2` no bottom sheet)
 - `coletado` → `#10B981` (verde)
 - `pendente` → `#F59E0B` (amarelo)
 - `inconformidade` → `#EF4444` (vermelho)

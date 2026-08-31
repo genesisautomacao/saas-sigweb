@@ -16,7 +16,10 @@ document.addEventListener("DOMContentLoaded", function () {
         coletado: "#10B981",
         pendente: "#F59E0B",
         inconformidade: "#EF4444",
-        nao_visitado: "#9CA3AF",
+        // Ciano (pedido do campo, 2026-08-30): legível em TODOS os fundos —
+        // ruas, satélite e ortofoto (o cinza antigo sumia sobre imagem aérea).
+        // Mesma cor no app (LOTE_STATUS_COLOR do MapScreen).
+        nao_visitado: "#00FFFF",
     };
 
     // ── EPSG SIRGAS 2000 UTM (zonas brasileiras) ────────────────────

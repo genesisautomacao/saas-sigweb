@@ -1901,7 +1901,7 @@
                             { key: 'coletado', nome: 'Coletado', cor: '#10B981' },
                             { key: 'pendente', nome: 'Pendente', cor: '#F59E0B' },
                             { key: 'inconformidade', nome: 'Inconformidade', cor: '#EF4444' },
-                            { key: 'nao_visitado', nome: 'Não visitado', cor: '#9CA3AF' },
+                            { key: 'nao_visitado', nome: 'Não visitado', cor: '#00FFFF' },
                         ] }">
 
                         {{-- Um toggle por status (mesmo padrão dos fluxos: swatch da cor + nome) --}}
@@ -2543,7 +2543,7 @@
                                 'nao_visitado' => [
                                     'label' => 'Não Visitado',
                                     'bg' => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
-                                    'dot' => 'bg-gray-400',
+                                    'dot' => 'bg-cyan-400',
                                 ],
                                 'coletado' => [
                                     'label' => 'Coletado',
