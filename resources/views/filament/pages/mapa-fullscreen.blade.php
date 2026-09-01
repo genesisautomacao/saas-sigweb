@@ -1898,10 +1898,10 @@
                     <div x-show="activeTab === 'coleta'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden"
                         x-data="{ heatmapOn: false, statusList: [
-                            { key: 'coletado', nome: 'Coletado', cor: '#10B981' },
-                            { key: 'pendente', nome: 'Pendente', cor: '#F59E0B' },
-                            { key: 'inconformidade', nome: 'Inconformidade', cor: '#EF4444' },
-                            { key: 'nao_visitado', nome: 'Não visitado', cor: '#00FFFF' },
+                            { key: 'coletado', nome: 'Coletado', cor: '#00FFFF' },
+                            { key: 'pendente', nome: 'Pendente', cor: '#FF751F' },
+                            { key: 'inconformidade', nome: 'Inconformidade', cor: '#FF3131' },
+                            { key: 'nao_visitado', nome: 'Não visitado', cor: '#FAFF00' },
                         ] }">
 
                         {{-- Um toggle por status (mesmo padrão dos fluxos: swatch da cor + nome) --}}
@@ -2543,17 +2543,17 @@
                                 'nao_visitado' => [
                                     'label' => 'Não Visitado',
                                     'bg' => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
-                                    'dot' => 'bg-cyan-400',
+                                    'dot' => 'bg-yellow-300',
                                 ],
                                 'coletado' => [
                                     'label' => 'Coletado',
                                     'bg' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
-                                    'dot' => 'bg-emerald-500',
+                                    'dot' => 'bg-cyan-400',
                                 ],
                                 'pendente' => [
                                     'label' => 'Pendente',
                                     'bg' => 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
-                                    'dot' => 'bg-amber-500',
+                                    'dot' => 'bg-orange-500',
                                 ],
                                 'inconformidade' => [
                                     'label' => 'Inconformidade',

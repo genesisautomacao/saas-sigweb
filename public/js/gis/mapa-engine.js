@@ -12,14 +12,14 @@ document.addEventListener("DOMContentLoaded", function () {
     let processosFluxosAtivos = [];
     // Camada "Coleta de Dados" — um toggle por status (mesmo mecanismo dos fluxos de processo).
     let coletaStatusAtivos = [];
+    // Paleta definida pelo CAMPO (2026-08-30, 2ª rodada): amarelo/ciano são os
+    // mais legíveis sobre satélite/ortofoto. Mesmas cores no app
+    // (LOTE_STATUS_COLOR do MapScreen) e na legenda do painel de camadas.
     const CORES_STATUS_COLETA = {
-        coletado: "#10B981",
-        pendente: "#F59E0B",
-        inconformidade: "#EF4444",
-        // Ciano (pedido do campo, 2026-08-30): legível em TODOS os fundos —
-        // ruas, satélite e ortofoto (o cinza antigo sumia sobre imagem aérea).
-        // Mesma cor no app (LOTE_STATUS_COLOR do MapScreen).
-        nao_visitado: "#00FFFF",
+        coletado: "#00FFFF",
+        pendente: "#FF751F",
+        inconformidade: "#FF3131",
+        nao_visitado: "#FAFF00",
     };
 
     // ── EPSG SIRGAS 2000 UTM (zonas brasileiras) ────────────────────
