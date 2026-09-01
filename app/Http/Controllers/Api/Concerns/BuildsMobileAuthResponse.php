@@ -45,8 +45,9 @@ trait BuildsMobileAuthResponse
                 'map_zoom' => isset($data['map_zoom']) && is_numeric($data['map_zoom']) ? (int) $data['map_zoom'] : null,
                 // Ortofotos ativas (2026-08-27) — opções de fundo no botão "Mapas"
                 // do app. ⚠️ tenantData é cacheado NO LOGIN: ortofoto nova exige relogin.
+                // `tile_size` (256|512, 2026-09-01) → <UrlTile tileSize> no app; app antigo ignora.
                 'ortofotos' => $tenant
-                    ? $tenant->ortofotos()->where('ativo', true)->get(['id', 'nome', 'url'])->toArray()
+                    ? $tenant->ortofotos()->where('ativo', true)->get(['id', 'nome', 'url', 'tile_size'])->toArray()
                     : [],
             ],
             'layers' => $layers,

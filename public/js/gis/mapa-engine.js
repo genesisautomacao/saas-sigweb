@@ -108,12 +108,19 @@ document.addEventListener("DOMContentLoaded", function () {
     // ⚠️ A config MANDA sozinha (decisão 2026-08-29): sem cadastro na tabela,
     // NENHUMA opção de ortofoto aparece — a entrada fixa legada /mapas/{slug}/
     // foi removida (aparecia para qualquer tenant, apontando p/ pasta inexistente).
+    // Tamanho do tile (2026-09-01): `tile_size` 256|512 é um FATO da pirâmide
+    // (gdal2tiles --tilesize). Convenção igual à do gdal2tiles/OL: o tile 512 (z,x,y)
+    // cobre a MESMA área do 256 (z,x,y) com o dobro de pixels — logo, para a mesma
+    // resolução de tela, o OL pede z−1 na grade 512 (¼ das requisições). Por isso
+    // min/maxZoom da grade 512 são 11/21 (≡ 12/22 da grade 256, mesmas resoluções).
     (config.ortofotos || []).forEach((orto) => {
+        const tileSize = parseInt(orto.tile_size, 10) === 512 ? 512 : 256;
         basemaps["ortofoto_" + orto.id] = new ol.layer.Tile({
             source: new ol.source.XYZ({
                 url: orto.url,
-                minZoom: 12,
-                maxZoom: 22,
+                tileSize: [tileSize, tileSize],
+                minZoom: tileSize === 512 ? 11 : 12,
+                maxZoom: tileSize === 512 ? 21 : 22,
                 crossOrigin: "anonymous",
             }),
             visible: false,

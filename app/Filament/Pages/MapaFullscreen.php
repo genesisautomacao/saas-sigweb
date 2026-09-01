@@ -241,7 +241,7 @@ class MapaFullscreen extends Page
 
             $this->ortofotos = $tenant->ortofotos()
                 ->where('ativo', true)
-                ->get(['id', 'nome', 'url'])
+                ->get(['id', 'nome', 'url', 'tile_size'])
                 ->toArray();
 
             $this->zonasTipos = Zona::query()->where('tenant_id', $this->tenantId)

@@ -627,6 +627,25 @@ Pedido do usuário (build 1.1.4 do app + web/admin):
 1. **Satélite no app**: `mapType` nativo do Google (`hybrid` = satélite com nomes de rua) — sem custo, sem tiles externos; Azure descartado no app (chave exposta + custo por tile p/ o mesmo resultado).
 2. **Ortofotos N-por-tenant**: tabela `ortofotos` (nome + URL template XYZ + ativo + ordem; FK cascade → entra sozinha na exclusão definitiva), Repeater no `TenantResource`, basemaps dinâmicos no seletor do mapa web e opções no botão **"Mapas"** da bottom bar do app (payload `tenant.ortofotos` no login; `UrlTile` sobre satélite). URL livre → decisão de hospedagem (R2 público/VPS) virou operacional, não de código.
 3. **Números dos lotes por demanda**: teto de 150 labels deixou de ser tudo-ou-nada — escolhe os mais próximos do centro da tela; + correção do label vazio do Android (`collapsable={false}`).
+4. **Hospedagem no Cloudflare R2 + `tiles.sigwebmidia.com.br`** (2026-08-29 → 09-01, operacional): Santa Cecília (PNG, depois convertida para **WebP** = 15% do tamanho, prefixo novo `ortofoto-2025-webp`) e Jucurutu 2026 (3 pirâmides sede/Boi Selado/Nova Santana **fundidas** no prefixo `ortofoto-2026-sede`, 1 colisão composta). Lições: WebP q85 como padrão; troca de versão sempre em prefixo novo (cache de borda de 1 mês prende tile re-enviado); processo documentado no CLAUDE.md.
+
+---
+
+## ~~Item extra-backlog — Ortofotos com tiles 512×512~~
+
+**Status:** ✅ Concluído (código web + app; Santa Cecília re-tilada em 512 a partir dos PNGs — 25.017 objetos; Jucurutu 512 entra quando a Líder entregar a pirâmide WebP/512)
+**Concluído em:** 2026-09-01
+
+Padrão novo combinado com a Líder (Pedro): `gdal2tiles --xyz --tiledriver=WEBP --webp-quality 85 --tilesize=512`. O tile 512 tem 4× a área → ¼ das requisições e do overhead por tile; z22@512 equivale a z23@256 em resolução. Hoje web e app assumem 256 fixo, então uma pirâmide 512 renderizaria em escala errada.
+
+Escopo: (1) migration `ortofotos.tile_size` smallint default 256 (256|512); (2) Select "Tamanho do tile" no Repeater do `TenantResource`; (3) engine `mapa-engine.js`: `new ol.source.XYZ({ url, tileSize: [orto.tile_size, orto.tile_size], maxZoom: 22 })` por ortofoto; (4) app: `tile_size` no payload `tenant.ortofotos` (`BuildsMobileAuthResponse`) e `<UrlTile tileSize={orto.tile_size} maximumZ=…>` no `MapScreen` (default 256 p/ payload antigo); (5) CLAUDE.md. Depois: recadastrar Jucurutu apontando p/ `.../ortofoto-2026/{z}/{x}/{y}.webp` com 512, purgar os prefixos PNG e, mais tarde, re-tilar Santa Cecília em 512.
+
+---
+
+## Item extra-backlog — Módulo Mobilidade Urbana (Piúma/ES) — ⏳ planejado
+
+**Status:** ⏳ Planejamento concluído em 2026-09-01 — implementação aguardando as decisões P1–P6.
+Backlog próprio em [piuma.txt](piuma.txt): análise dos 20 GeoJSONs do levantamento (~2.750 features), modelagem em **6 entidades novas** (`mob_trechos` com 26 atributos + sentido por convenção geométrica, `mob_sinalizacoes`, `mob_pontos_interesse`, `mob_eixos`, `mob_zonas`, `mob_fluxos`), gate pelo módulo `mob_infra` (chave já existente no TenantResource), reuso do stack (ImportadorGisService, campos customizados, CampoDominio, exports 4 formatos, LogsActivity/Geometry, permissões) e ondas 0–4.
 
 ---
 

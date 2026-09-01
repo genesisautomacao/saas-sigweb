@@ -14,11 +14,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Ortofoto extends Model
 {
-    protected $fillable = ['tenant_id', 'nome', 'url', 'ordem', 'ativo'];
+    /** Tamanhos de tile aceitos (px). 512 = padrão de geração do SIGWEB; 256 = convenção XYZ de terceiros. */
+    public const TILE_SIZES = [256, 512];
+
+    protected $fillable = ['tenant_id', 'nome', 'url', 'tile_size', 'ordem', 'ativo'];
 
     protected $casts = [
         'ativo' => 'boolean',
         'ordem' => 'integer',
+        'tile_size' => 'integer',
     ];
 
     public function tenant(): BelongsTo

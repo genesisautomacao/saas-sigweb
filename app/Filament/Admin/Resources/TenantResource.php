@@ -268,6 +268,19 @@ class TenantResource extends Resource
                                     ->maxLength(500)
                                     ->rule('regex:#\{z\}.*\{x\}.*\{y\}#')
                                     ->validationMessages(['regex' => 'A URL precisa conter os marcadores {z}, {x} e {y}.']),
+                                // Fato sobre a pirâmide (gdal2tiles --tilesize), não preferência:
+                                // 256 desenhado como 512 fica em escala errada. 512 = padrão do
+                                // SIGWEB; 256 = XYZ de terceiros (GeoServer/ArcGIS/Google).
+                                Forms\Components\Select::make('tile_size')
+                                    ->label('Tamanho do tile')
+                                    ->options([
+                                        512 => '512 px — padrão SIGWEB (gdal2tiles --tilesize=512)',
+                                        256 => '256 px — pirâmide antiga / fonte de terceiros',
+                                    ])
+                                    ->default(512)
+                                    ->required()
+                                    ->native(false)
+                                    ->helperText('Deve bater com o tamanho real dos arquivos de tile.'),
                                 Forms\Components\Toggle::make('ativo')
                                     ->label('Ativa')
                                     ->default(true)
