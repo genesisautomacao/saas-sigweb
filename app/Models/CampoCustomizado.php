@@ -53,6 +53,8 @@ class CampoCustomizado extends Model
         'perimetro' => 'Distrito / Perímetro',
         'setor_fiscal' => 'Setor Fiscal',
         'meio_fio' => 'Meio-fio / Calçada',
+        'mob_trecho' => 'Trecho Viário (Mobilidade)',
+        'mob_eixo' => 'Eixo de Mobilidade',
     ];
 
     /**

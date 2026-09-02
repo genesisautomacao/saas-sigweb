@@ -37,6 +37,7 @@ class CreateRole extends CreateRecord
         $pgvAvalData = $data['permissions_pgv_avaliacao'] ?? [];
         $administracaoData = $data['permissions_administracao'] ?? [];
         $chamadosData = $data['permissions_chamados'] ?? [];
+        $mobilidadeData = $data['permissions_mobilidade'] ?? [];
         $coletaData = $data['permissions_coleta'] ?? [];
         $mapaCamadasData = $data['permissions_mapa_camadas'] ?? [];
         $mapaToolbarData = $data['permissions_mapa_toolbar'] ?? [];
@@ -66,11 +67,12 @@ class CreateRole extends CreateRecord
         $pgvAval = is_array($pgvAvalData) ? $pgvAvalData : [];
         $administracao = is_array($administracaoData) ? $administracaoData : [];
         $chamados = is_array($chamadosData) ? $chamadosData : [];
+        $mobilidade = is_array($mobilidadeData) ? $mobilidadeData : [];
         $coleta = is_array($coletaData) ? $coletaData : [];
         $mapaCamadas = is_array($mapaCamadasData) ? $mapaCamadasData : [];
         $mapaToolbar = is_array($mapaToolbarData) ? $mapaToolbarData : [];
 
-        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $pontosPanoramicos, $iluminacao, $arborizacao, $estoque, $estoqueCadastros, $manutencao, $cemiterio, $imobiliario, $social, $socialAux, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $pgvAval, $administracao, $chamados, $coleta, $mapaCamadas, $mapaToolbar);
+        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $pontosPanoramicos, $iluminacao, $arborizacao, $estoque, $estoqueCadastros, $manutencao, $cemiterio, $imobiliario, $social, $socialAux, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $pgvAval, $administracao, $chamados, $mobilidade, $coleta, $mapaCamadas, $mapaToolbar);
 
         unset(
             $data['permissions_users'], $data['permissions_roles'], $data['permissions_pessoas'],
@@ -81,7 +83,7 @@ class CreateRole extends CreateRecord
             $data['permissions_manutencao'], $data['permissions_cemiterio'], $data['permissions_imobiliario'],
             $data['permissions_social'], $data['permissions_social_aux'], $data['permissions_rural'], $data['permissions_patrimonio'],
             $data['permissions_bpmn'], $data['permissions_viabilidade'], $data['permissions_pgv'], $data['permissions_pgv_avaliacao'],
-            $data['permissions_administracao'], $data['permissions_chamados'], $data['permissions_coleta'],
+            $data['permissions_administracao'], $data['permissions_chamados'], $data['permissions_mobilidade'], $data['permissions_coleta'],
             $data['permissions_mapa_camadas'], $data['permissions_mapa_toolbar']
         );
 

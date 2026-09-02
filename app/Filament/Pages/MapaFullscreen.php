@@ -26,6 +26,12 @@ use App\Filament\Pages\Traits\HasRuralLocalidadeActions;
 use App\Filament\Pages\Traits\HasRuralPonteActions;
 use App\Filament\Pages\Traits\HasRuralPontoInteresseActions;
 use App\Filament\Pages\Traits\HasRuralPropriedadeActions;
+use App\Filament\Pages\Traits\HasMobEixoActions;
+use App\Filament\Pages\Traits\HasMobFluxoActions;
+use App\Filament\Pages\Traits\HasMobPontoInteresseActions;
+use App\Filament\Pages\Traits\HasMobSinalizacaoActions;
+use App\Filament\Pages\Traits\HasMobTrechoActions;
+use App\Filament\Pages\Traits\HasMobZonaActions;
 use App\Filament\Pages\Traits\HasSecaoLogradouroActions;
 use App\Filament\Pages\Traits\HasSetorFiscalActions;
 use App\Filament\Pages\Traits\HasTestadaActions;
@@ -55,6 +61,12 @@ class MapaFullscreen extends Page
 {
     use \App\Filament\Concerns\MontaOpcoesFiltroMapa;
     use HasAreaReurbActions;
+    use HasMobEixoActions;
+    use HasMobFluxoActions;
+    use HasMobPontoInteresseActions;
+    use HasMobSinalizacaoActions;
+    use HasMobTrechoActions;
+    use HasMobZonaActions;
     use HasArvoreActions;
     use HasBairroActions;
     use HasCemiterioActions;
@@ -228,6 +240,16 @@ class MapaFullscreen extends Page
     // Ortofotos da prefeitura (2026-08-27) — viram basemaps dinâmicos no seletor
     public array $ortofotos = [];
 
+    // ── Mobilidade Urbana (docs/piuma.txt, Onda 2) ──
+    /** Módulo mob_infra ativo no tenant (gate do acordeon e do grupo de criação). */
+    public bool $temMobilidade = false;
+
+    /** Opções do "Colorir por" dos trechos: slug => rótulo (colunas + campos do kit). */
+    public array $mobTrechoTemas = [];
+
+    /** Extensão pré-calculada no desenho de trecho/eixo (Placeholder do modal de criação). */
+    public ?float $mobExtensaoCalculada = null;
+
     public function mount()
     {
         $tenant = Filament::getTenant();
@@ -243,6 +265,30 @@ class MapaFullscreen extends Page
                 ->where('ativo', true)
                 ->get(['id', 'nome', 'url', 'tile_size'])
                 ->toArray();
+
+            // Mobilidade Urbana: acordeon/criação só com o módulo ativo; temas do
+            // "Colorir por" = colunas estruturais + campos do kit do município
+            $this->temMobilidade = in_array('mob_infra', $tenant->modules ?? []);
+            if ($this->temMobilidade) {
+                $this->mobTrechoTemas = [
+                    'tipo_de_pavimentacao' => 'Pavimentação',
+                    'estado_conservacao_pavimentacao' => 'Estado da pavimentação',
+                    'tipologia_da_via' => 'Tipologia da via',
+                    'classe_faixa_rodagem' => 'Classe (pista simples/dupla)',
+                    'dimensionamento_da_via' => 'Largura da via',
+                    'sentido' => 'Sentido (classificado ou não)',
+                ];
+                $camposKit = \App\Models\CampoCustomizado::withoutGlobalScopes()
+                    ->where('tenant_id', $this->tenantId)
+                    ->where('entidade', 'mob_trecho')
+                    ->where('ativo', true)
+                    ->whereNull('deleted_at')
+                    ->orderBy('ordem')
+                    ->pluck('label', 'slug');
+                foreach ($camposKit as $slug => $label) {
+                    $this->mobTrechoTemas[$slug] = $label;
+                }
+            }
 
             $this->zonasTipos = Zona::query()->where('tenant_id', $this->tenantId)
                 ->select('id', 'name', 'sigla', 'rgb')
@@ -737,6 +783,28 @@ class MapaFullscreen extends Page
             $this->meioFioExtensaoCalculada = $ext?->metros ? round((float) $ext->metros, 2) : null;
 
             $this->mountAction('criarMeioFio');
+        } elseif (str_starts_with((string) $entityType, 'mob_')) {
+            // MOBILIDADE URBANA (docs/piuma.txt, Onda 2): linhas pré-calculam a
+            // extensão para o Placeholder do modal; pontos/zonas montam direto.
+            $this->mobExtensaoCalculada = null;
+            if (in_array($entityType, ['mob_trecho', 'mob_eixo'], true)) {
+                $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
+                $ext = DB::selectOne("SELECT ST_Length({$lineWKT}::geography) AS metros");
+                $this->mobExtensaoCalculada = $ext?->metros ? round((float) $ext->metros, 2) : null;
+            }
+
+            $acao = match ($entityType) {
+                'mob_trecho' => 'criarMobTrecho',
+                'mob_sinalizacao' => 'criarMobSinalizacao',
+                'mob_ponto_interesse' => 'criarMobPontoInteresse',
+                'mob_eixo' => 'criarMobEixo',
+                'mob_zona' => 'criarMobZona',
+                'mob_fluxo' => 'criarMobFluxo',
+                default => null,
+            };
+            if ($acao) {
+                $this->mountAction($acao);
+            }
         } elseif ($entityType === 'secao_logradouro') {
 
             $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";

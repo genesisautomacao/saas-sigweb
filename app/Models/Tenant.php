@@ -157,6 +157,43 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(Ortofoto::class)->orderBy('ordem');
     }
 
+    // ── Mobilidade Urbana (docs/piuma.txt, Onda 3) — exigidas pelo
+    //    $tenantRelationshipName dos Resources do grupo ──
+    public function mobTrechos(): HasMany
+    {
+        return $this->hasMany(MobTrecho::class);
+    }
+
+    public function mobSinalizacoes(): HasMany
+    {
+        return $this->hasMany(MobSinalizacao::class);
+    }
+
+    public function mobTiposSinalizacao(): HasMany
+    {
+        return $this->hasMany(MobTipoSinalizacao::class);
+    }
+
+    public function mobPontosInteresse(): HasMany
+    {
+        return $this->hasMany(MobPontoInteresse::class);
+    }
+
+    public function mobEixos(): HasMany
+    {
+        return $this->hasMany(MobEixo::class);
+    }
+
+    public function mobZonas(): HasMany
+    {
+        return $this->hasMany(MobZona::class);
+    }
+
+    public function mobFluxos(): HasMany
+    {
+        return $this->hasMany(MobFluxo::class);
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class);

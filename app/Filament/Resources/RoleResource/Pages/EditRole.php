@@ -72,6 +72,11 @@ class EditRole extends EditRecord
             'gerenciar_chamados', 'gerenciar_fluxos_chamado', 'gerenciar_categorias_chamado',
         ]));
 
+        $data['permissions_mobilidade'] = array_values(array_intersect($permissions, [
+            'gerenciar_mob_trechos', 'gerenciar_mob_sinalizacoes', 'gerenciar_mob_tipos_sinalizacao',
+            'gerenciar_mob_pontos_interesse', 'gerenciar_mob_eixos', 'gerenciar_mob_zonas', 'gerenciar_mob_fluxos',
+        ]));
+
         $data['permissions_mapa_camadas'] = array_values(array_intersect($permissions, [
             'ver_camada_perimetros', 'ver_camada_setores_fiscais', 'ver_camada_bairros',
             'ver_camada_loteamentos', 'ver_camada_quadras', 'ver_camada_lotes', 'ver_camada_processos',
@@ -80,6 +85,8 @@ class EditRole extends EditRecord
             'ver_camada_rural_localidades', 'ver_camada_rural_propriedades', 'ver_camada_rural_estradas',
             'ver_camada_rural_hidrografias', 'ver_camada_rural_pontes', 'ver_camada_rural_pontos_interesse',
             'ver_camada_pontos_panoramicos', 'ver_camada_toponimias',
+            'ver_camada_mob_trechos', 'ver_camada_mob_sinalizacoes', 'ver_camada_mob_pontos_interesse',
+            'ver_camada_mob_eixos', 'ver_camada_mob_zonas', 'ver_camada_mob_fluxos',
         ]));
 
         $data['permissions_mapa_toolbar'] = array_values(array_intersect($permissions, [
@@ -115,6 +122,7 @@ class EditRole extends EditRecord
         $pgvAvalData = $data['permissions_pgv_avaliacao'] ?? [];
         $administracaoData = $data['permissions_administracao'] ?? [];
         $chamadosData = $data['permissions_chamados'] ?? [];
+        $mobilidadeData = $data['permissions_mobilidade'] ?? [];
         $coletaData = $data['permissions_coleta'] ?? [];
         $mapaCamadasData = $data['permissions_mapa_camadas'] ?? [];
         $mapaToolbarData = $data['permissions_mapa_toolbar'] ?? [];
@@ -144,11 +152,12 @@ class EditRole extends EditRecord
         $pgvAval = is_array($pgvAvalData) ? $pgvAvalData : [];
         $administracao = is_array($administracaoData) ? $administracaoData : [];
         $chamados = is_array($chamadosData) ? $chamadosData : [];
+        $mobilidade = is_array($mobilidadeData) ? $mobilidadeData : [];
         $coleta = is_array($coletaData) ? $coletaData : [];
         $mapaCamadas = is_array($mapaCamadasData) ? $mapaCamadasData : [];
         $mapaToolbar = is_array($mapaToolbarData) ? $mapaToolbarData : [];
 
-        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $pontosPanoramicos, $iluminacao, $arborizacao, $estoque, $estoqueCadastros, $manutencao, $cemiterio, $imobiliario, $social, $socialAux, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $pgvAval, $administracao, $chamados, $coleta, $mapaCamadas, $mapaToolbar);
+        $this->permissionsToSync = array_merge($users, $roles, $pessoas, $contatos, $enderecos, $documentos, $pontosPanoramicos, $iluminacao, $arborizacao, $estoque, $estoqueCadastros, $manutencao, $cemiterio, $imobiliario, $social, $socialAux, $rural, $patrimonio, $bpmn, $viabilidade, $pgv, $pgvAval, $administracao, $chamados, $mobilidade, $coleta, $mapaCamadas, $mapaToolbar);
 
         unset(
             $data['permissions_users'],
@@ -175,6 +184,7 @@ class EditRole extends EditRecord
             $data['permissions_pgv_avaliacao'],
             $data['permissions_administracao'],
             $data['permissions_chamados'],
+            $data['permissions_mobilidade'],
             $data['permissions_coleta'],
             $data['permissions_mapa_camadas'],
             $data['permissions_mapa_toolbar']

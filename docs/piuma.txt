@@ -1,8 +1,9 @@
 ================================================================================
 MÓDULO MOBILIDADE URBANA — PIÚMA/ES
 Plano de implementação a partir do levantamento de campo (Líder Engenharia)
-Criado em 2026-09-01 · Fonte: D:\Backup Dell Antigo\Andamento\Lider Engenharia\
-  Sigweb - Piúma\json_concluido_30-08-26\ (20 GeoJSONs, ~2.750 features, CRS84 ✓)
+Criado em 2026-09-01 · Revisado em 2026-09-01 (v2 — decisões do usuário aplicadas)
+Fonte: D:\Backup Dell Antigo\Andamento\Lider Engenharia\Sigweb - Piúma\
+  json_concluido_30-08-26\ (20 GeoJSONs, ~2.750 features, CRS84 ✓)
 Este arquivo é o BACKLOG do módulo — atualizar status (⏳/🔄/✅) ao concluir.
 ================================================================================
 
@@ -27,21 +28,21 @@ LINHAS
                                  (pavimentação, calçadas E/D, acessibilidade,
                                  estacionamento, vegetação, tipologia, largura).
   rodovias.json ............... 896 MultiLineString — malha DER-ES do ESTADO
-                                 INTEIRO (bbox 330 km, 16 MB). Importar SÓ o que
-                                 intersecta Piúma (~dezena de trechos).
-  fluxos.json ................. 63 MultiLineString — linhas de desejo O/D
-                                 (fluxo destino + valores de contagem).
+                                 INTEIRO. DECIDIDO: importar SÓ o que intersecta
+                                 Piúma (gestora da mobilidade confirmou).
+  fluxos.json ................. 63 MultiLineString — linhas de desejo do estudo
+                                 O/D (ver explicação em §6.4).
   rotas_transporte_cargas.json  34 MultiLineString — ruas de rota de carga.
   eixos_comerciais.json ....... 7  MultiLineString — eixos comerciais.
-  rede_cicloviaria.json ....... 5  MultiLineString — ciclovia/ciclofaixa
-                                 (situação embutida no nome: existente/em obra).
+  rede_cicloviaria.json ....... 5  MultiLineString — ciclovia/ciclofaixa.
+                                 DECIDIDO (6.7): nome importa como está, sem
+                                 extrair situação.
 
 PONTOS
   sinalizacao.json ............ 692 Point — sinalização viária (tipo Vertical/
-                                 Horizontal + name LIVRE, ver §6.1).
+                                 Horizontal + name livre de coleta por voz).
   sinalizacao_estacionamento .. 140 Point — sinalização de estacionamento
-                                 (12 categorias limpas: idoso, PCD, moto, carga
-                                 e descarga, curta duração, ponto de ônibus...).
+                                 (12 categorias limpas).
   comercio_e_servicos.json .... 58 Point — POIs comércio/serviços.
   religioso.json .............. 43 Point — templos.
   turismo_lazer_esporte.json .. 30 Point — quadras, campos, ginásios.
@@ -51,196 +52,271 @@ PONTOS
   industrias.json ............. 10 Point — indústrias.
 
 --------------------------------------------------------------------------------
-2. MODELAGEM PROPOSTA — 6 ENTIDADES NOVAS cobrem os 19 layers (bairros = existente)
+2. MODELAGEM (v2) — 6 entidades + 1 CATÁLOGO cobrem os 19 layers
 --------------------------------------------------------------------------------
 Racional: não criar 19 tabelas. Agrupar por FORMA + COMPORTAMENTO e diferenciar
-por campo `tipo`/`categoria` com domínio. Cada camada do levantamento vira um
-TOGGLE próprio no mapa (filtro por tipo no servidor — padrão "um checkbox por
-fluxo" da camada Processos), então o agrupamento não aparece para o usuário.
+por campo `tipo`/`categoria`. No mapa cada camada do levantamento tem seu
+PRÓPRIO toggle (padrão "um checkbox por fluxo" da camada Processos).
 
-Todas as entidades: BelongsToTenant + HasTenantSequentialId + SoftDeletes,
-coluna geo (PostGIS) + accessor geo_json/setGeoAttribute, `codigo` municipal,
+Todas as entidades geográficas: BelongsToTenant + HasTenantSequentialId +
+SoftDeletes, coluna geo (PostGIS) + accessor geo_json/setGeoAttribute,
 `dados_customizados` JSONB + GIN, LogsActivity + LogsGeometryChanges,
-area_geo/extensao_geo cacheada (registrar no RecalcularGeoMetadata::ENTIDADES).
+area_geo/extensao_geo cacheada em METROS (padrão do sistema; exibição pode
+formatar em km — registrar no RecalcularGeoMetadata::ENTIDADES).
 
-  2.1 MobTrecho (mob_trechos) — MULTILINESTRING ........................ 612 feats
-      Colunas estruturais: codigo (name numérico do levantamento), logradouro_id
-      FK opcional (vínculo futuro — o pacote NÃO trouxe nomes de vias),
-      tipologia_da_via, tipo_de_pavimentacao, estado_conservacao_pavimentacao,
-      classe_faixa_rodagem, dimensionamento_da_via, extensao_geo,
-      SENTIDO (ver §3) + sentido_definido_em/por (auditoria da classificação).
-      Os outros ~20 atributos (calçadas E/D, acessibilidade, estacionamento ×7,
-      vegetação ×3) → dados_customizados, semeados como CAMPOS CUSTOMIZADOS de
-      um "kit Piúma" (mesmo padrão do KitCamposCustomizadosService) — ganham
-      rótulo/lista white-label e entram de graça no import/export/modais.
+  2.1 MobTipoSinalizacao (mob_tipos_sinalizacao) — CATÁLOGO, sem geo ... ~35 tipos
+      DECISÃO 6.1: a placa NÃO carrega texto livre — ela APONTA para um tipo
+      pré-cadastrado. Colunas: name ("Pare", "Proibido Estacionar", "Faixa de
+      Pedestres"...), tipo (vertical|horizontal), cor (ColorPicker), icone
+      (upload png/jpg — molde CategoriaChamado), codigo_ctb nullable (R-6a,
+      A-12...), ativo, ordem. BelongsToTenant (cada município gere seu catálogo);
+      SEED inicial com os tipos identificados no levantamento de Piúma.
+      → O que varia entre duas placas "Pare" é SÓ a posição no mapa.
 
   2.2 MobSinalizacao (mob_sinalizacoes) — POINT ........................ 832 feats
-      tipo (vertical|horizontal — CampoDominio), categoria (domínio ~20 chaves,
-      ver §6.1), codigo_ctb nullable (R-6a, A-12... já aparecem no levantamento),
-      descricao (texto original da coleta), lado/observacao.
-      Absorve sinalizacao.json + sinalizacao_estacionamento.json (categoria
-      estacionamento_*). Toggles separados no mapa (sinalização × estacionamento),
-      ícone/cor por categoria.
+      tipo_sinalizacao_id FK (catálogo acima), descricao_original (o texto cru
+      da coleta, preservado p/ auditoria/conferência), observacao.
+      Absorve sinalizacao.json + sinalizacao_estacionamento.json.
+      Importação: de/para por palavra-chave name→tipo do catálogo (classifica
+      >90%; não classificado cai no tipo "A Classificar" p/ revisão na Onda 4).
+      Mapa: cor e ícone vêm do CATÁLOGO; toggles sinalização × estacionamento.
 
   2.3 MobPontoInteresse (mob_pontos_interesse) — POINT ................. 184 feats
       categoria (comercio_servicos | educacao | saude | religioso |
       turismo_lazer_esporte | industria | posto_combustivel), name, numero.
       Absorve os 7 JSONs de POI. Um toggle por categoria no acordeon.
 
-  2.4 MobEixo (mob_eixos) — MULTILINESTRING ............................ ~60 feats
-      tipo (ciclovia | ciclofaixa | eixo_comercial | rota_carga | rodovia),
-      situacao (existente | em_obra | planejada — extraída do nome na importação),
-      name, extensao_geo. Extras da rodovia DER-ES (sre, sigla, sit, km_*) →
-      dados_customizados. Absorve rede_cicloviaria + eixos_comerciais +
-      rotas_transporte_cargas + rodovias (RECORTADAS por ST_Intersects com o
-      perímetro/bbox de Piúma).
+  2.4 MobTrecho (mob_trechos) — MULTILINESTRING ........................ 612 feats
+      SEM name (decisão 6.3: trecho urbano não tem nome — referência é o
+      sequential_id, que herda o `id` do JSON na importação, padrão do sistema).
+      Colunas estruturais: tipologia_da_via, tipo_de_pavimentacao,
+      estado_conservacao_pavimentacao, classe_faixa_rodagem,
+      dimensionamento_da_via, extensao_geo, logradouro_id FK nullable (futuro),
+      SENTIDO + AZIMUTE (ver §3).
+      Os outros ~20 atributos (calçadas E/D, acessibilidade, estacionamento ×7,
+      vegetação ×3) → dados_customizados, semeados como campos customizados de
+      um "kit Piúma" (padrão KitCamposCustomizadosService) — rótulo/lista
+      white-label e entrada de graça em import/export/modais.
 
-  2.5 MobZona (mob_zonas) — MULTIPOLYGON ............................... 102 feats
+  2.5 MobEixo (mob_eixos) — MULTILINESTRING ............................ ~60 feats
+      tipo (ciclovia | eixo_comercial | rota_carga | rodovia), name (COMO VEIO —
+      decisão 6.7), extensao_geo em METROS (exibição em km onde couber — 6.2).
+      Extras da rodovia DER-ES (sre, sigla, sit, km_*...) → dados_customizados.
+      Absorve rede_cicloviaria + eixos_comerciais + rotas_transporte_cargas +
+      rodovias RECORTADAS (ST_Intersects com o município — decisão P3).
+
+  2.6 MobZona (mob_zonas) — MULTIPOLYGON ............................... 102 feats
       tipo (zona_od | quadrante | polo_industrial | setor_censitario), name,
       codigo (setor IBGE), situacao (Urbana/Rural), origens/destinos decimal
-      nullable (% do estudo O/D), area_geo. Absorve zonas + poligonal +
-      polo_industrial + setores.
+      nullable (% do estudo O/D), area_geo (recalculada via PostGIS — 6.6).
+      Absorve zonas + poligonal + polo_industrial + setores.
 
-  2.6 MobFluxo (mob_fluxos) — MULTILINESTRING .......................... 63 feats
-      Linha de desejo O/D: destino (centro|norte|sul|leste|nordeste|sudoeste...),
-      valores int (contagem). Camada ANALÍTICA (espessura proporcional a valores
-      no estilo do engine); CRUD simples. Do JSON, importar SÓ geometry + fluxo +
-      valores (point_x/y, centro_x/y e os 8 pares cardinais zerados são artefato
-      da ferramenta de origem — descartar).
+  2.7 MobFluxo (mob_fluxos) — MULTILINESTRING .......... 63 feats · ⏳ AGUARDA P4
+      Linha de desejo O/D: destino (centro|norte|sul|leste|nordeste|sudoeste),
+      valores int (volume). Camada analítica (espessura ∝ valores no engine).
+      Importar SÓ geometry + fluxo + valores (point_x/y, centro_x/y e pares
+      cardinais zerados = artefato da ferramenta — descartar).
+      ⚠️ Entra apenas se o usuário confirmar após a explicação de §6.4;
+      Sudoeste tem 18 linhas (demais têm 9) — conferir duplicação com o geo.
 
 --------------------------------------------------------------------------------
-3. TRECHOS — DIREÇÃO/SENTIDO (o destaque do pedido)
+3. TRECHOS — SENTIDO, DIREÇÃO E AZIMUTE (decisões 6.3 + P2)
 --------------------------------------------------------------------------------
 FATO: no material de origem a direção era só VISUAL (setas no desenho); o JSON
-não tem nenhum campo tabular de sentido (conferido: 26 propriedades, nenhuma é
-direção). Proposta:
+não tem campo tabular de sentido. Modelo aprovado:
 
-  a) Coluna `sentido` enum: mao_unica | mao_dupla | NULL (= não classificado).
-  b) CONVENÇÃO GEOMÉTRICA: em mão única, o fluxo é a ORDEM DOS VÉRTICES da linha
-     (início → fim). Nada de azimute digitado: a geometria JÁ é a seta.
-  c) Render no engine: setas ao longo da linha (style function com Point nos
-     midpoints dos segmentos, rotação pelo bearing) quando sentido=mao_unica;
-     seta dupla ou nenhuma em mão dupla. Liga/desliga junto com a camada.
-  d) Ferramentas no mapa/modal: botão "Inverter sentido" (ST_Reverse(geo)) +
-     select do sentido no modal "Editar Dados". Na CRIAÇÃO de trecho novo, o
-     sentido nasce da direção em que o usuário desenhou (preview com seta) —
-     mesmo fluxo Mesa de Desenho dos demais artefatos.
-  e) BACKFILL dos 612: importam com sentido=NULL + MODO CLASSIFICAÇÃO em massa
-     no mapa (filtro "sem sentido" pinta de cinza; clique no trecho abre popover
-     mão única / mão dupla / inverter; contador de progresso). Com o desenho
-     original do lado, a equipe classifica os 612 em poucas horas.
-  f) PERGUNTAR À EQUIPE DO GEO ANTES: as setas visuais existem como camada no
-     DWG/projeto de origem? Se exportarem essas setas (pontos com rotação ou
-     linhas curtas), dá para inferir o sentido por proximidade/ângulo via
-     PostGIS e reduzir o trabalho manual a conferência. ⚠️ Decisão pendente.
+  a) `sentido` enum: mao_unica | mao_dupla | NULL (= não classificado).
+  b) DIREÇÃO = ORDEM DOS VÉRTICES da linha (ponto inicial → final). APROVADO
+     pelo usuário: ao criar um trecho novo, a direção nasce do desenho (de onde
+     começou para onde terminou). Nada de azimute digitado à mão.
+  c) `azimute` decimal — CALCULADO automaticamente (read-only): bearing do
+     primeiro ao último vértice via ST_Azimuth, em graus 0–360, recalculado
+     sempre que a geometria muda (mesmo gatilho do extensao_geo). Serve para
+     relatórios e para a futura inferência a partir das setas do projeto (P2).
+  d) SETAS NO MAPA: SIM — style function no engine desenha setas rotacionadas
+     pelo bearing nos midpoints dos segmentos quando sentido=mao_unica (dupla:
+     seta nos dois sentidos ou nenhuma — refinar no visual). Ligam/desligam
+     junto com a camada.
+  e) Ferramentas: botão "Inverter sentido" (ST_Reverse) no modal/ficha +
+     select do sentido no "Editar Dados". Preview com seta na criação.
+  f) BACKFILL dos 612: importam com sentido=NULL + modo de classificação em
+     massa no mapa (filtro "sem sentido", clique → mão única/dupla/inverter,
+     contador de progresso). P2 (exportar as setas visuais do projeto p/
+     inferir automático) fica para depois — usuário vai verificar com o geo.
 
 --------------------------------------------------------------------------------
-4. O QUE JÁ EXISTE E SERÁ REAPROVEITADO (por isso o módulo é barato)
+4. O QUE JÁ EXISTE E SERÁ REAPROVEITADO
 --------------------------------------------------------------------------------
-  · Gate por módulo: HasTenantModule + $tenantModule = 'mob_infra' — a chave
-    'mob_infra' JÁ está no select de módulos do TenantResource ("Mobilidade -
-    Infraestrutura"). Só usar.
-  · Bairros: BairroResource é módulo 'imobiliario'. Piúma ativa imobiliario +
-    mob_infra OU estende-se o HasTenantModule p/ aceitar array de módulos no
-    BairroResource. Recomendação: ativar os dois módulos (zero código; Piúma
-    provavelmente terá o cadastro base de qualquer forma). ⚠️ Decisão pendente.
+  · Gate por módulo: HasTenantModule + $tenantModule = 'mob_infra' (chave já
+    existe no select do TenantResource). DECISÃO P1: Piúma ativa também o
+    módulo `imobiliario` (bairros e cadastro base) — zero código.
   · Importação: ImportadorGisService (modos adicionar/atualizar/substituir,
-    sequential_id, dados_customizados por slug de property) — registrar as 6
-    entidades no seletor + ENTIDADE_CUSTOM e os 20 JSONs entram pelos trilhos
-    existentes, com histórico e reimportação segura.
+    sequential_id = id do JSON, dados_customizados por slug) — registrar as
+    entidades mob_* no seletor + ENTIDADE_CUSTOM.
   · Campos customizados + CampoDominio: estender CampoCustomizado::ENTIDADES
-    com as entidades mob_* e semear o kit Piúma → rótulos/listas white-label,
-    modais e exports automáticos (padrão da refatoração Tangará).
-  · Permissões: PermissionsSeeder + Policy por model (SEM Policy o Filament
-    LIBERA o resource — aviso do CLAUDE.md) + CAIXA nova "Mobilidade Urbana" na
-    RoleResource + whitelist no EditRole/CreateRole + gates ver_camada_mob_* no
-    painel de camadas. ⚠️ Deploy: rodar o seeder + permission:cache-reset
-    (incidente 2026-08-05 — temPermissao() nas Policies novas, nunca
-    hasPermissionTo).
-  · Mapa: padrão consolidado — case por camada no MapDataController (SEMPRE
-    ST_AsGeoJSON na query, nunca accessor em loop), layerConfigs +
-    fetchAndDrawLayer no engine, acordeon próprio no mapa-fullscreen.blade,
-    traits Has*Actions p/ criar/editar/excluir (Mesa de Desenho, soft delete),
-    ComprimirJsonMapa (gzip) já cobre as respostas.
-  · Exports: padrão ExportService dá Excel + PDF (pedido mínimo) e CSV + XML
-    de brinde — 4 botões no ActionGroup de cada List page.
-  · Auditoria: LogsActivity (logAll + logExcept geo) + LogsGeometryChanges
-    (croqui Antes/Depois) — só aplicar os traits.
+    com mob_trecho (e mob_eixo p/ extras de rodovia) + kit Piúma.
+  · Permissões: PermissionsSeeder + Policy por model (sem Policy o Filament
+    LIBERA) + CAIXA "Mobilidade Urbana" na RoleResource + whitelist
+    EditRole/CreateRole + gates ver_camada_mob_* no painel de camadas.
+    ⚠️ Deploy: seeder + permission:cache-reset (incidente 2026-08-05;
+    Policies novas usam temPermissao(), nunca hasPermissionTo).
+  · Mapa: case por camada no MapDataController (ST_AsGeoJSON na query, nunca
+    accessor em loop) + layerConfigs/fetchAndDrawLayer + acordeon próprio +
+    traits Has*Actions (criar/editar geometria pela Mesa de Desenho, editar
+    dados, soft delete) — paridade total com quadra/logradouro.
+  · Exports: padrão ExportService → Excel + PDF (mínimo pedido) + CSV + XML
+    de brinde, 4 botões no ActionGroup de cada List page.
+  · Auditoria: LogsActivity (logAll+logExcept geo) + LogsGeometryChanges.
+  · Unidades (decisão 6.2): banco sempre em METROS (padrão do sistema);
+    rodovias/eixos EXIBEM km formatado (state/1000) nas tabelas, fichas e
+    relatórios. Não é preciso fator de conversão armazenado.
 
 --------------------------------------------------------------------------------
 5. ONDAS DE EXECUÇÃO
 --------------------------------------------------------------------------------
-  ONDA 0 — Fundação ................................................. ⏳
-    Migrations das 6 tabelas + models + RecalcularGeoMetadata + permissões
-    (seeder, Policies, CAIXA RoleResource, whitelist EditRole) + grupo de
-    navegação "Mobilidade Urbana" (AppPanelProvider::navigationGroups — grupo
-    fora da lista vai pro fim!) + CampoCustomizado::ENTIDADES + kit Piúma.
+  ONDA 0 — Fundação ...................................... ✅ 2026-09-01
+    Migrations (6 entidades + catálogo) + models + RecalcularGeoMetadata +
+    permissões (seeder, Policies, CAIXA RoleResource, whitelist) + grupo de
+    navegação "Mobilidade Urbana" (registrar em AppPanelProvider::
+    navigationGroups — grupo fora da lista vai pro fim!) +
+    CampoCustomizado::ENTIDADES + kit Piúma + seed do catálogo de sinalização.
+    ✔ Entregue: migration 2026_09_01_200000 (7 tabelas, geo+GIST+GIN+índice
+      único parcial), 7 models (azimute calculado + inverterDirecao no
+      MobTrecho), 7 Policies (temPermissao), 13 permissões novas no
+      PermissionsSeeder, CAIXA 19c + camadas na CAIXA 20, MobilidadeSeeder
+      (39 tipos de sinalização + 23 campos de kit). Smoke test local:
+      azimute 45°→225° no inverter, 148,8 m, MultiPolygon promovido, FK
+      restrict do catálogo ok.
 
-  ONDA 1 — Importação ............................................... ⏳
+  ONDA 1 — Importação .................................... ✅ 2026-09-01
     Entidades mob_* no seletor do "Importar Mapa (GIS)" + ENTIDADE_CUSTOM;
-    normalizações na entrada: de/para sinalização name→categoria (§6.1),
-    situação extraída do nome (ciclos), typo extesnao_geo, clip das rodovias,
-    limpeza do fluxos.json; tenant Piúma criado + bairros importados +
+    de/para sinalização name→tipo do catálogo; clip das rodovias;
+    dedup dos fluxos; tenant Piúma (imobiliario + mob_infra) + bairros +
     gis:recalcular-metadata.
+    ✔ Entregue: comando `mob:normalizar-levantamento <pasta-crua> --saida=`
+      (JSONs crus → 6 GeoJSONs normalizados + bairros + relatorio.txt) e
+      ramo Mob* no ImportadorGisService (mapeamento por camada + resolver
+      nome→id do catálogo de sinalização, fallback "A Classificar").
+    ✔ Carga local completa no tenant prefeitura-de-piuma:
+      17 bairros · 612 trechos (112,4 km; extensão+azimute+26 atributos 100%)
+      · 832 sinalizações (TODAS ligadas ao catálogo; só 4 "A Classificar" —
+      99,5% de classificação automática) · 184 POIs · 75 eixos (29 rodovias
+      recortadas de 896 do ES; 22 com extras DER-ES) · 102 zonas · 62 fluxos
+      (1 duplicata exata removida). Zero vínculos não resolvidos.
+    ✔ VPS (quando for a hora): criar a prefeitura no /admin (módulos
+      imobiliario + mob_infra) → PermissionsSeeder + permission:cache-reset →
+      MOB_SEED_TENANT=<slug> db:seed MobilidadeSeeder → subir os JSONs da
+      pasta normalizada pela ação "Importar Mapa (GIS)" (Bairro primeiro) →
+      "Recalcular Áreas (GIS)".
 
-  ONDA 2 — Mapa ..................................................... ⏳
+  ONDA 2 — Mapa .......................................... ✅ 2026-09-01
     Cases no MapDataController + layerConfigs + acordeon "Mobilidade Urbana"
-    (um toggle por camada do levantamento, gates ver_camada_mob_*); ficha ao
-    clicar; criar/editar geometria/editar dados/excluir via traits (paridade
-    com quadra/logradouro); setas de sentido + Inverter (§3.c/d); TEMATIZAÇÃO
-    dos trechos: select "Colorir por" (pavimentação, estado, calçada,
-    acessibilidade... — os 26 atributos viram mapas temáticos, o grande efeito
-    de demonstração do módulo).
+    (um toggle por camada, gates ver_camada_mob_*); ficha ao clicar;
+    criar/editar geometria/dados/excluir via traits; SETAS de sentido +
+    Inverter (§3); TEMATIZAÇÃO dos trechos: select "Colorir por".
+    ✔ Backend: 6 cases self-contained no MapDataController (trechos levam
+      dados_customizados como `custom` p/ tematização; gzip já cobre).
+      Permissões entram SOZINHAS (o endpoint map-permissions deriva de
+      ver_camada_* dinamicamente).
+    ✔ Engine: 6 layerConfigs (setas de mão única rotacionadas por segmento;
+      tracejado = sentido não classificado; sinalização = círculo V /
+      losango H na cor do catálogo; fluxos com espessura ∝ valores; zonas
+      por tipo; eixos por tipo), clickPriority/hover/cirurgia em loop,
+      "Colorir por" com legenda automática (colunas + campos do kit),
+      mini-checkboxes de filtro por tipo/categoria (.mob-sub-toggle),
+      criação (enableDrawing/Mesa de Desenho/Azimutes) e edição de
+      geometria registradas p/ as 6 entidades.
+    ✔ Painel: acordeon "Mobilidade Urbana" (gated por módulo) + grupo
+      "Mobilidade Urbana" no dropdown Criar Artefatos; MapaFullscreen com
+      os 6 traits HasMob*Actions (modais criar/editar com Inverter Sentido
+      no trecho, catálogo na sinalização, campos do kit em trecho/eixo).
+    ✔ Smoke: 6 camadas servidas (612/832/184/75/102/56 features), views
+      compiladas, traits carregados sem colisão.
+    ℹ️ ACHADO: 6 fluxos O/D são INTRAZONAIS (origem=destino, ex.: Centro→
+      Centro com 87 viagens) — vieram com geometria VAZIA do levantamento;
+      ficam no banco (telas/exports da Onda 3) e fora do mapa por natureza.
 
-  ONDA 3 — Filament ................................................. ⏳
-    6 Resources (List + CRUD modal, molde SecaoLogradouroResource) com filtros
-    por domínio/tipo + exports XLS/PDF/CSV/XML + colunas com rotuloValor.
+  ONDA 3 — Filament ...................................... ✅ 2026-09-01
+    ✔ Grupo "Mobilidade Urbana" com 7 Resources CRUD-modal: MobTrecho
+      (vocabulários em MobTrecho::VOCABULARIOS — fonte única com o mapa;
+      filtros sentido/tipologia/pavimentação/estado; azimute na tabela),
+      MobSinalizacao (badge na COR do catálogo; filtros por tipo e V/H;
+      texto original da coleta preservado), MobTipoSinalizacao (catálogo:
+      cor + ícone + CTB + contagem de placas; delete de tipo em uso é
+      BLOQUEADO — orienta desativar), MobPontoInteresse, MobEixo (extensão
+      em km; extras DER-ES via kit), MobZona (campos condicionais por
+      tipo), MobFluxo (badge "Intrazonal" p/ os 6 sem linha).
+    ✔ Exports XLS/PDF/CSV/XML nos 6 (MobilidadeExportService PARAMETRIZADO
+      por entidade — desvio consciente do 1-service-por-entidade; Excel/CSV
+      incluem os campos do kit via colunasExport; PDF na blade
+      pdf.default-report; ActionGroup via trait TemExportacaoMobilidade
+      respeitando os filtros da tabela).
+    ✔ Tenant ganhou os 7 hasMany (exigência do $tenantRelationshipName).
+    ✔ Smoke: 6 entidades × 4 formatos sem erro; 7 Resources carregam.
 
-  ONDA 4 — Dados / pós-importação ................................... ⏳
-    Classificação de sentido dos 612 trechos (modo em massa §3.e); revisão da
-    normalização da sinalização (itens que o de/para não classificar);
-    validação final com a equipe de Piúma.
+  ONDA 4 — Dados / pós-importação ........................ ✅ 2026-09-01
+    ✔ CANETA DE SENTIDO: Ferramentas → "Classificar Sentidos (Trechos)" —
+      painel flutuante com 3 canetas (Mão única / Mão dupla / Inverter→mão
+      única) + contador "sem sentido" ao vivo; com a caneta armada, cada
+      clique num trecho aplica na hora (tracejado vira sólido+setas).
+      Backend: HasMobTrechoActions::aplicarSentidoTrecho (teste: inverter
+      = +180,0° exatos no azimute).
+    ✔ Revisão da sinalização "A Classificar": filtro por tipo no
+      MobSinalizacaoResource + reclassificação pela tela/catálogo.
+    ⏳ OPERACIONAL (com a equipe de Piúma): classificar os 612 trechos com
+      o desenho original do lado (ou inferir pelas setas do projeto, se P2
+      vingar) e revisar os 4 pontos "A Classificar".
+
+  AFINAMENTOS pós-teste do usuário ....................... ✅ 2026-09-02
+    ✔ Modais dos 6 traits do mapa: xl/lg → 3xl (botões do rodapé numa linha).
+    ✔ Acordeon: sub-itens nascem DESLIGADOS; ligar a camada-mãe marca todos
+      (cascata via listener .layer-toggle mob_* no engine), desligar desmarca;
+      separador discreto entre os blocos; swatch das Zonas deixou de parecer
+      um checkbox (era borda + fundo translúcido).
+    ✔ "Classificar Sentidos" virou BARRA discreta no rodapé, centralizada,
+      com x-teleport pro body (fixed quebrava dentro de ancestral com
+      transform — era o layout esticado do print do usuário).
+    ✔ HOVER nas 6 camadas: destaque visual (halo/anel/engrossamento) +
+      tooltip (trecho: sentido+pavimentação+extensão; eixo: km; fluxo:
+      volume; placa: V/H; zona: código IBGE; POI: categoria).
+    ✔ COORDENADA com copiar (pedido 2026-09-02): trait TemCoordenadaMob —
+      coluna "Coordenada" copyable nas 6 tabelas + campo com botão 📋 nos
+      modais de edição; ponto = posição, linha/zona = ST_PointOnSurface
+      (ponto central SOBRE a geometria); formato "lat, lon" = o mesmo do
+      "ir para coordenada" do mapa; guard p/ geo nula/vazia (intrazonais).
+    ℹ️ JSONs normalizados copiados p/ C:\laragon\www\docs\piuma-normalizado
+      (fora do repo/scratchpad) — é a pasta a usar no carregamento da VPS.
+
+  CEREJA DO BOLO (fora de escopo agora — decisão P6) ................ 🍒
+    Campanha/histórico de recadastro dos trechos (molde coleta_imobiliaria).
+    + Reunião com a gestora Dani (2026-09-03) deve trazer novos ajustes.
 
 --------------------------------------------------------------------------------
-6. QUALIDADE DOS DADOS — o que precisa de tratamento (achados da análise)
+6. QUALIDADE DOS DADOS — decisões aplicadas
 --------------------------------------------------------------------------------
-  6.1 sinalizacao.json: `name` é TEXTO LIVRE de coleta por voz — há timestamps
-      colados ("Ponto De Parada 14/01/2026, 10:09:56"), typos de ditado
-      ("Parado Obrigatória", "Faixa De Pedestre Finalizada" = sinalizada,
-      "Falar Com a Proibida Estacionar") e ~180 variantes para ~20 conceitos
-      (69× proibido estacionar, 51× pare, 47× indicação, 46× faixa de pedestre,
-      37× quebra-molas...). Tratamento: de/para por palavra-chave na importação
-      → `categoria` (classifica >90% automático); original preservado em
-      `descricao`; resto cai em categoria "outros" p/ revisão na Onda 4.
-  6.2 rodovias.json: malha do ESTADO (896 trechos, bbox Vitória→Sul do ES).
-      Importar apenas ST_Intersects com Piúma; extensao_geo em KM (não metros).
-  6.3 trechos.json: `name` = número sequencial 1..611 com 2 DUPLICADOS →
-      tratar como `codigo` (o nome real da via não veio; vínculo com
-      Logradouro fica nullable p/ o futuro).
-  6.4 fluxos.json: Sudoeste tem 18 linhas (todos os demais destinos têm 9) —
-      possível duplicação no levantamento. Conferir com a equipe do geo.
-  6.5 rotas_transporte_cargas.json: campo grafado `extesnao_geo` (typo) —
-      mapear na importação.
-  6.6 setores.json: area_geo em unidade não métrica (graus²?) — ignorar e
-      recalcular via PostGIS.
-  6.7 rede_cicloviaria/eixos: situação e tipo embutidos no nome ("Ciclovia em
-      obra - Av. Beira Mar", "Colofaixa" [sic]) — extrair no de/para.
-  6.8 CRS: todos os arquivos em CRS84 (lon/lat WGS84) ✓ — compatível direto
-      com o pipeline (ST_GeomFromGeoJSON, SRID 4326).
+  6.1 ✅ DECIDIDO: sinalização vira CATÁLOGO (tipo pré-definido com name, tipo
+      V/H, cor e ícone) + pontos que só carregam posição — modelagem §2.1/2.2.
+      O texto cru da coleta fica em descricao_original.
+  6.2 ✅ DECIDIDO: rodovias só intersectando Piúma; banco em METROS (padrão
+      extensao_geo), exibição em km — sem coluna de conversão.
+  6.3 ✅ DECIDIDO: trecho sem name (referência = sequential_id); direção pela
+      ordem do desenho; setas no mapa; campos sentido + azimute (§3).
+  6.4 ✅ P4 DECIDIDO: fluxos ENTRAM; dedup por geometria idêntica na
+      importação (1 duplicata exata removida — as 17 linhas de Sudoeste são
+      geometrias DISTINTAS, levantamento legítimo em 2 lotes).
+  6.5 ✅ Resolvido pelo usuário: JSON corrigido para `extensao_geo`.
+  6.6 ✅ area_geo dos setores IBGE: ignorar valor do arquivo, recalcular PostGIS.
+  6.7 ✅ Ciclovias/eixos: nome importa como veio, sem extração de situação.
+  6.8 ✅ CRS84 em tudo — compatível direto (ST_GeomFromGeoJSON, SRID 4326).
 
 --------------------------------------------------------------------------------
-7. DECISÕES PENDENTES (perguntar antes da Onda 0)
+7. DECISÕES — situação
 --------------------------------------------------------------------------------
-  P1. Bairros em Piúma: ativar módulo imobiliario junto (recomendado) ou
-      liberar BairroResource também para mob_infra?
-  P2. Setas de direção dos trechos: a equipe do geo consegue exportar a camada
-      visual de setas do projeto original? (elimina o grosso da Onda 4)
-  P3. Rodovias DER-ES: importar recortado (recomendado) ou deixar fora do
-      módulo (trechos urbanos já cobrem a cidade)?
-  P4. fluxos.json Sudoeste duplicado (6.4): refazer export ou deduplicar aqui?
-  P5. Nomes das camadas/grupo no menu: "Mobilidade Urbana" ok? Rótulos por
-      camada conforme §1?
-  P6. Contagem/atualização futura: haverá NOVOS levantamentos periódicos
-      (recadastro de trechos)? Se sim, vale planejar campanha/histórico
-      (molde coleta_imobiliaria) — HOJE fora de escopo.
+  P1 ✅ Piúma ativa `imobiliario` + `mob_infra`.
+  P2 ⏳ Setas visuais do projeto: usuário vai verificar com o geo (fica p/
+       depois). Enquanto isso, sentido manual + azimute calculado (§3).
+  P3 ✅ Rodovias: importar recortado.
+  P4 ✅ MobFluxo entra, com dedup por geometria idêntica (ver 6.4).
+  P5 ✅ Grupo "Mobilidade Urbana"; rótulos a critério do dev, refinamento depois.
+  P6 ✅ Campanha/histórico = cereja do bolo, fora do escopo inicial.
 ================================================================================

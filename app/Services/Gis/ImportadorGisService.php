@@ -36,6 +36,9 @@ class ImportadorGisService
         'Loteamento' => 'loteamento',
         'Zona' => 'zona',
         'PerimetroUrbano' => 'perimetro',
+        // Mobilidade Urbana (docs/piuma.txt, Onda 1)
+        'MobTrecho' => 'mob_trecho',
+        'MobEixo' => 'mob_eixo',
     ];
 
     /**
@@ -158,6 +161,14 @@ class ImportadorGisService
                     $fillData['geo'] = null;
                 }
 
+                // MOBILIDADE URBANA (docs/piuma.txt, Onda 1): mapeamento próprio —
+                // as regras legadas abaixo assumem colunas do imobiliário (code,
+                // name, numero_lote, codigo, tipo...) que as tabelas mob_* não têm.
+                if (str_starts_with($camada, 'Mob')) {
+                    unset($fillData['code']); // tabelas mob_* não têm coluna code
+                    $fillData = array_merge($fillData, self::mapearCamposMob($camada, $props, $tenant->id));
+                } else {
+
                 // A REGRA DO NOME (Necessária para Perímetros, Zonas, Logradouros, etc)
                 $camadasComNome = ['PerimetroUrbano', 'Zona', 'Bairro', 'Loteamento', 'Quadra', 'Logradouro'];
                 if (in_array($camada, $camadasComNome)) {
@@ -228,6 +239,8 @@ class ImportadorGisService
                 if (isset($props->inscricao_imobiliaria)) {
                     $fillData['inscricao_imobiliaria'] = $props->inscricao_imobiliaria;
                 }
+
+                } // fim do bloco legado (camadas não-Mob)
 
                 // R67-1 / item 75 — CAMPOS CUSTOMIZADOS DO MUNICÍPIO
                 // Property do GeoJSON com o mesmo nome do identificador do campo.
@@ -405,5 +418,95 @@ class ImportadorGisService
         }
 
         return $reconectados;
+    }
+
+    /**
+     * Mobilidade Urbana — colunas por camada (docs/piuma.txt §2). Só propriedades
+     * presentes e não-vazias entram (o modo "atualizar" preserva o resto).
+     */
+    protected static function mapearCamposMob(string $camada, object $props, int $tenantId): array
+    {
+        $p = fn (string $campo) => (isset($props->{$campo}) && $props->{$campo} !== '') ? $props->{$campo} : null;
+        $dados = [];
+
+        $colunas = match ($camada) {
+            'MobTrecho' => ['tipologia_da_via', 'tipo_de_pavimentacao', 'estado_conservacao_pavimentacao', 'dimensionamento_da_via', 'sentido'],
+            'MobPontoInteresse' => ['categoria', 'name', 'numero'],
+            'MobEixo' => ['tipo', 'name'],
+            'MobZona' => ['tipo', 'name', 'codigo', 'situacao', 'origens', 'destinos'],
+            'MobFluxo' => ['destino'],
+            default => [],
+        };
+
+        foreach ($colunas as $campo) {
+            if ($p($campo) !== null) {
+                $dados[$campo] = $p($campo);
+            }
+        }
+
+        if ($camada === 'MobTrecho') {
+            // O levantamento usa "classe_faixa_rodagem_da_via"
+            $classe = $p('classe_faixa_rodagem') ?? $p('classe_faixa_rodagem_da_via');
+            if ($classe !== null) {
+                $dados['classe_faixa_rodagem'] = $classe;
+            }
+        }
+
+        if ($camada === 'MobFluxo') {
+            $dados['valores'] = (int) ($p('valores') ?? 0);
+        }
+
+        if ($camada === 'MobSinalizacao') {
+            foreach (['descricao_original', 'observacao'] as $campo) {
+                if ($p($campo) !== null) {
+                    $dados[$campo] = $p($campo);
+                }
+            }
+            // Decisão 6.1: a placa aponta pro CATÁLOGO — o JSON normalizado traz
+            // o NOME do tipo (`tipo_sinalizacao`) + vertical/horizontal.
+            $dados['tipo_sinalizacao_id'] = self::resolverTipoSinalizacao(
+                $tenantId,
+                $p('tipo_sinalizacao'),
+                (string) ($p('tipo_sinalizacao_tipo') ?? 'vertical'),
+            );
+        }
+
+        return $dados;
+    }
+
+    /** Cache por request: tenant|tipo|nome → id do catálogo. */
+    protected static array $tiposSinalizacaoCache = [];
+
+    /**
+     * Nome do tipo → id no catálogo do tenant (case-insensitive). Sem
+     * correspondência (ou sem nome) cai no tipo "A Classificar" do mesmo
+     * tipo V/H — criado na hora se o catálogo não foi semeado.
+     */
+    protected static function resolverTipoSinalizacao(int $tenantId, ?string $nome, string $tipo): int
+    {
+        $tipo = strtolower($tipo) === 'horizontal' ? 'horizontal' : 'vertical';
+        $chave = $tenantId.'|'.$tipo.'|'.mb_strtolower(trim((string) $nome));
+
+        if (array_key_exists($chave, self::$tiposSinalizacaoCache)) {
+            return self::$tiposSinalizacaoCache[$chave];
+        }
+
+        $id = null;
+        if (filled($nome)) {
+            $id = \App\Models\MobTipoSinalizacao::withoutGlobalScopes()
+                ->where('tenant_id', $tenantId)
+                ->where('tipo', $tipo)
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($nome))])
+                ->value('id');
+        }
+
+        if (! $id) {
+            $id = \App\Models\MobTipoSinalizacao::withoutGlobalScopes()->firstOrCreate(
+                ['tenant_id' => $tenantId, 'name' => 'A Classificar', 'tipo' => $tipo],
+                ['cor' => '#9CA3AF', 'ativo' => true],
+            )->id;
+        }
+
+        return self::$tiposSinalizacaoCache[$chave] = $id;
     }
 }

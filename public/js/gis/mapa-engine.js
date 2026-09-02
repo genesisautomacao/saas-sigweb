@@ -65,6 +65,88 @@ document.addEventListener("DOMContentLoaded", function () {
         maxZoom: 22,
     });
 
+    // ══ MOBILIDADE URBANA (docs/piuma.txt, Onda 2) — paletas e helpers ══
+    const MOB_EIXO_CORES = {
+        ciclovia: "#16a34a",
+        eixo_comercial: "#f59e0b",
+        rota_carga: "#7c3aed",
+        rodovia: "#dc2626",
+    };
+    const MOB_POI_CORES = {
+        comercio_servicos: "#f59e0b",
+        educacao: "#2563eb",
+        saude: "#dc2626",
+        religioso: "#7c3aed",
+        turismo_lazer_esporte: "#16a34a",
+        industria: "#64748b",
+        posto_combustivel: "#ea580c",
+    };
+    const MOB_ZONA_CORES = {
+        zona_od: { stroke: "#2563eb", fill: "rgba(37,99,235,0.10)" },
+        quadrante: { stroke: "#f97316", fill: "rgba(249,115,22,0.08)" },
+        polo_industrial: { stroke: "#7c3aed", fill: "rgba(124,58,237,0.12)" },
+        setor_censitario: { stroke: "#9ca3af", fill: "rgba(156,163,175,0.04)" },
+    };
+    const MOB_TEMA_PALETA = [
+        "#2563eb", "#dc2626", "#16a34a", "#f59e0b", "#7c3aed", "#0891b2",
+        "#db2777", "#65a30d", "#ea580c", "#4b5563", "#0d9488", "#9333ea",
+    ];
+    // Filtros dos mini-checkboxes: camada → Set de valores DESLIGADOS
+    window._mobFiltros = {};
+    window.mobFiltrado = function (mobLayer, valor) {
+        const s = window._mobFiltros[mobLayer];
+        return !!(s && s.has(String(valor)));
+    };
+    // "Colorir por" dos trechos: atributo ativo (null = cor única) + mapa valor→cor
+    window.mobTrechoTema = null;
+    window._mobTemaMap = {};
+    window.mobTrechoValorTema = function (feature) {
+        const tema = window.mobTrechoTema;
+        if (!tema) return null;
+        let v = feature.get(tema);
+        if (v === undefined || v === null || v === "") {
+            const custom = feature.get("custom");
+            v = custom ? custom[tema] : null;
+        }
+        if (Array.isArray(v)) v = v.join(", ");
+        return v === undefined || v === null || v === "" ? null : String(v);
+    };
+    function mobTrechoCor(feature) {
+        if (!window.mobTrechoTema) return "#0ea5e9";
+        const v = window.mobTrechoValorTema(feature) ?? "—";
+        return window._mobTemaMap[v] || "#9ca3af";
+    }
+    // Setas de sentido (mão única): triângulo rotacionado no meio de cada
+    // segmento longo o bastante na tela — a DIREÇÃO é a ordem dos vértices.
+    function mobSetasSentido(feature, resolution, cor) {
+        const estilos = [];
+        const geom = feature.getGeometry();
+        if (!geom) return estilos;
+        const linhas = geom.getType() === "MultiLineString" ? geom.getLineStrings() : [geom];
+        linhas.forEach((linha) => {
+            linha.forEachSegment((a, b) => {
+                const dx = b[0] - a[0];
+                const dy = b[1] - a[1];
+                if (Math.sqrt(dx * dx + dy * dy) / resolution < 46) return; // segmento curto na tela
+                estilos.push(
+                    new ol.style.Style({
+                        geometry: new ol.geom.Point([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]),
+                        image: new ol.style.RegularShape({
+                            points: 3,
+                            radius: 7,
+                            rotation: Math.atan2(dx, dy),
+                            rotateWithView: true,
+                            fill: new ol.style.Fill({ color: cor }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 1.5 }),
+                        }),
+                        zIndex: 5,
+                    }),
+                );
+            });
+        });
+        return estilos;
+    }
+
     // 3. DEFINIÇÃO DOS MAPAS BASE (BASEMAPS)
     const azureKey = config.azureMapsKey || "";
 
@@ -505,6 +587,202 @@ document.addEventListener("DOMContentLoaded", function () {
                                 color: "#ffffff",
                                 width: 3,
                             }),
+                            placement: "line",
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
+
+        // ══ MOBILIDADE URBANA (docs/piuma.txt, Onda 2) ══
+        mob_trechos: {
+            z: 53,
+            minZoom: 12,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const cor = mobTrechoCor(feature);
+                const sentido = feature.get("sentido");
+                const principal = new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: cor,
+                        width: zoom >= 16 ? 5 : 3.5,
+                        // Não classificado = tracejado (chama a classificação da Onda 4)
+                        lineDash: sentido ? undefined : [6, 5],
+                    }),
+                });
+                if (zoom >= 17.5) {
+                    principal.setText(
+                        new ol.style.Text({
+                            text: "#" + (feature.get("sequential_id") ?? ""),
+                            font: "bold 10px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: "#0c4a6e" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            placement: "line",
+                            overflow: true,
+                        }),
+                    );
+                }
+                const estilos = [principal];
+                if (sentido === "mao_unica" && zoom >= 15.5) {
+                    estilos.push(...mobSetasSentido(feature, resolution, cor));
+                }
+                return estilos;
+            },
+        },
+
+        mob_sinalizacoes: {
+            z: 96,
+            minZoom: 15,
+            style: function (feature, resolution) {
+                if (window.mobFiltrado("mob_sinalizacoes", feature.get("tipo_vh"))) return null;
+                const zoom = view.getZoomForResolution(resolution);
+                const cor = feature.get("cor") || "#9ca3af";
+                // Vertical = círculo · Horizontal = losango (cor vem do CATÁLOGO)
+                const imagem = feature.get("tipo_vh") === "horizontal"
+                    ? new ol.style.RegularShape({
+                        points: 4,
+                        radius: zoom >= 18 ? 8 : 6,
+                        angle: Math.PI / 4,
+                        fill: new ol.style.Fill({ color: cor }),
+                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 1.5 }),
+                    })
+                    : new ol.style.Circle({
+                        radius: zoom >= 18 ? 7 : 5,
+                        fill: new ol.style.Fill({ color: cor }),
+                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 1.5 }),
+                    });
+                const style = new ol.style.Style({ image: imagem });
+                if (zoom >= 18.5) {
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name") || "",
+                            font: "10px Arial, sans-serif",
+                            offsetY: -14,
+                            fill: new ol.style.Fill({ color: "#111827" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
+
+        mob_pontos_interesse: {
+            z: 92,
+            minZoom: 13,
+            style: function (feature, resolution) {
+                if (window.mobFiltrado("mob_pontos_interesse", feature.get("categoria"))) return null;
+                const zoom = view.getZoomForResolution(resolution);
+                const cor = MOB_POI_CORES[feature.get("categoria")] || "#64748b";
+                const style = new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: zoom >= 16 ? 8 : 6,
+                        fill: new ol.style.Fill({ color: cor }),
+                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 2 }),
+                    }),
+                });
+                if (zoom >= 16.5) {
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name") || "",
+                            font: "bold 10px Arial, sans-serif",
+                            offsetY: -14,
+                            fill: new ol.style.Fill({ color: "#1f2937" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
+
+        mob_eixos: {
+            z: 54,
+            minZoom: 10,
+            style: function (feature, resolution) {
+                if (window.mobFiltrado("mob_eixos", feature.get("tipo"))) return null;
+                const zoom = view.getZoomForResolution(resolution);
+                const tipo = feature.get("tipo");
+                const cor = MOB_EIXO_CORES[tipo] || "#0ea5e9";
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: cor,
+                        width: tipo === "rodovia" ? 3 : 4.5,
+                        lineDash: tipo === "ciclovia" ? [10, 6] : undefined,
+                    }),
+                });
+                if (zoom >= 15) {
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name") || "",
+                            font: "bold 10px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: cor }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            placement: "line",
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
+
+        mob_zonas: {
+            z: 28,
+            minZoom: 9,
+            style: function (feature, resolution) {
+                if (window.mobFiltrado("mob_zonas", feature.get("tipo"))) return null;
+                const zoom = view.getZoomForResolution(resolution);
+                const tipo = feature.get("tipo");
+                const cfg = MOB_ZONA_CORES[tipo] || MOB_ZONA_CORES.setor_censitario;
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: cfg.stroke,
+                        width: tipo === "setor_censitario" ? 1 : 2,
+                        lineDash: tipo === "setor_censitario" ? [4, 4] : undefined,
+                    }),
+                    fill: new ol.style.Fill({ color: cfg.fill }),
+                });
+                if (zoom >= 13 && tipo !== "setor_censitario") {
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name") || "",
+                            font: "bold 11px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: cfg.stroke }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
+
+        mob_fluxos: {
+            z: 42,
+            minZoom: 9,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const valores = Number(feature.get("valores")) || 0;
+                // Linha de desejo O/D: espessura proporcional ao volume
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: "rgba(14,165,233,0.65)",
+                        width: 1.5 + Math.min(9, Math.sqrt(valores) * 0.6),
+                        lineCap: "round",
+                    }),
+                });
+                if (zoom >= 14 && valores > 0) {
+                    style.setText(
+                        new ol.style.Text({
+                            text: String(valores),
+                            font: "bold 11px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: "#0c4a6e" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
                             placement: "line",
                             overflow: true,
                         }),
@@ -1955,6 +2233,12 @@ document.addEventListener("DOMContentLoaded", function () {
             "meio_fios",
             "face_quadra",
             "secoes_logradouro",
+            "mob_trechos",
+            "mob_sinalizacoes",
+            "mob_pontos_interesse",
+            "mob_eixos",
+            "mob_zonas",
+            "mob_fluxos",
             "zonas",
             "bairros",
             "loteamentos",
@@ -2136,6 +2420,100 @@ document.addEventListener("DOMContentLoaded", function () {
                         `<strong>${titulo}</strong>` +
                         (tipo ? `<br>${tipo}` : "") +
                         (labelExt ? `<br><em>${labelExt}</em>` : "");
+                    featureTooltip.style.display = "block";
+                    featureTooltip.style.left = e.originalEvent.clientX + "px";
+                    featureTooltip.style.top = e.originalEvent.clientY + "px";
+                }
+            } else if (layer && layer.startsWith("mob_")) {
+                // ── MOBILIDADE URBANA (afinamento 2026-09-02): destaque + tooltip ──
+                const seqMob = feature.get("sequential_id");
+                let tituloMob = feature.get("name") || (seqMob ? "#" + seqMob : "");
+                let detalheMob = "";
+
+                if (layer === "mob_trechos") {
+                    // Halo branco + cor do tema por cima (as setas somem só durante o hover)
+                    feature.setStyle([
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 9 }),
+                        }),
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: mobTrechoCor(feature), width: 5.5 }),
+                        }),
+                    ]);
+                    const sentidoMob = feature.get("sentido");
+                    const extMob = feature.get("extensao_geo");
+                    detalheMob =
+                        (sentidoMob === "mao_unica" ? "Mão única" : sentidoMob === "mao_dupla" ? "Mão dupla" : "Sentido não classificado") +
+                        (feature.get("tipo_de_pavimentacao") ? "<br>" + feature.get("tipo_de_pavimentacao") : "") +
+                        (extMob ? "<br><em>" + Number(extMob).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " m</em>" : "");
+                } else if (layer === "mob_eixos") {
+                    feature.setStyle([
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 9 }),
+                        }),
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: MOB_EIXO_CORES[feature.get("tipo")] || "#0ea5e9",
+                                width: 6,
+                            }),
+                        }),
+                    ]);
+                    const extEixo = feature.get("extensao_geo");
+                    detalheMob = extEixo
+                        ? "<em>" + (extEixo / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + " km</em>"
+                        : "";
+                } else if (layer === "mob_fluxos") {
+                    const volMob = Number(feature.get("valores")) || 0;
+                    feature.setStyle(
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: "rgba(2,132,199,0.95)",
+                                width: 4 + Math.min(9, Math.sqrt(volMob) * 0.6),
+                                lineCap: "round",
+                            }),
+                        }),
+                    );
+                    detalheMob = "volume: <strong>" + volMob + "</strong>";
+                } else if (layer === "mob_sinalizacoes") {
+                    feature.setStyle(
+                        new ol.style.Style({
+                            image: new ol.style.Circle({
+                                radius: 10,
+                                fill: new ol.style.Fill({ color: feature.get("cor") || "#9ca3af" }),
+                                stroke: new ol.style.Stroke({ color: "#f59e0b", width: 3 }),
+                            }),
+                        }),
+                    );
+                    detalheMob = feature.get("tipo_vh") === "horizontal" ? "Horizontal" : "Vertical";
+                } else if (layer === "mob_pontos_interesse") {
+                    feature.setStyle(
+                        new ol.style.Style({
+                            image: new ol.style.Circle({
+                                radius: 11,
+                                fill: new ol.style.Fill({
+                                    color: MOB_POI_CORES[feature.get("categoria")] || "#64748b",
+                                }),
+                                stroke: new ol.style.Stroke({ color: "#f59e0b", width: 3 }),
+                            }),
+                        }),
+                    );
+                    detalheMob = String(feature.get("categoria") || "").replace(/_/g, " ");
+                } else if (layer === "mob_zonas") {
+                    const cfgZona = MOB_ZONA_CORES[feature.get("tipo")] || MOB_ZONA_CORES.setor_censitario;
+                    feature.setStyle(
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: cfgZona.stroke, width: 3.5 }),
+                            fill: new ol.style.Fill({
+                                color: cfgZona.fill.replace(/0\.\d+\)$/, "0.25)"),
+                            }),
+                        }),
+                    );
+                    detalheMob = feature.get("codigo") ? "IBGE " + feature.get("codigo") : "";
+                }
+
+                if (featureTooltip) {
+                    featureTooltip.innerHTML =
+                        "<strong>" + tituloMob + "</strong>" + (detalheMob ? "<br>" + detalheMob : "");
                     featureTooltip.style.display = "block";
                     featureTooltip.style.left = e.originalEvent.clientX + "px";
                     featureTooltip.style.top = e.originalEvent.clientY + "px";
@@ -2796,6 +3174,22 @@ document.addEventListener("DOMContentLoaded", function () {
                 lon: lonMove,
             });
             return;
+        }
+
+        // 🚦 CLASSIFICAÇÃO EM MASSA DE SENTIDO (Mobilidade — piuma.txt Onda 4):
+        // com a caneta armada, o clique num trecho aplica a ação na hora
+        // (mão única / mão dupla / inverter) — 612 trechos em minutos.
+        if (window.mobSentidoPen) {
+            const alvoTrecho = map
+                .getFeaturesAtPixel(evt.pixel, { hitTolerance: 6 })
+                ?.find((f) => f.get("layer") === "mob_trechos");
+            if (alvoTrecho) {
+                Livewire.dispatch("aplicarSentidoTrecho", {
+                    id: alvoTrecho.get("id"),
+                    acao: window.mobSentidoPen,
+                });
+            }
+            return; // consome o clique mesmo no vazio (não abre modais por engano)
         }
 
         //trava para modo de consulta de unificação
@@ -3570,6 +3964,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 "testada_ativa",
                 "patrimonio_publicos",
                 "chamados",
+                "mob_sinalizacoes",
+                "mob_pontos_interesse",
                 "postes",
                 "arvores",
                 "toponimias",
@@ -3580,6 +3976,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 "meio_fios",
                 "face_quadra", // linha da face (PGV) — acima da quadra que a contém
                 "secoes_logradouro",
+                "mob_trechos",
+                "mob_eixos",
+                "mob_fluxos",
                 "rural-estradas",
                 "pontos_panoramicos", // LINHAS
                 "jazigos", // Polígono Micro
@@ -3593,6 +3992,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "setores_fiscais",
                 "zonas", // Polígonos Grandes
                 "areas_reurb",
+                "mob_zonas",
                 "bairros",
                 "loteamentos",
                 "rural-localidades",
@@ -3698,6 +4098,24 @@ document.addEventListener("DOMContentLoaded", function () {
                     case "zonas":
                         Livewire.dispatch("abrirOpcoesZona", { id: id });
                         break; // 👈 ADICIONE ESTA LINHA
+                    case "mob_trechos":
+                        Livewire.dispatch("abrirOpcoesMobTrecho", { id: id });
+                        break;
+                    case "mob_sinalizacoes":
+                        Livewire.dispatch("abrirOpcoesMobSinalizacao", { id: id });
+                        break;
+                    case "mob_pontos_interesse":
+                        Livewire.dispatch("abrirOpcoesMobPontoInteresse", { id: id });
+                        break;
+                    case "mob_eixos":
+                        Livewire.dispatch("abrirOpcoesMobEixo", { id: id });
+                        break;
+                    case "mob_zonas":
+                        Livewire.dispatch("abrirOpcoesMobZona", { id: id });
+                        break;
+                    case "mob_fluxos":
+                        Livewire.dispatch("abrirOpcoesMobFluxo", { id: id });
+                        break;
                     case "areas_reurb":
                         Livewire.dispatch("abrirOpcoesAreaReurb", { id: id });
                         break;
@@ -4019,6 +4437,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 "rural_ponte",
                 "rural_ponto_interesse",
                 "ponto_panoramico",
+                "mob_sinalizacao",
+                "mob_ponto_interesse",
             ].includes(entityType)
         )
             geometryType = "Point";
@@ -4033,9 +4453,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 "meio_fio",
                 "secao_logradouro",
                 "testada",
+                "mob_trecho",
+                "mob_eixo",
+                "mob_fluxo",
             ].includes(entityType)
         )
             geometryType = "LineString";
+        // mob_zona cai no padrão Polygon
         // Se for 'rural_hidro_poligono', ele cai no padrão Polygon!
 
         map.getTargetElement().style.cursor = "crosshair";
@@ -4238,6 +4662,136 @@ document.addEventListener("DOMContentLoaded", function () {
                 .find((f) => f.get("id") == data.id);
             if (feature) source.removeFeature(feature);
         }
+    });
+
+    // ── CIRURGIA EM MEMÓRIA: MOBILIDADE URBANA (6 camadas, registradas em loop) ──
+    [
+        "mob_trechos",
+        "mob_sinalizacoes",
+        "mob_pontos_interesse",
+        "mob_eixos",
+        "mob_zonas",
+        "mob_fluxos",
+    ].forEach((mobLayer) => {
+        window.addEventListener("adicionar-" + mobLayer + "-mapa", (e) => {
+            const data = e.detail[0] || e.detail;
+            if (drawSource) drawSource.clear();
+            const checkbox = document.querySelector('input[data-layer="' + mobLayer + '"]');
+            if (checkbox && checkbox.checked && window.loadedLayers[mobLayer]) {
+                const feature = new ol.Feature({
+                    geometry: new ol.format.GeoJSON().readGeometry(data.geo, {
+                        dataProjection: "EPSG:4326",
+                        featureProjection: "EPSG:3857",
+                    }),
+                    layer: mobLayer,
+                });
+                Object.entries(data).forEach(([k, v]) => {
+                    if (k !== "geo") feature.set(k, v);
+                });
+                window.loadedLayers[mobLayer].getSource().addFeature(feature);
+            }
+        });
+        // Atualiza propriedades (nome, sentido, cor do catálogo...) sem recarregar
+        // a camada; `geo` presente troca a GEOMETRIA (ex.: Inverter Sentido, que
+        // reverte a ordem dos vértices — as setas seguem a nova direção).
+        window.addEventListener("atualizar-" + mobLayer + "-mapa", (e) => {
+            const data = e.detail[0] || e.detail;
+            if (!window.loadedLayers[mobLayer]) return;
+            const feature = window.loadedLayers[mobLayer]
+                .getSource()
+                .getFeatures()
+                .find((f) => f.get("id") == data.id);
+            if (feature) {
+                Object.entries(data).forEach(([k, v]) => {
+                    if (k === "id") return;
+                    if (k === "geo") {
+                        feature.setGeometry(
+                            new ol.format.GeoJSON().readGeometry(v, {
+                                dataProjection: "EPSG:4326",
+                                featureProjection: "EPSG:3857",
+                            }),
+                        );
+                        return;
+                    }
+                    feature.set(k, v);
+                });
+                feature.changed();
+            }
+        });
+        window.addEventListener("remover-" + mobLayer + "-mapa", (e) => {
+            const data = e.detail[0] || e.detail;
+            if (!window.loadedLayers[mobLayer]) return;
+            const source = window.loadedLayers[mobLayer].getSource();
+            const feature = source.getFeatures().find((f) => f.get("id") == data.id);
+            if (feature) source.removeFeature(feature);
+        });
+    });
+
+    // Mini-checkboxes do acordeon Mobilidade: filtro por tipo/categoria (client-side)
+    document.addEventListener("change", (e) => {
+        const el = e.target;
+        if (!el.classList || !el.classList.contains("mob-sub-toggle")) return;
+        const mobLayer = el.dataset.mobLayer;
+        const valor = String(el.dataset.valor);
+        if (!window._mobFiltros[mobLayer]) window._mobFiltros[mobLayer] = new Set();
+        if (el.checked) window._mobFiltros[mobLayer].delete(valor);
+        else window._mobFiltros[mobLayer].add(valor);
+        if (window.loadedLayers[mobLayer]) window.loadedLayers[mobLayer].changed();
+    });
+
+    // Liga/desliga da camada-MÃE sincroniza os mini-checkboxes (UX 2026-09-02):
+    // tudo nasce desligado; ligar a mãe marca todos os sub-itens (tudo visível),
+    // desligar a mãe desmarca todos — aí o usuário refina um a um.
+    document.addEventListener("change", (e) => {
+        const el = e.target;
+        if (!el.classList || !el.classList.contains("layer-toggle")) return;
+        const mobLayer = el.dataset.layer || "";
+        if (!mobLayer.startsWith("mob_")) return;
+        document
+            .querySelectorAll('.mob-sub-toggle[data-mob-layer="' + mobLayer + '"]')
+            .forEach((sub) => (sub.checked = el.checked));
+        window._mobFiltros[mobLayer] = new Set(); // nenhum sub-item filtrado
+        if (window.loadedLayers[mobLayer]) window.loadedLayers[mobLayer].changed();
+    });
+
+    // "Colorir por" dos trechos: monta valor→cor a partir das features carregadas
+    // e desenha a legenda (o grande mapa temático da mobilidade)
+    window.addEventListener("sigweb-mob-trecho-tema", (e) => {
+        const tema = e.detail && e.detail.tema ? e.detail.tema : null;
+        window.mobTrechoTema = tema;
+        window._mobTemaMap = {};
+        const legenda = document.getElementById("mob-trecho-legenda");
+        if (tema && window.loadedLayers["mob_trechos"]) {
+            const valores = new Set();
+            window.loadedLayers["mob_trechos"]
+                .getSource()
+                .getFeatures()
+                .forEach((f) => valores.add(window.mobTrechoValorTema(f) ?? "—"));
+            const ordenados = Array.from(valores).sort((a, b) => a.localeCompare(b, "pt-BR"));
+            ordenados.forEach((v, i) => {
+                window._mobTemaMap[v] = MOB_TEMA_PALETA[i % MOB_TEMA_PALETA.length];
+            });
+            if (legenda) {
+                legenda.innerHTML = ordenados
+                    .map(
+                        (v) =>
+                            '<span style="display:inline-flex;align-items:center;gap:4px;margin:2px 8px 2px 0;font-size:11px;">' +
+                            '<i style="width:10px;height:10px;border-radius:2px;display:inline-block;background:' +
+                            window._mobTemaMap[v] + ';"></i>' + v + "</span>",
+                    )
+                    .join("");
+            }
+        } else if (legenda) {
+            legenda.innerHTML = "";
+        }
+        if (window.loadedLayers["mob_trechos"]) window.loadedLayers["mob_trechos"].changed();
+    });
+
+    // Caneta de sentido (painel "Classificar Sentidos") — arma/desarma e cursor
+    window.mobSentidoPen = null;
+    window.addEventListener("sigweb-mob-sentido-pen", (e) => {
+        window.mobSentidoPen = (e.detail && e.detail.pen) || null;
+        map.getTargetElement().style.cursor = window.mobSentidoPen ? "crosshair" : "";
     });
 
     // ── CIRURGIA EM MEMÓRIA: DISTRITOS / LIMITES (PerimetroUrbano) ────
@@ -4544,6 +5098,36 @@ document.addEventListener("DOMContentLoaded", function () {
             cor: "#7c3aed",
         },
         {
+            evento: "iniciar-edicao-geometria-mob_trecho",
+            layer: "mob_trechos",
+            cor: "#0ea5e9",
+        },
+        {
+            evento: "iniciar-edicao-geometria-mob_sinalizacao",
+            layer: "mob_sinalizacoes",
+            cor: "#ef4444",
+        },
+        {
+            evento: "iniciar-edicao-geometria-mob_ponto_interesse",
+            layer: "mob_pontos_interesse",
+            cor: "#f59e0b",
+        },
+        {
+            evento: "iniciar-edicao-geometria-mob_eixo",
+            layer: "mob_eixos",
+            cor: "#16a34a",
+        },
+        {
+            evento: "iniciar-edicao-geometria-mob_zona",
+            layer: "mob_zonas",
+            cor: "#2563eb",
+        },
+        {
+            evento: "iniciar-edicao-geometria-mob_fluxo",
+            layer: "mob_fluxos",
+            cor: "#0891b2",
+        },
+        {
             evento: "iniciar-edicao-geometria-loteamento",
             layer: "loteamentos",
             cor: "#2563eb",
@@ -4726,6 +5310,12 @@ document.addEventListener("DOMContentLoaded", function () {
                     "rural-hidrografias": "rural_hidrografia",
                     "rural-pontes": "rural_ponte",
                     "rural-pontos-interesse": "rural_ponto_interesse",
+                    mob_trechos: "mob_trecho",
+                    mob_sinalizacoes: "mob_sinalizacao",
+                    mob_pontos_interesse: "mob_ponto_interesse",
+                    mob_eixos: "mob_eixo",
+                    mob_zonas: "mob_zona",
+                    mob_fluxos: "mob_fluxo",
                 };
 
                 const entityToCreate = mapSingular[featureCloneOriginalLayer];
@@ -4815,6 +5405,36 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             else if (layerName === "secoes_logradouro")
                 Livewire.dispatch("salvarNovaGeometriaSecaoLogradouro", {
+                    id: id,
+                    geoJson: geoJson,
+                });
+            else if (layerName === "mob_trechos")
+                Livewire.dispatch("salvarNovaGeometriaMobTrecho", {
+                    id: id,
+                    geoJson: geoJson,
+                });
+            else if (layerName === "mob_sinalizacoes")
+                Livewire.dispatch("salvarNovaGeometriaMobSinalizacao", {
+                    id: id,
+                    geoJson: geoJson,
+                });
+            else if (layerName === "mob_pontos_interesse")
+                Livewire.dispatch("salvarNovaGeometriaMobPontoInteresse", {
+                    id: id,
+                    geoJson: geoJson,
+                });
+            else if (layerName === "mob_eixos")
+                Livewire.dispatch("salvarNovaGeometriaMobEixo", {
+                    id: id,
+                    geoJson: geoJson,
+                });
+            else if (layerName === "mob_zonas")
+                Livewire.dispatch("salvarNovaGeometriaMobZona", {
+                    id: id,
+                    geoJson: geoJson,
+                });
+            else if (layerName === "mob_fluxos")
+                Livewire.dispatch("salvarNovaGeometriaMobFluxo", {
                     id: id,
                     geoJson: geoJson,
                 });
@@ -5738,6 +6358,12 @@ document.addEventListener("DOMContentLoaded", function () {
             perimetros: { label: "do novo Distrito / Limite", func: "perimetro_urbano" },
             meio_fios: { label: "do novo Meio-fio / Calçada", func: "meio_fio" },
             secoes_logradouro: { label: "da nova Seção de Logradouro", func: "secao_logradouro" },
+            mob_trechos: { label: "do novo Trecho Viário", func: "mob_trecho" },
+            mob_sinalizacoes: { label: "da nova Sinalização", func: "mob_sinalizacao" },
+            mob_pontos_interesse: { label: "do novo Ponto de Interesse", func: "mob_ponto_interesse" },
+            mob_eixos: { label: "do novo Eixo de Mobilidade", func: "mob_eixo" },
+            mob_zonas: { label: "da nova Zona de Estudo", func: "mob_zona" },
+            mob_fluxos: { label: "do novo Fluxo O/D", func: "mob_fluxo" },
             loteamentos: { label: "do novo Loteamento", func: "loteamento" },
             quadras: { label: "da nova Quadra", func: "quadra" },
 

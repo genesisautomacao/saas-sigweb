@@ -605,6 +605,14 @@ class TenantResource extends Resource
                                     'Lote' => '7. Lotes',
                                     'Edificacao' => '8. Edificações',
                                     'UnidadeImobiliaria' => '9. Unidades Imobiliárias',
+                                    // Mobilidade Urbana (docs/piuma.txt) — JSONs preparados
+                                    // pelo comando mob:normalizar-levantamento
+                                    'MobTrecho' => 'Mobilidade — Trechos Viários',
+                                    'MobSinalizacao' => 'Mobilidade — Sinalização',
+                                    'MobPontoInteresse' => 'Mobilidade — Pontos de Interesse',
+                                    'MobEixo' => 'Mobilidade — Eixos (Ciclo/Carga/Rodovia)',
+                                    'MobZona' => 'Mobilidade — Zonas de Estudo',
+                                    'MobFluxo' => 'Mobilidade — Fluxos O/D',
                                 ])
                                 ->live()
                                 ->required(),

@@ -614,6 +614,192 @@ class MapDataController extends Controller
                 $data = ['type' => 'FeatureCollection', 'features' => $features];
                 break;
 
+            // ── MOBILIDADE URBANA (docs/piuma.txt, Onda 2) — camadas self-contained,
+            //    query direta com ST_AsGeoJSON (nunca accessor em loop). Toggles por
+            //    tipo/categoria são filtro de CLIENTE (dados pequenos: ≤ ~830 feats).
+            case 'mob_trechos':
+                $rows = DB::table('mob_trechos')
+                    ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('geo')
+                    ->orderBy('id')
+                    ->selectRaw("id, sequential_id, sentido, azimute, extensao_geo,
+                        tipologia_da_via, tipo_de_pavimentacao, estado_conservacao_pavimentacao,
+                        classe_faixa_rodagem, dimensionamento_da_via, dados_customizados,
+                        ST_AsGeoJSON(geo, 6) AS gj")
+                    ->get();
+
+                $features = [];
+                foreach ($rows as $row) {
+                    $geom = json_decode($row->gj);
+                    if (!$geom || empty($geom->coordinates)) continue;
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'id' => $row->id,
+                            'layer' => 'mob_trechos',
+                            'name' => 'Trecho #'.$row->sequential_id,
+                            'sequential_id' => $row->sequential_id,
+                            'sentido' => $row->sentido,
+                            'azimute' => $row->azimute !== null ? (float) $row->azimute : null,
+                            'extensao_geo' => $row->extensao_geo !== null ? (float) $row->extensao_geo : null,
+                            'tipologia_da_via' => $row->tipologia_da_via,
+                            'tipo_de_pavimentacao' => $row->tipo_de_pavimentacao,
+                            'estado_conservacao_pavimentacao' => $row->estado_conservacao_pavimentacao,
+                            'classe_faixa_rodagem' => $row->classe_faixa_rodagem,
+                            'dimensionamento_da_via' => $row->dimensionamento_da_via,
+                            // "Colorir por" também tematiza pelos campos do kit (calçadas etc.)
+                            'custom' => $row->dados_customizados ? json_decode($row->dados_customizados) : null,
+                        ],
+                        'geometry' => $geom,
+                    ];
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
+            case 'mob_sinalizacoes':
+                // Cor/ícone/nome vêm do CATÁLOGO (decisão 6.1 do piuma.txt)
+                $rows = DB::table('mob_sinalizacoes as s')
+                    ->leftJoin('mob_tipos_sinalizacao as ts', 'ts.id', '=', 's.tipo_sinalizacao_id')
+                    ->where('s.tenant_id', $tenantId)->whereNull('s.deleted_at')->whereNotNull('s.geo')
+                    ->orderBy('s.id')
+                    ->selectRaw("s.id, s.sequential_id, s.descricao_original,
+                        ts.name as tipo_nome, ts.tipo as tipo_vh,
+                        COALESCE(ts.cor, '#9CA3AF') as cor, ts.icone,
+                        ST_AsGeoJSON(s.geo, 6) AS gj")
+                    ->get();
+
+                $features = [];
+                foreach ($rows as $row) {
+                    $geom = json_decode($row->gj);
+                    if (!$geom || empty($geom->coordinates)) continue;
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'id' => $row->id,
+                            'layer' => 'mob_sinalizacoes',
+                            'name' => $row->tipo_nome ?? 'A Classificar',
+                            'sequential_id' => $row->sequential_id,
+                            'tipo_vh' => $row->tipo_vh ?? 'vertical',
+                            'cor' => $row->cor,
+                            'icone' => $row->icone ? asset('storage/'.$row->icone) : null,
+                        ],
+                        'geometry' => $geom,
+                    ];
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
+            case 'mob_pontos_interesse':
+                $rows = DB::table('mob_pontos_interesse')
+                    ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('geo')
+                    ->orderBy('id')
+                    ->selectRaw('id, sequential_id, categoria, name, numero, ST_AsGeoJSON(geo, 6) AS gj')
+                    ->get();
+
+                $features = [];
+                foreach ($rows as $row) {
+                    $geom = json_decode($row->gj);
+                    if (!$geom || empty($geom->coordinates)) continue;
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'id' => $row->id,
+                            'layer' => 'mob_pontos_interesse',
+                            'name' => $row->name ?: 'POI #'.$row->sequential_id,
+                            'sequential_id' => $row->sequential_id,
+                            'categoria' => $row->categoria,
+                            'numero' => $row->numero,
+                        ],
+                        'geometry' => $geom,
+                    ];
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
+            case 'mob_eixos':
+                $rows = DB::table('mob_eixos')
+                    ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('geo')
+                    ->orderBy('id')
+                    ->selectRaw('id, sequential_id, tipo, name, extensao_geo, ST_AsGeoJSON(geo, 6) AS gj')
+                    ->get();
+
+                $features = [];
+                foreach ($rows as $row) {
+                    $geom = json_decode($row->gj);
+                    if (!$geom || empty($geom->coordinates)) continue;
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'id' => $row->id,
+                            'layer' => 'mob_eixos',
+                            'name' => $row->name ?: 'Eixo #'.$row->sequential_id,
+                            'sequential_id' => $row->sequential_id,
+                            'tipo' => $row->tipo,
+                            'extensao_geo' => $row->extensao_geo !== null ? (float) $row->extensao_geo : null,
+                        ],
+                        'geometry' => $geom,
+                    ];
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
+            case 'mob_zonas':
+                $rows = DB::table('mob_zonas')
+                    ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('geo')
+                    ->orderBy('id')
+                    ->selectRaw('id, sequential_id, tipo, name, codigo, situacao, origens, destinos, area_geo, ST_AsGeoJSON(geo, 6) AS gj')
+                    ->get();
+
+                $features = [];
+                foreach ($rows as $row) {
+                    $geom = json_decode($row->gj);
+                    if (!$geom || empty($geom->coordinates)) continue;
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'id' => $row->id,
+                            'layer' => 'mob_zonas',
+                            'name' => $row->name ?: 'Zona #'.$row->sequential_id,
+                            'sequential_id' => $row->sequential_id,
+                            'tipo' => $row->tipo,
+                            'codigo' => $row->codigo,
+                            'situacao' => $row->situacao,
+                            'origens' => $row->origens !== null ? (float) $row->origens : null,
+                            'destinos' => $row->destinos !== null ? (float) $row->destinos : null,
+                            'area_geo' => $row->area_geo !== null ? (float) $row->area_geo : null,
+                        ],
+                        'geometry' => $geom,
+                    ];
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
+            case 'mob_fluxos':
+                $rows = DB::table('mob_fluxos')
+                    ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('geo')
+                    ->orderBy('id')
+                    ->selectRaw('id, sequential_id, destino, valores, ST_AsGeoJSON(geo, 6) AS gj')
+                    ->get();
+
+                $features = [];
+                foreach ($rows as $row) {
+                    $geom = json_decode($row->gj);
+                    if (!$geom || empty($geom->coordinates)) continue;
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'id' => $row->id,
+                            'layer' => 'mob_fluxos',
+                            'name' => 'Fluxo → '.ucfirst((string) $row->destino),
+                            'sequential_id' => $row->sequential_id,
+                            'destino' => $row->destino,
+                            'valores' => (int) $row->valores,
+                        ],
+                        'geometry' => $geom,
+                    ];
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
             default:
                 return response()->json(['error' => 'Camada não encontrada'], 404);
         }

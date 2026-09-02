@@ -642,10 +642,11 @@ Escopo: (1) migration `ortofotos.tile_size` smallint default 256 (256|512); (2) 
 
 ---
 
-## Item extra-backlog — Módulo Mobilidade Urbana (Piúma/ES) — ⏳ planejado
+## ~~Item extra-backlog — Módulo Mobilidade Urbana (Piúma/ES)~~
 
-**Status:** ⏳ Planejamento concluído em 2026-09-01 — implementação aguardando as decisões P1–P6.
-Backlog próprio em [piuma.txt](piuma.txt): análise dos 20 GeoJSONs do levantamento (~2.750 features), modelagem em **6 entidades novas** (`mob_trechos` com 26 atributos + sentido por convenção geométrica, `mob_sinalizacoes`, `mob_pontos_interesse`, `mob_eixos`, `mob_zonas`, `mob_fluxos`), gate pelo módulo `mob_infra` (chave já existente no TenantResource), reuso do stack (ImportadorGisService, campos customizados, CampoDominio, exports 4 formatos, LogsActivity/Geometry, permissões) e ondas 0–4.
+**Status:** ✅ Implementado (Ondas 0–4 concluídas em 2026-09-01; pendências operacionais — classificação dos sentidos com a equipe e deploy — registradas no backlog próprio)
+**Concluído em:** 2026-09-01
+Backlog e decisões em [piuma.txt](piuma.txt): 6 entidades + catálogo cobrem os 19 layers do levantamento (~2.750 features importadas no tenant de teste), mapa completo (toggles, setas de sentido, "Colorir por", CRUD geográfico), 7 Resources com exports em 4 formatos e caneta de classificação em massa de sentidos.
 
 ---
 

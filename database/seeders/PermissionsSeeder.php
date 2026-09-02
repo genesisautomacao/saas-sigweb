@@ -259,6 +259,16 @@ class PermissionsSeeder extends Seeder
             'gerenciar_fluxos_chamado',
             'gerenciar_chamados',
 
+            /* Módulo Mobilidade Urbana (mob_infra — docs/piuma.txt, permissão
+               única "gerenciar" por entidade, molde Estoque/PGV-Avaliação) */
+            'gerenciar_mob_trechos',
+            'gerenciar_mob_sinalizacoes',
+            'gerenciar_mob_tipos_sinalizacao',
+            'gerenciar_mob_pontos_interesse',
+            'gerenciar_mob_eixos',
+            'gerenciar_mob_zonas',
+            'gerenciar_mob_fluxos',
+
             /* Permissões de visibilidade de camadas GIS */
             'ver_camada_perimetros',
             'ver_camada_setores_fiscais',
@@ -283,6 +293,14 @@ class PermissionsSeeder extends Seeder
             'ver_camada_rural_pontos_interesse',
             'ver_camada_pontos_panoramicos',
             'ver_camada_toponimias',
+
+            /* Camadas do Módulo Mobilidade Urbana */
+            'ver_camada_mob_trechos',
+            'ver_camada_mob_sinalizacoes',
+            'ver_camada_mob_pontos_interesse',
+            'ver_camada_mob_eixos',
+            'ver_camada_mob_zonas',
+            'ver_camada_mob_fluxos',
 
             /* Permissões da toolbar do mapa */
             'toolbar_criar_artefatos',

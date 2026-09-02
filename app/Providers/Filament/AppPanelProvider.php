@@ -42,6 +42,7 @@ class AppPanelProvider extends PanelProvider
             ->navigationGroups([
                 'Módulo Administrativo',
                 'Módulo Imobiliário',
+                'Mobilidade Urbana',
                 'Customizações',
                 'Coleta cadastral',
                 'Consultas de Viabilidade',

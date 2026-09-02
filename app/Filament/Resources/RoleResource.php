@@ -552,6 +552,24 @@ class RoleResource extends Resource
                                     ->columns(2),
                             ])->columns(1)->columnSpanFull(),
 
+                        // CAIXA 19c: MÓDULO MOBILIDADE URBANA (docs/piuma.txt)
+                        Forms\Components\Fieldset::make('Módulo: Mobilidade Urbana')
+                            ->schema([
+                                Forms\Components\CheckboxList::make('permissions_mobilidade')
+                                    ->label('Entidades da mobilidade urbana (permissão única por entidade)')
+                                    ->options([
+                                        'gerenciar_mob_trechos' => 'Trechos Viários',
+                                        'gerenciar_mob_sinalizacoes' => 'Sinalização Viária',
+                                        'gerenciar_mob_tipos_sinalizacao' => 'Catálogo de Tipos de Sinalização',
+                                        'gerenciar_mob_pontos_interesse' => 'Pontos de Interesse',
+                                        'gerenciar_mob_eixos' => 'Eixos (Ciclovias, Rotas de Carga, Rodovias)',
+                                        'gerenciar_mob_zonas' => 'Zonas de Estudo (O/D, Setores IBGE)',
+                                        'gerenciar_mob_fluxos' => 'Fluxos Origem/Destino',
+                                    ])
+                                    ->bulkToggleable()
+                                    ->columns(2),
+                            ])->columns(1)->columnSpanFull(),
+
                         // CAIXA 20: VISIBILIDADE DE CAMADAS NO MAPA
                         Forms\Components\Fieldset::make('Mapa — Visibilidade de Camadas (ver_camada_*)')
                             ->schema([
@@ -582,6 +600,12 @@ class RoleResource extends Resource
                                         'ver_camada_rural_pontos_interesse' => 'Pontos de Interesse',
                                         'ver_camada_pontos_panoramicos' => 'Pontos Panorâmicos 360°',
                                         'ver_camada_toponimias' => 'Toponímias / Textos',
+                                        'ver_camada_mob_trechos' => 'Mobilidade — Trechos Viários',
+                                        'ver_camada_mob_sinalizacoes' => 'Mobilidade — Sinalização',
+                                        'ver_camada_mob_pontos_interesse' => 'Mobilidade — Pontos de Interesse',
+                                        'ver_camada_mob_eixos' => 'Mobilidade — Eixos (Ciclo/Carga/Rodovia)',
+                                        'ver_camada_mob_zonas' => 'Mobilidade — Zonas de Estudo',
+                                        'ver_camada_mob_fluxos' => 'Mobilidade — Fluxos O/D',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(4),

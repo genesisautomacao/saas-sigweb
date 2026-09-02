@@ -552,6 +552,60 @@
                                     </div>
                                 </div>
 
+                                {{-- GRUPO: MOBILIDADE URBANA (módulo mob_infra — docs/piuma.txt) --}}
+                                @if ($temMobilidade)
+                                <div class="border-b border-gray-100 dark:border-gray-700">
+                                    <button type="button"
+                                        @click.stop.prevent="activeTabDraw = activeTabDraw === 'mobilidade' ? '' : 'mobilidade'"
+                                        class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
+                                        <span class="flex items-center gap-2 text-sky-600 dark:text-sky-400">
+                                            <x-heroicon-o-arrows-right-left class="w-4 h-4" /> Mobilidade Urbana
+                                        </span>
+                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                                            x-bind:class="activeTabDraw === 'mobilidade' ? 'rotate-180' : ''" />
+                                    </button>
+
+                                    <div x-show="activeTabDraw === 'mobilidade'" x-collapse class="py-1">
+                                        <button type="button" onclick="enableDrawing('mob_trecho')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-sky-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-arrow-long-right class="w-4 h-4 text-sky-500" />
+                                            Trecho Viário (a direção do desenho = sentido)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('mob_sinalizacao')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-map-pin class="w-4 h-4 text-red-500" />
+                                            Sinalização (Ponto)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('mob_ponto_interesse')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-map-pin class="w-4 h-4 text-amber-500" />
+                                            Ponto de Interesse
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('mob_eixo')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-green-50 hover:text-green-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-arrow-trending-up class="w-4 h-4 text-green-600" />
+                                            Eixo (Ciclovia / Rota / Rodovia)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('mob_zona')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-stop class="w-4 h-4 text-blue-500" />
+                                            Zona de Estudo (Polígono)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('mob_fluxo')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-arrow-path class="w-4 h-4 text-cyan-600" />
+                                            Fluxo O/D (Linha)
+                                        </button>
+                                    </div>
+                                </div>
+                                @endif
+
                                 {{-- GRUPO 3: CEMITÉRIOS --}}
                                 <div class="border-b border-gray-100 dark:border-gray-700">
                                     <button type="button"
@@ -702,6 +756,13 @@
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-map-pin class="w-4 h-4 text-blue-500" /> Criar por Coordenada XY
                                     </button>
+
+                                    @if ($temMobilidade)
+                                    <button @click="openTools = false; window.dispatchEvent(new Event('abrir-mob-sentido-panel'))"
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-sky-50 dark:hover:bg-gray-700 hover:text-sky-600 flex items-center gap-2 font-bold transition-colors">
+                                        <x-heroicon-o-arrows-right-left class="w-4 h-4 text-sky-500" /> Classificar Sentidos (Trechos)
+                                    </button>
+                                    @endif
 
                                     <button wire:click="mountAction('abrirNuvemPontosAction')"
                                         @click="openTools = false"
@@ -1143,6 +1204,70 @@
                 Cancelar
             </button>
         </div>
+
+        {{-- BARRA: CLASSIFICAR SENTIDOS DOS TRECHOS (Mobilidade — piuma.txt Onda 4)
+             Discreta, rodapé centralizado; x-teleport pro body garante o `fixed`
+             correto mesmo dentro de ancestrais com transform. --}}
+        @if ($temMobilidade)
+            <div x-data="{
+                    aberto: false,
+                    pen: null,
+                    restantes: null,
+                    init() {
+                        window.addEventListener('abrir-mob-sentido-panel', () => { this.aberto = true; this.contar(); });
+                        window.addEventListener('sigweb-mob-sentido-restantes', (e) => {
+                            this.restantes = (e.detail && e.detail.restantes !== undefined) ? e.detail.restantes : this.restantes;
+                        });
+                    },
+                    contar() {
+                        const camada = window.loadedLayers && window.loadedLayers['mob_trechos'];
+                        this.restantes = camada
+                            ? camada.getSource().getFeatures().filter(f => !f.get('sentido')).length
+                            : null;
+                    },
+                    armar(p) {
+                        this.pen = this.pen === p ? null : p;
+                        window.dispatchEvent(new CustomEvent('sigweb-mob-sentido-pen', { detail: { pen: this.pen } }));
+                    },
+                    fechar() {
+                        this.aberto = false;
+                        this.pen = null;
+                        window.dispatchEvent(new CustomEvent('sigweb-mob-sentido-pen', { detail: { pen: null } }));
+                    }
+                }">
+                <template x-teleport="body">
+                    <div x-show="aberto" x-cloak
+                        class="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur rounded-full shadow-2xl border border-gray-200 dark:border-gray-700 px-4 py-2"
+                        title="Ligue a camada Trechos Viários, escolha a caneta e clique nos trechos. Tracejado = ainda sem sentido.">
+
+                        <span class="text-xs font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap">🚦 Sentidos</span>
+
+                        <button @click="armar('mao_unica')" title="Mão única — o fluxo segue a direção do desenho da linha"
+                            :class="pen === 'mao_unica' ? 'ring-2 ring-sky-500 bg-sky-50 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                            class="px-2.5 py-1 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-600 transition-all whitespace-nowrap">
+                            ➡️ Mão única
+                        </button>
+                        <button @click="armar('mao_dupla')" title="Mão dupla"
+                            :class="pen === 'mao_dupla' ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                            class="px-2.5 py-1 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-600 transition-all whitespace-nowrap">
+                            ⬌ Dupla
+                        </button>
+                        <button @click="armar('inverter')" title="Inverter → mão única (a via anda ao contrário do desenho)"
+                            :class="pen === 'inverter' ? 'ring-2 ring-amber-500 bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                            class="px-2.5 py-1 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-600 transition-all whitespace-nowrap">
+                            🔄 Inverter
+                        </button>
+
+                        <span class="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap ps-1">sem sentido:
+                            <b :class="restantes === 0 ? 'text-green-600' : 'text-amber-600'"
+                                x-text="restantes === null ? '—' : restantes"></b>
+                        </span>
+
+                        <button @click="fechar()" class="text-gray-400 hover:text-gray-600 font-bold px-1 ms-1">✕</button>
+                    </div>
+                </template>
+            </div>
+        @endif
 
         {{-- PAINEL: CRIAR GEOMETRIA POR AZIMUTES (item PoC 046) --}}
         <div x-data="{
@@ -1935,6 +2060,144 @@
                         </div>
                     </div>
                 </div>
+
+                {{-- CAMADAS: MOBILIDADE URBANA (módulo mob_infra — docs/piuma.txt, Onda 2) --}}
+                @if ($temMobilidade)
+                    <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                        <button @click="activeTab = activeTab === 'mobilidade' ? '' : 'mobilidade'"
+                            class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                            <span class="flex items-center gap-2">Mobilidade Urbana</span>
+                            <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                                x-bind:class="activeTab === 'mobilidade' ? 'rotate-180' : ''" />
+                        </button>
+                        <div x-show="activeTab === 'mobilidade'" x-collapse
+                            class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden">
+
+                            {{-- TRECHOS VIÁRIOS + Colorir por + legenda --}}
+                            <div class="mt-2">
+                                <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                    <input type="checkbox" data-layer="mob_trechos"
+                                        class="layer-toggle rounded border-gray-300 text-sky-600 focus:ring-sky-600 w-4 h-4 flex-shrink-0">
+                                    <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                        <div class="w-3 h-1 bg-sky-500 rounded flex-shrink-0"></div>
+                                        <span class="layer-text truncate">Trechos Viários</span>
+                                    </span>
+                                </label>
+                                <div class="mt-2 ps-7">
+                                    <select id="mob-trecho-tema-select"
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-mob-trecho-tema', { detail: { tema: this.value || null } }))"
+                                        class="w-full text-xs rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 py-1">
+                                        <option value="">Colorir por... (cor única)</option>
+                                        @foreach ($mobTrechoTemas as $slug => $label)
+                                            <option value="{{ $slug }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div id="mob-trecho-legenda" class="mt-1 leading-tight text-gray-700 dark:text-gray-300"></div>
+                                    <p class="text-[10px] text-gray-400 mt-1">Setas = mão única (direção da via). Tracejado = sentido não classificado.</p>
+                                </div>
+                            </div>
+
+                            {{-- SINALIZAÇÃO + filtro vertical/horizontal --}}
+                            <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                                <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                    <input type="checkbox" data-layer="mob_sinalizacoes"
+                                        class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-600 w-4 h-4 flex-shrink-0">
+                                    <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                        <div class="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></div>
+                                        <span class="layer-text truncate">Sinalização Viária</span>
+                                    </span>
+                                </label>
+                                <div class="flex gap-4 ps-7 mt-1">
+                                    <label class="flex items-center gap-1.5 cursor-pointer text-xs text-gray-600 dark:text-gray-400">
+                                        <input type="checkbox" class="mob-sub-toggle rounded border-gray-300 w-3.5 h-3.5"
+                                            data-mob-layer="mob_sinalizacoes" data-valor="vertical"> Vertical ●
+                                    </label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer text-xs text-gray-600 dark:text-gray-400">
+                                        <input type="checkbox" class="mob-sub-toggle rounded border-gray-300 w-3.5 h-3.5"
+                                            data-mob-layer="mob_sinalizacoes" data-valor="horizontal"> Horizontal ◆
+                                    </label>
+                                </div>
+                            </div>
+
+                            {{-- PONTOS DE INTERESSE + filtro por categoria --}}
+                            <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                                <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                    <input type="checkbox" data-layer="mob_pontos_interesse"
+                                        class="layer-toggle rounded border-gray-300 text-amber-600 focus:ring-amber-600 w-4 h-4 flex-shrink-0">
+                                    <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                        <div class="w-3 h-3 rounded-full bg-amber-500 flex-shrink-0"></div>
+                                        <span class="layer-text truncate">Pontos de Interesse</span>
+                                    </span>
+                                </label>
+                                <div class="grid grid-cols-2 gap-x-2 gap-y-1 ps-7 mt-1">
+                                    @foreach (\App\Models\MobPontoInteresse::CATEGORIAS as $catValor => $catLabel)
+                                        <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-600 dark:text-gray-400 min-w-0">
+                                            <input type="checkbox" class="mob-sub-toggle rounded border-gray-300 w-3.5 h-3.5 flex-shrink-0"
+                                                data-mob-layer="mob_pontos_interesse" data-valor="{{ $catValor }}">
+                                            <span class="truncate">{{ $catLabel }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            {{-- EIXOS + filtro por tipo --}}
+                            <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                                <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                    <input type="checkbox" data-layer="mob_eixos"
+                                        class="layer-toggle rounded border-gray-300 text-green-600 focus:ring-green-600 w-4 h-4 flex-shrink-0">
+                                    <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                        <div class="w-3 h-1 bg-green-600 rounded flex-shrink-0"></div>
+                                        <span class="layer-text truncate">Eixos (Ciclo / Carga / Rodovia)</span>
+                                    </span>
+                                </label>
+                                <div class="grid grid-cols-2 gap-x-2 gap-y-1 ps-7 mt-1">
+                                    @foreach (\App\Models\MobEixo::TIPOS as $tipoValor => $tipoLabel)
+                                        <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-600 dark:text-gray-400 min-w-0">
+                                            <input type="checkbox" class="mob-sub-toggle rounded border-gray-300 w-3.5 h-3.5 flex-shrink-0"
+                                                data-mob-layer="mob_eixos" data-valor="{{ $tipoValor }}">
+                                            <span class="truncate">{{ $tipoLabel }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            {{-- ZONAS DE ESTUDO + filtro por tipo --}}
+                            <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                                <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                    <input type="checkbox" data-layer="mob_zonas"
+                                        class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-600 w-4 h-4 flex-shrink-0">
+                                    <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                        <div class="w-3 h-3 bg-blue-500 opacity-70 rounded-sm flex-shrink-0"></div>
+                                        <span class="layer-text truncate">Zonas de Estudo (O/D, IBGE)</span>
+                                    </span>
+                                </label>
+                                <div class="grid grid-cols-2 gap-x-2 gap-y-1 ps-7 mt-1">
+                                    @foreach (\App\Models\MobZona::TIPOS as $tipoValor => $tipoLabel)
+                                        <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-600 dark:text-gray-400 min-w-0">
+                                            <input type="checkbox" class="mob-sub-toggle rounded border-gray-300 w-3.5 h-3.5 flex-shrink-0"
+                                                data-mob-layer="mob_zonas" data-valor="{{ $tipoValor }}">
+                                            <span class="truncate">{{ $tipoLabel }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            {{-- FLUXOS O/D --}}
+                            <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                                <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                    <input type="checkbox" data-layer="mob_fluxos"
+                                        class="layer-toggle rounded border-gray-300 text-cyan-600 focus:ring-cyan-600 w-4 h-4 flex-shrink-0">
+                                    <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                        <div class="w-3 h-1.5 bg-cyan-500/70 rounded-full flex-shrink-0"></div>
+                                        <span class="layer-text truncate">Fluxos O/D (linhas de desejo)</span>
+                                    </span>
+                                </label>
+                                <p class="text-[10px] text-gray-400 mt-0.5 ps-7">Espessura proporcional ao volume de deslocamentos.</p>
+                            </div>
+
+                        </div>
+                    </div>
+                @endif
 
                 {{-- GRUPO 2: INTELIGÊNCIA SOCIAL (vinculada à camada de lotes) --}}
                 <div data-permission-group="layer:lotes"

@@ -10,7 +10,7 @@ class RecalcularGeoMetadata extends Command
 {
     protected $signature = 'gis:recalcular-metadata
                             {--tenant= : Slug do município. Se omitido, roda em todos.}
-                            {--entidade= : Nome da entidade (perimetros_urbanos, zonas, bairros, loteamentos, quadras, lotes, logradouros, secoes_logradouro, meio_fios). Se omitido, roda em todos.}
+                            {--entidade= : Nome da entidade (perimetros_urbanos, zonas, bairros, loteamentos, quadras, lotes, logradouros, secoes_logradouro, meio_fios, mob_trechos, mob_eixos, mob_zonas). Se omitido, roda em todos.}
                             {--force : Recalcula mesmo registros que já têm valor (sobrescreve).}';
 
     protected $description = 'Calcula area_geo (polígonos) e extensao_geo (linhas) via PostGIS para registros sem valor.';
@@ -28,6 +28,10 @@ class RecalcularGeoMetadata extends Command
         'logradouros'         => ['extensao_geo', 'ST_Length'],
         'secoes_logradouro'   => ['extensao_geo', 'ST_Length'],
         'meio_fios'           => ['extensao_geo', 'ST_Length'],
+        // Módulo Mobilidade Urbana (docs/piuma.txt)
+        'mob_trechos'         => ['extensao_geo', 'ST_Length'],
+        'mob_eixos'           => ['extensao_geo', 'ST_Length'],
+        'mob_zonas'           => ['area_geo',     'ST_Area'],
     ];
 
     public function handle(): int
@@ -95,6 +99,35 @@ class RecalcularGeoMetadata extends Command
                 ));
             } catch (\Throwable $e) {
                 $this->error("  {$tabela}: ERRO — " . $e->getMessage());
+            }
+        }
+
+        // Mobilidade: azimute do trecho (0–360°, 1º→último vértice) anda junto
+        // com a extensão — mesma política NULL-only / --force (docs/piuma.txt §3.c).
+        if (isset($alvos['mob_trechos'])) {
+            $sql = 'UPDATE mob_trechos
+                    SET azimute = degrees(ST_Azimuth(
+                        ST_StartPoint(ST_GeometryN(geo, 1)),
+                        ST_EndPoint(ST_GeometryN(geo, ST_NumGeometries(geo)))
+                    ))
+                    WHERE geo IS NOT NULL';
+
+            if (! $force) {
+                $sql .= ' AND azimute IS NULL';
+            }
+
+            $bindings = [];
+            if ($tenantId !== null) {
+                $sql .= ' AND tenant_id = ?';
+                $bindings[] = $tenantId;
+            }
+
+            try {
+                $affected = DB::update($sql, $bindings);
+                $totalGeral += $affected;
+                $this->line(sprintf('  %s → %s: %d linha(s) atualizadas', str_pad('mob_trechos', 22), 'azimute', $affected));
+            } catch (\Throwable $e) {
+                $this->error('  mob_trechos (azimute): ERRO — '.$e->getMessage());
             }
         }
 
