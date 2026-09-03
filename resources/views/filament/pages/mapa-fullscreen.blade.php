@@ -584,6 +584,12 @@
                                             <x-heroicon-o-map-pin class="w-4 h-4 text-amber-500" />
                                             Ponto de Interesse
                                         </button>
+                                        <button type="button" onclick="enableDrawing('mob_camera')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-video-camera class="w-4 h-4 text-red-500" />
+                                            Câmera de Monitoramento (Ponto)
+                                        </button>
                                         <button type="button" onclick="enableDrawing('mob_eixo')"
                                             @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-green-50 hover:text-green-600 flex items-center gap-3 transition-colors">
@@ -2104,6 +2110,16 @@
                                         <input type="checkbox" id="mob-fluxo-simular" class="rounded border-gray-300 w-3.5 h-3.5"
                                             onchange="window.dispatchEvent(new CustomEvent('sigweb-mob-fluxo-simular', { detail: { ligado: this.checked } }))">
                                         ▶ Simular fluxo (animar setas)
+                                    </label>
+                                    {{-- MONITORAMENTO EM TEMPO REAL (Onda 5): camada mob_cameras — ícone de câmera,
+                                         clique abre o player (HasMobCameraActions). Permissão ver_camada_mob_cameras. --}}
+                                    <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-600 dark:text-gray-400 mt-1"
+                                        title="Câmeras de monitoramento da cidade. Clique no ícone da câmera para assistir ao vivo.">
+                                        <input type="checkbox" data-layer="mob_cameras" class="layer-toggle rounded border-gray-300 w-3.5 h-3.5">
+                                        {{-- .layer-label > .layer-text é OBRIGATÓRIO: o fetchAndDrawLayer escreve "Carregando..." nele --}}
+                                        <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                            <span class="layer-text truncate">&#127909; Monitoramento em tempo Real</span>
+                                        </span>
                                     </label>
                                 </div>
                             </div>

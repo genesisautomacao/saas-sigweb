@@ -75,6 +75,7 @@ class EditRole extends EditRecord
         $data['permissions_mobilidade'] = array_values(array_intersect($permissions, [
             'gerenciar_mob_trechos', 'gerenciar_mob_sinalizacoes', 'gerenciar_mob_tipos_sinalizacao',
             'gerenciar_mob_pontos_interesse', 'gerenciar_mob_eixos', 'gerenciar_mob_zonas', 'gerenciar_mob_fluxos',
+            'gerenciar_mob_cameras',
         ]));
 
         $data['permissions_mapa_camadas'] = array_values(array_intersect($permissions, [
@@ -87,6 +88,7 @@ class EditRole extends EditRecord
             'ver_camada_pontos_panoramicos', 'ver_camada_toponimias',
             'ver_camada_mob_trechos', 'ver_camada_mob_sinalizacoes', 'ver_camada_mob_pontos_interesse',
             'ver_camada_mob_eixos', 'ver_camada_mob_zonas', 'ver_camada_mob_fluxos',
+            'ver_camada_mob_cameras',
         ]));
 
         $data['permissions_mapa_toolbar'] = array_values(array_intersect($permissions, [

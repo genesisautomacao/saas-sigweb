@@ -2,6 +2,7 @@
 
 namespace App\Services\Exports;
 
+use App\Models\MobCamera;
 use App\Models\MobEixo;
 use App\Models\MobFluxo;
 use App\Models\MobPontoInteresse;
@@ -70,6 +71,21 @@ class MobilidadeExportService
                     'Categoria' => fn ($r) => MobPontoInteresse::CATEGORIAS[$r->categoria] ?? ($r->categoria ?? '-'),
                     'Nome' => fn ($r) => $r->name ?? '-',
                     'Número' => fn ($r) => $r->numero ?? '-',
+                ],
+            ],
+            'mob_camera' => [
+                'titulo' => 'Monitoramento em Tempo Real — Câmeras',
+                'arquivo' => 'mob-cameras',
+                'xml_raiz' => 'cameras',
+                'xml_item' => 'camera',
+                'colunas' => [
+                    'ID' => fn (MobCamera $r) => $r->sequential_id,
+                    'Nome / local' => fn (MobCamera $r) => $r->nome ?? '-',
+                    'Fonte' => fn (MobCamera $r) => MobCamera::TIPOS[$r->tipo] ?? ($r->tipo ?? '-'),
+                    'Provedor' => fn (MobCamera $r) => $r->provedor ?? '-',
+                    'Ativa' => fn (MobCamera $r) => $r->ativo ? 'Sim' : 'Não',
+                    'Azimute da visada (graus)' => fn (MobCamera $r) => $r->azimute_visada !== null ? number_format((float) $r->azimute_visada, 0) : '-',
+                    'URL' => fn (MobCamera $r) => $r->url ?? '-',
                 ],
             ],
             'mob_eixo' => [

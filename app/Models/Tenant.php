@@ -194,6 +194,11 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(MobFluxo::class);
     }
 
+    public function mobCameras(): HasMany
+    {
+        return $this->hasMany(MobCamera::class);
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class);

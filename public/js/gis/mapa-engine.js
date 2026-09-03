@@ -116,7 +116,27 @@ document.addEventListener("DOMContentLoaded", function () {
         const v = window.mobTrechoValorTema(feature) ?? "—";
         return window._mobTemaMap[v] || "#9ca3af";
     }
-    // Setas de sentido (mão única) — a DIREÇÃO é a ordem dos vértices.
+    // Ícone de câmera (SVG inline, cacheado por cor|escala) da camada mob_cameras
+    const mobCameraIconeCache = new Map();
+    function mobCameraIcone(cor, escala) {
+        const chave = cor + "|" + escala;
+        let icone = mobCameraIconeCache.get(chave);
+        if (!icone) {
+            const svg =
+                '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">' +
+                '<circle cx="17" cy="17" r="15" fill="' + cor + '" stroke="#ffffff" stroke-width="2.5"/>' +
+                '<rect x="8" y="12" width="13" height="10" rx="2" fill="#ffffff"/>' +
+                '<path d="M21 15.5 L26.5 12.5 L26.5 21.5 L21 18.5 Z" fill="#ffffff"/>' +
+                "</svg>";
+            icone = new ol.style.Icon({
+                src: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg),
+                scale: escala,
+                anchor: [0.5, 0.5],
+            });
+            mobCameraIconeCache.set(chave, icone);
+        }
+        return icone;
+    }    // Setas de sentido (mão única) — a DIREÇÃO é a ordem dos vértices.
     // Ponta de seta BRANCA com contorno escuro (contrasta com qualquer cor de
     // linha, tema "Colorir por" ou satélite), alongada (scale 1×1,4), repetida a
     // cada MOB_SETA_PASSO px de tela ao longo da linha INTEIRA (distância
@@ -773,6 +793,61 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
+        // MONITORAMENTO EM TEMPO REAL (docs/piuma.txt, Onda 5): ícone de câmera
+        // (vermelho = ativa, cinza = inativa) + cone de visada pelo azimute_visada.
+        // O vídeo NÃO é carregado aqui — só no modal, ao clicar.
+        mob_cameras: {
+            z: 97,
+            minZoom: 12,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const ativo = feature.get("ativo") !== false;
+                const cor = ativo ? "#dc2626" : "#9ca3af";
+                const estilos = [];
+                const az = feature.get("azimute_visada");
+                if (zoom >= 15 && az !== null && az !== undefined && az !== "") {
+                    const c = feature.getGeometry().getCoordinates();
+                    const r = 34 * resolution;
+                    const a0 = (Number(az) * Math.PI) / 180;
+                    const anel = [c];
+                    for (let i = -25; i <= 25; i += 5) {
+                        const t = a0 + (i * Math.PI) / 180;
+                        anel.push([c[0] + r * Math.sin(t), c[1] + r * Math.cos(t)]);
+                    }
+                    anel.push(c);
+                    estilos.push(
+                        new ol.style.Style({
+                            geometry: new ol.geom.Polygon([anel]),
+                            fill: new ol.style.Fill({ color: ativo ? "rgba(220,38,38,0.18)" : "rgba(156,163,175,0.18)" }),
+                            stroke: new ol.style.Stroke({ color: ativo ? "rgba(220,38,38,0.55)" : "rgba(156,163,175,0.55)", width: 1 }),
+                            zIndex: 1,
+                        }),
+                    );
+                }
+                const principal = new ol.style.Style({
+                    image: zoom >= 14.5 ? mobCameraIcone(cor, zoom >= 16 ? 1 : 0.8) : new ol.style.Circle({
+                        radius: 6,
+                        fill: new ol.style.Fill({ color: cor }),
+                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 2 }),
+                    }),
+                    zIndex: 2,
+                });
+                if (zoom >= 16) {
+                    principal.setText(
+                        new ol.style.Text({
+                            text: feature.get("name") || "",
+                            font: "bold 10px Arial, sans-serif",
+                            offsetY: -20,
+                            fill: new ol.style.Fill({ color: "#7f1d1d" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            overflow: true,
+                        }),
+                    );
+                }
+                estilos.push(principal);
+                return estilos;
+            },
+        },
         mob_eixos: {
             z: 54,
             minZoom: 10,
@@ -2313,6 +2388,7 @@ document.addEventListener("DOMContentLoaded", function () {
             "mob_zonas",
             "mob_fluxos",
             "zonas",
+            "mob_cameras",
             "bairros",
             "loteamentos",
             "quadras",
@@ -2571,6 +2647,19 @@ document.addEventListener("DOMContentLoaded", function () {
                         }),
                     );
                     detalheMob = String(feature.get("categoria") || "").replace(/_/g, " ");
+                } else if (layer === "mob_cameras") {
+                    feature.setStyle(
+                        new ol.style.Style({
+                            image: new ol.style.Circle({
+                                radius: 13,
+                                fill: new ol.style.Fill({ color: feature.get("ativo") === false ? "#9ca3af" : "#dc2626" }),
+                                stroke: new ol.style.Stroke({ color: "#f59e0b", width: 3 }),
+                            }),
+                        }),
+                    );
+                    detalheMob =
+                        (feature.get("ativo") === false ? "Câmera inativa" : "&#128308; Ao vivo — clique para assistir") +
+                        (feature.get("provedor") ? "<br>" + feature.get("provedor") : "");
                 } else if (layer === "mob_zonas") {
                     const cfgZona = MOB_ZONA_CORES[feature.get("tipo")] || MOB_ZONA_CORES.setor_censitario;
                     feature.setStyle(
@@ -4040,6 +4129,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "mob_sinalizacoes",
                 "mob_pontos_interesse",
                 "postes",
+                "mob_cameras",
                 "arvores",
                 "toponimias",
                 "rural-pontos-interesse",
@@ -4179,6 +4269,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         break;
                     case "mob_pontos_interesse":
                         Livewire.dispatch("abrirOpcoesMobPontoInteresse", { id: id });
+                        break;
+                    case "mob_cameras":
+                        Livewire.dispatch("abrirOpcoesMobCamera", { id: id });
                         break;
                     case "mob_eixos":
                         Livewire.dispatch("abrirOpcoesMobEixo", { id: id });
@@ -4511,6 +4604,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "rural_ponto_interesse",
                 "ponto_panoramico",
                 "mob_sinalizacao",
+                "mob_camera",
                 "mob_ponto_interesse",
             ].includes(entityType)
         )
@@ -4744,6 +4838,7 @@ document.addEventListener("DOMContentLoaded", function () {
         "mob_pontos_interesse",
         "mob_eixos",
         "mob_zonas",
+        "mob_cameras",
         "mob_fluxos",
     ].forEach((mobLayer) => {
         window.addEventListener("adicionar-" + mobLayer + "-mapa", (e) => {
@@ -5186,6 +5281,11 @@ document.addEventListener("DOMContentLoaded", function () {
             cor: "#f59e0b",
         },
         {
+            evento: "iniciar-edicao-geometria-mob_camera",
+            layer: "mob_cameras",
+            cor: "#dc2626",
+        },
+        {
             evento: "iniciar-edicao-geometria-mob_eixo",
             layer: "mob_eixos",
             cor: "#16a34a",
@@ -5388,6 +5488,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     mob_pontos_interesse: "mob_ponto_interesse",
                     mob_eixos: "mob_eixo",
                     mob_zonas: "mob_zona",
+                    mob_cameras: "mob_camera",
                     mob_fluxos: "mob_fluxo",
                 };
 
@@ -5493,6 +5594,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             else if (layerName === "mob_pontos_interesse")
                 Livewire.dispatch("salvarNovaGeometriaMobPontoInteresse", {
+                    id: id,
+                    geoJson: geoJson,
+                });
+            else if (layerName === "mob_cameras")
+                Livewire.dispatch("salvarNovaGeometriaMobCamera", {
                     id: id,
                     geoJson: geoJson,
                 });
@@ -6437,6 +6543,7 @@ document.addEventListener("DOMContentLoaded", function () {
             mob_eixos: { label: "do novo Eixo de Mobilidade", func: "mob_eixo" },
             mob_zonas: { label: "da nova Zona de Estudo", func: "mob_zona" },
             mob_fluxos: { label: "do novo Fluxo O/D", func: "mob_fluxo" },
+            mob_cameras: { label: "da nova Câmera de Monitoramento", func: "mob_camera" },
             loteamentos: { label: "do novo Loteamento", func: "loteamento" },
             quadras: { label: "da nova Quadra", func: "quadra" },
 

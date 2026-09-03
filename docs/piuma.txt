@@ -291,6 +291,43 @@ não tem campo tabular de sentido. Modelo aprovado:
       da camada mob_trechos). Só visual. Validado headless: fase avança
       (18→45 px em 0,5 s), sem erro de console. Ajustes finos (velocidade,
       espaçamento, cor) = constantes MOB_SETA_PASSO / MOB_FLUXO_VEL no engine.
+
+  ONDA 5 — MONITORAMENTO EM TEMPO REAL (câmeras) — 2026-09-03 ✅
+    Pedido do usuário (fora do escopo original, aprovado): camada "Monitoramento
+    em tempo Real" (checkbox abaixo do "Simular fluxo") com ícones de câmera;
+    clique abre o player ao vivo. DEMO REAL: Piúma já publica 7 câmeras
+    municipais (IZ1 Telecom, player FullCam, embed público sem restrição de
+    frame) no site da prefeitura — seed MobCamerasPiumaSeeder.
+    ✔ Entidade MobCamera (mob_cameras: POINT + nome/tipo[embed|youtube|hls|
+      imagem]/url/url_snapshot/provedor/azimute_visada/ativo), padrão mob
+      completo (tenant, sequential, soft delete, auditoria, geo log, Policy
+      gerenciar_mob_cameras + ver_camada_mob_cameras, CAIXA 19c/20, Resource
+      CRUD-modal "Monitoramento em Tempo Real" c/ export XLS/PDF/CSV/XML).
+    ✔ Mapa: camada mob_cameras (ícone SVG de câmera, cone de visada pelo
+      azimute, hover "Ao vivo — clique p/ assistir"), criar pelo "Criar
+      Artefatos → Câmera de Monitoramento", modal = PLAYER em cima (iframe /
+      YouTube embed / HLS c/ hls.js / snapshot JPEG a cada 5 s) + dados em
+      seção recolhida + Reposicionar/Excluir. Vídeo só carrega no clique.
+    ✔ Validado headless (2026-09-03): Resource lista as 7; camada carrega 7
+      feições (cone + ícone); modal abre com player 848×477, badge AO VIVO,
+      seção Dados, Reposicionar/Excluir. O embed FullCam toca em contexto
+      SEGURO (top-level e iframe sob página HTTPS: vídeo 1920×1080 playing);
+      sob o Laragon HTTP local o iframe fica em Loading (crypto.randomUUID
+      indisponível em ancestral inseguro) — na VPS (HTTPS) não ocorre.
+      Posições das 7 são aproximadas (POIs/orla/ES-060×ES-375): ajustar com
+      Reposicionar junto com a prefeitura.
+    ✔ "Vídeo piscando" (relato do usuário, 2026-09-03): era o app da FullCam
+      em loop de recarga sob página HTTP (crypto.randomUUID só em contexto
+      seguro; 25 recargas/12 s medidas; 0 requests Livewire; iframe nosso
+      intacto). Player agora só monta o iframe em isSecureContext — senão
+      aviso + "Abrir em nova aba" + "tentar mesmo assim"; box com wire:ignore
+      (troca de tipo no select não recria o player). Em HTTPS (VPS) toca.
+    ℹ️ Gotcha do painel de camadas: todo .layer-toggle precisa de
+      <span class="layer-label"><span class="layer-text"> após o input —
+      o fetchAndDrawLayer escreve "Carregando..." nele e quebra sem isso.
+    ⏳ Câmeras RTSP da prefeitura (Intelbras/Hikvision): precisam de servidor
+      de mídia (MediaMTX → HLS/WebRTC) numa caixa na rede da prefeitura
+      publicando p/ a VPS — fora deste passo; o tipo "hls" já está pronto.
     ℹ️ 2026-09-03 trechos.json da Líder com xi/yi/xf/yf (UTM 24S): são o 1º e
       o último vértice da linha — 611/612 batem com a ordem já importada
       (ids 274 e 321 com o par copiado do vizinho). DIREÇÃO já estava certa;

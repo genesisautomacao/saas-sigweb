@@ -715,6 +715,37 @@ class MapDataController extends Controller
                 $data = ['type' => 'FeatureCollection', 'features' => $features];
                 break;
 
+            case 'mob_cameras':
+                // Monitoramento em tempo real (docs/piuma.txt, Onda 5) — só posição/metadados; o vídeo
+                // é carregado no modal (player) ao clicar, nunca em massa.
+                $rows = DB::table('mob_cameras')
+                    ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('geo')
+                    ->orderBy('id')
+                    ->selectRaw('id, sequential_id, nome, tipo, provedor, azimute_visada, ativo, ST_AsGeoJSON(geo, 6) AS gj')
+                    ->get();
+
+                $features = [];
+                foreach ($rows as $row) {
+                    $geom = json_decode($row->gj);
+                    if (!$geom || empty($geom->coordinates)) continue;
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'id' => $row->id,
+                            'layer' => 'mob_cameras',
+                            'name' => $row->nome ?: 'Câmera #'.$row->sequential_id,
+                            'sequential_id' => $row->sequential_id,
+                            'tipo' => $row->tipo,
+                            'provedor' => $row->provedor,
+                            'azimute_visada' => $row->azimute_visada !== null ? (float) $row->azimute_visada : null,
+                            'ativo' => (bool) $row->ativo,
+                        ],
+                        'geometry' => $geom,
+                    ];
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
             case 'mob_eixos':
                 $rows = DB::table('mob_eixos')
                     ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('geo')

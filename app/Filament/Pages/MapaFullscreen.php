@@ -26,6 +26,7 @@ use App\Filament\Pages\Traits\HasRuralLocalidadeActions;
 use App\Filament\Pages\Traits\HasRuralPonteActions;
 use App\Filament\Pages\Traits\HasRuralPontoInteresseActions;
 use App\Filament\Pages\Traits\HasRuralPropriedadeActions;
+use App\Filament\Pages\Traits\HasMobCameraActions;
 use App\Filament\Pages\Traits\HasMobEixoActions;
 use App\Filament\Pages\Traits\HasMobFluxoActions;
 use App\Filament\Pages\Traits\HasMobPontoInteresseActions;
@@ -61,6 +62,7 @@ class MapaFullscreen extends Page
 {
     use \App\Filament\Concerns\MontaOpcoesFiltroMapa;
     use HasAreaReurbActions;
+    use HasMobCameraActions;
     use HasMobEixoActions;
     use HasMobFluxoActions;
     use HasMobPontoInteresseActions;
@@ -800,6 +802,7 @@ class MapaFullscreen extends Page
                 'mob_eixo' => 'criarMobEixo',
                 'mob_zona' => 'criarMobZona',
                 'mob_fluxo' => 'criarMobFluxo',
+                'mob_camera' => 'criarMobCamera',
                 default => null,
             };
             if ($acao) {

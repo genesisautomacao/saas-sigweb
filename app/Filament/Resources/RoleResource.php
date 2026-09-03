@@ -565,6 +565,7 @@ class RoleResource extends Resource
                                         'gerenciar_mob_eixos' => 'Eixos (Ciclovias, Rotas de Carga, Rodovias)',
                                         'gerenciar_mob_zonas' => 'Zonas de Estudo (O/D, Setores IBGE)',
                                         'gerenciar_mob_fluxos' => 'Fluxos Origem/Destino',
+                                        'gerenciar_mob_cameras' => 'Câmeras de Monitoramento (tempo real)',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(2),
@@ -606,6 +607,7 @@ class RoleResource extends Resource
                                         'ver_camada_mob_eixos' => 'Mobilidade — Eixos (Ciclo/Carga/Rodovia)',
                                         'ver_camada_mob_zonas' => 'Mobilidade — Zonas de Estudo',
                                         'ver_camada_mob_fluxos' => 'Mobilidade — Fluxos O/D',
+                                        'ver_camada_mob_cameras' => 'Mobilidade — Monitoramento em Tempo Real (câmeras)',
                                     ])
                                     ->bulkToggleable()
                                     ->columns(4),

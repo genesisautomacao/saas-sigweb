@@ -268,6 +268,7 @@ class PermissionsSeeder extends Seeder
             'gerenciar_mob_eixos',
             'gerenciar_mob_zonas',
             'gerenciar_mob_fluxos',
+            'gerenciar_mob_cameras',
 
             /* Permissões de visibilidade de camadas GIS */
             'ver_camada_perimetros',
@@ -301,6 +302,7 @@ class PermissionsSeeder extends Seeder
             'ver_camada_mob_eixos',
             'ver_camada_mob_zonas',
             'ver_camada_mob_fluxos',
+            'ver_camada_mob_cameras',
 
             /* Permissões da toolbar do mapa */
             'toolbar_criar_artefatos',
