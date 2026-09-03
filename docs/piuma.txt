@@ -276,6 +276,26 @@ não tem campo tabular de sentido. Modelo aprovado:
     ✔ "Classificar Sentidos" virou BARRA discreta no rodapé, centralizada,
       com x-teleport pro body (fixed quebrava dentro de ancestral com
       transform — era o layout esticado do print do usuário).
+      ⚠️ 2026-09-03: a barra "não abria" — na verdade abria FORA da tela:
+      bottom-5/left-1/2/bg-sky-50 etc. não existem no CSS pré-compilado do
+      Filament (painel sem viteTheme). Corrigido com style inline (padrão
+      da pílula de numeração). Reproduzido/validado headless (playwright-core
+      + Chrome do sistema): barra centralizada, caneta arma, cursor crosshair.
+    ✔ SETAS mais visíveis (2026-09-03, pedido do usuário): ponta de seta
+      branca c/ contorno escuro, alongada, repetida a cada 70 px ao longo da
+      linha inteira, raio cresce com o zoom (8→12). Antes: triângulo raio 7
+      na cor da linha, 1 por segmento — sumia dentro da linha.
+    ✔ SIMULADOR DE FLUXO (2026-09-03): checkbox "▶ Simular fluxo (animar
+      setas)" no painel de camadas (abaixo do Colorir por) — as setas das vias
+      de mão única andam no sentido da via (rAF ~30 fps, 45 px/s, re-render só
+      da camada mob_trechos). Só visual. Validado headless: fase avança
+      (18→45 px em 0,5 s), sem erro de console. Ajustes finos (velocidade,
+      espaçamento, cor) = constantes MOB_SETA_PASSO / MOB_FLUXO_VEL no engine.
+    ℹ️ 2026-09-03 trechos.json da Líder com xi/yi/xf/yf (UTM 24S): são o 1º e
+      o último vértice da linha — 611/612 batem com a ordem já importada
+      (ids 274 e 321 com o par copiado do vizinho). DIREÇÃO já estava certa;
+      o que falta continua sendo o SENTIDO (mão única/dupla) — usuário vai
+      pedir coluna de sentido à Líder; se vier, aplicar por sequential_id.
     ✔ HOVER nas 6 camadas: destaque visual (halo/anel/engrossamento) +
       tooltip (trecho: sentido+pavimentação+extensão; eixo: km; fluxo:
       volume; placa: V/H; zona: código IBGE; POI: categoria).

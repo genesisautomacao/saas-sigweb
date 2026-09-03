@@ -759,8 +759,8 @@
 
                                     @if ($temMobilidade)
                                     <button @click="openTools = false; window.dispatchEvent(new Event('abrir-mob-sentido-panel'))"
-                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-sky-50 dark:hover:bg-gray-700 hover:text-sky-600 flex items-center gap-2 font-bold transition-colors">
-                                        <x-heroicon-o-arrows-right-left class="w-4 h-4 text-sky-500" /> Classificar Sentidos (Trechos)
+                                        class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
+                                        <x-heroicon-o-arrows-right-left class="w-4 h-4 text-blue-500" /> Classificar Sentidos (Trechos)
                                     </button>
                                     @endif
 
@@ -1207,7 +1207,10 @@
 
         {{-- BARRA: CLASSIFICAR SENTIDOS DOS TRECHOS (Mobilidade — piuma.txt Onda 4)
              Discreta, rodapé centralizado; x-teleport pro body garante o `fixed`
-             correto mesmo dentro de ancestrais com transform. --}}
+             correto mesmo dentro de ancestrais com transform.
+             ⚠️ Posicionamento e cores de destaque em STYLE INLINE: a página usa só o
+             CSS pré-compilado do Filament (sem viteTheme), então classes como
+             bottom-5/left-1/2/bg-sky-50 NÃO existem — a barra abria fora da tela. --}}
         @if ($temMobilidade)
             <div x-data="{
                     aberto: false,
@@ -1237,33 +1240,34 @@
                 }">
                 <template x-teleport="body">
                     <div x-show="aberto" x-cloak
-                        class="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur rounded-full shadow-2xl border border-gray-200 dark:border-gray-700 px-4 py-2"
+                        style="display:none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; box-shadow: 0 20px 40px -12px rgba(0,0,0,.35);"
+                        class="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 px-4 py-2"
                         title="Ligue a camada Trechos Viários, escolha a caneta e clique nos trechos. Tracejado = ainda sem sentido.">
 
                         <span class="text-xs font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap">🚦 Sentidos</span>
 
                         <button @click="armar('mao_unica')" title="Mão única — o fluxo segue a direção do desenho da linha"
-                            :class="pen === 'mao_unica' ? 'ring-2 ring-sky-500 bg-sky-50 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
-                            class="px-2.5 py-1 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-600 transition-all whitespace-nowrap">
+                            :style="pen === 'mao_unica' ? 'box-shadow: 0 0 0 2px #0ea5e9; background: #f0f9ff; color: #0369a1;' : ''"
+                            class="px-3 py-1 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 transition-all whitespace-nowrap">
                             ➡️ Mão única
                         </button>
                         <button @click="armar('mao_dupla')" title="Mão dupla"
-                            :class="pen === 'mao_dupla' ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
-                            class="px-2.5 py-1 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-600 transition-all whitespace-nowrap">
+                            :style="pen === 'mao_dupla' ? 'box-shadow: 0 0 0 2px #22c55e; background: #f0fdf4; color: #15803d;' : ''"
+                            class="px-3 py-1 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 transition-all whitespace-nowrap">
                             ⬌ Dupla
                         </button>
                         <button @click="armar('inverter')" title="Inverter → mão única (a via anda ao contrário do desenho)"
-                            :class="pen === 'inverter' ? 'ring-2 ring-amber-500 bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
-                            class="px-2.5 py-1 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-600 transition-all whitespace-nowrap">
+                            :style="pen === 'inverter' ? 'box-shadow: 0 0 0 2px #f59e0b; background: #fffbeb; color: #b45309;' : ''"
+                            class="px-3 py-1 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 transition-all whitespace-nowrap">
                             🔄 Inverter
                         </button>
 
-                        <span class="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap ps-1">sem sentido:
-                            <b :class="restantes === 0 ? 'text-green-600' : 'text-amber-600'"
+                        <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap ps-1">sem sentido:
+                            <b :style="restantes === 0 ? 'color: #16a34a;' : 'color: #d97706;'"
                                 x-text="restantes === null ? '—' : restantes"></b>
                         </span>
 
-                        <button @click="fechar()" class="text-gray-400 hover:text-gray-600 font-bold px-1 ms-1">✕</button>
+                        <button @click="fechar()" class="text-gray-400 font-bold px-1 ms-1" title="Fechar">✕</button>
                     </div>
                 </template>
             </div>
@@ -2094,6 +2098,13 @@
                                     </select>
                                     <div id="mob-trecho-legenda" class="mt-1 leading-tight text-gray-700 dark:text-gray-300"></div>
                                     <p class="text-[10px] text-gray-400 mt-1">Setas = mão única (direção da via). Tracejado = sentido não classificado.</p>
+                                    {{-- Simulador de fluxo: anima as setas no sentido da via (só visual; engine: sigweb-mob-fluxo-simular) --}}
+                                    <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-600 dark:text-gray-400 mt-1"
+                                        title="Anima as setas das vias de mão única no sentido do fluxo. Só visual, não altera dados.">
+                                        <input type="checkbox" id="mob-fluxo-simular" class="rounded border-gray-300 w-3.5 h-3.5"
+                                            onchange="window.dispatchEvent(new CustomEvent('sigweb-mob-fluxo-simular', { detail: { ligado: this.checked } }))">
+                                        ▶ Simular fluxo (animar setas)
+                                    </label>
                                 </div>
                             </div>
 

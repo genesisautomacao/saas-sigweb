@@ -116,36 +116,109 @@ document.addEventListener("DOMContentLoaded", function () {
         const v = window.mobTrechoValorTema(feature) ?? "—";
         return window._mobTemaMap[v] || "#9ca3af";
     }
-    // Setas de sentido (mão única): triângulo rotacionado no meio de cada
-    // segmento longo o bastante na tela — a DIREÇÃO é a ordem dos vértices.
-    function mobSetasSentido(feature, resolution, cor) {
+    // Setas de sentido (mão única) — a DIREÇÃO é a ordem dos vértices.
+    // Ponta de seta BRANCA com contorno escuro (contrasta com qualquer cor de
+    // linha, tema "Colorir por" ou satélite), alongada (scale 1×1,4), repetida a
+    // cada MOB_SETA_PASSO px de tela ao longo da linha INTEIRA (distância
+    // acumulada, não por segmento — via reta longa ganha várias) e cresce com o
+    // zoom (raio 8 → 12). Simulador de fluxo: com window.mobFluxoSimulando a
+    // fase avança no tempo e as setas "andam" no sentido da via (só visual).
+    const MOB_SETA_PASSO = 70; // px de tela entre setas
+    const MOB_FLUXO_VEL = 45; // px/s da animação
+    const mobSetaCache = new Map(); // "raio|rot" → RegularShape (evita realocar a cada frame)
+    window.mobFluxoSimulando = false;
+    window._mobFluxoFase = 0; // px percorridos no ciclo atual (0..PASSO)
+    function mobSetaImagem(raio, rot) {
+        const chave = raio + "|" + rot.toFixed(2);
+        let img = mobSetaCache.get(chave);
+        if (!img) {
+            img = new ol.style.RegularShape({
+                points: 3,
+                radius: raio,
+                rotation: rot,
+                rotateWithView: true,
+                scale: [1, 1.4],
+                fill: new ol.style.Fill({ color: "#ffffff" }),
+                stroke: new ol.style.Stroke({ color: "#111827", width: 1.5 }),
+            });
+            if (mobSetaCache.size > 4000) mobSetaCache.clear();
+            mobSetaCache.set(chave, img);
+        }
+        return img;
+    }
+    function mobSetasSentido(feature, resolution) {
         const estilos = [];
         const geom = feature.getGeometry();
         if (!geom) return estilos;
+        const zoom = view.getZoomForResolution(resolution);
+        const raio = Math.round(Math.max(8, Math.min(12, 8 + (zoom - 15.5) * 1.6)));
+        const passo = MOB_SETA_PASSO * resolution; // em unidades do mapa
         const linhas = geom.getType() === "MultiLineString" ? geom.getLineStrings() : [geom];
         linhas.forEach((linha) => {
+            const total = linha.getLength(); // planar, mesma unidade da resolution
+            if (total / resolution < 24) return; // curta demais na tela
+            // posições (distância desde o início) onde caem as setas
+            const alvos = [];
+            if (window.mobFluxoSimulando) {
+                for (let d = (window._mobFluxoFase * resolution) % passo; d < total; d += passo) alvos.push(d);
+            } else {
+                const n = Math.max(1, Math.floor(total / passo)); // distribuição simétrica, nunca nas pontas
+                const esp = total / (n + 1);
+                for (let i = 1; i <= n; i++) alvos.push(esp * i);
+            }
+            let acumulado = 0;
+            let k = 0;
             linha.forEachSegment((a, b) => {
+                if (k >= alvos.length) return;
                 const dx = b[0] - a[0];
                 const dy = b[1] - a[1];
-                if (Math.sqrt(dx * dx + dy * dy) / resolution < 46) return; // segmento curto na tela
-                estilos.push(
-                    new ol.style.Style({
-                        geometry: new ol.geom.Point([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]),
-                        image: new ol.style.RegularShape({
-                            points: 3,
-                            radius: 7,
-                            rotation: Math.atan2(dx, dy),
-                            rotateWithView: true,
-                            fill: new ol.style.Fill({ color: cor }),
-                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 1.5 }),
+                const comp = Math.hypot(dx, dy);
+                if (comp === 0) return;
+                const rot = Math.atan2(dx, dy);
+                while (k < alvos.length && alvos[k] <= acumulado + comp) {
+                    const t = (alvos[k] - acumulado) / comp;
+                    estilos.push(
+                        new ol.style.Style({
+                            geometry: new ol.geom.Point([a[0] + dx * t, a[1] + dy * t]),
+                            image: mobSetaImagem(raio, rot),
+                            zIndex: 5,
                         }),
-                        zIndex: 5,
-                    }),
-                );
+                    );
+                    k++;
+                }
+                acumulado += comp;
             });
         });
         return estilos;
     }
+    // Loop do simulador (~30 fps): avança a fase e re-renderiza SÓ a camada de trechos
+    let mobFluxoUltimoTs = 0;
+    function mobFluxoTick(ts) {
+        if (!window.mobFluxoSimulando) return;
+        requestAnimationFrame(mobFluxoTick);
+        if (!mobFluxoUltimoTs) {
+            mobFluxoUltimoTs = ts;
+            return;
+        }
+        const dt = ts - mobFluxoUltimoTs;
+        if (dt < 33) return;
+        mobFluxoUltimoTs = ts;
+        window._mobFluxoFase = (window._mobFluxoFase + (dt / 1000) * MOB_FLUXO_VEL) % MOB_SETA_PASSO;
+        const camada = window.loadedLayers && window.loadedLayers["mob_trechos"];
+        if (camada && camada.getVisible()) camada.changed();
+    }
+    window.addEventListener("sigweb-mob-fluxo-simular", (e) => {
+        const ligar = !!(e.detail && e.detail.ligado);
+        if (ligar === window.mobFluxoSimulando) return;
+        window.mobFluxoSimulando = ligar;
+        mobFluxoUltimoTs = 0;
+        if (ligar) {
+            requestAnimationFrame(mobFluxoTick);
+        } else {
+            const camada = window.loadedLayers && window.loadedLayers["mob_trechos"];
+            if (camada) camada.changed(); // volta ao padrão estático
+        }
+    });
 
     // 3. DEFINIÇÃO DOS MAPAS BASE (BASEMAPS)
     const azureKey = config.azureMapsKey || "";
@@ -626,7 +699,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 const estilos = [principal];
                 if (sentido === "mao_unica" && zoom >= 15.5) {
-                    estilos.push(...mobSetasSentido(feature, resolution, cor));
+                    estilos.push(...mobSetasSentido(feature, resolution));
                 }
                 return estilos;
             },
