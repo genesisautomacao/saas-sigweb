@@ -621,7 +621,7 @@ class MapDataController extends Controller
                 $rows = DB::table('mob_trechos')
                     ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('geo')
                     ->orderBy('id')
-                    ->selectRaw("id, sequential_id, via_id, azimute, extensao_geo,
+                    ->selectRaw("id, sequential_id, via_id, azimute, extensao_geo, observacao,
                         tipologia_da_via, tipo_de_pavimentacao, estado_conservacao_pavimentacao,
                         classe_faixa_rodagem, dimensionamento_da_via, dados_customizados,
                         ST_AsGeoJSON(geo, 6) AS gj")
@@ -647,6 +647,7 @@ class MapDataController extends Controller
                             'estado_conservacao_pavimentacao' => $row->estado_conservacao_pavimentacao,
                             'classe_faixa_rodagem' => $row->classe_faixa_rodagem,
                             'dimensionamento_da_via' => $row->dimensionamento_da_via,
+                            'observacao' => $row->observacao,
                             // "Colorir por" também tematiza pelos campos do kit (calçadas etc.)
                             'custom' => $row->dados_customizados ? json_decode($row->dados_customizados) : null,
                         ],
@@ -810,7 +811,7 @@ class MapDataController extends Controller
                 $rows = DB::table('mob_zonas')
                     ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('geo')
                     ->orderBy('id')
-                    ->selectRaw('id, sequential_id, tipo, name, codigo, situacao, origens, destinos, area_geo, ST_AsGeoJSON(geo, 6) AS gj')
+                    ->selectRaw('id, sequential_id, tipo, name, codigo, situacao, origens, destinos, area_geo, populacao, densidade, renda, ST_AsGeoJSON(geo, 6) AS gj')
                     ->get();
 
                 $features = [];
@@ -830,6 +831,10 @@ class MapDataController extends Controller
                             'origens' => $row->origens !== null ? (float) $row->origens : null,
                             'destinos' => $row->destinos !== null ? (float) $row->destinos : null,
                             'area_geo' => $row->area_geo !== null ? (float) $row->area_geo : null,
+                            // Demografia do setor (2026-09-04) — temas do "Colorir setores por"
+                            'populacao' => $row->populacao !== null ? (int) $row->populacao : null,
+                            'densidade' => $row->densidade !== null ? (float) $row->densidade : null,
+                            'renda' => $row->renda !== null ? (float) $row->renda : null,
                         ],
                         'geometry' => $geom,
                     ];
@@ -838,25 +843,43 @@ class MapDataController extends Controller
                 break;
 
             case 'mob_fluxos':
+                // Rótulo do mapa = % do total GERAL de deslocamentos (decisão 2026-09-04).
+                // O total inclui os fluxos intrazonais sem geometria — são viagens reais.
+                $totalFluxos = (int) DB::table('mob_fluxos')
+                    ->where('tenant_id', $tenantId)->whereNull('deleted_at')
+                    ->sum('valores');
+
+                // Cor por zona de DESTINO (derivada da geometria — MobFluxo::distribuicao)
+                $distFluxos = \App\Models\MobFluxo::distribuicao($tenantId);
+
                 $rows = DB::table('mob_fluxos')
                     ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('geo')
                     ->orderBy('id')
-                    ->selectRaw('id, sequential_id, destino, valores, ST_AsGeoJSON(geo, 6) AS gj')
+                    ->selectRaw('id, sequential_id, origem_regiao, origem_zona, destino_zona, valores, ST_AsGeoJSON(geo, 6) AS gj')
                     ->get();
 
                 $features = [];
                 foreach ($rows as $row) {
                     $geom = json_decode($row->gj);
                     if (!$geom || empty($geom->coordinates)) continue;
+                    $slugDestino = \App\Models\MobFluxo::slugZona($row->destino_zona);
+                    $origem = $row->origem_zona ?: (\App\Models\MobFluxo::REGIOES[$row->origem_regiao] ?? ucfirst((string) $row->origem_regiao));
+                    $destino = $row->destino_zona ?: 'Sem zona';
                     $features[] = [
                         'type' => 'Feature',
                         'properties' => [
                             'id' => $row->id,
                             'layer' => 'mob_fluxos',
-                            'name' => 'Fluxo → '.ucfirst((string) $row->destino),
+                            'name' => $origem.' → '.$destino,
                             'sequential_id' => $row->sequential_id,
-                            'destino' => $row->destino,
+                            'origem_regiao' => $row->origem_regiao,
+                            'origem_zona' => $row->origem_zona,
+                            'destino_zona' => $row->destino_zona,
+                            'destino_slug' => $slugDestino,
+                            'cor' => $distFluxos['destinos'][$slugDestino]['cor'] ?? \App\Models\MobFluxo::COR_SEM_ZONA,
                             'valores' => (int) $row->valores,
+                            'percentual' => $totalFluxos > 0 ? round($row->valores * 100 / $totalFluxos, 1) : 0,
+                            'total' => $totalFluxos,
                         ],
                         'geometry' => $geom,
                     ];

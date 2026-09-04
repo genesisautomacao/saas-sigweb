@@ -27,12 +27,23 @@ class MobZona extends Model
         'setor_censitario' => 'Setor Censitário (IBGE)',
     ];
 
+    /**
+     * Temas do mapa coroplético dos setores censitários ("Colorir setores por",
+     * 2026-09-04): coluna => [rótulo, unidade]. Fonte única p/ blade e engine.
+     */
+    public const TEMAS_SETOR = [
+        'populacao' => ['label' => 'População (Censo 2022)', 'unidade' => 'hab'],
+        'densidade' => ['label' => 'Densidade demográfica', 'unidade' => 'hab/ha'],
+        'renda' => ['label' => 'Renda média', 'unidade' => 'R$'],
+    ];
+
     protected $table = 'mob_zonas';
 
     protected $fillable = [
         'tenant_id', 'sequential_id',
         'tipo', 'name', 'codigo', 'situacao',
         'origens', 'destinos', 'area_geo',
+        'populacao', 'densidade', 'renda',
         'dados_customizados', 'geo',
     ];
 
@@ -40,6 +51,9 @@ class MobZona extends Model
         'dados_customizados' => 'array',
         'origens' => 'float',
         'destinos' => 'float',
+        'populacao' => 'integer',
+        'densidade' => 'float',
+        'renda' => 'float',
     ];
 
     protected $hidden = ['geo'];

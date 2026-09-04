@@ -349,10 +349,50 @@ class MobNormalizarLevantamento extends Command
         $this->relatorio[] = 'mob_eixos.json: '.count($out)." eixos (rodovias: {$mantidas} dentro do município, {$descartadas} descartadas do resto do ES)";
     }
 
+    /**
+     * Demografia por setor (2026-09-04): arquivo "Densidade Demográfica" da Líder
+     * (JSON do ArcGIS: features[].attributes com CD_SETOR, V002 = população,
+     * Hab_Km2 = densidade em hab/HECTARE apesar do nome, Renda). Também aceita
+     * GeoJSON com properties equivalentes. Casa por código IBGE.
+     *
+     * @return array<string, array{populacao:int, densidade:float, renda:?float}>
+     */
+    private function lerDemografia(string $pasta): array
+    {
+        $arquivo = collect(['Densidade Demográfica.json', 'Densidade Demografica.json', 'densidade_demografica.json', 'demografia.json'])
+            ->map(fn ($n) => $pasta.DIRECTORY_SEPARATOR.$n)
+            ->first(fn ($c) => is_file($c));
+        if (! $arquivo) {
+            return [];
+        }
+
+        $json = json_decode(file_get_contents($arquivo), true);
+        $porCodigo = [];
+        foreach ($json['features'] ?? [] as $f) {
+            $a = (array) ($f['attributes'] ?? $f['properties'] ?? []);
+            $codigo = trim((string) ($a['CD_SETOR'] ?? $a['codigo'] ?? $a['CD_GEOCODI'] ?? ''));
+            if ($codigo === '') {
+                continue;
+            }
+            $renda = $a['Renda'] ?? $a['renda'] ?? null;
+            $porCodigo[$codigo] = [
+                'populacao' => (int) ($a['V002'] ?? $a['populacao'] ?? 0),
+                'densidade' => round((float) ($a['Hab_Km2'] ?? $a['densidade'] ?? 0), 2),
+                'renda' => is_numeric($renda) && (float) $renda > 0 ? round((float) $renda, 2) : null,
+            ];
+        }
+
+        $this->relatorio[] = basename($arquivo).': '.count($porCodigo).' setores com população/densidade/renda (Censo 2022)';
+
+        return $porCodigo;
+    }
+
     private function normalizarZonas(string $pasta, string $saida): void
     {
         $out = [];
         $id = 0;
+        $demografia = $this->lerDemografia($pasta);
+        $casados = 0;
 
         $fontes = [
             ['zonas.json', 'zona_od'],
@@ -367,14 +407,22 @@ class MobNormalizarLevantamento extends Command
             }
             foreach ($json['features'] as $f) {
                 $props = (array) $f['properties'];
+                $codigo = isset($props['codigo']) ? (string) $props['codigo'] : null;
+                $demo = ($tipo === 'setor_censitario' && $codigo !== null) ? ($demografia[$codigo] ?? null) : null;
+                if ($demo) {
+                    $casados++;
+                }
                 $out[] = ['type' => 'Feature', 'properties' => array_filter([
                     'id' => ++$id,
                     'tipo' => $tipo,
                     'name' => trim((string) ($props['name'] ?? ($tipo === 'setor_censitario' ? 'Setor '.($props['codigo'] ?? $id) : ''))),
-                    'codigo' => isset($props['codigo']) ? (string) $props['codigo'] : null,
+                    'codigo' => $codigo,
                     'situacao' => $props['situacao'] ?? null,
                     'origens' => $props['origens'] ?? null,
                     'destinos' => $props['destinos'] ?? null,
+                    'populacao' => $demo['populacao'] ?? null,
+                    'densidade' => $demo['densidade'] ?? null,
+                    'renda' => $demo['renda'] ?? null,
                     'origem' => $arquivo.'#'.($props['id'] ?? '?'),
                     // area_geo do arquivo é descartada (unidade suspeita) — decisão 6.6
                 ], fn ($v) => $v !== null && $v !== ''), 'geometry' => $f['geometry']];
@@ -382,7 +430,8 @@ class MobNormalizarLevantamento extends Command
         }
 
         $this->gravar($saida, 'mob_zonas.json', $out);
-        $this->relatorio[] = 'mob_zonas.json: '.count($out).' zonas (O/D + quadrantes + polo + setores IBGE; áreas recalculadas via PostGIS)';
+        $this->relatorio[] = 'mob_zonas.json: '.count($out).' zonas (O/D + quadrantes + polo + setores IBGE; áreas recalculadas via PostGIS)'
+            .($demografia ? " — demografia casada por código em {$casados} setor(es)" : '');
     }
 
     private function normalizarFluxos(string $pasta, string $saida): void
@@ -392,16 +441,19 @@ class MobNormalizarLevantamento extends Command
             return;
         }
 
+        // ⚠️ `fluxo` = região de ORIGEM (ponta compartilhada das linhas do grupo —
+        // confirmado em 2026-09-04); as zonas de origem/destino de cada linha são
+        // derivadas da geometria na importação (MobFluxo::recalcularOrigensDestinos).
         $porChave = [];
         foreach ($json['features'] as $f) {
             $props = (array) $f['properties'];
-            $destino = $this->semAcentos(mb_strtolower(trim((string) ($props['fluxo'] ?? ''))));
-            $chave = $destino.'|'.md5(json_encode($f['geometry']['coordinates'] ?? []));
+            $regiao = $this->semAcentos(mb_strtolower(trim((string) ($props['fluxo'] ?? ''))));
+            $chave = $regiao.'|'.md5(json_encode($f['geometry']['coordinates'] ?? []));
 
             $valores = (int) ($props['valores'] ?? 0);
             // dedup por geometria idêntica (decisão P4): fica a de maior volume
             if (! isset($porChave[$chave]) || $valores > $porChave[$chave]['valores']) {
-                $porChave[$chave] = ['destino' => $destino, 'valores' => $valores, 'geometry' => $f['geometry'], 'origem' => $props['id'] ?? '?'];
+                $porChave[$chave] = ['origem_regiao' => $regiao, 'valores' => $valores, 'geometry' => $f['geometry'], 'fonte' => $props['id'] ?? '?'];
             }
         }
 
@@ -410,9 +462,9 @@ class MobNormalizarLevantamento extends Command
         foreach ($porChave as $item) {
             $out[] = ['type' => 'Feature', 'properties' => [
                 'id' => ++$id,
-                'destino' => $item['destino'],
+                'origem_regiao' => $item['origem_regiao'],
                 'valores' => $item['valores'],
-                'origem' => 'fluxos.json#'.$item['origem'],
+                'fonte' => 'fluxos.json#'.$item['fonte'],
             ], 'geometry' => $item['geometry']];
         }
 

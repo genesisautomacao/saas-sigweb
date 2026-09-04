@@ -42,9 +42,9 @@ class MobFluxoResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('destino')
-                ->label('Região de destino')
-                ->options(MobFluxo::DESTINOS)
+            Forms\Components\Select::make('origem_regiao')
+                ->label('Região de origem (grupo do levantamento)')
+                ->options(MobFluxo::REGIOES)
                 ->required(),
             Forms\Components\TextInput::make('valores')
                 ->label('Volume de deslocamentos')
@@ -53,6 +53,12 @@ class MobFluxoResource extends Resource
                 ->default(0)
                 ->required(),
             static::campoCoordenada('mob_fluxos'),
+            Forms\Components\Placeholder::make('origem_zona_info')
+                ->label('Origem (zona O/D, derivada da geometria)')
+                ->content(fn (?MobFluxo $record) => $record?->origem_zona ?? '—'),
+            Forms\Components\Placeholder::make('destino_zona_info')
+                ->label('Destino (zona O/D, derivada da geometria)')
+                ->content(fn (?MobFluxo $record) => $record?->destino_zona ?? '—'),
         ])->columns(2);
     }
 
@@ -64,11 +70,20 @@ class MobFluxoResource extends Resource
             ))
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
-                Tables\Columns\TextColumn::make('destino')
+                Tables\Columns\TextColumn::make('origem_zona')
+                    ->label('Origem')
+                    ->formatStateUsing(fn ($state, MobFluxo $record) => $record->origemRotulo())
+                    ->placeholder('—')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('destino_zona')
                     ->label('Destino')
                     ->badge()
-                    ->formatStateUsing(fn (?string $state) => MobFluxo::DESTINOS[$state] ?? ($state ?? '—'))
+                    ->placeholder('Sem zona')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('origem_regiao')
+                    ->label('Grupo (levantamento)')
+                    ->formatStateUsing(fn (?string $state) => MobFluxo::REGIOES[$state] ?? ($state ?? '—'))
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('valores')
                     ->label('Volume')
                     ->numeric()
@@ -84,7 +99,12 @@ class MobFluxoResource extends Resource
                     ->tooltip('Intrazonal = origem e destino na mesma região (sem linha no mapa)'),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('destino')->label('Destino')->options(MobFluxo::DESTINOS),
+                Tables\Filters\SelectFilter::make('destino_zona')
+                    ->label('Destino (zona O/D)')
+                    ->options(fn () => MobFluxo::query()->whereNotNull('destino_zona')->distinct()->orderBy('destino_zona')->pluck('destino_zona', 'destino_zona')->all()),
+                Tables\Filters\SelectFilter::make('origem_zona')
+                    ->label('Origem (zona O/D)')
+                    ->options(fn () => MobFluxo::query()->whereNotNull('origem_zona')->distinct()->orderBy('origem_zona')->pluck('origem_zona', 'origem_zona')->all()),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

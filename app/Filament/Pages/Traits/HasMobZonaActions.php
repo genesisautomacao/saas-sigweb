@@ -31,7 +31,22 @@ trait HasMobZonaActions
             'origens' => $z->origens,
             'destinos' => $z->destinos,
             'area_geo' => $z->area_geo !== null ? (float) $z->area_geo : null,
+            'populacao' => $z->populacao,
+            'densidade' => $z->densidade !== null ? (float) $z->densidade : null,
+            'renda' => $z->renda !== null ? (float) $z->renda : null,
         ];
+    }
+
+    /** Densidade (hab/ha) derivada quando o usuário informa população e deixa a densidade vazia. */
+    protected function mobZonaCompletarDensidade(array $data, ?MobZona $z): array
+    {
+        if (($data['tipo'] ?? $z?->tipo) === 'setor_censitario'
+            && filled($data['populacao'] ?? null) && blank($data['densidade'] ?? null)
+            && $z && (float) $z->area_geo > 0) {
+            $data['densidade'] = round((int) $data['populacao'] / ((float) $z->area_geo / 10000), 2);
+        }
+
+        return $data;
     }
 
     protected function mobZonaFormulario(): array
@@ -62,6 +77,23 @@ trait HasMobZonaActions
                 ->numeric()
                 ->nullable()
                 ->visible(fn (\Filament\Forms\Get $get) => $get('tipo') === 'zona_od'),
+            // Demografia do setor (Censo 2022 — arquivo "Densidade Demográfica" da Líder)
+            TextInput::make('populacao')
+                ->label('População (hab)')
+                ->numeric()->integer()->minValue(0)
+                ->nullable()
+                ->visible(fn (\Filament\Forms\Get $get) => $get('tipo') === 'setor_censitario'),
+            TextInput::make('densidade')
+                ->label('Densidade (hab/ha)')
+                ->numeric()->minValue(0)
+                ->nullable()
+                ->helperText('Vazio = calculada pela população ÷ área.')
+                ->visible(fn (\Filament\Forms\Get $get) => $get('tipo') === 'setor_censitario'),
+            TextInput::make('renda')
+                ->label('Renda média (R$)')
+                ->numeric()->minValue(0)
+                ->nullable()
+                ->visible(fn (\Filament\Forms\Get $get) => $get('tipo') === 'setor_censitario'),
         ];
     }
 
@@ -119,6 +151,9 @@ trait HasMobZonaActions
                     'situacao' => $z?->situacao,
                     'origens' => $z?->origens,
                     'destinos' => $z?->destinos,
+                    'populacao' => $z?->populacao,
+                    'densidade' => $z?->densidade,
+                    'renda' => $z?->renda,
                 ];
             })
             ->form($this->mobZonaFormulario())
@@ -127,7 +162,7 @@ trait HasMobZonaActions
                 if (! $z) {
                     return;
                 }
-                $z->update($data);
+                $z->update($this->mobZonaCompletarDensidade($data, $z));
                 $z->refresh();
 
                 Notification::make()->title('Zona atualizada!')->success()->send();

@@ -63,6 +63,19 @@ class MobZonaResource extends Resource
                 ->label('% Destinos (O/D)')
                 ->numeric()
                 ->visible(fn (Forms\Get $get) => $get('tipo') === 'zona_od'),
+            // Demografia do setor censitário (Censo 2022 — arquivo da Líder, 2026-09-04)
+            Forms\Components\TextInput::make('populacao')
+                ->label('População (hab)')
+                ->numeric()->integer()->minValue(0)
+                ->visible(fn (Forms\Get $get) => $get('tipo') === 'setor_censitario'),
+            Forms\Components\TextInput::make('densidade')
+                ->label('Densidade (hab/ha)')
+                ->numeric()->minValue(0)
+                ->visible(fn (Forms\Get $get) => $get('tipo') === 'setor_censitario'),
+            Forms\Components\TextInput::make('renda')
+                ->label('Renda média (R$)')
+                ->numeric()->minValue(0)
+                ->visible(fn (Forms\Get $get) => $get('tipo') === 'setor_censitario'),
             static::campoCoordenada('mob_zonas'),
         ])->columns(3);
     }
@@ -88,6 +101,9 @@ class MobZonaResource extends Resource
                 Tables\Columns\TextColumn::make('codigo')->label('Código IBGE')->searchable()->placeholder('—')->toggleable(),
                 Tables\Columns\TextColumn::make('origens')->label('% Orig.')->numeric(2, ',', '.')->placeholder('—')->toggleable(),
                 Tables\Columns\TextColumn::make('destinos')->label('% Dest.')->numeric(2, ',', '.')->placeholder('—')->toggleable(),
+                Tables\Columns\TextColumn::make('populacao')->label('População')->numeric(0, ',', '.')->sortable()->placeholder('—')->toggleable(),
+                Tables\Columns\TextColumn::make('densidade')->label('Dens. (hab/ha)')->numeric(2, ',', '.')->sortable()->placeholder('—')->toggleable(),
+                Tables\Columns\TextColumn::make('renda')->label('Renda (R$)')->numeric(2, ',', '.')->sortable()->placeholder('—')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('area_geo')
                     ->label('Área')
                     ->formatStateUsing(fn ($state) => $state !== null ? number_format((float) $state / 1000000, 3, ',', '.').' km²' : '—')

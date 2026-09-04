@@ -24,6 +24,7 @@
                 mapZoom: {{ $mapZoom }},
                 azureMapsKey: '{{ config('services.azure_maps.key', '') }}',
                 ortofotos: @json($ortofotos),
+                mobSetorTemas: @json(\App\Models\MobZona::TEMAS_SETOR),
                 permissionsUrl: '/gis/{{ $tenantSlug }}/map-permissions'
             };
         </script>
@@ -608,12 +609,7 @@
                                             <x-heroicon-o-stop class="w-4 h-4 text-blue-500" />
                                             Zona de Estudo (Polígono)
                                         </button>
-                                        <button type="button" onclick="enableDrawing('mob_fluxo')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-arrow-path class="w-4 h-4 text-cyan-600" />
-                                            Fluxo O/D (Linha)
-                                        </button>
+                                        {{-- Fluxo O/D: sem criação pelo mapa — camada só de leitura (decisão da mobilidade, 2026-09-04) --}}
                                     </div>
                                 </div>
                                 @endif
@@ -2235,9 +2231,26 @@
                                         </label>
                                     @endforeach
                                 </div>
+                                {{-- Coroplético dos setores IBGE (2026-09-04): população / densidade / renda do
+                                     Censo 2022 (arquivo "Densidade Demográfica" da Líder). 6 classes por quantil,
+                                     legenda automática — engine: evento sigweb-mob-setor-tema. --}}
+                                <div class="mt-2 ps-7">
+                                    <select id="mob-setor-tema-select"
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-mob-setor-tema', { detail: { tema: this.value || null } }))"
+                                        class="w-full text-xs rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 py-1">
+                                        <option value="">Colorir setores IBGE por... (cor única)</option>
+                                        @foreach (\App\Models\MobZona::TEMAS_SETOR as $temaSlug => $tema)
+                                            <option value="{{ $temaSlug }}">{{ $tema['label'] }} ({{ $tema['unidade'] }})</option>
+                                        @endforeach
+                                    </select>
+                                    <div id="mob-setor-legenda" class="mt-1 leading-tight text-gray-700 dark:text-gray-300"></div>
+                                </div>
                             </div>
 
-                            {{-- FLUXOS O/D --}}
+                            {{-- FLUXOS O/D (ajuste 2026-09-04): camada SÓ LEITURA no mapa. Cor por zona de
+                                 DESTINO derivada da geometria (MobFluxo::distribuicao — paleta por volume), rótulo
+                                 = % do total geral, mini-checkboxes por destino (mesmo mecanismo .mob-sub-toggle
+                                 das zonas) — "só o que vai para o Central". --}}
                             <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
                                 <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                     <input type="checkbox" data-layer="mob_fluxos"
@@ -2247,7 +2260,25 @@
                                         <span class="layer-text truncate">Fluxos O/D (linhas de desejo)</span>
                                     </span>
                                 </label>
-                                <p class="text-[10px] text-gray-400 mt-0.5 ps-7">Espessura proporcional ao volume de deslocamentos.</p>
+                                @if (($mobFluxoDistribuicao['total'] ?? 0) > 0)
+                                    <div class="grid grid-cols-2 gap-x-2 gap-y-1 ps-7 mt-1">
+                                        @foreach ($mobFluxoDistribuicao['destinos'] as $destinoValor => $d)
+                                            <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-600 dark:text-gray-400 min-w-0"
+                                                title="Destino {{ $d['label'] }}: {{ number_format($d['percentual'], 1, ',', '.') }}% do total de deslocamentos">
+                                                <input type="checkbox" class="mob-sub-toggle rounded border-gray-300 w-3.5 h-3.5 flex-shrink-0"
+                                                    data-mob-layer="mob_fluxos" data-valor="{{ $destinoValor }}">
+                                                <span style="width:10px; height:10px; border-radius:2px; background:{{ $d['cor'] }}; display:inline-block; flex-shrink:0;"></span>
+                                                <span class="truncate">{{ $d['label'] }} <span style="color:#9ca3af;">{{ number_format($d['percentual'], 1, ',', '.') }}%</span></span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                @endif
+                                <p class="text-[10px] text-gray-400 mt-1 ps-7">
+                                    Rótulo = % do total de deslocamentos · espessura proporcional ao fluxo · só leitura (clique = ficha).
+                                    @if (($mobFluxoDistribuicao['intrazonal'] ?? 0) > 0)
+                                        <br>{{ number_format($mobFluxoDistribuicao['intrazonal_percentual'], 1, ',', '.') }}% são deslocamentos dentro da própria zona — não viram linha no mapa.
+                                    @endif
+                                </p>
                             </div>
 
                         </div>

@@ -393,6 +393,79 @@ não tem campo tabular de sentido. Modelo aprovado:
       mão dupla) e depois mob_vias.json em ATUALIZAR só para aplicar o
       sentido.
 
+  AJUSTES PRÉ-REUNIÃO DE 08/09 (pedidos da Dani, 2026-09-04) ✅
+    ✔ Observação no trecho: coluna text `mob_trechos.observacao` (migration
+      2026_09_04_100000); textarea no modal do mapa e na tela; coluna
+      (toggleable, busca) e export; importável pela property `observacao`;
+      aparece no hover do trecho (📝, 90 chars).
+    ✔ Setor censitário IBGE: cor nova (âmbar #b45309, fill 14%) — era cinza
+      quase transparente.
+    ✔ DEMOGRAFIA por setor (mesmo dia, à tarde): a Dani mandou "Densidade
+      Demográfica.json" (C:\laragon\www\docs\jsons-enviados\piuma) — JSON do
+      ArcGIS (Esri: features[].attributes + geometry.rings, SIRGAS 2000),
+      86 setores, CD_SETOR casa 100% com os códigos já importados, polígonos
+      idênticos (Hausdorff ~7e-7°). Campos: V002 = população (soma 22.300),
+      Hab_Km2 = densidade em hab/HECTARE (nome engana; bate com a legenda do
+      PDF deles, máx 144,09), Hect = área, Renda (85/86). Implementado:
+      colunas `populacao`/`densidade`/`renda` em mob_zonas (migration
+      2026_09_04_110000); normalizador lê o arquivo (lerDemografia, aceita
+      Esri ou GeoJSON) e casa por código nos setores do mob_zonas.json
+      (regravado em piuma-normalizado; demais JSONs conferidos idênticos);
+      importador mapeia os 3 campos; hover/ficha/tabela/export; e o mapa
+      COROPLÉTICO "Colorir setores IBGE por…" (população/densidade/renda,
+      6 classes por quantil, legenda com faixas, rótulo do valor no zoom ≥ 15;
+      MobZona::TEMAS_SETOR → window.mapConfig.mobSetorTemas; engine evento
+      sigweb-mob-setor-tema, paleta amarelo→marrom própria). Ensaio local:
+      mob_zonas.json em ATUALIZAR = 102 zonas atualizadas, 86 setores com
+      população. VPS: "Zonas de Estudo" em ATUALIZAR com o mob_zonas.json.
+    ✔ Fluxos O/D: quantidades absolutas REMOVIDAS do mapa (pedido do
+      usuário): ficha, hover, legenda e title dos checkboxes só com
+      percentuais; o volume continua na tela "Fluxos O/D" do menu.
+    ✔ Fluxos O/D SÓ LEITURA no mapa (decisão: só no mapa; a tela "Fluxos O/D"
+      do menu continua editável): saiu o "Fluxo O/D (Linha)" do Criar
+      Artefatos, o modal virou ficha (destino, volume, % do total geral, %
+      dentro do destino) sem salvar/geometria/excluir; HasMobFluxoActions
+      ficou só com a ficha. COR por região de destino (MobFluxo::CORES —
+      centro vermelho, norte azul, sul verde, leste âmbar, nordeste roxo,
+      sudoeste ciano, oeste rosa; fonte única p/ engine via
+      window.mapConfig.mobFluxoCores e p/ legenda) + mini-checkboxes por
+      destino (mob-sub-toggle, mesmo mecanismo das zonas: "só o que vai
+      para o Centro") com o % do destino ao lado. RÓTULO da linha = % do
+      TOTAL GERAL (decisão do usuário; MapDataController manda `percentual`
+      e `total`; o total inclui os 6 intrazonais — MULTILINESTRING EMPTY,
+      não NULL: 159 deslocamentos = 23% do total, sem linha no mapa; a
+      legenda avisa isso p/ os rótulos visíveis somarem ~77% e ninguém
+      estranhar). Espessura segue ∝ volume; linhas com valor 0 (27) ficam
+      sem rótulo.
+    ✔ ORIGEM × DESTINO — SEMÂNTICA CORRIGIDA (2026-09-04, tarde; usuário
+      confirmou): cruzando as pontas das linhas com as zonas O/D no PostGIS,
+      TODAS as linhas de um grupo `fluxo` (ex.: "Centro") SAEM do mesmo ponto,
+      dentro da zona com aquele nome, e terminam cada uma numa zona diferente.
+      Logo `fluxo` = ORIGEM (ponta compartilhada), não destino. Provas: 251
+      viagens Nordeste → Central (e não o contrário); soma pelas pontas finais
+      = Central 79,5%, Sudoeste 10,9%, Leste 3,5%… na mesma ordem do
+      `destinos` do zonas.json (Central 68,62%). O grupo "Sudoeste" (16 linhas)
+      são na verdade 2 origens (Oeste + Sudoeste) — a derivação separa.
+      Implementado: migration 2026_09_04_120000 renomeia `mob_fluxos.destino`
+      → `origem_regiao` (rótulo do levantamento) e cria `origem_zona` /
+      `destino_zona` DERIVADAS (zona O/D que contém a ponta inicial / final;
+      sem contenção = mais próxima; intrazonais herdam a zona mais frequente
+      do grupo como origem E destino) — MobFluxo::recalcularOrigensDestinos(),
+      chamado pelo importador ao importar fluxos OU zonas e pelo comando
+      `mob:fluxos-origem-destino --tenant=<slug>`. Cores/checkboxes/% agora
+      por DESTINO REAL (MobFluxo::distribuicao: paleta por ordem de volume,
+      cor viaja na feature; sem CORES fixas por nome). Ficha: "Nordeste →
+      Central" + origem/destino/percentuais. Tela Fluxos O/D: colunas Origem
+      e Destino (derivadas, só leitura) + filtros; export idem. Normalizador
+      grava `origem_regiao` (era `destino`) e `fonte` (era `origem`); o
+      importador aceita o JSON antigo. mob_fluxos.json regravado.
+      VPS: migrate + `mob:fluxos-origem-destino` (ou a importação das zonas
+      em Atualizar, que também recalcula).
+    ⚠️ Para o Pedro: nas ORIGENS, o zonas.json diz Leste 36,89% / Nordeste
+      6,71%, mas as linhas dizem Nordeste 41,7% / Leste 7,7% — parece que a
+      tabela do zonas.json trocou Leste↔Nordeste (os polígonos e o fluxos.json
+      concordam entre si). Não afeta o mapa; afeta só a coluna `origens`.
+
     ℹ️ 2026-09-03 trechos.json da Líder com xi/yi/xf/yf (UTM 24S): são o 1º e
       o último vértice da linha — 611/612 batem com a ordem já importada
       (ids 274 e 321 com o par copiado do vizinho). DIREÇÃO já estava certa;

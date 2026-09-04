@@ -7,6 +7,7 @@ use App\Models\MobTrecho;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Illuminate\Support\HtmlString;
 use Livewire\Attributes\On;
@@ -57,6 +58,7 @@ trait HasMobTrechoActions
             'estado_conservacao_pavimentacao' => $t->estado_conservacao_pavimentacao,
             'classe_faixa_rodagem' => $t->classe_faixa_rodagem,
             'dimensionamento_da_via' => $t->dimensionamento_da_via,
+            'observacao' => $t->observacao,
             'custom' => $t->dados_customizados,
         ];
     }
@@ -76,6 +78,12 @@ trait HasMobTrechoActions
                 ->preload()
                 ->nullable(),
             ...\App\Services\Coleta\CampoCustomizadoService::componentes('mob_trecho'),
+            Textarea::make('observacao')
+                ->label('Observação')
+                ->rows(3)
+                ->maxLength(5000)
+                ->nullable()
+                ->columnSpanFull(),
         ];
     }
 
@@ -136,6 +144,7 @@ trait HasMobTrechoActions
                     'dimensionamento_da_via' => $t?->dimensionamento_da_via,
                     'logradouro_id' => $t?->logradouro_id,
                     'dados_customizados' => $t?->dados_customizados ?? [],
+                    'observacao' => $t?->observacao,
                 ];
             })
             ->form([

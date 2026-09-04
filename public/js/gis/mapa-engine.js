@@ -85,8 +85,86 @@ document.addEventListener("DOMContentLoaded", function () {
         zona_od: { stroke: "#2563eb", fill: "rgba(37,99,235,0.10)" },
         quadrante: { stroke: "#f97316", fill: "rgba(249,115,22,0.08)" },
         polo_industrial: { stroke: "#7c3aed", fill: "rgba(124,58,237,0.12)" },
-        setor_censitario: { stroke: "#9ca3af", fill: "rgba(156,163,175,0.04)" },
+        // Setor IBGE: era cinza quase transparente (invisível sobre satélite) —
+        // pedido da mobilidade 2026-09-04: âmbar escuro, contorno cheio, fill leve
+        setor_censitario: { stroke: "#b45309", fill: "rgba(217,119,6,0.14)" },
     };
+    // Fluxos O/D: a cor vem PRONTA do backend por zona de DESTINO (feature.cor —
+    // MobFluxo::distribuicao atribui a paleta por ordem de volume; a legenda do
+    // painel usa a mesma distribuição). Filtro dos mini-checkboxes = destino_slug.
+    function mobFluxoCor(feature) {
+        return feature.get("cor") || "#6b7280";
+    }
+    // ── Coroplético dos setores censitários ("Colorir setores por", 2026-09-04) ──
+    // 6 classes por quantil sobre os setores carregados; paleta sequencial nossa
+    // (amarelo → marrom). Temas/unidades vêm do PHP (MobZona::TEMAS_SETOR).
+    const MOB_SETOR_PALETA = ["#fef9c3", "#fde68a", "#fbbf24", "#f59e0b", "#b45309", "#7c2d12"];
+    const MOB_SETOR_TEMAS = (window.mapConfig && window.mapConfig.mobSetorTemas) || {};
+    window.mobSetorTema = null; // coluna ativa (populacao | densidade | renda) ou null
+    window._mobSetorClasses = []; // limites superiores das classes, crescentes
+    function mobSetorFmt(tema, v) {
+        return Number(v).toLocaleString("pt-BR", { maximumFractionDigits: tema === "populacao" ? 0 : 2 });
+    }
+    function mobSetorCor(valor) {
+        const k = window._mobSetorClasses.length;
+        if (!k) return null;
+        let i = k - 1;
+        for (let c = 0; c < k; c++) {
+            if (valor <= window._mobSetorClasses[c]) {
+                i = c;
+                break;
+            }
+        }
+        return MOB_SETOR_PALETA[k > 1 ? Math.round((i * (MOB_SETOR_PALETA.length - 1)) / (k - 1)) : MOB_SETOR_PALETA.length - 1];
+    }
+    window.addEventListener("sigweb-mob-setor-tema", (e) => {
+        const tema = e.detail && e.detail.tema ? e.detail.tema : null;
+        window.mobSetorTema = tema;
+        window._mobSetorClasses = [];
+        const legenda = document.getElementById("mob-setor-legenda");
+        const camada = window.loadedLayers && window.loadedLayers["mob_zonas"];
+        if (tema && camada) {
+            const valores = camada
+                .getSource()
+                .getFeatures()
+                .filter((f) => f.get("tipo") === "setor_censitario")
+                .map((f) => Number(f.get(tema)))
+                .filter((v) => Number.isFinite(v))
+                .sort((a, b) => a - b);
+            if (valores.length) {
+                const n = Math.min(6, new Set(valores).size);
+                const limites = [];
+                for (let i = 1; i <= n; i++) limites.push(valores[Math.min(valores.length - 1, Math.ceil((valores.length * i) / n) - 1)]);
+                window._mobSetorClasses = [...new Set(limites)];
+                if (legenda) {
+                    const unidade = (MOB_SETOR_TEMAS[tema] && MOB_SETOR_TEMAS[tema].unidade) || "";
+                    let ini = valores[0];
+                    legenda.innerHTML =
+                        window._mobSetorClasses
+                            .map((lim, i) => {
+                                const html =
+                                    '<span style="display:inline-flex;align-items:center;gap:4px;margin:2px 8px 2px 0;font-size:11px;">' +
+                                    '<i style="width:10px;height:10px;border-radius:2px;display:inline-block;border:1px solid #92400e;background:' +
+                                    mobSetorCor(lim) + ';"></i>' + mobSetorFmt(tema, ini) + " – " + mobSetorFmt(tema, lim) + "</span>";
+                                ini = lim;
+                                return html;
+                            })
+                            .join("") +
+                        (unidade ? '<span style="font-size:10px;color:#9ca3af;">(' + unidade + ", " + valores.length + " setores)</span>" : "");
+                }
+            } else if (legenda) {
+                legenda.innerHTML = '<span style="font-size:11px;color:#9ca3af;">Sem dados de ' + ((MOB_SETOR_TEMAS[tema] && MOB_SETOR_TEMAS[tema].label) || tema) + " nos setores carregados.</span>";
+            }
+        } else if (legenda) {
+            legenda.innerHTML = "";
+        }
+        if (camada) camada.changed();
+    });
+    function mobFluxoRotulo(feature) {
+        const pct = feature.get("percentual");
+        if (pct === undefined || pct === null || Number(pct) <= 0) return "";
+        return Number(pct).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%";
+    }
     const MOB_TEMA_PALETA = [
         "#2563eb", "#dc2626", "#16a34a", "#f59e0b", "#7c3aed", "#0891b2",
         "#db2777", "#65a30d", "#ea580c", "#4b5563", "#0d9488", "#9333ea",
@@ -979,6 +1057,27 @@ document.addEventListener("DOMContentLoaded", function () {
                 const zoom = view.getZoomForResolution(resolution);
                 const tipo = feature.get("tipo");
                 const cfg = MOB_ZONA_CORES[tipo] || MOB_ZONA_CORES.setor_censitario;
+                // Coroplético ativo: setor ganha a cor da classe do tema (sem dado = cinza claro)
+                if (tipo === "setor_censitario" && window.mobSetorTema) {
+                    const v = Number(feature.get(window.mobSetorTema));
+                    const corClasse = Number.isFinite(v) && feature.get(window.mobSetorTema) !== null ? mobSetorCor(v) : null;
+                    const st = new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: "#78350f", width: 1 }),
+                        fill: new ol.style.Fill({ color: corClasse ? corClasse + "c0" : "rgba(229,231,235,0.55)" }),
+                    });
+                    if (zoom >= 15 && corClasse) {
+                        st.setText(
+                            new ol.style.Text({
+                                text: mobSetorFmt(window.mobSetorTema, v),
+                                font: "bold 10px Arial, sans-serif",
+                                fill: new ol.style.Fill({ color: "#1f2937" }),
+                                stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                                overflow: true,
+                            }),
+                        );
+                    }
+                    return st;
+                }
                 const style = new ol.style.Style({
                     stroke: new ol.style.Stroke({
                         color: cfg.stroke,
@@ -1002,26 +1101,31 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
+        // Fluxos O/D (ajuste 2026-09-04): cor por região de destino, rótulo =
+        // % do total geral de deslocamentos (vem do backend), espessura ∝ volume,
+        // mini-checkboxes por destino (mobFiltrado). Camada só de leitura.
         mob_fluxos: {
             z: 42,
             minZoom: 9,
             style: function (feature, resolution) {
+                if (window.mobFiltrado("mob_fluxos", feature.get("destino_slug"))) return null;
                 const zoom = view.getZoomForResolution(resolution);
                 const valores = Number(feature.get("valores")) || 0;
-                // Linha de desejo O/D: espessura proporcional ao volume
+                const cor = mobFluxoCor(feature);
                 const style = new ol.style.Style({
                     stroke: new ol.style.Stroke({
-                        color: "rgba(14,165,233,0.65)",
+                        color: cor,
                         width: 1.5 + Math.min(9, Math.sqrt(valores) * 0.6),
                         lineCap: "round",
                     }),
                 });
-                if (zoom >= 14 && valores > 0) {
+                const rotulo = mobFluxoRotulo(feature);
+                if (zoom >= 13 && rotulo) {
                     style.setText(
                         new ol.style.Text({
-                            text: String(valores),
+                            text: rotulo,
                             font: "bold 11px Arial, sans-serif",
-                            fill: new ol.style.Fill({ color: "#0c4a6e" }),
+                            fill: new ol.style.Fill({ color: cor }),
                             stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
                             placement: "line",
                             overflow: true,
@@ -2683,10 +2787,14 @@ document.addEventListener("DOMContentLoaded", function () {
                         }),
                     ]);
                     const extMob = feature.get("extensao_geo");
+                    const obsMob = feature.get("observacao")
+                        ? String(feature.get("observacao")).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]).slice(0, 90)
+                        : "";
                     detalheMob =
                         "Trecho do levantamento — seta = direção do mapeamento (calçada D/E)" +
                         (feature.get("tipo_de_pavimentacao") ? "<br>" + feature.get("tipo_de_pavimentacao") : "") +
-                        (extMob ? "<br><em>" + Number(extMob).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " m</em>" : "");
+                        (extMob ? "<br><em>" + Number(extMob).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " m</em>" : "") +
+                        (obsMob ? '<br><span style="color:#b45309;">&#128221; ' + obsMob + "</span>" : "");
                 } else if (layer === "mob_vias") {
                     feature.setStyle([
                         new ol.style.Style({
@@ -2723,16 +2831,24 @@ document.addEventListener("DOMContentLoaded", function () {
                         : "";
                 } else if (layer === "mob_fluxos") {
                     const volMob = Number(feature.get("valores")) || 0;
-                    feature.setStyle(
+                    feature.setStyle([
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 7 + Math.min(9, Math.sqrt(volMob) * 0.6), lineCap: "round" }),
+                        }),
                         new ol.style.Style({
                             stroke: new ol.style.Stroke({
-                                color: "rgba(2,132,199,0.95)",
+                                color: mobFluxoCor(feature),
                                 width: 4 + Math.min(9, Math.sqrt(volMob) * 0.6),
                                 lineCap: "round",
                             }),
                         }),
-                    );
-                    detalheMob = "volume: <strong>" + volMob + "</strong>";
+                    ]);
+                    // Só percentuais (pedido 2026-09-04): a quantidade absoluta não aparece no mapa.
+                    // Título = "Origem → Destino" (name vem do backend com as zonas derivadas)
+                    const pctMob = mobFluxoRotulo(feature);
+                    detalheMob =
+                        (pctMob ? "<strong>" + pctMob + "</strong> do total de deslocamentos" : "abaixo de 0,1% do total") +
+                        "<br><em>clique para a ficha (só leitura)</em>";
                 } else if (layer === "mob_sinalizacoes") {
                     feature.setStyle(
                         new ol.style.Style({
@@ -2781,6 +2897,16 @@ document.addEventListener("DOMContentLoaded", function () {
                         }),
                     );
                     detalheMob = feature.get("codigo") ? "IBGE " + feature.get("codigo") : "";
+                    if (feature.get("tipo") === "setor_censitario") {
+                        const demo = [];
+                        if (feature.get("populacao") !== null && feature.get("populacao") !== undefined)
+                            demo.push("População: <strong>" + mobSetorFmt("populacao", feature.get("populacao")) + " hab</strong>");
+                        if (feature.get("densidade") !== null && feature.get("densidade") !== undefined)
+                            demo.push("Densidade: <strong>" + mobSetorFmt("densidade", feature.get("densidade")) + " hab/ha</strong>");
+                        if (feature.get("renda") !== null && feature.get("renda") !== undefined)
+                            demo.push("Renda média: <strong>R$ " + mobSetorFmt("renda", feature.get("renda")) + "</strong>");
+                        if (demo.length) detalheMob += (detalheMob ? "<br>" : "") + demo.join("<br>");
+                    }
                 }
 
                 if (featureTooltip) {

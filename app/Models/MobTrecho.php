@@ -44,7 +44,7 @@ class MobTrecho extends Model
         'tenant_id', 'sequential_id',
         'tipologia_da_via', 'tipo_de_pavimentacao', 'estado_conservacao_pavimentacao',
         'classe_faixa_rodagem', 'dimensionamento_da_via',
-        'azimute', 'extensao_geo',
+        'azimute', 'extensao_geo', 'observacao',
         'logradouro_id', 'via_id', 'dados_customizados', 'geo',
     ];
 

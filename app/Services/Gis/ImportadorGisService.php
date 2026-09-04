@@ -377,12 +377,14 @@ class ImportadorGisService
             default => null,
         };
 
-        if ($sql === null) {
-            return;
-        }
-
         try {
-            DB::update($sql, [$tenantId]);
+            if ($sql !== null) {
+                DB::update($sql, [$tenantId]);
+            }
+            // Origem/destino dos fluxos dependem das zonas O/D: recalcula nas duas importações
+            if (in_array($camada, ['MobFluxo', 'MobZona'], true)) {
+                \App\Models\MobFluxo::recalcularOrigensDestinos($tenantId);
+            }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("ImportadorGis: metadados de {$camada} não recalculados — ".$e->getMessage());
         }
@@ -472,12 +474,12 @@ class ImportadorGisService
         $dados = [];
 
         $colunas = match ($camada) {
-            'MobTrecho' => ['tipologia_da_via', 'tipo_de_pavimentacao', 'estado_conservacao_pavimentacao', 'dimensionamento_da_via'],
+            'MobTrecho' => ['tipologia_da_via', 'tipo_de_pavimentacao', 'estado_conservacao_pavimentacao', 'dimensionamento_da_via', 'observacao'],
             'MobVia' => ['nome', 'sentido'], // sentido: mao_unica | mao_dupla (outro valor = ignorado)
             'MobPontoInteresse' => ['categoria', 'name', 'numero'],
             'MobEixo' => ['tipo', 'name'],
-            'MobZona' => ['tipo', 'name', 'codigo', 'situacao', 'origens', 'destinos'],
-            'MobFluxo' => ['destino'],
+            'MobZona' => ['tipo', 'name', 'codigo', 'situacao', 'origens', 'destinos', 'populacao', 'densidade', 'renda'],
+            'MobFluxo' => ['origem_regiao'], // = campo `fluxo` do levantamento (ORIGEM); zonas origem/destino são derivadas
             default => [],
         };
 
@@ -502,6 +504,10 @@ class ImportadorGisService
 
         if ($camada === 'MobFluxo') {
             $dados['valores'] = (int) ($p('valores') ?? 0);
+            // JSON normalizado antigo trazia o grupo como `destino` (semântica corrigida em 2026-09-04)
+            if (! isset($dados['origem_regiao']) && $p('destino') !== null) {
+                $dados['origem_regiao'] = $p('destino');
+            }
         }
 
         if ($camada === 'MobSinalizacao') {

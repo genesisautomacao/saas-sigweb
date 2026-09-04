@@ -13,6 +13,14 @@ use App\Filament\Pages\Traits\HasLogradouroCemiterioActions;
 use App\Filament\Pages\Traits\HasLoteActions;
 use App\Filament\Pages\Traits\HasLoteamentoActions;
 use App\Filament\Pages\Traits\HasMeioFioActions;
+use App\Filament\Pages\Traits\HasMobCameraActions;
+use App\Filament\Pages\Traits\HasMobEixoActions;
+use App\Filament\Pages\Traits\HasMobFluxoActions;
+use App\Filament\Pages\Traits\HasMobPontoInteresseActions;
+use App\Filament\Pages\Traits\HasMobSinalizacaoActions;
+use App\Filament\Pages\Traits\HasMobTrechoActions;
+use App\Filament\Pages\Traits\HasMobViaActions;
+use App\Filament\Pages\Traits\HasMobZonaActions;
 use App\Filament\Pages\Traits\HasPatrimonioPublicoActions;
 use App\Filament\Pages\Traits\HasPerimetroUrbanoActions;
 use App\Filament\Pages\Traits\HasPgvMotorActions;
@@ -26,14 +34,6 @@ use App\Filament\Pages\Traits\HasRuralLocalidadeActions;
 use App\Filament\Pages\Traits\HasRuralPonteActions;
 use App\Filament\Pages\Traits\HasRuralPontoInteresseActions;
 use App\Filament\Pages\Traits\HasRuralPropriedadeActions;
-use App\Filament\Pages\Traits\HasMobCameraActions;
-use App\Filament\Pages\Traits\HasMobEixoActions;
-use App\Filament\Pages\Traits\HasMobFluxoActions;
-use App\Filament\Pages\Traits\HasMobPontoInteresseActions;
-use App\Filament\Pages\Traits\HasMobSinalizacaoActions;
-use App\Filament\Pages\Traits\HasMobTrechoActions;
-use App\Filament\Pages\Traits\HasMobViaActions;
-use App\Filament\Pages\Traits\HasMobZonaActions;
 use App\Filament\Pages\Traits\HasSecaoLogradouroActions;
 use App\Filament\Pages\Traits\HasSetorFiscalActions;
 use App\Filament\Pages\Traits\HasTestadaActions;
@@ -63,14 +63,6 @@ class MapaFullscreen extends Page
 {
     use \App\Filament\Concerns\MontaOpcoesFiltroMapa;
     use HasAreaReurbActions;
-    use HasMobCameraActions;
-    use HasMobEixoActions;
-    use HasMobFluxoActions;
-    use HasMobPontoInteresseActions;
-    use HasMobSinalizacaoActions;
-    use HasMobTrechoActions;
-    use HasMobViaActions;
-    use HasMobZonaActions;
     use HasArvoreActions;
     use HasBairroActions;
     use HasCemiterioActions;
@@ -78,11 +70,19 @@ class MapaFullscreen extends Page
     use HasJazigoActions;
     use HasLogradouroActions;
     use HasLogradouroCemiterioActions;
-
     // Injetando as gavetas de lógica (Traits)
     use HasLoteActions;
     use HasLoteamentoActions;
     use HasMeioFioActions;
+    use HasMobCameraActions;
+    use HasMobEixoActions;
+    use HasMobFluxoActions;
+    use HasMobPontoInteresseActions;
+    use HasMobSinalizacaoActions;
+
+    use HasMobTrechoActions;
+    use HasMobViaActions;
+    use HasMobZonaActions;
     use HasPatrimonioPublicoActions;
     use HasPerimetroUrbanoActions;
     use HasPgvMotorActions;
@@ -254,6 +254,9 @@ class MapaFullscreen extends Page
     /** Extensão pré-calculada no desenho de trecho/eixo (Placeholder do modal de criação). */
     public ?float $mobExtensaoCalculada = null;
 
+    /** Fluxos O/D: total geral + distribuição por destino (legenda/mini-checkboxes da camada). */
+    public array $mobFluxoDistribuicao = ['total' => 0, 'destinos' => []];
+
     public function mount()
     {
         $tenant = Filament::getTenant();
@@ -291,6 +294,7 @@ class MapaFullscreen extends Page
                 foreach ($camposKit as $slug => $label) {
                     $this->mobTrechoTemas[$slug] = $label;
                 }
+                $this->mobFluxoDistribuicao = \App\Models\MobFluxo::distribuicao($this->tenantId);
             }
 
             $this->zonasTipos = Zona::query()->where('tenant_id', $this->tenantId)
@@ -803,7 +807,7 @@ class MapaFullscreen extends Page
                 'mob_ponto_interesse' => 'criarMobPontoInteresse',
                 'mob_eixo' => 'criarMobEixo',
                 'mob_zona' => 'criarMobZona',
-                'mob_fluxo' => 'criarMobFluxo',
+                // mob_fluxo: sem criação pelo mapa (camada só de leitura, 2026-09-04)
                 'mob_camera' => 'criarMobCamera',
                 default => null,
             };

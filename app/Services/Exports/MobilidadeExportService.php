@@ -46,6 +46,7 @@ class MobilidadeExportService
                     'Classe da faixa' => fn (MobTrecho $r) => $r->classe_faixa_rodagem ?? '-',
                     'Largura da via' => fn (MobTrecho $r) => $r->dimensionamento_da_via ?? '-',
                     'Logradouro' => fn (MobTrecho $r) => $r->logradouro?->name ?? '-',
+                    'Observação' => fn (MobTrecho $r) => $r->observacao ?? '-',
                 ],
             ],
             'mob_via' => [
@@ -130,6 +131,9 @@ class MobilidadeExportService
                     '% Origens' => fn ($r) => $r->origens !== null ? number_format((float) $r->origens, 2, ',', '.') : '-',
                     '% Destinos' => fn ($r) => $r->destinos !== null ? number_format((float) $r->destinos, 2, ',', '.') : '-',
                     'Área (m²)' => fn ($r) => $r->area_geo !== null ? number_format((float) $r->area_geo, 2, ',', '.') : '-',
+                    'População (hab)' => fn ($r) => $r->populacao !== null ? number_format((int) $r->populacao, 0, ',', '.') : '-',
+                    'Densidade (hab/ha)' => fn ($r) => $r->densidade !== null ? number_format((float) $r->densidade, 2, ',', '.') : '-',
+                    'Renda média (R$)' => fn ($r) => $r->renda !== null ? number_format((float) $r->renda, 2, ',', '.') : '-',
                 ],
             ],
             'mob_fluxo' => [
@@ -139,7 +143,9 @@ class MobilidadeExportService
                 'xml_item' => 'fluxo',
                 'colunas' => [
                     'ID' => fn ($r) => $r->sequential_id,
-                    'Destino' => fn ($r) => MobFluxo::DESTINOS[$r->destino] ?? ($r->destino ?? '-'),
+                    'Origem (zona O/D)' => fn (MobFluxo $r) => $r->origemRotulo(),
+                    'Destino (zona O/D)' => fn (MobFluxo $r) => $r->destinoRotulo(),
+                    'Grupo do levantamento' => fn ($r) => MobFluxo::REGIOES[$r->origem_regiao] ?? ($r->origem_regiao ?? '-'),
                     'Volume de deslocamentos' => fn ($r) => (int) $r->valores,
                     'Intrazonal (sem linha no mapa)' => fn ($r) => ($r->intrazonal ?? false) ? 'Sim' : 'Não',
                 ],

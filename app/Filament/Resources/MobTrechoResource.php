@@ -83,6 +83,12 @@ class MobTrechoResource extends Resource
                     ->searchable()
                     ->preload()
                     ->nullable(),
+                Forms\Components\Textarea::make('observacao')
+                    ->label('Observação')
+                    ->rows(3)
+                    ->maxLength(5000)
+                    ->nullable()
+                    ->columnSpanFull(),
             ])->columns(3),
 
             Forms\Components\Section::make('Levantamento (calçadas, estacionamento, vegetação)')
@@ -118,6 +124,13 @@ class MobTrechoResource extends Resource
                     ->suffix('°')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('observacao')
+                    ->label('Observação')
+                    ->limit(40)
+                    ->tooltip(fn ($record) => $record->observacao)
+                    ->searchable()
+                    ->placeholder('—')
+                    ->toggleable(),
                 static::colunaCoordenada(),
             ])
             ->filters([
