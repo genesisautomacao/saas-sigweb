@@ -156,32 +156,71 @@ class MobFluxo extends Model
             [$tenantId]
         );
 
-        // Intrazonais: zona de origem mais frequente entre as linhas do mesmo grupo
-        DB::update(
-            'UPDATE mob_fluxos f SET origem_zona = g.zona, destino_zona = g.zona
-               FROM (
-                 SELECT DISTINCT ON (origem_regiao) origem_regiao, origem_zona AS zona
-                   FROM (SELECT origem_regiao, origem_zona, COUNT(*) AS c FROM mob_fluxos
-                          WHERE tenant_id = ? AND deleted_at IS NULL AND origem_zona IS NOT NULL
-                            AND geo IS NOT NULL AND NOT ST_IsEmpty(geo)
-                          GROUP BY origem_regiao, origem_zona) t
-                  ORDER BY origem_regiao, c DESC
-               ) g
-              WHERE f.tenant_id = ? AND f.deleted_at IS NULL AND (f.geo IS NULL OR ST_IsEmpty(f.geo))
-                AND f.origem_regiao = g.origem_regiao',
-            [$tenantId, $tenantId]
-        );
+        // Intrazonais (sem geometria): origem = destino = a zona O/D cujo NOME casa
+        // com o rótulo do grupo (ex.: "sudoeste" → zona "Sudoeste", "centro" →
+        // "Central"). ⚠️ Não usar "zona mais frequente do grupo": o grupo Sudoeste
+        // tem 8 linhas saindo de Oeste e 8 de Sudoeste — empate que cada banco
+        // desempatava de um jeito (VPS deu Oeste, local deu Sudoeste). Sem casar
+        // pelo nome, cai na mais frequente com desempate por nome; por último, o rótulo.
+        $zonasOd = DB::table('mob_zonas')
+            ->where('tenant_id', $tenantId)->where('tipo', 'zona_od')->whereNull('deleted_at')
+            ->orderBy('name')->pluck('name')->all();
 
-        // Intrazonal sem irmão com geometria: cai no rótulo da região
-        foreach (static::withoutGlobalScopes()->where('tenant_id', $tenantId)->whereNull('deleted_at')
-            ->whereNull('origem_zona')->get(['id', 'origem_regiao']) as $f) {
-            $rotulo = self::REGIOES[$f->origem_regiao] ?? ($f->origem_regiao ? ucfirst($f->origem_regiao) : null);
-            if ($rotulo) {
-                DB::table('mob_fluxos')->where('id', $f->id)->update(['origem_zona' => $rotulo, 'destino_zona' => $rotulo]);
+        $maisFrequente = [];
+        foreach (DB::table('mob_fluxos')
+            ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('origem_zona')
+            ->whereRaw('geo IS NOT NULL AND NOT ST_IsEmpty(geo)')
+            ->selectRaw('origem_regiao, origem_zona, COUNT(*) AS c')
+            ->groupBy('origem_regiao', 'origem_zona')
+            ->orderByDesc('c')->orderBy('origem_zona')
+            ->get() as $g) {
+            $maisFrequente[$g->origem_regiao] ??= $g->origem_zona;
+        }
+
+        $intrazonais = static::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)->whereNull('deleted_at')
+            ->where(fn ($q) => $q->whereNull('geo')->orWhereRaw('ST_IsEmpty(geo)'))
+            ->get(['id', 'origem_regiao']);
+
+        foreach ($intrazonais as $f) {
+            $zona = self::zonaPeloRotulo($f->origem_regiao, $zonasOd)
+                ?? $maisFrequente[$f->origem_regiao]
+                ?? (self::REGIOES[$f->origem_regiao] ?? ($f->origem_regiao ? ucfirst($f->origem_regiao) : null));
+            if ($zona) {
+                DB::table('mob_fluxos')->where('id', $f->id)->update(['origem_zona' => $zona, 'destino_zona' => $zona]);
             }
         }
 
         return $comGeo;
+    }
+
+    /**
+     * Zona O/D cujo nome corresponde ao rótulo da região do levantamento: igualdade
+     * de slug ("sudoeste" = "Sudoeste") ou mesmo radical de 5 letras ("centro" ↔
+     * "Central", "nordeste" ↔ "Nordeste"). Determinístico: lista ordenada por nome.
+     *
+     * @param  string[]  $zonasOd  nomes das zonas O/D do tenant
+     */
+    public static function zonaPeloRotulo(?string $regiao, array $zonasOd): ?string
+    {
+        if (! $regiao) {
+            return null;
+        }
+        $alvo = Str::slug(self::REGIOES[$regiao] ?? $regiao);
+        foreach ($zonasOd as $nome) {
+            if (Str::slug($nome) === $alvo) {
+                return $nome;
+            }
+        }
+        if (strlen($alvo) >= 5) {
+            foreach ($zonasOd as $nome) {
+                if (str_starts_with(Str::slug($nome), substr($alvo, 0, 5))) {
+                    return $nome;
+                }
+            }
+        }
+
+        return null;
     }
 
     public function geometryLogLabel(): string

@@ -449,8 +449,12 @@ não tem campo tabular de sentido. Modelo aprovado:
       Implementado: migration 2026_09_04_120000 renomeia `mob_fluxos.destino`
       → `origem_regiao` (rótulo do levantamento) e cria `origem_zona` /
       `destino_zona` DERIVADAS (zona O/D que contém a ponta inicial / final;
-      sem contenção = mais próxima; intrazonais herdam a zona mais frequente
-      do grupo como origem E destino) — MobFluxo::recalcularOrigensDestinos(),
+      sem contenção = mais próxima; intrazonais = a zona O/D cujo NOME casa com
+      o rótulo do grupo, via zonaPeloRotulo() — "sudoeste"→Sudoeste,
+      "centro"→Central por radical; ⚠️ a 1ª versão usava "zona mais frequente
+      do grupo" e o grupo Sudoeste empata 8×8 entre Oeste e Sudoeste: a VPS
+      desempatou Oeste (7,5%) e o local Sudoeste — corrigido no mesmo dia,
+      agora determinístico) — MobFluxo::recalcularOrigensDestinos(),
       chamado pelo importador ao importar fluxos OU zonas e pelo comando
       `mob:fluxos-origem-destino --tenant=<slug>`. Cores/checkboxes/% agora
       por DESTINO REAL (MobFluxo::distribuicao: paleta por ordem de volume,
