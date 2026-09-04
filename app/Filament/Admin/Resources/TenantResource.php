@@ -607,6 +607,7 @@ class TenantResource extends Resource
                                     'UnidadeImobiliaria' => '9. Unidades Imobiliárias',
                                     // Mobilidade Urbana (docs/piuma.txt) — JSONs preparados
                                     // pelo comando mob:normalizar-levantamento
+                                    'MobVia' => 'Mobilidade — Vias Urbanas (importar ANTES dos trechos)',
                                     'MobTrecho' => 'Mobilidade — Trechos Viários',
                                     'MobSinalizacao' => 'Mobilidade — Sinalização',
                                     'MobPontoInteresse' => 'Mobilidade — Pontos de Interesse',
@@ -1031,6 +1032,10 @@ class TenantResource extends Resource
                                     'logradouros' => 'Logradouros',
                                     'secoes_logradouro' => 'Seções de Logradouro',
                                     'meio_fios' => 'Meio-fios',
+                                    'mob_trechos' => 'Mobilidade — Trechos Viários (extensão + azimute)',
+                                    'mob_vias' => 'Mobilidade — Vias Urbanas (extensão + azimute)',
+                                    'mob_eixos' => 'Mobilidade — Eixos',
+                                    'mob_zonas' => 'Mobilidade — Zonas de Estudo',
                                 ]),
                             Forms\Components\Toggle::make('force')
                                 ->label('Sobrescrever valores existentes')

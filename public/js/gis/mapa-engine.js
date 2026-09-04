@@ -136,20 +136,23 @@ document.addEventListener("DOMContentLoaded", function () {
             mobCameraIconeCache.set(chave, icone);
         }
         return icone;
-    }    // Setas de sentido (mão única) — a DIREÇÃO é a ordem dos vértices.
-    // Ponta de seta BRANCA com contorno escuro (contrasta com qualquer cor de
-    // linha, tema "Colorir por" ou satélite), alongada (scale 1×1,4), repetida a
-    // cada MOB_SETA_PASSO px de tela ao longo da linha INTEIRA (distância
-    // acumulada, não por segmento — via reta longa ganha várias) e cresce com o
-    // zoom (raio 8 → 12). Simulador de fluxo: com window.mobFluxoSimulando a
-    // fase avança no tempo e as setas "andam" no sentido da via (só visual).
+    }
+    // ── SETAS AO LONGO DE LINHAS (Mobilidade) ─────────────────────────────
+    // A DIREÇÃO é sempre a ordem dos vértices. Duas famílias (piuma.txt Onda 6):
+    //  • VIAS URBANAS (fluxo): ponta BRANCA com contorno escuro, alongada, cresce
+    //    com o zoom (raio 8 → 12), a cada MOB_SETA_PASSO px ao longo da linha
+    //    INTEIRA; mão única = uma ponta no sentido do fluxo; mão dupla = duas
+    //    pontas opostas (⬌). Simulador: com window.mobFluxoSimulando a fase
+    //    avança no tempo e as setas "andam" (mão dupla anda nos dois sentidos).
+    //  • TRECHOS (levantamento): tique DISCRETO cinza, estático, sempre visível
+    //    a partir do zoom 16 = direção em que o coletor andou (calçada D/E).
     const MOB_SETA_PASSO = 70; // px de tela entre setas
     const MOB_FLUXO_VEL = 45; // px/s da animação
-    const mobSetaCache = new Map(); // "raio|rot" → RegularShape (evita realocar a cada frame)
+    const mobSetaCache = new Map(); // "raio|rot|cor" → RegularShape (evita realocar a cada frame)
     window.mobFluxoSimulando = false;
     window._mobFluxoFase = 0; // px percorridos no ciclo atual (0..PASSO)
-    function mobSetaImagem(raio, rot) {
-        const chave = raio + "|" + rot.toFixed(2);
+    function mobSetaImagem(raio, rot, cor, contorno, escala) {
+        const chave = raio + "|" + rot.toFixed(2) + "|" + cor + "|" + contorno + "|" + escala;
         let img = mobSetaCache.get(chave);
         if (!img) {
             img = new ol.style.RegularShape({
@@ -157,61 +160,106 @@ document.addEventListener("DOMContentLoaded", function () {
                 radius: raio,
                 rotation: rot,
                 rotateWithView: true,
-                scale: [1, 1.4],
-                fill: new ol.style.Fill({ color: "#ffffff" }),
-                stroke: new ol.style.Stroke({ color: "#111827", width: 1.5 }),
+                scale: [1, escala],
+                fill: new ol.style.Fill({ color: cor }),
+                stroke: new ol.style.Stroke({ color: contorno, width: raio >= 8 ? 1.5 : 1 }),
             });
-            if (mobSetaCache.size > 4000) mobSetaCache.clear();
+            if (mobSetaCache.size > 6000) mobSetaCache.clear();
             mobSetaCache.set(chave, img);
         }
         return img;
     }
-    function mobSetasSentido(feature, resolution) {
+    // Motor genérico: cfg = { passo(px), raio, cor, contorno, escala, animado, duplo, zIndex }
+    function mobSetasAoLongo(feature, resolution, cfg) {
         const estilos = [];
         const geom = feature.getGeometry();
         if (!geom) return estilos;
-        const zoom = view.getZoomForResolution(resolution);
-        const raio = Math.round(Math.max(8, Math.min(12, 8 + (zoom - 15.5) * 1.6)));
-        const passo = MOB_SETA_PASSO * resolution; // em unidades do mapa
+        const passo = cfg.passo * resolution; // em unidades do mapa
+        const desloc = cfg.duplo ? cfg.raio * 0.9 * resolution : 0; // afasta as duas pontas da mão dupla
         const linhas = geom.getType() === "MultiLineString" ? geom.getLineStrings() : [geom];
         linhas.forEach((linha) => {
             const total = linha.getLength(); // planar, mesma unidade da resolution
             if (total / resolution < 24) return; // curta demais na tela
-            // posições (distância desde o início) onde caem as setas
-            const alvos = [];
-            if (window.mobFluxoSimulando) {
-                for (let d = (window._mobFluxoFase * resolution) % passo; d < total; d += passo) alvos.push(d);
+            const fase = cfg.animado ? (window._mobFluxoFase * resolution) % passo : null;
+            // posições (distância desde o início) onde caem as setas — sempre crescentes
+            const alvosF = [];
+            if (fase !== null) {
+                for (let d = fase; d < total; d += passo) alvosF.push(d);
             } else {
                 const n = Math.max(1, Math.floor(total / passo)); // distribuição simétrica, nunca nas pontas
                 const esp = total / (n + 1);
-                for (let i = 1; i <= n; i++) alvos.push(esp * i);
+                for (let i = 1; i <= n; i++) alvosF.push(esp * i);
             }
-            let acumulado = 0;
-            let k = 0;
-            linha.forEachSegment((a, b) => {
-                if (k >= alvos.length) return;
-                const dx = b[0] - a[0];
-                const dy = b[1] - a[1];
-                const comp = Math.hypot(dx, dy);
-                if (comp === 0) return;
-                const rot = Math.atan2(dx, dy);
-                while (k < alvos.length && alvos[k] <= acumulado + comp) {
-                    const t = (alvos[k] - acumulado) / comp;
-                    estilos.push(
-                        new ol.style.Style({
-                            geometry: new ol.geom.Point([a[0] + dx * t, a[1] + dy * t]),
-                            image: mobSetaImagem(raio, rot),
-                            zIndex: 5,
-                        }),
-                    );
-                    k++;
+            let alvosB = null; // mão dupla: família apontando para trás (animada, anda ao contrário)
+            if (cfg.duplo) {
+                if (fase !== null) {
+                    alvosB = [];
+                    for (let d = total - fase; d > 0; d -= passo) alvosB.unshift(d);
+                } else {
+                    alvosB = alvosF.slice();
                 }
-                acumulado += comp;
-            });
+            }
+            const colocar = (alvos, invertido) => {
+                let acumulado = 0;
+                let k = 0;
+                linha.forEachSegment((a, b) => {
+                    if (k >= alvos.length) return;
+                    const dx = b[0] - a[0];
+                    const dy = b[1] - a[1];
+                    const comp = Math.hypot(dx, dy);
+                    if (comp === 0) return;
+                    const rot = Math.atan2(dx, dy) + (invertido ? Math.PI : 0);
+                    const off = invertido ? -desloc : desloc;
+                    const ux = (dx / comp) * off;
+                    const uy = (dy / comp) * off;
+                    while (k < alvos.length && alvos[k] <= acumulado + comp) {
+                        const t = (alvos[k] - acumulado) / comp;
+                        estilos.push(
+                            new ol.style.Style({
+                                geometry: new ol.geom.Point([a[0] + dx * t + ux, a[1] + dy * t + uy]),
+                                image: mobSetaImagem(cfg.raio, rot, cfg.cor, cfg.contorno, cfg.escala),
+                                zIndex: cfg.zIndex,
+                            }),
+                        );
+                        k++;
+                    }
+                    acumulado += comp;
+                });
+            };
+            colocar(alvosF, false);
+            if (alvosB) colocar(alvosB, true);
         });
         return estilos;
     }
-    // Loop do simulador (~30 fps): avança a fase e re-renderiza SÓ a camada de trechos
+    // Vias urbanas: setas do FLUXO (duplo = mão dupla — marcador ⬌ é o dobro
+    // de largo, então espaça o dobro para não virar "gravata" contínua)
+    function mobSetasSentido(feature, resolution, duplo) {
+        const zoom = view.getZoomForResolution(resolution);
+        return mobSetasAoLongo(feature, resolution, {
+            passo: duplo ? MOB_SETA_PASSO * 2 : MOB_SETA_PASSO,
+            raio: Math.round(Math.max(8, Math.min(12, 8 + (zoom - 15.5) * 1.6))) - (duplo ? 1 : 0),
+            cor: "#ffffff",
+            contorno: "#111827",
+            escala: 1.4,
+            animado: !!window.mobFluxoSimulando,
+            duplo: !!duplo,
+            zIndex: 5,
+        });
+    }
+    // Trechos: tique discreto da direção do MAPEAMENTO (nunca anima, nunca vira)
+    function mobSetasDirecaoTrecho(feature, resolution) {
+        return mobSetasAoLongo(feature, resolution, {
+            passo: 110,
+            raio: 5,
+            cor: "#ffffff",
+            contorno: "#475569",
+            escala: 1.3,
+            animado: false,
+            duplo: false,
+            zIndex: 4,
+        });
+    }
+    // Loop do simulador (~30 fps): avança a fase e re-renderiza SÓ a camada de vias
     let mobFluxoUltimoTs = 0;
     function mobFluxoTick(ts) {
         if (!window.mobFluxoSimulando) return;
@@ -224,7 +272,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (dt < 33) return;
         mobFluxoUltimoTs = ts;
         window._mobFluxoFase = (window._mobFluxoFase + (dt / 1000) * MOB_FLUXO_VEL) % MOB_SETA_PASSO;
-        const camada = window.loadedLayers && window.loadedLayers["mob_trechos"];
+        const camada = window.loadedLayers && window.loadedLayers["mob_vias"];
         if (camada && camada.getVisible()) camada.changed();
     }
     window.addEventListener("sigweb-mob-fluxo-simular", (e) => {
@@ -235,10 +283,15 @@ document.addEventListener("DOMContentLoaded", function () {
         if (ligar) {
             requestAnimationFrame(mobFluxoTick);
         } else {
-            const camada = window.loadedLayers && window.loadedLayers["mob_trechos"];
+            const camada = window.loadedLayers && window.loadedLayers["mob_vias"];
             if (camada) camada.changed(); // volta ao padrão estático
         }
     });
+    // Cor da via urbana pelo sentido (visual PlanMob: azul mão única, vermelho mão dupla)
+    const MOB_VIA_CORES = { mao_unica: "#2563eb", mao_dupla: "#dc2626", nenhum: "#9ca3af" };
+    function mobViaCor(feature) {
+        return MOB_VIA_CORES[feature.get("sentido")] || MOB_VIA_CORES.nenhum;
+    }
 
     // 3. DEFINIÇÃO DOS MAPAS BASE (BASEMAPS)
     const azureKey = config.azureMapsKey || "";
@@ -690,19 +743,19 @@ document.addEventListener("DOMContentLoaded", function () {
         },
 
         // ══ MOBILIDADE URBANA (docs/piuma.txt, Onda 2) ══
+        // Trechos = LEVANTAMENTO: cor pelo tema "Colorir por"; a direção da linha
+        // é a do coletor (calçada D/E) → tique discreto sempre visível (zoom ≥ 16).
+        // Sentido de tráfego NÃO existe aqui (é da camada mob_vias, Onda 6).
         mob_trechos: {
             z: 53,
             minZoom: 12,
             style: function (feature, resolution) {
                 const zoom = view.getZoomForResolution(resolution);
                 const cor = mobTrechoCor(feature);
-                const sentido = feature.get("sentido");
                 const principal = new ol.style.Style({
                     stroke: new ol.style.Stroke({
                         color: cor,
                         width: zoom >= 16 ? 5 : 3.5,
-                        // Não classificado = tracejado (chama a classificação da Onda 4)
-                        lineDash: sentido ? undefined : [6, 5],
                     }),
                 });
                 if (zoom >= 17.5) {
@@ -718,8 +771,47 @@ document.addEventListener("DOMContentLoaded", function () {
                     );
                 }
                 const estilos = [principal];
-                if (sentido === "mao_unica" && zoom >= 15.5) {
-                    estilos.push(...mobSetasSentido(feature, resolution));
+                if (zoom >= 16) {
+                    estilos.push(...mobSetasDirecaoTrecho(feature, resolution));
+                }
+                return estilos;
+            },
+        },
+
+        // Vias urbanas = FLUXO (piuma.txt Onda 6, visual PlanMob): azul mão única
+        // com setas no sentido, vermelho mão dupla com setas nas duas pontas,
+        // cinza tracejado sem classificação. Simulador de fluxo anima as setas.
+        mob_vias: {
+            z: 54,
+            minZoom: 12,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const sentido = feature.get("sentido");
+                const principal = new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: mobViaCor(feature),
+                        width: zoom >= 16 ? 5 : 3.5,
+                        lineDash: sentido ? undefined : [6, 5],
+                    }),
+                });
+                if (zoom >= 17.5 && feature.get("nome")) {
+                    principal.setText(
+                        new ol.style.Text({
+                            text: String(feature.get("nome")),
+                            font: "bold 10px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: "#1e3a8a" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            placement: "line",
+                            overflow: true,
+                        }),
+                    );
+                }
+                const estilos = [principal];
+                // Mão única: setas desde o zoom 15.5 (a direção é a informação).
+                // Mão dupla: o vermelho já diz "dois sentidos" — o marcador ⬌ só
+                // entra no zoom 16.5+ (na cidade inteira virava uma trama de gravatas).
+                if ((sentido === "mao_unica" && zoom >= 15.5) || (sentido === "mao_dupla" && zoom >= 16.5)) {
+                    estilos.push(...mobSetasSentido(feature, resolution, sentido === "mao_dupla"));
                 }
                 return estilos;
             },
@@ -2382,6 +2474,7 @@ document.addEventListener("DOMContentLoaded", function () {
             "face_quadra",
             "secoes_logradouro",
             "mob_trechos",
+            "mob_vias",
             "mob_sinalizacoes",
             "mob_pontos_interesse",
             "mob_eixos",
@@ -2589,12 +2682,29 @@ document.addEventListener("DOMContentLoaded", function () {
                             stroke: new ol.style.Stroke({ color: mobTrechoCor(feature), width: 5.5 }),
                         }),
                     ]);
-                    const sentidoMob = feature.get("sentido");
                     const extMob = feature.get("extensao_geo");
                     detalheMob =
-                        (sentidoMob === "mao_unica" ? "Mão única" : sentidoMob === "mao_dupla" ? "Mão dupla" : "Sentido não classificado") +
+                        "Trecho do levantamento — seta = direção do mapeamento (calçada D/E)" +
                         (feature.get("tipo_de_pavimentacao") ? "<br>" + feature.get("tipo_de_pavimentacao") : "") +
                         (extMob ? "<br><em>" + Number(extMob).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " m</em>" : "");
+                } else if (layer === "mob_vias") {
+                    feature.setStyle([
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 9 }),
+                        }),
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: mobViaCor(feature), width: 5.5 }),
+                        }),
+                    ]);
+                    const sentidoVia = feature.get("sentido");
+                    const extVia = feature.get("extensao_geo");
+                    detalheMob =
+                        (sentidoVia === "mao_unica"
+                            ? "Mão única — fluxo no sentido das setas"
+                            : sentidoVia === "mao_dupla"
+                              ? "Mão dupla"
+                              : "Sentido não classificado") +
+                        (extVia ? "<br><em>" + Number(extVia).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " m</em>" : "");
                 } else if (layer === "mob_eixos") {
                     feature.setStyle([
                         new ol.style.Style({
@@ -3338,16 +3448,17 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        // 🚦 CLASSIFICAÇÃO EM MASSA DE SENTIDO (Mobilidade — piuma.txt Onda 4):
-        // com a caneta armada, o clique num trecho aplica a ação na hora
-        // (mão única / mão dupla / inverter) — 612 trechos em minutos.
+        // 🚦 CLASSIFICAÇÃO EM MASSA DE SENTIDO (Mobilidade — piuma.txt Onda 4/6):
+        // com a caneta armada, o clique numa VIA URBANA aplica a ação na hora
+        // (mão única / mão dupla / inverter) — 612 vias em minutos. Trechos de
+        // levantamento ficam de fora (a direção deles nunca muda).
         if (window.mobSentidoPen) {
-            const alvoTrecho = map
+            const alvoVia = map
                 .getFeaturesAtPixel(evt.pixel, { hitTolerance: 6 })
-                ?.find((f) => f.get("layer") === "mob_trechos");
-            if (alvoTrecho) {
-                Livewire.dispatch("aplicarSentidoTrecho", {
-                    id: alvoTrecho.get("id"),
+                ?.find((f) => f.get("layer") === "mob_vias");
+            if (alvoVia) {
+                Livewire.dispatch("aplicarSentidoVia", {
+                    id: alvoVia.get("id"),
                     acao: window.mobSentidoPen,
                 });
             }
@@ -4139,6 +4250,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "meio_fios",
                 "face_quadra", // linha da face (PGV) — acima da quadra que a contém
                 "secoes_logradouro",
+                "mob_vias", // via por cima do trecho (mesma geometria em Piúma) — clique abre a via quando as duas estão ligadas
                 "mob_trechos",
                 "mob_eixos",
                 "mob_fluxos",
@@ -4263,6 +4375,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         break; // 👈 ADICIONE ESTA LINHA
                     case "mob_trechos":
                         Livewire.dispatch("abrirOpcoesMobTrecho", { id: id });
+                        break;
+                    case "mob_vias":
+                        Livewire.dispatch("abrirOpcoesMobVia", { id: id });
                         break;
                     case "mob_sinalizacoes":
                         Livewire.dispatch("abrirOpcoesMobSinalizacao", { id: id });
@@ -4621,6 +4736,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "secao_logradouro",
                 "testada",
                 "mob_trecho",
+                "mob_via",
                 "mob_eixo",
                 "mob_fluxo",
             ].includes(entityType)
@@ -4831,9 +4947,10 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    // ── CIRURGIA EM MEMÓRIA: MOBILIDADE URBANA (6 camadas, registradas em loop) ──
+    // ── CIRURGIA EM MEMÓRIA: MOBILIDADE URBANA (8 camadas, registradas em loop) ──
     [
         "mob_trechos",
+        "mob_vias",
         "mob_sinalizacoes",
         "mob_pontos_interesse",
         "mob_eixos",
@@ -5271,6 +5388,11 @@ document.addEventListener("DOMContentLoaded", function () {
             cor: "#0ea5e9",
         },
         {
+            evento: "iniciar-edicao-geometria-mob_via",
+            layer: "mob_vias",
+            cor: "#2563eb",
+        },
+        {
             evento: "iniciar-edicao-geometria-mob_sinalizacao",
             layer: "mob_sinalizacoes",
             cor: "#ef4444",
@@ -5484,6 +5606,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     "rural-pontes": "rural_ponte",
                     "rural-pontos-interesse": "rural_ponto_interesse",
                     mob_trechos: "mob_trecho",
+                    mob_vias: "mob_via",
                     mob_sinalizacoes: "mob_sinalizacao",
                     mob_pontos_interesse: "mob_ponto_interesse",
                     mob_eixos: "mob_eixo",
@@ -5584,6 +5707,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             else if (layerName === "mob_trechos")
                 Livewire.dispatch("salvarNovaGeometriaMobTrecho", {
+                    id: id,
+                    geoJson: geoJson,
+                });
+            else if (layerName === "mob_vias")
+                Livewire.dispatch("salvarNovaGeometriaMobVia", {
                     id: id,
                     geoJson: geoJson,
                 });
@@ -6538,6 +6666,7 @@ document.addEventListener("DOMContentLoaded", function () {
             meio_fios: { label: "do novo Meio-fio / Calçada", func: "meio_fio" },
             secoes_logradouro: { label: "da nova Seção de Logradouro", func: "secao_logradouro" },
             mob_trechos: { label: "do novo Trecho Viário", func: "mob_trecho" },
+            mob_vias: { label: "da nova Via Urbana", func: "mob_via" },
             mob_sinalizacoes: { label: "da nova Sinalização", func: "mob_sinalizacao" },
             mob_pontos_interesse: { label: "do novo Ponto de Interesse", func: "mob_ponto_interesse" },
             mob_eixos: { label: "do novo Eixo de Mobilidade", func: "mob_eixo" },

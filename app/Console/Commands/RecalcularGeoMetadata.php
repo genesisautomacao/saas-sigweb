@@ -10,7 +10,7 @@ class RecalcularGeoMetadata extends Command
 {
     protected $signature = 'gis:recalcular-metadata
                             {--tenant= : Slug do município. Se omitido, roda em todos.}
-                            {--entidade= : Nome da entidade (perimetros_urbanos, zonas, bairros, loteamentos, quadras, lotes, logradouros, secoes_logradouro, meio_fios, mob_trechos, mob_eixos, mob_zonas). Se omitido, roda em todos.}
+                            {--entidade= : Nome da entidade (perimetros_urbanos, zonas, bairros, loteamentos, quadras, lotes, logradouros, secoes_logradouro, meio_fios, mob_trechos, mob_vias, mob_eixos, mob_zonas). Se omitido, roda em todos.}
                             {--force : Recalcula mesmo registros que já têm valor (sobrescreve).}';
 
     protected $description = 'Calcula area_geo (polígonos) e extensao_geo (linhas) via PostGIS para registros sem valor.';
@@ -19,31 +19,33 @@ class RecalcularGeoMetadata extends Command
      * Mapa de entidades suportadas: tabela → [coluna, função PostGIS].
      */
     private const ENTIDADES = [
-        'perimetros_urbanos'  => ['area_geo',     'ST_Area'],
-        'zonas'               => ['area_geo',     'ST_Area'],
-        'bairros'             => ['area_geo',     'ST_Area'],
-        'loteamentos'         => ['area_geo',     'ST_Area'],
-        'quadras'             => ['area_geo',     'ST_Area'],
-        'lotes'               => ['area_geo',     'ST_Area'],
-        'logradouros'         => ['extensao_geo', 'ST_Length'],
-        'secoes_logradouro'   => ['extensao_geo', 'ST_Length'],
-        'meio_fios'           => ['extensao_geo', 'ST_Length'],
+        'perimetros_urbanos' => ['area_geo',     'ST_Area'],
+        'zonas' => ['area_geo',     'ST_Area'],
+        'bairros' => ['area_geo',     'ST_Area'],
+        'loteamentos' => ['area_geo',     'ST_Area'],
+        'quadras' => ['area_geo',     'ST_Area'],
+        'lotes' => ['area_geo',     'ST_Area'],
+        'logradouros' => ['extensao_geo', 'ST_Length'],
+        'secoes_logradouro' => ['extensao_geo', 'ST_Length'],
+        'meio_fios' => ['extensao_geo', 'ST_Length'],
         // Módulo Mobilidade Urbana (docs/piuma.txt)
-        'mob_trechos'         => ['extensao_geo', 'ST_Length'],
-        'mob_eixos'           => ['extensao_geo', 'ST_Length'],
-        'mob_zonas'           => ['area_geo',     'ST_Area'],
+        'mob_trechos' => ['extensao_geo', 'ST_Length'],
+        'mob_vias' => ['extensao_geo', 'ST_Length'],
+        'mob_eixos' => ['extensao_geo', 'ST_Length'],
+        'mob_zonas' => ['area_geo',     'ST_Area'],
     ];
 
     public function handle(): int
     {
-        $tenantSlug    = $this->option('tenant');
-        $entidadeOpt   = $this->option('entidade');
-        $force         = (bool) $this->option('force');
+        $tenantSlug = $this->option('tenant');
+        $entidadeOpt = $this->option('entidade');
+        $force = (bool) $this->option('force');
 
         // Validação de --entidade
-        if ($entidadeOpt && !isset(self::ENTIDADES[$entidadeOpt])) {
+        if ($entidadeOpt && ! isset(self::ENTIDADES[$entidadeOpt])) {
             $this->error("Entidade desconhecida: {$entidadeOpt}");
-            $this->line('Entidades válidas: ' . implode(', ', array_keys(self::ENTIDADES)));
+            $this->line('Entidades válidas: '.implode(', ', array_keys(self::ENTIDADES)));
+
             return self::FAILURE;
         }
 
@@ -51,8 +53,9 @@ class RecalcularGeoMetadata extends Command
         $tenantId = null;
         if ($tenantSlug) {
             $tenant = Tenant::where('slug', $tenantSlug)->first();
-            if (!$tenant) {
+            if (! $tenant) {
                 $this->error("Tenant '{$tenantSlug}' não encontrado.");
+
                 return self::FAILURE;
             }
             $tenantId = $tenant->id;
@@ -78,7 +81,7 @@ class RecalcularGeoMetadata extends Command
                     SET {$coluna} = {$fn}(geo::geography)
                     WHERE geo IS NOT NULL";
 
-            if (!$force) {
+            if (! $force) {
                 $sql .= " AND {$coluna} IS NULL";
             }
 
@@ -98,19 +101,23 @@ class RecalcularGeoMetadata extends Command
                     $affected
                 ));
             } catch (\Throwable $e) {
-                $this->error("  {$tabela}: ERRO — " . $e->getMessage());
+                $this->error("  {$tabela}: ERRO — ".$e->getMessage());
             }
         }
 
-        // Mobilidade: azimute do trecho (0–360°, 1º→último vértice) anda junto
-        // com a extensão — mesma política NULL-only / --force (docs/piuma.txt §3.c).
-        if (isset($alvos['mob_trechos'])) {
-            $sql = 'UPDATE mob_trechos
+        // Mobilidade: azimute (0–360°, 1º→último vértice) anda junto com a
+        // extensão — mesma política NULL-only / --force (docs/piuma.txt §3.c).
+        // Trecho = direção do mapeamento; via = direção do fluxo (Onda 6).
+        foreach (['mob_trechos', 'mob_vias'] as $tabelaMob) {
+            if (! isset($alvos[$tabelaMob])) {
+                continue;
+            }
+            $sql = "UPDATE {$tabelaMob}
                     SET azimute = degrees(ST_Azimuth(
                         ST_StartPoint(ST_GeometryN(geo, 1)),
                         ST_EndPoint(ST_GeometryN(geo, ST_NumGeometries(geo)))
                     ))
-                    WHERE geo IS NOT NULL';
+                    WHERE geo IS NOT NULL";
 
             if (! $force) {
                 $sql .= ' AND azimute IS NULL';
@@ -125,9 +132,9 @@ class RecalcularGeoMetadata extends Command
             try {
                 $affected = DB::update($sql, $bindings);
                 $totalGeral += $affected;
-                $this->line(sprintf('  %s → %s: %d linha(s) atualizadas', str_pad('mob_trechos', 22), 'azimute', $affected));
+                $this->line(sprintf('  %s → %s: %d linha(s) atualizadas', str_pad($tabelaMob, 22), 'azimute', $affected));
             } catch (\Throwable $e) {
-                $this->error('  mob_trechos (azimute): ERRO — '.$e->getMessage());
+                $this->error("  {$tabelaMob} (azimute): ERRO — ".$e->getMessage());
             }
         }
 

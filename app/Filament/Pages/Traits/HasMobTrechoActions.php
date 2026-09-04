@@ -12,9 +12,10 @@ use Illuminate\Support\HtmlString;
 use Livewire\Attributes\On;
 
 /**
- * Trecho viário no mapa (Mobilidade Urbana — docs/piuma.txt §3, Onda 2).
- * Direção = ordem dos vértices (o desenho define o sentido); azimute é
- * calculado; "Inverter Sentido" = ST_Reverse + redesenho das setas.
+ * Trecho viário no mapa (Mobilidade Urbana — docs/piuma.txt §3, Onda 2/6).
+ * Direção = ordem dos vértices = direção do MAPEAMENTO (define calçada
+ * direita/esquerda) — por isso NÃO há "Inverter Sentido" nem sentido de
+ * tráfego aqui: o fluxo mora na Via Urbana (HasMobViaActions).
  */
 trait HasMobTrechoActions
 {
@@ -48,7 +49,7 @@ trait HasMobTrechoActions
             'layer' => 'mob_trechos',
             'name' => 'Trecho #'.$t->sequential_id,
             'sequential_id' => $t->sequential_id,
-            'sentido' => $t->sentido,
+            'via_id' => $t->via_id,
             'azimute' => $t->azimute,
             'extensao_geo' => $t->extensao_geo !== null ? (float) $t->extensao_geo : null,
             'tipologia_da_via' => $t->tipologia_da_via,
@@ -63,12 +64,6 @@ trait HasMobTrechoActions
     protected function mobTrechoFormulario(): array
     {
         return [
-            Select::make('sentido')
-                ->label('Sentido da via')
-                ->options(MobTrecho::SENTIDOS)
-                ->placeholder('Não classificado')
-                ->helperText('Mão única: o fluxo segue a DIREÇÃO DO DESENHO da linha (setas no mapa). Use "Inverter Sentido" se a via andar ao contrário.')
-                ->nullable(),
             $this->mobTrechoSelect('tipologia_da_via', 'Tipologia da via'),
             $this->mobTrechoSelect('tipo_de_pavimentacao', 'Pavimentação'),
             $this->mobTrechoSelect('estado_conservacao_pavimentacao', 'Estado da pavimentação'),
@@ -95,7 +90,7 @@ trait HasMobTrechoActions
                     ->label('Extensão calculada')
                     ->content(fn (): HtmlString => new HtmlString(
                         $this->mobExtensaoCalculada !== null
-                            ? '<strong style="font-size:14px;color:#0369a1;">'.number_format($this->mobExtensaoCalculada, 2, ',', '.').' m</strong> — a direção do desenho define o sentido'
+                            ? '<strong style="font-size:14px;color:#0369a1;">'.number_format($this->mobExtensaoCalculada, 2, ',', '.').' m</strong> — a direção do desenho = direção do mapeamento (calçada direita/esquerda)'
                             : '<em style="color:#9ca3af;">Sem geometria — desenhe a linha no mapa primeiro.</em>'
                     )),
                 ...$this->mobTrechoFormulario(),
@@ -134,7 +129,6 @@ trait HasMobTrechoActions
                 $t = MobTrecho::withoutGlobalScopes()->find($this->mobTrechoAtivoId);
 
                 return [
-                    'sentido' => $t?->sentido,
                     'tipologia_da_via' => $t?->tipologia_da_via,
                     'tipo_de_pavimentacao' => $t?->tipo_de_pavimentacao,
                     'estado_conservacao_pavimentacao' => $t?->estado_conservacao_pavimentacao,
@@ -151,8 +145,12 @@ trait HasMobTrechoActions
                         $t = MobTrecho::withoutGlobalScopes()->find($this->mobTrechoAtivoId);
                         $ext = $t?->extensao_geo !== null ? number_format((float) $t->extensao_geo, 2, ',', '.').' m' : '—';
                         $azi = $t?->azimute !== null ? number_format((float) $t->azimute, 1, ',', '.').'°' : '—';
+                        $via = $t?->via_id ? $t->via()->withoutGlobalScopes()->first() : null;
+                        $viaTxt = $via
+                            ? ' · via urbana: <strong>'.e($via->rotulo()).'</strong> ('.(\App\Models\MobVia::SENTIDOS[$via->sentido] ?? 'sentido não classificado').')'
+                            : ' · sem via urbana vinculada';
 
-                        return new HtmlString("<strong style=\"color:#0369a1;\">{$ext}</strong> · azimute {$azi} <span style=\"color:#9ca3af;\">(calculado da geometria)</span>");
+                        return new HtmlString("<strong style=\"color:#0369a1;\">{$ext}</strong> · azimute {$azi} <span style=\"color:#9ca3af;\">(direção do mapeamento — calçada direita/esquerda; a linha do trecho nunca é invertida){$viaTxt}</span>");
                     }),
                 ...$this->mobTrechoFormulario(),
             ])
@@ -168,29 +166,6 @@ trait HasMobTrechoActions
                 $this->dispatch('atualizar-mob_trechos-mapa', $this->mobTrechoPayload($t));
             })
             ->extraModalFooterActions([
-                Action::make('inverter_sentido_mob_trecho')
-                    ->label('Inverter Sentido')
-                    ->color('info')
-                    ->icon('heroicon-o-arrows-right-left')
-                    ->action(function () {
-                        $t = MobTrecho::withoutGlobalScopes()->find($this->mobTrechoAtivoId);
-                        if (! $t) {
-                            return;
-                        }
-                        $t->inverterDirecao();
-                        $t->refresh();
-
-                        Notification::make()->title('Sentido invertido!')
-                            ->body('A direção da linha foi revertida — as setas seguem o novo fluxo.')
-                            ->success()->send();
-
-                        // geo junto: o engine troca a geometria e redesenha as setas
-                        $this->dispatch('atualizar-mob_trechos-mapa', array_merge(
-                            $this->mobTrechoPayload($t),
-                            ['geo' => $t->geo_json],
-                        ));
-                        $this->dispatch('fechar-modal-filament');
-                    }),
                 Action::make('editar_geo_mob_trecho')
                     ->label('Geometria')
                     ->color('warning')
@@ -220,41 +195,6 @@ trait HasMobTrechoActions
         $this->mountAction('opcoesMobTrecho');
     }
 
-    /**
-     * Caneta de classificação em massa (piuma.txt Onda 4): clique no trecho
-     * aplica a ação armada. Sem notificação por clique — o feedback é visual
-     * (tracejado → setas) + contador "sem sentido" no painel.
-     */
-    #[On('aplicarSentidoTrecho')]
-    public function aplicarSentidoTrecho($id, $acao): void
-    {
-        $t = MobTrecho::withoutGlobalScopes()->where('tenant_id', $this->tenantId)->find($id);
-        if (! $t) {
-            return;
-        }
-
-        $extra = [];
-        if ($acao === 'inverter') {
-            $t->update(['sentido' => 'mao_unica']);
-            $t->inverterDirecao();
-            $t->refresh();
-            $extra = ['geo' => $t->geo_json]; // engine troca a geometria (setas viram)
-        } elseif (in_array($acao, ['mao_unica', 'mao_dupla'], true)) {
-            $t->update(['sentido' => $acao]);
-            $t->refresh();
-        } else {
-            return;
-        }
-
-        $this->dispatch('atualizar-mob_trechos-mapa', array_merge($this->mobTrechoPayload($t), $extra));
-
-        $restantes = MobTrecho::withoutGlobalScopes()
-            ->where('tenant_id', $this->tenantId)
-            ->whereNull('sentido')
-            ->count();
-        $this->dispatch('sigweb-mob-sentido-restantes', restantes: $restantes);
-    }
-
     #[On('salvarNovaGeometriaMobTrecho')]
     public function salvarNovaGeometriaMobTrecho($id, $geoJson): void
     {
@@ -267,6 +207,9 @@ trait HasMobTrechoActions
         $t->refresh();
 
         Notification::make()->title('Geometria do trecho atualizada!')->success()->send();
-        $this->dispatch('atualizar-mob_trechos-mapa', $this->mobTrechoPayload($t));
+        $this->dispatch('atualizar-mob_trechos-mapa', array_merge(
+            $this->mobTrechoPayload($t),
+            ['geo' => $t->geo_json], // setas de direção acompanham a nova linha
+        ));
     }
 }

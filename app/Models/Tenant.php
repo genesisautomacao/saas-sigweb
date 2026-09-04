@@ -164,6 +164,11 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(MobTrecho::class);
     }
 
+    public function mobVias(): HasMany
+    {
+        return $this->hasMany(MobVia::class);
+    }
+
     public function mobSinalizacoes(): HasMany
     {
         return $this->hasMany(MobSinalizacao::class);

@@ -570,7 +570,13 @@
                                             @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-sky-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-arrow-long-right class="w-4 h-4 text-sky-500" />
-                                            Trecho Viário (a direção do desenho = sentido)
+                                            Trecho Viário (levantamento — desenho = direção do mapeamento)
+                                        </button>
+                                        <button type="button" onclick="enableDrawing('mob_via')"
+                                            @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-sky-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-arrows-right-left class="w-4 h-4 text-blue-600" />
+                                            Via Urbana (fluxo — desenho = sentido)
                                         </button>
                                         <button type="button" onclick="enableDrawing('mob_sinalizacao')"
                                             @click="openDraw = false"
@@ -766,7 +772,7 @@
                                     @if ($temMobilidade)
                                     <button @click="openTools = false; window.dispatchEvent(new Event('abrir-mob-sentido-panel'))"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
-                                        <x-heroicon-o-arrows-right-left class="w-4 h-4 text-blue-500" /> Classificar Sentidos (Trechos)
+                                        <x-heroicon-o-arrows-right-left class="w-4 h-4 text-blue-500" /> Classificar Sentidos (Vias Urbanas)
                                     </button>
                                     @endif
 
@@ -1211,7 +1217,8 @@
             </button>
         </div>
 
-        {{-- BARRA: CLASSIFICAR SENTIDOS DOS TRECHOS (Mobilidade — piuma.txt Onda 4)
+        {{-- BARRA: CLASSIFICAR SENTIDOS DAS VIAS URBANAS (Mobilidade — piuma.txt Onda 4/6)
+             Atua na camada mob_vias (o trecho de levantamento nunca muda de direção).
              Discreta, rodapé centralizado; x-teleport pro body garante o `fixed`
              correto mesmo dentro de ancestrais com transform.
              ⚠️ Posicionamento e cores de destaque em STYLE INLINE: a página usa só o
@@ -1229,7 +1236,7 @@
                         });
                     },
                     contar() {
-                        const camada = window.loadedLayers && window.loadedLayers['mob_trechos'];
+                        const camada = window.loadedLayers && window.loadedLayers['mob_vias'];
                         this.restantes = camada
                             ? camada.getSource().getFeatures().filter(f => !f.get('sentido')).length
                             : null;
@@ -1248,11 +1255,11 @@
                     <div x-show="aberto" x-cloak
                         style="display:none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; box-shadow: 0 20px 40px -12px rgba(0,0,0,.35);"
                         class="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 px-4 py-2"
-                        title="Ligue a camada Trechos Viários, escolha a caneta e clique nos trechos. Tracejado = ainda sem sentido.">
+                        title="Ligue a camada Vias Urbanas, escolha a caneta e clique nas vias. Azul = mão única, vermelho = mão dupla, cinza tracejado = ainda sem sentido.">
 
-                        <span class="text-xs font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap">🚦 Sentidos</span>
+                        <span class="text-xs font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap">🚦 Sentido das vias</span>
 
-                        <button @click="armar('mao_unica')" title="Mão única — o fluxo segue a direção do desenho da linha"
+                        <button @click="armar('mao_unica')" title="Mão única — o fluxo segue a direção do desenho da via"
                             :style="pen === 'mao_unica' ? 'box-shadow: 0 0 0 2px #0ea5e9; background: #f0f9ff; color: #0369a1;' : ''"
                             class="px-3 py-1 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 transition-all whitespace-nowrap">
                             ➡️ Mão única
@@ -2103,10 +2110,31 @@
                                         @endforeach
                                     </select>
                                     <div id="mob-trecho-legenda" class="mt-1 leading-tight text-gray-700 dark:text-gray-300"></div>
-                                    <p class="text-[10px] text-gray-400 mt-1">Setas = mão única (direção da via). Tracejado = sentido não classificado.</p>
+                                    <p class="text-[10px] text-gray-400 mt-1">Tiques cinzas = direção do mapeamento (define calçada direita/esquerda). O sentido de tráfego fica na camada Vias Urbanas.</p>
+                                </div>
+                            </div>
+
+                            {{-- VIAS URBANAS (Onda 6): camada mob_vias = o FLUXO — sentido (mão única/dupla)
+                                 + direção (ordem dos vértices). Caneta "Classificar Sentidos", "Inverter" e o
+                                 simulador de fluxo atuam AQUI (nunca no trecho de levantamento). --}}
+                            <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                                <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                    <input type="checkbox" data-layer="mob_vias"
+                                        class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-600 w-4 h-4 flex-shrink-0">
+                                    <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                        <div class="w-3 h-1 bg-blue-600 rounded flex-shrink-0"></div>
+                                        <span class="layer-text truncate">Vias Urbanas (sentido)</span>
+                                    </span>
+                                </label>
+                                <div class="mt-2 ps-7">
+                                    <p class="text-[10px] text-gray-400 leading-tight">
+                                        <span style="color:#2563eb; font-weight:700;">&#9644;</span> mão única (setas = fluxo) ·
+                                        <span style="color:#dc2626; font-weight:700;">&#9644;</span> mão dupla ·
+                                        <span style="color:#9ca3af; font-weight:700;">&#9476;</span> sem classificação
+                                    </p>
                                     {{-- Simulador de fluxo: anima as setas no sentido da via (só visual; engine: sigweb-mob-fluxo-simular) --}}
                                     <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-600 dark:text-gray-400 mt-1"
-                                        title="Anima as setas das vias de mão única no sentido do fluxo. Só visual, não altera dados.">
+                                        title="Anima as setas das vias no sentido do fluxo (mão dupla anda nos dois sentidos). Só visual, não altera dados.">
                                         <input type="checkbox" id="mob-fluxo-simular" class="rounded border-gray-300 w-3.5 h-3.5"
                                             onchange="window.dispatchEvent(new CustomEvent('sigweb-mob-fluxo-simular', { detail: { ligado: this.checked } }))">
                                         ▶ Simular fluxo (animar setas)

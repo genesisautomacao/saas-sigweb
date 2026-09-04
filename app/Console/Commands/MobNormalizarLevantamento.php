@@ -162,6 +162,8 @@ class MobNormalizarLevantamento extends Command
 
         $naoCasados = [];
         $out = [];
+        $vias = [];
+        $viasComSentido = 0;
         foreach ($json['features'] as $f) {
             $p = (array) $f['properties'];
 
@@ -171,6 +173,21 @@ class MobNormalizarLevantamento extends Command
                 unset($p['estado_conservacao_calcada_esuqerdo']);
             }
             unset($p['name']); // é só um número; a referência do trecho é o sequential_id
+
+            // Onda 6: o SENTIDO (coluna do GEO no trechos.json) não é do trecho —
+            // vira a Via Urbana 1:1 (mesmo id, mesma geometria); ausente/inválido =
+            // mão dupla (maioria em Piúma; a equipe da mobilidade peneira no mapa).
+            $sentidoVia = in_array($p['sentido'] ?? null, ['mao_unica', 'mao_dupla'], true) ? $p['sentido'] : 'mao_dupla';
+            if (isset($p['sentido']) && $sentidoVia === $p['sentido']) {
+                $viasComSentido++;
+            }
+            unset($p['sentido']);
+            $p['via_id'] = $p['id'] ?? null; // trecho → via de mesmo número (importar vias ANTES)
+            $vias[] = [
+                'type' => 'Feature',
+                'properties' => ['id' => $p['id'] ?? null, 'nome' => null, 'sentido' => $sentidoVia],
+                'geometry' => $f['geometry'],
+            ];
 
             foreach ($p as $chave => $valor) {
                 if (! is_string($valor) || $valor === '') {
@@ -190,7 +207,9 @@ class MobNormalizarLevantamento extends Command
         }
 
         $this->gravar($saida, 'mob_trechos.json', $out);
-        $this->relatorio[] = 'mob_trechos.json: '.count($out).' trechos (26 atributos; sentido = null p/ classificar na Onda 4)';
+        $this->relatorio[] = 'mob_trechos.json: '.count($out).' trechos (26 atributos; direção = mapeamento; via_id = id)';
+        $this->gravar($saida, 'mob_vias.json', $vias);
+        $this->relatorio[] = 'mob_vias.json: '.count($vias).' vias 1:1 com os trechos ('.$viasComSentido.' com sentido informado; demais = mao_dupla) — importar ANTES dos trechos';
         foreach (array_slice(array_keys($naoCasados), 0, 15) as $nc) {
             $this->relatorio[] = "    ⚠ valor fora das opções do kit: {$nc}";
         }

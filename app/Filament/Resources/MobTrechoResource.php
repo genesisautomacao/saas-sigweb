@@ -15,8 +15,9 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Trechos viários (Mobilidade Urbana — docs/piuma.txt, Onda 3).
- * CRUD modal; geometria/sentido são editados no MAPA (a direção é a ordem
- * dos vértices — aqui só os dados tabulares).
+ * CRUD modal; geometria é editada no MAPA (a direção é a ordem dos vértices =
+ * direção do mapeamento — aqui só os dados tabulares). Sentido de tráfego é
+ * da Via Urbana (MobViaResource), não do trecho.
  */
 class MobTrechoResource extends Resource
 {
@@ -39,6 +40,11 @@ class MobTrechoResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Trechos Viários';
 
+    protected static function rotuloVia(\App\Models\MobVia $v): string
+    {
+        return $v->rotulo().($v->sentido ? ' — '.(\App\Models\MobVia::SENTIDOS[$v->sentido] ?? $v->sentido) : ' — sentido não classificado');
+    }
+
     protected static function selectVocabulario(string $campo, string $label): Forms\Components\Select
     {
         return Forms\Components\Select::make($campo)
@@ -53,11 +59,18 @@ class MobTrechoResource extends Resource
         return $form->schema([
             Forms\Components\Section::make('Via')->schema([
                 static::campoCoordenada('mob_trechos'),
-                Forms\Components\Select::make('sentido')
-                    ->label('Sentido')
-                    ->options(MobTrecho::SENTIDOS)
-                    ->placeholder('Não classificado')
-                    ->helperText('Mão única segue a direção do desenho da linha (inverter/desenhar: no mapa).')
+                Forms\Components\Select::make('via_id')
+                    ->label('Via urbana (fluxo)')
+                    ->options(fn () => \App\Models\MobVia::query()->orderBy('sequential_id')->limit(500)->get()
+                        ->mapWithKeys(fn ($v) => [$v->id => static::rotuloVia($v)]))
+                    ->getOptionLabelUsing(fn ($value) => ($v = \App\Models\MobVia::find($value)) ? static::rotuloVia($v) : null)
+                    ->getSearchResultsUsing(fn (string $search) => \App\Models\MobVia::query()
+                        ->where(fn ($q) => $q->where('nome', 'ilike', "%{$search}%")
+                            ->orWhereRaw('CAST(sequential_id AS TEXT) LIKE ?', ["%{$search}%"]))
+                        ->orderBy('sequential_id')->limit(50)->get()
+                        ->mapWithKeys(fn ($v) => [$v->id => static::rotuloVia($v)]))
+                    ->searchable()
+                    ->helperText('Via de tráfego que este trecho de levantamento compõe (1:1 em Piúma).')
                     ->nullable(),
                 static::selectVocabulario('tipologia_da_via', 'Tipologia da via'),
                 static::selectVocabulario('classe_faixa_rodagem', 'Classe da faixa de rodagem'),
@@ -85,16 +98,11 @@ class MobTrechoResource extends Resource
             ->modifyQueryUsing(fn (Builder $query) => static::comCoordenada($query, 'mob_trechos'))
             ->columns([
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable()->searchable(),
-                Tables\Columns\TextColumn::make('sentido')
-                    ->label('Sentido')
-                    ->badge()
-                    ->formatStateUsing(fn (?string $state) => $state ? (MobTrecho::SENTIDOS[$state] ?? $state) : 'Não classificado')
-                    ->color(fn (?string $state) => match ($state) {
-                        'mao_unica' => 'info',
-                        'mao_dupla' => 'success',
-                        default => 'gray',
-                    })
-                    ->placeholder('Não classificado'),
+                Tables\Columns\TextColumn::make('via.sequential_id')
+                    ->label('Via')
+                    ->formatStateUsing(fn ($record) => $record->via?->rotulo())
+                    ->placeholder('—')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('tipologia_da_via')->label('Tipologia')->sortable()->placeholder('—'),
                 Tables\Columns\TextColumn::make('tipo_de_pavimentacao')->label('Pavimentação')->sortable()->placeholder('—'),
                 Tables\Columns\TextColumn::make('estado_conservacao_pavimentacao')->label('Estado')->sortable()->placeholder('—'),
@@ -113,16 +121,6 @@ class MobTrechoResource extends Resource
                 static::colunaCoordenada(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('sentido')
-                    ->label('Sentido')
-                    ->options(MobTrecho::SENTIDOS + ['nao_classificado' => 'Não classificado'])
-                    ->query(function ($query, array $data) {
-                        return match ($data['value'] ?? null) {
-                            'nao_classificado' => $query->whereNull('sentido'),
-                            null, '' => $query,
-                            default => $query->where('sentido', $data['value']),
-                        };
-                    }),
                 Tables\Filters\SelectFilter::make('tipologia_da_via')
                     ->label('Tipologia')
                     ->options(array_combine(MobTrecho::VOCABULARIOS['tipologia_da_via'], MobTrecho::VOCABULARIOS['tipologia_da_via'])),

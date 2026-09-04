@@ -7,6 +7,7 @@ use App\Models\MobEixo;
 use App\Models\MobFluxo;
 use App\Models\MobPontoInteresse;
 use App\Models\MobTrecho;
+use App\Models\MobVia;
 use App\Models\MobZona;
 use App\Services\Coleta\CampoCustomizadoService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -36,8 +37,8 @@ class MobilidadeExportService
                 'custom' => 'mob_trecho',
                 'colunas' => [
                     'ID' => fn (MobTrecho $r) => $r->sequential_id,
-                    'Sentido' => fn (MobTrecho $r) => $r->sentido ? (MobTrecho::SENTIDOS[$r->sentido] ?? $r->sentido) : 'Não classificado',
-                    'Azimute (°)' => fn (MobTrecho $r) => $r->azimute !== null ? number_format((float) $r->azimute, 1, ',', '.') : '-',
+                    'Via urbana' => fn (MobTrecho $r) => $r->via?->rotulo() ?? '-',
+                    'Azimute do mapeamento (°)' => fn (MobTrecho $r) => $r->azimute !== null ? number_format((float) $r->azimute, 1, ',', '.') : '-',
                     'Extensão (m)' => fn (MobTrecho $r) => $r->extensao_geo !== null ? number_format((float) $r->extensao_geo, 2, ',', '.') : '-',
                     'Tipologia da via' => fn (MobTrecho $r) => $r->tipologia_da_via ?? '-',
                     'Pavimentação' => fn (MobTrecho $r) => $r->tipo_de_pavimentacao ?? '-',
@@ -45,6 +46,20 @@ class MobilidadeExportService
                     'Classe da faixa' => fn (MobTrecho $r) => $r->classe_faixa_rodagem ?? '-',
                     'Largura da via' => fn (MobTrecho $r) => $r->dimensionamento_da_via ?? '-',
                     'Logradouro' => fn (MobTrecho $r) => $r->logradouro?->name ?? '-',
+                ],
+            ],
+            'mob_via' => [
+                'titulo' => 'Vias Urbanas — Mobilidade Urbana',
+                'arquivo' => 'mob-vias',
+                'xml_raiz' => 'vias_urbanas',
+                'xml_item' => 'via',
+                'colunas' => [
+                    'ID' => fn (MobVia $r) => $r->sequential_id,
+                    'Nome' => fn (MobVia $r) => $r->nome ?? '-',
+                    'Sentido' => fn (MobVia $r) => $r->sentido ? (MobVia::SENTIDOS[$r->sentido] ?? $r->sentido) : 'Não classificado',
+                    'Azimute (°)' => fn (MobVia $r) => $r->azimute !== null ? number_format((float) $r->azimute, 1, ',', '.') : '-',
+                    'Extensão (m)' => fn (MobVia $r) => $r->extensao_geo !== null ? number_format((float) $r->extensao_geo, 2, ',', '.') : '-',
+                    'Logradouro' => fn (MobVia $r) => $r->logradouro?->name ?? '-',
                 ],
             ],
             'mob_sinalizacao' => [

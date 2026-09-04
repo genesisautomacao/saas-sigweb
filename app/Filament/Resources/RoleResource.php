@@ -558,7 +558,8 @@ class RoleResource extends Resource
                                 Forms\Components\CheckboxList::make('permissions_mobilidade')
                                     ->label('Entidades da mobilidade urbana (permissão única por entidade)')
                                     ->options([
-                                        'gerenciar_mob_trechos' => 'Trechos Viários',
+                                        'gerenciar_mob_trechos' => 'Trechos Viários (levantamento)',
+                                        'gerenciar_mob_vias' => 'Vias Urbanas (sentido/fluxo)',
                                         'gerenciar_mob_sinalizacoes' => 'Sinalização Viária',
                                         'gerenciar_mob_tipos_sinalizacao' => 'Catálogo de Tipos de Sinalização',
                                         'gerenciar_mob_pontos_interesse' => 'Pontos de Interesse',
@@ -602,6 +603,7 @@ class RoleResource extends Resource
                                         'ver_camada_pontos_panoramicos' => 'Pontos Panorâmicos 360°',
                                         'ver_camada_toponimias' => 'Toponímias / Textos',
                                         'ver_camada_mob_trechos' => 'Mobilidade — Trechos Viários',
+                                        'ver_camada_mob_vias' => 'Mobilidade — Vias Urbanas (sentido)',
                                         'ver_camada_mob_sinalizacoes' => 'Mobilidade — Sinalização',
                                         'ver_camada_mob_pontos_interesse' => 'Mobilidade — Pontos de Interesse',
                                         'ver_camada_mob_eixos' => 'Mobilidade — Eixos (Ciclo/Carga/Rodovia)',

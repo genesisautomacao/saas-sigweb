@@ -262,6 +262,7 @@ class PermissionsSeeder extends Seeder
             /* Módulo Mobilidade Urbana (mob_infra — docs/piuma.txt, permissão
                única "gerenciar" por entidade, molde Estoque/PGV-Avaliação) */
             'gerenciar_mob_trechos',
+            'gerenciar_mob_vias',
             'gerenciar_mob_sinalizacoes',
             'gerenciar_mob_tipos_sinalizacao',
             'gerenciar_mob_pontos_interesse',
@@ -297,6 +298,7 @@ class PermissionsSeeder extends Seeder
 
             /* Camadas do Módulo Mobilidade Urbana */
             'ver_camada_mob_trechos',
+            'ver_camada_mob_vias',
             'ver_camada_mob_sinalizacoes',
             'ver_camada_mob_pontos_interesse',
             'ver_camada_mob_eixos',

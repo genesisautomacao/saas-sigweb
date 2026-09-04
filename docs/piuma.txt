@@ -328,6 +328,71 @@ não tem campo tabular de sentido. Modelo aprovado:
     ⏳ Câmeras RTSP da prefeitura (Intelbras/Hikvision): precisam de servidor
       de mídia (MediaMTX → HLS/WebRTC) numa caixa na rede da prefeitura
       publicando p/ a VPS — fora deste passo; o tipo "hls" já está pronto.
+  ONDA 6 — VIAS URBANAS (fluxo) × TRECHOS (levantamento) — concluída 2026-09-03 ✅
+    Reunião com a Dani (mobilidade): a DIREÇÃO do trecho (início→fim) é a
+    direção em que o coletor andou = define calçada DIREITA/ESQUERDA dos 26
+    atributos. Trecho NUNCA tem sentido de tráfego e sua geometria NUNCA pode
+    ser invertida (o ST_Reverse do "Inverter Sentido" trocaria as calçadas).
+    O fluxo pertence às VIAS. Decisão do usuário: tabela própria `mob_vias`
+    (em Piúma 1:1 com os trechos; em outro município a via pode ser a soma de
+    vários trechos — por isso NÃO é atributo do trecho).
+    ✔ Modelo: MobVia (mob_vias, MULTILINESTRING): nome nullable, sentido
+      [mao_unica|mao_dupla|null], azimute CALCULADO (direção = ordem dos
+      vértices; ST_Reverse permitido — é a geometria da via, não do trecho),
+      extensao_geo, logradouro_id nullable, dados_customizados. A FK fica no
+      TRECHO: `mob_trechos.via_id` (nullOnDelete) — decisão do usuário ("o
+      certo é o inverso": via não guarda trecho de origem; N trechos → 1 via).
+      A coluna `sentido` SAIU de mob_trechos (`azimute` fica = direção do
+      mapeamento). Migration 2026_09_03_200000_create_mob_vias_table.
+    ✔ Permissões PRÓPRIAS gerenciar_mob_vias + ver_camada_mob_vias (CAIXA
+      19c/20, EditRole, PermissionsSeeder, MobViaPolicy). Resource "Vias
+      Urbanas" (nome, sentido, logradouro, nº de trechos; filtro por sentido)
+      + export XLS/PDF/CSV/XML (spec mob_via). Trecho ganhou coluna/Select
+      "Via urbana" (busca por nome ou número).
+    ✔ Mapa: camada "Vias Urbanas (sentido)" no acordeon, visual PlanMob —
+      azul #2563eb mão única (setas brancas no sentido do fluxo), vermelho
+      #dc2626 mão dupla (setas nas DUAS pontas, ⬌), cinza tracejado sem
+      classificação. Caneta "Classificar Sentidos (Vias Urbanas)", "Inverter
+      Sentido" do modal, setas animadas e "Simular fluxo" MIGRARAM do trecho
+      para a via (mão dupla anima nos dois sentidos). Trechos Viários: mantém
+      atributos/"Colorir por"; tique DISCRETO cinza/branco sempre visível a
+      partir do zoom 16 = direção do mapeamento; modal sem "Inverter",
+      caneta e simulador não pegam trecho; ficha mostra a via vinculada.
+      Clique com as duas camadas ligadas abre a VIA (prioridade de clique);
+      HasMobViaActions no MapaFullscreen; "Criar Artefatos → Via Urbana".
+    ✔ Dados: `php artisan mob:gerar-vias-dos-trechos --tenant=<slug>
+      [--sentido=mao_dupla|mao_unica|nenhum]` cria 1 via por trecho vivo
+      (MESMA geometria e MESMO sequential_id — o JSON do Pedro, por id, casa
+      com as duas tabelas), vincula via_id e calcula extensão/azimute;
+      idempotente (via existente só vincula). Rodado local: 612 vias, todas
+      mão dupla (decisão: não esperar o Pedro; a equipe da mobilidade corrige
+      no mapa com a caneta). Normalizador: mob_trechos.json agora sai SEM
+      sentido e COM via_id (= id) + mob_vias.json (mesma geometria; sentido
+      do JSON cru quando mao_unica|mao_dupla, senão mao_dupla). Importar Mapa
+      GIS: camada "Mobilidade — Vias Urbanas" (importar ANTES dos trechos;
+      o trecho resolve via_id pelo número da via) — trechos em ATUALIZAR.
+      VPS: tenant de teste, será recarregado do local (não há migração de
+      dados remota a fazer). gis:recalcular-metadata cobre mob_vias.
+    ✔ 2026-09-04 — trechos.json do Pedro chegou (C:\laragon\www\docs\jsons-
+      enviados\trechos.json): mesmos 612 ids, geometria e atributos IDÊNTICOS
+      ao levantamento original + coluna `sentido` = 575 mao_dupla / 37
+      mao_unica. Normalizador rodado em cima dele: C:\laragon\www\docs\
+      piuma-normalizado\mob_trechos.json (regravado: só saiu `sentido`,
+      entrou `via_id`) + mob_vias.json (novo). Importador GIS agora
+      RECALCULA extensão/azimute (trechos, vias), extensão (eixos) e área
+      (zonas) ao final de cada importação mob_* (recalcularMetadataMob) —
+      não depende mais do "Recalcular Áreas" (cujo Select também ganhou as
+      4 entidades mob). Ensaio local do roteiro da VPS (service, modo
+      atualizar): vias 612 atualizadas, trechos 612 atualizadas + via_id
+      resolvido pelo número, sentidos 575/37, metadados 100% preenchidos.
+    ⚠️ Deploy/VPS (base que JÁ tem os 612 trechos): migrate +
+      PermissionsSeeder + permission:cache-reset; depois, no /admin →
+      Importar Mapa (GIS): 1) "Vias Urbanas" em ADICIONAR com mob_vias.json;
+      2) "Trechos Viários" em ATUALIZAR com mob_trechos.json (grava via_id).
+      Alternativa sem JSON de sentido: mob:gerar-vias-dos-trechos (1:1, tudo
+      mão dupla) e depois mob_vias.json em ATUALIZAR só para aplicar o
+      sentido.
+
     ℹ️ 2026-09-03 trechos.json da Líder com xi/yi/xf/yf (UTM 24S): são o 1º e
       o último vértice da linha — 611/612 batem com a ordem já importada
       (ids 274 e 321 com o par copiado do vizinho). DIREÇÃO já estava certa;

@@ -32,6 +32,7 @@ use App\Filament\Pages\Traits\HasMobFluxoActions;
 use App\Filament\Pages\Traits\HasMobPontoInteresseActions;
 use App\Filament\Pages\Traits\HasMobSinalizacaoActions;
 use App\Filament\Pages\Traits\HasMobTrechoActions;
+use App\Filament\Pages\Traits\HasMobViaActions;
 use App\Filament\Pages\Traits\HasMobZonaActions;
 use App\Filament\Pages\Traits\HasSecaoLogradouroActions;
 use App\Filament\Pages\Traits\HasSetorFiscalActions;
@@ -68,6 +69,7 @@ class MapaFullscreen extends Page
     use HasMobPontoInteresseActions;
     use HasMobSinalizacaoActions;
     use HasMobTrechoActions;
+    use HasMobViaActions;
     use HasMobZonaActions;
     use HasArvoreActions;
     use HasBairroActions;
@@ -278,7 +280,6 @@ class MapaFullscreen extends Page
                     'tipologia_da_via' => 'Tipologia da via',
                     'classe_faixa_rodagem' => 'Classe (pista simples/dupla)',
                     'dimensionamento_da_via' => 'Largura da via',
-                    'sentido' => 'Sentido (classificado ou não)',
                 ];
                 $camposKit = \App\Models\CampoCustomizado::withoutGlobalScopes()
                     ->where('tenant_id', $this->tenantId)
@@ -789,7 +790,7 @@ class MapaFullscreen extends Page
             // MOBILIDADE URBANA (docs/piuma.txt, Onda 2): linhas pré-calculam a
             // extensão para o Placeholder do modal; pontos/zonas montam direto.
             $this->mobExtensaoCalculada = null;
-            if (in_array($entityType, ['mob_trecho', 'mob_eixo'], true)) {
+            if (in_array($entityType, ['mob_trecho', 'mob_via', 'mob_eixo'], true)) {
                 $lineWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
                 $ext = DB::selectOne("SELECT ST_Length({$lineWKT}::geography) AS metros");
                 $this->mobExtensaoCalculada = $ext?->metros ? round((float) $ext->metros, 2) : null;
@@ -797,6 +798,7 @@ class MapaFullscreen extends Page
 
             $acao = match ($entityType) {
                 'mob_trecho' => 'criarMobTrecho',
+                'mob_via' => 'criarMobVia',
                 'mob_sinalizacao' => 'criarMobSinalizacao',
                 'mob_ponto_interesse' => 'criarMobPontoInteresse',
                 'mob_eixo' => 'criarMobEixo',

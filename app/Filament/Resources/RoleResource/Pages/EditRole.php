@@ -73,7 +73,7 @@ class EditRole extends EditRecord
         ]));
 
         $data['permissions_mobilidade'] = array_values(array_intersect($permissions, [
-            'gerenciar_mob_trechos', 'gerenciar_mob_sinalizacoes', 'gerenciar_mob_tipos_sinalizacao',
+            'gerenciar_mob_trechos', 'gerenciar_mob_vias', 'gerenciar_mob_sinalizacoes', 'gerenciar_mob_tipos_sinalizacao',
             'gerenciar_mob_pontos_interesse', 'gerenciar_mob_eixos', 'gerenciar_mob_zonas', 'gerenciar_mob_fluxos',
             'gerenciar_mob_cameras',
         ]));
@@ -86,7 +86,7 @@ class EditRole extends EditRecord
             'ver_camada_rural_localidades', 'ver_camada_rural_propriedades', 'ver_camada_rural_estradas',
             'ver_camada_rural_hidrografias', 'ver_camada_rural_pontes', 'ver_camada_rural_pontos_interesse',
             'ver_camada_pontos_panoramicos', 'ver_camada_toponimias',
-            'ver_camada_mob_trechos', 'ver_camada_mob_sinalizacoes', 'ver_camada_mob_pontos_interesse',
+            'ver_camada_mob_trechos', 'ver_camada_mob_vias', 'ver_camada_mob_sinalizacoes', 'ver_camada_mob_pontos_interesse',
             'ver_camada_mob_eixos', 'ver_camada_mob_zonas', 'ver_camada_mob_fluxos',
             'ver_camada_mob_cameras',
         ]));

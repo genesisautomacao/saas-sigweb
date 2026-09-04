@@ -167,6 +167,11 @@ class ImportadorGisService
                 if (str_starts_with($camada, 'Mob')) {
                     unset($fillData['code']); // tabelas mob_* não têm coluna code
                     $fillData = array_merge($fillData, self::mapearCamposMob($camada, $props, $tenant->id));
+                    // Onda 6: trecho aponta p/ a Via Urbana pelo NÚMERO da via no JSON
+                    // (importar as vias ANTES dos trechos; ausente = vínculo nulo, contado)
+                    if ($camada === 'MobTrecho' && isset($props->via_id) && $props->via_id !== '') {
+                        $fillData['via_id'] = $resolveRelacionamento(\App\Models\MobVia::class, $props->via_id);
+                    }
                 } else {
 
                 // A REGRA DO NOME (Necessária para Perímetros, Zonas, Logradouros, etc)
@@ -336,6 +341,11 @@ class ImportadorGisService
             throw $e;
         }
 
+        // Mobilidade: extensão/área e azimute são CALCULADOS — o JSON nunca traz.
+        // Recalcula a camada inteira do tenant (612 linhas = ms), assim a
+        // importação já sai com os metadados sem depender do "Recalcular Áreas".
+        self::recalcularMetadataMob($camada, $tenant->id);
+
         return [
             'total' => count($agrupados),
             'criados' => $criados,
@@ -344,6 +354,38 @@ class ImportadorGisService
             'reconectados' => $reconectados,
             'nao_resolvidos' => $naoResolvidos,
         ];
+    }
+
+    /**
+     * Metadados geométricos das camadas mob_* após importar (docs/piuma.txt):
+     * extensão (linhas) / área (zonas) e, em trechos e vias, o azimute do 1º ao
+     * último vértice — mesma fórmula do gis:recalcular-metadata. Sobrescreve
+     * (modo atualizar pode ter trocado a geometria). Tolerante a falha.
+     */
+    protected static function recalcularMetadataMob(string $camada, int $tenantId): void
+    {
+        $sql = match ($camada) {
+            'MobTrecho', 'MobVia' => 'UPDATE '.($camada === 'MobVia' ? 'mob_vias' : 'mob_trechos').' SET
+                    extensao_geo = ST_Length(geo::geography),
+                    azimute = degrees(ST_Azimuth(
+                        ST_StartPoint(ST_GeometryN(geo, 1)),
+                        ST_EndPoint(ST_GeometryN(geo, ST_NumGeometries(geo)))
+                    ))
+                 WHERE tenant_id = ? AND geo IS NOT NULL',
+            'MobEixo' => 'UPDATE mob_eixos SET extensao_geo = ST_Length(geo::geography) WHERE tenant_id = ? AND geo IS NOT NULL',
+            'MobZona' => 'UPDATE mob_zonas SET area_geo = ST_Area(geo::geography) WHERE tenant_id = ? AND geo IS NOT NULL',
+            default => null,
+        };
+
+        if ($sql === null) {
+            return;
+        }
+
+        try {
+            DB::update($sql, [$tenantId]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("ImportadorGis: metadados de {$camada} não recalculados — ".$e->getMessage());
+        }
     }
 
     /**
@@ -430,7 +472,8 @@ class ImportadorGisService
         $dados = [];
 
         $colunas = match ($camada) {
-            'MobTrecho' => ['tipologia_da_via', 'tipo_de_pavimentacao', 'estado_conservacao_pavimentacao', 'dimensionamento_da_via', 'sentido'],
+            'MobTrecho' => ['tipologia_da_via', 'tipo_de_pavimentacao', 'estado_conservacao_pavimentacao', 'dimensionamento_da_via'],
+            'MobVia' => ['nome', 'sentido'], // sentido: mao_unica | mao_dupla (outro valor = ignorado)
             'MobPontoInteresse' => ['categoria', 'name', 'numero'],
             'MobEixo' => ['tipo', 'name'],
             'MobZona' => ['tipo', 'name', 'codigo', 'situacao', 'origens', 'destinos'],
@@ -450,6 +493,11 @@ class ImportadorGisService
             if ($classe !== null) {
                 $dados['classe_faixa_rodagem'] = $classe;
             }
+        }
+
+        if ($camada === 'MobVia' && isset($dados['sentido'])
+            && ! in_array($dados['sentido'], ['mao_unica', 'mao_dupla'], true)) {
+            unset($dados['sentido']);
         }
 
         if ($camada === 'MobFluxo') {

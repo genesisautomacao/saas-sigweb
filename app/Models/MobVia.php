@@ -12,40 +12,31 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Trecho viário (Mobilidade Urbana — docs/piuma.txt §2.4/§3).
+ * Via urbana (Mobilidade Urbana — docs/piuma.txt, Onda 6).
  *
- * SEM name (decisão 6.3): trecho urbano não tem nome — a referência é o
- * sequential_id. DIREÇÃO = ordem dos vértices da linha (início → fim) = a
- * direção em que o coletor de rua andou — é ela que define calçada
- * DIREITA/ESQUERDA dos atributos do levantamento, por isso a geometria do
- * trecho NUNCA é invertida. `azimute` é CALCULADO (ST_Azimuth do 1º ao
- * último vértice) — nunca digitado. O trecho NÃO tem sentido de tráfego:
- * o fluxo (mão única/dupla) pertence à Via Urbana (`via_id` → MobVia,
- * Onda 6 do piuma.txt).
- * Os ~20 atributos de calçada/estacionamento/vegetação do levantamento
- * vivem em dados_customizados (kit Piúma — MobilidadeSeeder).
+ * É a entidade do FLUXO de tráfego: `sentido` (mão única/dupla) + DIREÇÃO =
+ * ordem dos vértices da linha (mão única segue início → fim). `azimute` é
+ * CALCULADO (ST_Azimuth 1º→último vértice), nunca digitado; inverterDirecao()
+ * (ST_Reverse) é permitido AQUI — é a geometria da via, não do trecho de
+ * levantamento (cuja direção define as calçadas e nunca pode virar).
+ * Em Piúma cada via nasce 1:1 de um trecho (mob_trechos.via_id); em outro
+ * município uma via pode agrupar vários trechos.
  */
-class MobTrecho extends Model
+class MobVia extends Model
 {
     use BelongsToTenant, HasTenantSequentialId, LogsActivity, LogsGeometryChanges, SoftDeletes;
 
-    /** Vocabulários das colunas estruturais (levantamento Piúma) — fonte única p/ mapa e Resource. */
-    public const VOCABULARIOS = [
-        'tipologia_da_via' => ['Avenida', 'Rua', 'Rodovia', 'Beco/Viela'],
-        'tipo_de_pavimentacao' => ['Asfalto', 'Paralelepípedo', 'Terra (Solo natural)', 'Concreto', 'Outro'],
-        'estado_conservacao_pavimentacao' => ['Ótimo', 'Bom', 'Regular', 'Ruim', 'Péssimo'],
-        'classe_faixa_rodagem' => ['Pista Simples', 'Pista Dupla'],
-        'dimensionamento_da_via' => ['Entre 0 - 2,99m', 'Entre 3,0m - 3,5m', 'Entre 3,6m - 6,99m', 'Entre 7,0 - 9,00m', 'Maior que 9,00m'],
+    public const SENTIDOS = [
+        'mao_unica' => 'Mão única',
+        'mao_dupla' => 'Mão dupla',
     ];
 
-    protected $table = 'mob_trechos';
+    protected $table = 'mob_vias';
 
     protected $fillable = [
         'tenant_id', 'sequential_id',
-        'tipologia_da_via', 'tipo_de_pavimentacao', 'estado_conservacao_pavimentacao',
-        'classe_faixa_rodagem', 'dimensionamento_da_via',
-        'azimute', 'extensao_geo',
-        'logradouro_id', 'via_id', 'dados_customizados', 'geo',
+        'nome', 'sentido', 'azimute', 'extensao_geo',
+        'logradouro_id', 'dados_customizados', 'geo',
     ];
 
     protected $casts = [
@@ -59,7 +50,7 @@ class MobTrecho extends Model
 
     public function geometryLogLabel(): string
     {
-        return 'Geometria do trecho viário alterada';
+        return 'Geometria da via urbana alterada';
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -95,23 +86,27 @@ class MobTrecho extends Model
         return $this->belongsTo(Logradouro::class, 'logradouro_id');
     }
 
-    /** Via urbana (fluxo) que este trecho de levantamento compõe. */
-    public function via()
+    /** Trechos de levantamento que compõem esta via (1:1 em Piúma). */
+    public function trechos()
     {
-        return $this->belongsTo(MobVia::class, 'via_id');
+        return $this->hasMany(MobTrecho::class, 'via_id');
+    }
+
+    /** Rótulo p/ telas e mapa. */
+    public function rotulo(): string
+    {
+        return $this->nome ?: 'Via #'.$this->sequential_id;
     }
 
     /**
-     * Recalcula extensão (m) e azimute (0–360°, do 1º ao último vértice =
-     * direção do mapeamento) a partir da geometria atual — chamar após
-     * criar/editar geometria (mesmo gatilho do extensao_geo nas traits
-     * Has*Actions) e na importação.
+     * Recalcula extensão (m) e azimute (0–360°, do 1º ao último vértice) a
+     * partir da geometria atual — chamar após criar/editar geometria.
      */
     public function atualizarMetadataGeo(): void
     {
         try {
             DB::update(
-                'UPDATE mob_trechos SET
+                'UPDATE mob_vias SET
                     extensao_geo = ST_Length(geo::geography),
                     azimute = degrees(ST_Azimuth(
                         ST_StartPoint(ST_GeometryN(geo, 1)),
@@ -125,6 +120,13 @@ class MobTrecho extends Model
         }
     }
 
-    // ⚠️ Sem inverterDirecao() de propósito: inverter a linha do trecho trocaria
-    // as calçadas direita/esquerda do levantamento. Inverter é operação da MobVia.
+    /**
+     * Inverte a direção da linha (ST_Reverse) — a direção É a ordem dos
+     * vértices, então inverter a geometria inverte o fluxo da mão única.
+     */
+    public function inverterDirecao(): void
+    {
+        DB::update('UPDATE mob_vias SET geo = ST_Reverse(geo) WHERE id = ?', [$this->id]);
+        $this->atualizarMetadataGeo();
+    }
 }

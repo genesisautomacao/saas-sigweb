@@ -621,7 +621,7 @@ class MapDataController extends Controller
                 $rows = DB::table('mob_trechos')
                     ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('geo')
                     ->orderBy('id')
-                    ->selectRaw("id, sequential_id, sentido, azimute, extensao_geo,
+                    ->selectRaw("id, sequential_id, via_id, azimute, extensao_geo,
                         tipologia_da_via, tipo_de_pavimentacao, estado_conservacao_pavimentacao,
                         classe_faixa_rodagem, dimensionamento_da_via, dados_customizados,
                         ST_AsGeoJSON(geo, 6) AS gj")
@@ -638,7 +638,8 @@ class MapDataController extends Controller
                             'layer' => 'mob_trechos',
                             'name' => 'Trecho #'.$row->sequential_id,
                             'sequential_id' => $row->sequential_id,
-                            'sentido' => $row->sentido,
+                            'via_id' => $row->via_id,
+                            // direção do MAPEAMENTO (calçada direita/esquerda) — não é sentido de tráfego
                             'azimute' => $row->azimute !== null ? (float) $row->azimute : null,
                             'extensao_geo' => $row->extensao_geo !== null ? (float) $row->extensao_geo : null,
                             'tipologia_da_via' => $row->tipologia_da_via,
@@ -739,6 +740,38 @@ class MapDataController extends Controller
                             'provedor' => $row->provedor,
                             'azimute_visada' => $row->azimute_visada !== null ? (float) $row->azimute_visada : null,
                             'ativo' => (bool) $row->ativo,
+                        ],
+                        'geometry' => $geom,
+                    ];
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
+            case 'mob_vias':
+                // Vias Urbanas (piuma.txt Onda 6) = o FLUXO: sentido + direção (ordem dos vértices).
+                $rows = DB::table('mob_vias')
+                    ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('geo')
+                    ->orderBy('id')
+                    ->selectRaw('id, sequential_id, nome, sentido, azimute, extensao_geo, ST_AsGeoJSON(geo, 6) AS gj')
+                    ->get();
+
+                $features = [];
+                foreach ($rows as $row) {
+                    $geom = json_decode($row->gj);
+                    if (! $geom || empty($geom->coordinates)) {
+                        continue;
+                    }
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'id' => $row->id,
+                            'layer' => 'mob_vias',
+                            'name' => $row->nome ?: 'Via #'.$row->sequential_id,
+                            'sequential_id' => $row->sequential_id,
+                            'nome' => $row->nome,
+                            'sentido' => $row->sentido,
+                            'azimute' => $row->azimute !== null ? (float) $row->azimute : null,
+                            'extensao_geo' => $row->extensao_geo !== null ? (float) $row->extensao_geo : null,
                         ],
                         'geometry' => $geom,
                     ];

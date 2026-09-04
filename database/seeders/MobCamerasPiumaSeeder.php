@@ -34,13 +34,11 @@ class MobCamerasPiumaSeeder extends Seeder
 
     public function run(): void
     {
-        $slug = env('MOB_SEED_TENANT', 'prefeitura-de-piuma');
-        $tenant = Tenant::where('slug', $slug)->first();
+        $tenant = $this->resolverTenant();
         if (! $tenant) {
-            $this->command?->warn("Tenant '{$slug}' não encontrado - nada semeado.");
-
             return;
         }
+        $slug = $tenant->slug;
 
         $novas = 0;
         foreach (self::CAMERAS as [$nome, $token, $lat, $lon, $azimute, $descricao]) {
@@ -68,5 +66,42 @@ class MobCamerasPiumaSeeder extends Seeder
         }
 
         $this->command?->info(count(self::CAMERAS)." câmeras de Piúma semeadas em '{$slug}' ({$novas} novas).");
+    }
+
+    /**
+     * MOB_SEED_TENANT=<slug> manda; sem ela, tenta o slug local padrão e, por
+     * último, qualquer tenant com "piuma" no slug (o da VPS é
+     * 'prefeitura-municipal-de-piuma'). Ambíguo ou ausente = avisa e não grava.
+     */
+    private function resolverTenant(): ?Tenant
+    {
+        $slug = env('MOB_SEED_TENANT');
+        if ($slug) {
+            $tenant = Tenant::where('slug', $slug)->first();
+            if (! $tenant) {
+                $this->command?->error("Tenant '{$slug}' (MOB_SEED_TENANT) não encontrado - nada semeado.");
+            }
+
+            return $tenant;
+        }
+
+        $tenant = Tenant::where('slug', 'prefeitura-de-piuma')->first();
+        if ($tenant) {
+            return $tenant;
+        }
+
+        $candidatos = Tenant::where('slug', 'ILIKE', '%piuma%')->get();
+        if ($candidatos->count() === 1) {
+            $this->command?->info("Slug padrão ausente; usando o tenant '{$candidatos->first()->slug}'.");
+
+            return $candidatos->first();
+        }
+
+        $lista = $candidatos->count()
+            ? $candidatos->pluck('slug')->implode(', ')
+            : Tenant::orderBy('slug')->pluck('slug')->implode(', ');
+        $this->command?->error('Não foi possível identificar o tenant de Piúma. Rode com MOB_SEED_TENANT=<slug>. Slugs: '.$lista);
+
+        return null;
     }
 }
