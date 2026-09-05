@@ -88,17 +88,25 @@ Route::get('/gis/{tenantSlug}/map-permissions', function (\Illuminate\Http\Reque
     $userId = auth()->id();
     $tenantId = $tenant->id;
 
-    // Bypass total para Master e Manager (raw query — evita cache Spatie)
+    // MÓDULOS da prefeitura valem para TODO MUNDO, Manager incluído (decisão D2 de
+    // docs/Modulos_Permissoes.txt): camadas de módulo inativo saem antes do bypass.
+    $modulos = \App\Support\Modulos::ativos($tenant);
+    $camadasIndisponiveis = \App\Support\Modulos::camadasIndisponiveis($tenant);
+
+    // Bypass de PERMISSÃO para Master e Manager (raw query — evita cache Spatie).
+    // D7: pela flag roles.papel_sistema, não pelo nome.
     $isPrivileged = \Illuminate\Support\Facades\DB::table('model_has_roles')
         ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
         ->where('model_has_roles.model_id', $userId)
         ->where('model_has_roles.model_type', 'App\\Models\\User')
-        ->where('roles.tenant_id', $tenantId)
-        ->whereIn('roles.name', ['Master', 'Manager'])
+        // papel global (Master, tenant_id null) ou de sistema desta prefeitura — mesma
+        // regra do Gate::before
+        ->where(fn ($w) => $w->whereNull('roles.tenant_id')->orWhere('roles.tenant_id', $tenantId))
+        ->whereIn('roles.papel_sistema', ['master', 'manager'])
         ->exists();
 
     if ($isPrivileged) {
-        return response()->json(['bypass' => true]);
+        return response()->json(['bypass' => true, 'modulos' => $modulos, 'camadas_indisponiveis' => $camadasIndisponiveis]);
     }
 
     // IDs dos roles do usuário neste tenant
@@ -124,6 +132,8 @@ Route::get('/gis/{tenantSlug}/map-permissions', function (\Illuminate\Http\Reque
         $layers = $permNames
             ->filter(fn ($p) => str_starts_with($p, 'ver_camada_'))
             ->map(fn ($p) => str_replace('ver_camada_', '', $p))
+            // permissão de camada cujo módulo está inativo não libera nada
+            ->filter(fn ($camada) => \App\Support\Modulos::camadaDisponivel($camada, $tenant))
             ->values();
     }
 
@@ -139,5 +149,11 @@ Route::get('/gis/{tenantSlug}/map-permissions', function (\Illuminate\Http\Reque
         ];
     }
 
-    return response()->json(['bypass' => false, 'layers' => $layers, 'toolbar' => $toolbar]);
+    return response()->json([
+        'bypass' => false,
+        'layers' => $layers,
+        'toolbar' => $toolbar,
+        'modulos' => $modulos,
+        'camadas_indisponiveis' => $camadasIndisponiveis,
+    ]);
 })->middleware(['web', 'auth'])->name('gis.map-permissions');

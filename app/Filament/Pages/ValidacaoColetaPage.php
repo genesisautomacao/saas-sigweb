@@ -35,7 +35,9 @@ class ValidacaoColetaPage extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->temPermissao('view_produtividade') ?? false;
+        // módulo Coleta Cadastral (D4 — docs/Modulos_Permissoes.txt) + permissão
+        return \App\Support\Modulos::ativo('coleta_cadastral')
+            && (auth()->user()?->temPermissao('view_produtividade') ?? false);
     }
 
     public int $tenantId = 0;
@@ -189,7 +191,7 @@ class ValidacaoColetaPage extends Page
         $pdf->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
-            fn () => print($pdf->output()),
+            fn () => print ($pdf->output()),
             'validacao-coleta-'.now()->format('YmdHis').'.pdf'
         );
     }

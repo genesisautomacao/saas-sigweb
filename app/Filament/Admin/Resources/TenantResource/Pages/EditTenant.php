@@ -33,4 +33,34 @@ class EditTenant extends EditRecord
 
         return $data;
     }
+
+    /**
+     * Módulos alterados (D7 — docs/Modulos_Permissoes.txt): os papéis que
+     * "acompanham todos os módulos" já foram sincronizados pelo Tenant::updated;
+     * os demais precisam receber as permissões do módulo novo na tela de Papéis —
+     * avisa quem são, para ninguém descobrir pelo usuário reclamando.
+     */
+    protected function afterSave(): void
+    {
+        if (! $this->record->wasChanged('modules')) {
+            return;
+        }
+
+        $semFlag = \App\Models\Role::where('tenant_id', $this->record->id)
+            ->where('todos_modulos', false)
+            ->orderBy('name')
+            ->pluck('name');
+
+        if ($semFlag->isEmpty()) {
+            return;
+        }
+
+        \Filament\Notifications\Notification::make()
+            ->warning()
+            ->persistent()
+            ->title('Módulos alterados — confira os papéis da prefeitura')
+            ->body('Papéis que NÃO acompanham todos os módulos e precisam receber as permissões novas na tela de Papéis (/app → Configurações → Papéis): '
+                .$semFlag->implode(', ').'. Os papéis marcados como "acompanha todos os módulos" já foram atualizados.')
+            ->send();
+    }
 }

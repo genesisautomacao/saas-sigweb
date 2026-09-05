@@ -13,27 +13,36 @@ class PainelSocialPage extends Page
     use HasTenantModule;
 
     protected static ?string $tenantModule = 'social';
+
     protected static ?string $navigationIcon = 'heroicon-o-chart-pie';
+
     protected static ?string $navigationLabel = 'Painel Social';
+
     protected static ?string $title = 'Painel Social — Situação Cadastral';
+
     protected static ?string $navigationGroup = 'Módulo Social';
+
     protected static ?int $navigationSort = 5;
+
     protected static string $view = 'filament.pages.painel-social';
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('view_painel_social') ?? false;
+        // ⚠️ canAccess da classe sobrepõe o do trait HasTenantModule — o módulo tem de
+        // ser checado AQUI (A1 — docs/Modulos_Permissoes.txt)
+        return \App\Support\Modulos::ativo(static::$tenantModule)
+            && (auth()->user()?->can('view_painel_social') ?? false);
     }
 
     public int $tenantId = 0;
 
     /** Rótulos e cores por situação cadastral (item 098). */
     public const SITUACOES = [
-        'cadastrado'            => ['label' => 'Cadastrado',        'cor' => '#9ca3af'],
-        'beneficiado'           => ['label' => 'Beneficiado',       'cor' => '#16a34a'],
-        'aprovado'              => ['label' => 'Aprovado',          'cor' => '#10b981'],
-        'sorteado'              => ['label' => 'Sorteado',          'cor' => '#3b82f6'],
-        'nao_localizado'        => ['label' => 'Não Localizado',    'cor' => '#ef4444'],
+        'cadastrado' => ['label' => 'Cadastrado',        'cor' => '#9ca3af'],
+        'beneficiado' => ['label' => 'Beneficiado',       'cor' => '#16a34a'],
+        'aprovado' => ['label' => 'Aprovado',          'cor' => '#10b981'],
+        'sorteado' => ['label' => 'Sorteado',          'cor' => '#3b82f6'],
+        'nao_localizado' => ['label' => 'Não Localizado',    'cor' => '#ef4444'],
         'apresentou_documentos' => ['label' => 'Apresentou Docs',   'cor' => '#f59e0b'],
     ];
 
@@ -46,11 +55,11 @@ class PainelSocialPage extends Page
     #[Computed]
     public function familias(): array
     {
-        if (!$this->tenantId) {
+        if (! $this->tenantId) {
             return [];
         }
 
-        $rows = DB::select("
+        $rows = DB::select('
             SELECT c.id,
                    c.situacao_cadastro,
                    p.name AS rf,
@@ -63,14 +72,14 @@ class PainelSocialPage extends Page
             WHERE c.tenant_id = ?
               AND c.deleted_at IS NULL
               AND COALESCE(u.geo, e.geo) IS NOT NULL
-        ", [$this->tenantId]);
+        ', [$this->tenantId]);
 
-        return array_map(fn($r) => [
-            'id'        => $r->id,
-            'rf'        => $r->rf,
-            'situacao'  => $r->situacao_cadastro ?? 'cadastrado',
-            'lat'       => (float) $r->lat,
-            'lon'       => (float) $r->lon,
+        return array_map(fn ($r) => [
+            'id' => $r->id,
+            'rf' => $r->rf,
+            'situacao' => $r->situacao_cadastro ?? 'cadastrado',
+            'lat' => (float) $r->lat,
+            'lon' => (float) $r->lon,
         ], $rows);
     }
 
@@ -86,6 +95,7 @@ class PainelSocialPage extends Page
             $s = $f['situacao'];
             $counts[$s] = ($counts[$s] ?? 0) + 1;
         }
+
         return $counts;
     }
 }

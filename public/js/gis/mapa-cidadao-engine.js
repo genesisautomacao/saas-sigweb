@@ -15,32 +15,253 @@ document.addEventListener("DOMContentLoaded", function () {
         maxZoom: 22,
     });
 
-    // 3. MAPAS BASE E ORTOFOTO DO MUNICÍPIO
-    const osmLayer = new ol.layer.Tile({
-        source: new ol.source.OSM(),
-        zIndex: 0,
+    // ══ MOBILIDADE URBANA — versão SÓ LEITURA do engine da intranet (D8, 2026-09-05) ══
+    // Mesmas cores e símbolos do mapa-engine.js: o cidadão vê o que a prefeitura vê,
+    // sem criar/editar/classificar. Sem "Colorir por", sem coroplético, sem caneta.
+    const MOB_VIA_CORES = { mao_unica: "#2563eb", mao_dupla: "#dc2626", nenhum: "#9ca3af" };
+    const MOB_EIXO_CORES = { ciclovia: "#16a34a", eixo_comercial: "#f59e0b", rota_carga: "#7c3aed", rodovia: "#dc2626" };
+    const MOB_POI_CORES = {
+        comercio_servicos: "#f59e0b", educacao: "#2563eb", saude: "#dc2626", religioso: "#7c3aed",
+        turismo_lazer_esporte: "#16a34a", industria: "#64748b", posto_combustivel: "#ea580c",
+    };
+    const MOB_ZONA_CORES = {
+        zona_od: { stroke: "#2563eb", fill: "rgba(37,99,235,0.10)" },
+        quadrante: { stroke: "#f97316", fill: "rgba(249,115,22,0.08)" },
+        polo_industrial: { stroke: "#7c3aed", fill: "rgba(124,58,237,0.12)" },
+        setor_censitario: { stroke: "#b45309", fill: "rgba(217,119,6,0.14)" },
+    };
+    const MOB_TRECHO_COR = "#0ea5e9"; // cor única dos trechos (sem tema)
+    const MOB_ROTULOS = config.mobRotulos || {}; // { poi, eixo, zona } — listas do PHP p/ a ficha
+    // "Colorir por" dos trechos (pedido 2026-09-05 — mesma tematização da intranet):
+    // atributo ativo (null = cor única) + mapa valor→cor montado com as feições carregadas
+    const MOB_TEMA_PALETA = [
+        "#2563eb", "#dc2626", "#16a34a", "#f59e0b", "#7c3aed", "#0891b2",
+        "#db2777", "#65a30d", "#ea580c", "#4b5563", "#0d9488", "#9333ea",
+    ];
+    window.mobTrechoTema = null;
+    window._mobTemaMap = {};
+    window.mobTrechoValorTema = function (feature) {
+        const tema = window.mobTrechoTema;
+        if (!tema) return null;
+        let v = feature.get(tema);
+        if (v === undefined || v === null || v === "") {
+            const custom = feature.get("custom");
+            v = custom ? custom[tema] : null;
+        }
+        if (Array.isArray(v)) v = v.join(", ");
+        return v === undefined || v === null || v === "" ? null : String(v);
+    };
+    function mobTrechoCor(feature) {
+        if (!window.mobTrechoTema) return MOB_TRECHO_COR;
+        const v = window.mobTrechoValorTema(feature) ?? "—";
+        return window._mobTemaMap[v] || "#9ca3af";
+    }
+    const mobViaCor = (f) => MOB_VIA_CORES[f.get("sentido")] || MOB_VIA_CORES.nenhum;
+    // Fluxos O/D: a cor vem PRONTA do backend por zona de DESTINO (MobFluxo::distribuicao)
+    const mobFluxoCor = (f) => f.get("cor") || "#6b7280";
+    function mobFluxoRotulo(f) {
+        const pct = f.get("percentual");
+        if (pct === undefined || pct === null || Number(pct) <= 0) return "";
+        return Number(pct).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%";
+    }
+    // Filtros dos mini-checkboxes: camada → Set de valores DESLIGADOS
+    window._mobFiltros = {};
+    window.mobFiltrado = function (mobLayer, valor) {
+        const s = window._mobFiltros[mobLayer];
+        return !!(s && s.has(String(valor)));
+    };
+    // Ícone de câmera (SVG inline, cacheado por cor|escala)
+    const mobCameraIconeCache = new Map();
+    function mobCameraIcone(cor, escala) {
+        const chave = cor + "|" + escala;
+        let icone = mobCameraIconeCache.get(chave);
+        if (!icone) {
+            const svg =
+                '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">' +
+                '<circle cx="17" cy="17" r="15" fill="' + cor + '" stroke="#ffffff" stroke-width="2.5"/>' +
+                '<rect x="8" y="12" width="13" height="10" rx="2" fill="#ffffff"/>' +
+                '<path d="M21 15.5 L26.5 12.5 L26.5 21.5 L21 18.5 Z" fill="#ffffff"/>' +
+                "</svg>";
+            icone = new ol.style.Icon({
+                src: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg),
+                scale: escala,
+                anchor: [0.5, 0.5],
+            });
+            mobCameraIconeCache.set(chave, icone);
+        }
+        return icone;
+    }
+    // Setas de sentido (vias) e tiques de direção (trechos) — motor idêntico ao da intranet
+    const MOB_SETA_PASSO = 70; // px de tela entre setas
+    const MOB_FLUXO_VEL = 45; // px/s do simulador
+    const mobSetaCache = new Map();
+    window.mobFluxoSimulando = false;
+    window._mobFluxoFase = 0;
+    function mobSetaImagem(raio, rot, cor, contorno, escala) {
+        const chave = raio + "|" + rot.toFixed(2) + "|" + cor + "|" + contorno + "|" + escala;
+        let img = mobSetaCache.get(chave);
+        if (!img) {
+            img = new ol.style.RegularShape({
+                points: 3,
+                radius: raio,
+                rotation: rot,
+                rotateWithView: true,
+                scale: [1, escala],
+                fill: new ol.style.Fill({ color: cor }),
+                stroke: new ol.style.Stroke({ color: contorno, width: raio >= 8 ? 1.5 : 1 }),
+            });
+            if (mobSetaCache.size > 6000) mobSetaCache.clear();
+            mobSetaCache.set(chave, img);
+        }
+        return img;
+    }
+    function mobSetasAoLongo(feature, resolution, cfg) {
+        const estilos = [];
+        const geom = feature.getGeometry();
+        if (!geom) return estilos;
+        const passo = cfg.passo * resolution;
+        const desloc = cfg.duplo ? cfg.raio * 0.9 * resolution : 0;
+        const linhas = geom.getType() === "MultiLineString" ? geom.getLineStrings() : [geom];
+        linhas.forEach((linha) => {
+            const total = linha.getLength();
+            if (total / resolution < 24) return;
+            const fase = cfg.animado ? (window._mobFluxoFase * resolution) % passo : null;
+            const alvosF = [];
+            if (fase !== null) {
+                for (let d = fase; d < total; d += passo) alvosF.push(d);
+            } else {
+                const n = Math.max(1, Math.floor(total / passo));
+                const esp = total / (n + 1);
+                for (let i = 1; i <= n; i++) alvosF.push(esp * i);
+            }
+            let alvosB = null;
+            if (cfg.duplo) {
+                if (fase !== null) {
+                    alvosB = [];
+                    for (let d = total - fase; d > 0; d -= passo) alvosB.unshift(d);
+                } else {
+                    alvosB = alvosF.slice();
+                }
+            }
+            const colocar = (alvos, invertido) => {
+                let acumulado = 0;
+                let k = 0;
+                linha.forEachSegment((a, b) => {
+                    if (k >= alvos.length) return;
+                    const dx = b[0] - a[0];
+                    const dy = b[1] - a[1];
+                    const comp = Math.hypot(dx, dy);
+                    if (comp === 0) return;
+                    const rot = Math.atan2(dx, dy) + (invertido ? Math.PI : 0);
+                    const off = invertido ? -desloc : desloc;
+                    const ux = (dx / comp) * off;
+                    const uy = (dy / comp) * off;
+                    while (k < alvos.length && alvos[k] <= acumulado + comp) {
+                        const t = (alvos[k] - acumulado) / comp;
+                        estilos.push(
+                            new ol.style.Style({
+                                geometry: new ol.geom.Point([a[0] + dx * t + ux, a[1] + dy * t + uy]),
+                                image: mobSetaImagem(cfg.raio, rot, cfg.cor, cfg.contorno, cfg.escala),
+                                zIndex: cfg.zIndex,
+                            }),
+                        );
+                        k++;
+                    }
+                    acumulado += comp;
+                });
+            };
+            colocar(alvosF, false);
+            if (alvosB) colocar(alvosB, true);
+        });
+        return estilos;
+    }
+    function mobSetasSentido(feature, resolution, duplo) {
+        const zoom = view.getZoomForResolution(resolution);
+        return mobSetasAoLongo(feature, resolution, {
+            passo: duplo ? MOB_SETA_PASSO * 2 : MOB_SETA_PASSO,
+            raio: Math.round(Math.max(8, Math.min(12, 8 + (zoom - 15.5) * 1.6))) - (duplo ? 1 : 0),
+            cor: "#ffffff",
+            contorno: "#111827",
+            escala: 1.4,
+            animado: !!window.mobFluxoSimulando,
+            duplo: !!duplo,
+            zIndex: 5,
+        });
+    }
+    function mobSetasDirecaoTrecho(feature, resolution) {
+        return mobSetasAoLongo(feature, resolution, {
+            passo: 110,
+            raio: 5,
+            cor: "#ffffff",
+            contorno: "#475569",
+            escala: 1.3,
+            animado: false,
+            duplo: false,
+            zIndex: 4,
+        });
+    }
+    // Simulador de fluxo (só visual): anima as setas SÓ da camada de vias
+    let mobFluxoUltimoTs = 0;
+    function mobFluxoTick(ts) {
+        if (!window.mobFluxoSimulando) return;
+        requestAnimationFrame(mobFluxoTick);
+        if (!mobFluxoUltimoTs) {
+            mobFluxoUltimoTs = ts;
+            return;
+        }
+        const dt = ts - mobFluxoUltimoTs;
+        if (dt < 33) return;
+        mobFluxoUltimoTs = ts;
+        window._mobFluxoFase = (window._mobFluxoFase + (dt / 1000) * MOB_FLUXO_VEL) % MOB_SETA_PASSO;
+        const camada = window.loadedLayers && window.loadedLayers["mob_vias"];
+        if (camada && camada.getVisible()) camada.changed();
+    }
+    window.addEventListener("sigweb-mob-fluxo-simular", (e) => {
+        const ligar = !!(e.detail && e.detail.ligado);
+        if (ligar === window.mobFluxoSimulando) return;
+        window.mobFluxoSimulando = ligar;
+        mobFluxoUltimoTs = 0;
+        if (ligar) {
+            requestAnimationFrame(mobFluxoTick);
+        } else {
+            const camada = window.loadedLayers && window.loadedLayers["mob_vias"];
+            if (camada) camada.changed();
+        }
     });
 
-    const esriLayer = new ol.layer.Tile({
-        source: new ol.source.XYZ({
-            url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-            maxZoom: 18,
-            crossOrigin: "anonymous",
+    // 3. MAPAS BASE — mesmo seletor da intranet (2026-09-05): OSM, satélite Esri e as
+    //    ortofotos CADASTRADAS da prefeitura (tabela `ortofotos`), cada uma um basemap
+    //    `ortofoto_<id>`. A config manda sozinha: sem cadastro, sem opção (a pasta legada
+    //    /mapas/{slug}/ saiu). Azure Maps fica FORA do público: a chave iria para o HTML de
+    //    qualquer visitante anônimo. Tile 512 = fato da pirâmide (gdal2tiles --tilesize):
+    //    grade 512 pede z−1 → min/maxZoom 11/21 (≡ 12/22 na grade 256).
+    const basemaps = {
+        osm: new ol.layer.Tile({ source: new ol.source.OSM(), visible: true, zIndex: 0 }),
+        esri_sat: new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                maxZoom: 18,
+                crossOrigin: "anonymous",
+            }),
+            visible: false,
+            zIndex: 1,
         }),
-        visible: false,
-        zIndex: 1,
+    };
+    (config.ortofotos || []).forEach((orto) => {
+        const tileSize = parseInt(orto.tile_size, 10) === 512 ? 512 : 256;
+        basemaps["ortofoto_" + orto.id] = new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: orto.url,
+                tileSize: [tileSize, tileSize],
+                minZoom: tileSize === 512 ? 11 : 12,
+                maxZoom: tileSize === 512 ? 21 : 22,
+                crossOrigin: "anonymous",
+            }),
+            visible: false,
+            zIndex: 2,
+        });
     });
-
-    const ortofotoLayer = new ol.layer.Tile({
-        source: new ol.source.XYZ({
-            url: `/mapas/${config.tenantSlug}/{z}/{x}/{y}.png`, // Lê a variável injetada pelo PHP
-            minZoom: 12,
-            maxZoom: 22,
-            crossOrigin: "anonymous",
-        }),
-        visible: false,
-        zIndex: 2,
-    });
+    const basemapLayers = Object.values(basemaps);
 
     // 4. DICIONÁRIO DE ESTILOS FIEL AO ORIGINAL
     const layerConfigs = {
@@ -671,12 +892,279 @@ document.addEventListener("DOMContentLoaded", function () {
                 return style;
             },
         },
+
+        // ══ MOBILIDADE URBANA — 8 camadas SÓ LEITURA (D8, 2026-09-05), estilos da intranet ══
+        mob_trechos: {
+            z: 53,
+            minZoom: 12,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const principal = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: mobTrechoCor(feature), width: zoom >= 16 ? 5 : 3.5 }),
+                });
+                if (zoom >= 17.5) {
+                    principal.setText(
+                        new ol.style.Text({
+                            text: "#" + (feature.get("sequential_id") ?? ""),
+                            font: "bold 10px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: "#0c4a6e" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            placement: "line",
+                            overflow: true,
+                        }),
+                    );
+                }
+                const estilos = [principal];
+                if (zoom >= 16) estilos.push(...mobSetasDirecaoTrecho(feature, resolution));
+                return estilos;
+            },
+        },
+        mob_vias: {
+            z: 54,
+            minZoom: 12,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const sentido = feature.get("sentido");
+                const principal = new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: mobViaCor(feature),
+                        width: zoom >= 16 ? 5 : 3.5,
+                        lineDash: sentido ? undefined : [6, 5],
+                    }),
+                });
+                if (zoom >= 17.5 && feature.get("nome")) {
+                    principal.setText(
+                        new ol.style.Text({
+                            text: String(feature.get("nome")),
+                            font: "bold 10px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: "#1e3a8a" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            placement: "line",
+                            overflow: true,
+                        }),
+                    );
+                }
+                const estilos = [principal];
+                if ((sentido === "mao_unica" && zoom >= 15.5) || (sentido === "mao_dupla" && zoom >= 16.5)) {
+                    estilos.push(...mobSetasSentido(feature, resolution, sentido === "mao_dupla"));
+                }
+                return estilos;
+            },
+        },
+        mob_sinalizacoes: {
+            z: 96,
+            minZoom: 15,
+            style: function (feature, resolution) {
+                if (window.mobFiltrado("mob_sinalizacoes", feature.get("tipo_vh"))) return null;
+                const zoom = view.getZoomForResolution(resolution);
+                const cor = feature.get("cor") || "#9ca3af";
+                const imagem = feature.get("tipo_vh") === "horizontal"
+                    ? new ol.style.RegularShape({
+                        points: 4,
+                        radius: zoom >= 18 ? 8 : 6,
+                        angle: Math.PI / 4,
+                        fill: new ol.style.Fill({ color: cor }),
+                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 1.5 }),
+                    })
+                    : new ol.style.Circle({
+                        radius: zoom >= 18 ? 7 : 5,
+                        fill: new ol.style.Fill({ color: cor }),
+                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 1.5 }),
+                    });
+                const style = new ol.style.Style({ image: imagem });
+                if (zoom >= 18.5) {
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name") || "",
+                            font: "10px Arial, sans-serif",
+                            offsetY: -14,
+                            fill: new ol.style.Fill({ color: "#111827" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
+        mob_pontos_interesse: {
+            z: 92,
+            minZoom: 13,
+            style: function (feature, resolution) {
+                if (window.mobFiltrado("mob_pontos_interesse", feature.get("categoria"))) return null;
+                const zoom = view.getZoomForResolution(resolution);
+                const cor = MOB_POI_CORES[feature.get("categoria")] || "#64748b";
+                const style = new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: zoom >= 16 ? 8 : 6,
+                        fill: new ol.style.Fill({ color: cor }),
+                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 2 }),
+                    }),
+                });
+                if (zoom >= 16.5) {
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name") || "",
+                            font: "bold 10px Arial, sans-serif",
+                            offsetY: -14,
+                            fill: new ol.style.Fill({ color: "#1f2937" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
+        mob_cameras: {
+            z: 97,
+            minZoom: 12,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const ativo = feature.get("ativo") !== false;
+                const cor = ativo ? "#dc2626" : "#9ca3af";
+                const estilos = [];
+                const az = feature.get("azimute_visada");
+                if (zoom >= 15 && az !== null && az !== undefined && az !== "") {
+                    const c = feature.getGeometry().getCoordinates();
+                    const r = 34 * resolution;
+                    const a0 = (Number(az) * Math.PI) / 180;
+                    const anel = [c];
+                    for (let i = -25; i <= 25; i += 5) {
+                        const t = a0 + (i * Math.PI) / 180;
+                        anel.push([c[0] + r * Math.sin(t), c[1] + r * Math.cos(t)]);
+                    }
+                    anel.push(c);
+                    estilos.push(
+                        new ol.style.Style({
+                            geometry: new ol.geom.Polygon([anel]),
+                            fill: new ol.style.Fill({ color: ativo ? "rgba(220,38,38,0.18)" : "rgba(156,163,175,0.18)" }),
+                            stroke: new ol.style.Stroke({ color: ativo ? "rgba(220,38,38,0.55)" : "rgba(156,163,175,0.55)", width: 1 }),
+                            zIndex: 1,
+                        }),
+                    );
+                }
+                const principal = new ol.style.Style({
+                    image: zoom >= 14.5 ? mobCameraIcone(cor, zoom >= 16 ? 1 : 0.8) : new ol.style.Circle({
+                        radius: 6,
+                        fill: new ol.style.Fill({ color: cor }),
+                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 2 }),
+                    }),
+                    zIndex: 2,
+                });
+                if (zoom >= 16) {
+                    principal.setText(
+                        new ol.style.Text({
+                            text: feature.get("name") || "",
+                            font: "bold 10px Arial, sans-serif",
+                            offsetY: -20,
+                            fill: new ol.style.Fill({ color: "#7f1d1d" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            overflow: true,
+                        }),
+                    );
+                }
+                estilos.push(principal);
+                return estilos;
+            },
+        },
+        mob_eixos: {
+            z: 54,
+            minZoom: 10,
+            style: function (feature, resolution) {
+                if (window.mobFiltrado("mob_eixos", feature.get("tipo"))) return null;
+                const zoom = view.getZoomForResolution(resolution);
+                const tipo = feature.get("tipo");
+                const cor = MOB_EIXO_CORES[tipo] || "#0ea5e9";
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: cor,
+                        width: tipo === "rodovia" ? 3 : 4.5,
+                        lineDash: tipo === "ciclovia" ? [10, 6] : undefined,
+                    }),
+                });
+                if (zoom >= 15) {
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name") || "",
+                            font: "bold 10px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: cor }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            placement: "line",
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
+        mob_zonas: {
+            z: 28,
+            minZoom: 9,
+            style: function (feature, resolution) {
+                if (window.mobFiltrado("mob_zonas", feature.get("tipo"))) return null;
+                const zoom = view.getZoomForResolution(resolution);
+                const tipo = feature.get("tipo");
+                const cfg = MOB_ZONA_CORES[tipo] || MOB_ZONA_CORES.setor_censitario;
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: cfg.stroke,
+                        width: tipo === "setor_censitario" ? 1 : 2,
+                        lineDash: tipo === "setor_censitario" ? [4, 4] : undefined,
+                    }),
+                    fill: new ol.style.Fill({ color: cfg.fill }),
+                });
+                if (zoom >= 13 && tipo !== "setor_censitario") {
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name") || "",
+                            font: "bold 11px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: cfg.stroke }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
+        mob_fluxos: {
+            z: 42,
+            minZoom: 9,
+            style: function (feature, resolution) {
+                if (window.mobFiltrado("mob_fluxos", feature.get("destino_slug"))) return null;
+                const zoom = view.getZoomForResolution(resolution);
+                const valores = Number(feature.get("valores")) || 0;
+                const cor = mobFluxoCor(feature);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: cor,
+                        width: 1.5 + Math.min(9, Math.sqrt(valores) * 0.6),
+                        lineCap: "round",
+                    }),
+                });
+                const rotulo = mobFluxoRotulo(feature);
+                if (zoom >= 13 && rotulo) {
+                    style.setText(
+                        new ol.style.Text({
+                            text: rotulo,
+                            font: "bold 11px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: cor }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                            placement: "line",
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
     };
 
     // 5. INICIA O MAPA COM AS 3 CAMADAS BASE (Incluindo Ortofoto)
     const map = new ol.Map({
         target: "sigweb-map",
-        layers: [osmLayer, esriLayer, ortofotoLayer],
+        layers: basemapLayers,
         view: view,
     });
 
@@ -755,44 +1243,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
     window.loadedLayers = {};
 
-    // 6. EVENTOS DE SATÉLITE
-    let showSat = false;
-    const btnSatelite = document.getElementById("btn-satelite");
-    const sateliteText = document.getElementById("satelite-text");
-    if (btnSatelite) {
-        btnSatelite.addEventListener("click", () => {
-            showSat = !showSat;
-            osmLayer.setVisible(!showSat);
-            esriLayer.setVisible(showSat);
-            ortofotoLayer.setVisible(showSat); // ATIVA A ORTOFOTO DA CIDADE!
-
-            if (showSat) {
-                btnSatelite.classList.add(
-                    "bg-primary-50",
-                    "text-primary-600",
-                    "dark:bg-primary-900/20",
-                    "dark:text-primary-400",
-                );
-                btnSatelite.classList.remove(
-                    "text-gray-600",
-                    "dark:text-gray-300",
-                );
-                if (sateliteText) sateliteText.innerText = "Mapa Open";
-            } else {
-                btnSatelite.classList.remove(
-                    "bg-primary-50",
-                    "text-primary-600",
-                    "dark:bg-primary-900/20",
-                    "dark:text-primary-400",
-                );
-                btnSatelite.classList.add(
-                    "text-gray-600",
-                    "dark:text-gray-300",
-                );
-                if (sateliteText) sateliteText.innerText = "Satélite";
-            }
-        });
-    }
+    // 6. SELETOR DE MAPA BASE — mesmo evento da intranet (Alpine despacha `switch-basemap`).
+    //    Ortofoto liga o satélite por baixo para cobrir as bordas fora da área imageada.
+    window.addEventListener("switch-basemap", (event) => {
+        let selecionado = String(event.detail || "osm");
+        if (!basemaps[selecionado]) {
+            console.warn(`SIGWEB: Basemap "${selecionado}" não definido na engine pública.`);
+            selecionado = "osm";
+            window.dispatchEvent(new CustomEvent("sync-basemap-ui", { detail: "osm" }));
+        }
+        Object.keys(basemaps).forEach((key) => basemaps[key].setVisible(false));
+        if (selecionado.startsWith("ortofoto")) {
+            basemaps["esri_sat"].setVisible(true);
+        }
+        basemaps[selecionado].setVisible(true);
+    });
 
     // 7. CARREGAMENTO DE CAMADAS (API AJAX ORIGINAL)
     const fetchAndDrawLayer = (layerName, checkboxElement) => {
@@ -811,7 +1276,8 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         fetch(`/api/gis-data?tenant_id=${config.tenantId}&layer=${layerName}`)
-            .then((response) => response.json())
+            // 403 = módulo não contratado (defesa do backend); 404 = camada inexistente — nada a desenhar
+            .then((response) => (response.ok ? response.json() : {}))
             .then((data) => {
                 if (data && data.features && data.features.length > 0) {
                     const parsedFeatures = new ol.format.GeoJSON().readFeatures(
@@ -833,6 +1299,10 @@ document.addEventListener("DOMContentLoaded", function () {
                     });
                     map.addLayer(vectorLayer);
                     window.loadedLayers[layerName] = vectorLayer;
+                    // Tema escolhido antes da camada carregar: monta a legenda agora
+                    if (layerName === "mob_trechos" && window.mobTrechoTema) {
+                        window.dispatchEvent(new CustomEvent("sigweb-mob-trecho-tema", { detail: { tema: window.mobTrechoTema } }));
+                    }
                 }
             })
             .catch((err) =>
@@ -877,6 +1347,247 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     });
+
+    // ══ MOBILIDADE URBANA (só leitura) — sub-filtros, ficha e hover (D8, 2026-09-05) ══
+    // Mini-checkboxes por tipo/categoria/destino: filtro de CLIENTE (mesmo mecanismo
+    // .mob-sub-toggle da intranet). Ligar/desligar a camada-mãe sincroniza os filhos.
+    document.addEventListener("change", (e) => {
+        const el = e.target;
+        if (!el.classList || !el.classList.contains("mob-sub-toggle")) return;
+        const mobLayer = el.dataset.mobLayer;
+        const valor = String(el.dataset.valor);
+        if (!window._mobFiltros[mobLayer]) window._mobFiltros[mobLayer] = new Set();
+        if (el.checked) window._mobFiltros[mobLayer].delete(valor);
+        else window._mobFiltros[mobLayer].add(valor);
+        if (window.loadedLayers[mobLayer]) window.loadedLayers[mobLayer].changed();
+    });
+    document.addEventListener("change", (e) => {
+        const el = e.target;
+        if (!el.classList || !el.classList.contains("layer-toggle")) return;
+        const mobLayer = el.dataset.layer || "";
+        if (!mobLayer.startsWith("mob_")) return;
+        document
+            .querySelectorAll('.mob-sub-toggle[data-mob-layer="' + mobLayer + '"]')
+            .forEach((sub) => (sub.checked = el.checked));
+        window._mobFiltros[mobLayer] = new Set();
+        if (window.loadedLayers[mobLayer]) window.loadedLayers[mobLayer].changed();
+        if (!el.checked) window.mobFichaFechar();
+    });
+
+    // "Colorir por" dos trechos: valor→cor a partir das feições carregadas + legenda
+    // (#mob-trecho-legenda). Só visual, nada gravado — mesmo motor da intranet.
+    window.addEventListener("sigweb-mob-trecho-tema", (e) => {
+        const tema = e.detail && e.detail.tema ? e.detail.tema : null;
+        window.mobTrechoTema = tema;
+        window._mobTemaMap = {};
+        const legenda = document.getElementById("mob-trecho-legenda");
+        if (tema && window.loadedLayers["mob_trechos"]) {
+            const valores = new Set();
+            window.loadedLayers["mob_trechos"]
+                .getSource()
+                .getFeatures()
+                .forEach((f) => valores.add(window.mobTrechoValorTema(f) ?? "—"));
+            const ordenados = Array.from(valores).sort((a, b) => a.localeCompare(b, "pt-BR"));
+            ordenados.forEach((v, i) => {
+                window._mobTemaMap[v] = MOB_TEMA_PALETA[i % MOB_TEMA_PALETA.length];
+            });
+            if (legenda) {
+                legenda.innerHTML = ordenados
+                    .map(
+                        (v) =>
+                            '<span style="display:inline-flex;align-items:center;gap:4px;margin:2px 8px 2px 0;font-size:11px;">' +
+                            '<i style="width:10px;height:10px;border-radius:2px;display:inline-block;background:' +
+                            window._mobTemaMap[v] + ';"></i>' +
+                            String(v).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]) +
+                            "</span>",
+                    )
+                    .join("");
+            }
+        } else if (legenda) {
+            legenda.innerHTML = "";
+        }
+        if (window.loadedLayers["mob_trechos"]) window.loadedLayers["mob_trechos"].changed();
+    });
+
+    const mobEsc = (s) => String(s ?? "").replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c]);
+    const mobNum = (v, dec) =>
+        v === null || v === undefined || v === "" || Number.isNaN(Number(v))
+            ? null
+            : Number(v).toLocaleString("pt-BR", { maximumFractionDigits: dec });
+    const mobComUnidade = (v, dec, unidade) => {
+        const n = mobNum(v, dec);
+        return n === null ? null : n + " " + unidade;
+    };
+    const mobRotulo = (grupo, v) =>
+        v === null || v === undefined || v === ""
+            ? null
+            : (MOB_ROTULOS[grupo] && MOB_ROTULOS[grupo][v]) || String(v).replace(/_/g, " ");
+    const mobSentidoTexto = (s) =>
+        s === "mao_unica" ? "Mão única (setas = sentido do fluxo)" : s === "mao_dupla" ? "Mão dupla" : "Sentido não classificado";
+    const MOB_CAMADA_NOME = {
+        mob_trechos: "Trecho viário (levantamento)",
+        mob_vias: "Via urbana",
+        mob_sinalizacoes: "Sinalização viária",
+        mob_pontos_interesse: "Ponto de interesse",
+        mob_eixos: "Eixo de mobilidade",
+        mob_zonas: "Zona de estudo",
+        mob_fluxos: "Fluxo origem → destino",
+        mob_cameras: "Monitoramento em tempo real",
+    };
+
+    // Ficha SÓ LEITURA (painel #mob-ficha-publica do blade): linhas [rótulo, valor] por camada.
+    // Fluxos: só percentuais (decisão 2026-09-04 — o volume absoluto fica na tela interna).
+    window.mobFichaFechar = function () {
+        const box = document.getElementById("mob-ficha-publica");
+        if (box) box.style.display = "none";
+    };
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") window.mobFichaFechar();
+    });
+    window.mobFichaPublica = function (feature) {
+        const box = document.getElementById("mob-ficha-publica");
+        if (!box) return;
+        const layer = feature.get("layer");
+        const g = (k) => feature.get(k);
+        const linhas = [];
+        const add = (rotulo, valor) => {
+            if (valor !== null && valor !== undefined && valor !== "") linhas.push([rotulo, valor]);
+        };
+        let titulo = g("name") || "";
+
+        if (layer === "mob_trechos") {
+            add("Tipologia da via", g("tipologia_da_via"));
+            add("Pavimentação", g("tipo_de_pavimentacao"));
+            add("Estado da pavimentação", g("estado_conservacao_pavimentacao"));
+            add("Classe (faixa de rodagem)", g("classe_faixa_rodagem"));
+            add("Dimensionamento", g("dimensionamento_da_via"));
+            add("Extensão", mobComUnidade(g("extensao_geo"), 1, "m"));
+            // Campos do kit do município (calçadas, vegetação...) — rótulo = slug humanizado
+            const custom = g("custom");
+            if (custom && typeof custom === "object") {
+                Object.keys(custom).forEach((k) => {
+                    let v = custom[k];
+                    if (Array.isArray(v)) v = v.join(", ");
+                    if (v === null || v === undefined || v === "" || typeof v === "object") return;
+                    add(k.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()), v);
+                });
+            }
+            add("Observação", g("observacao"));
+        } else if (layer === "mob_vias") {
+            add("Sentido", mobSentidoTexto(g("sentido")));
+            add("Extensão", mobComUnidade(g("extensao_geo"), 1, "m"));
+        } else if (layer === "mob_sinalizacoes") {
+            titulo = g("name") || "Sinalização";
+            add("Posição", g("tipo_vh") === "horizontal" ? "Horizontal (no pavimento)" : "Vertical (placa)");
+        } else if (layer === "mob_pontos_interesse") {
+            add("Categoria", mobRotulo("poi", g("categoria")));
+            add("Número", g("numero"));
+        } else if (layer === "mob_eixos") {
+            add("Tipo", mobRotulo("eixo", g("tipo")));
+            add("Extensão", g("extensao_geo") ? mobComUnidade(g("extensao_geo") / 1000, 2, "km") : null);
+        } else if (layer === "mob_zonas") {
+            add("Tipo", mobRotulo("zona", g("tipo")));
+            add("Código", g("codigo"));
+            add("Situação", g("situacao"));
+            add("Origens", mobComUnidade(g("origens"), 1, "% dos deslocamentos"));
+            add("Destinos", mobComUnidade(g("destinos"), 1, "% dos deslocamentos"));
+            add("Área", g("area_geo") ? mobComUnidade(g("area_geo") / 10000, 2, "ha") : null);
+            add("População (Censo 2022)", mobNum(g("populacao"), 0));
+            add("Densidade", mobComUnidade(g("densidade"), 2, "hab/ha"));
+            add("Renda média", g("renda") ? "R$ " + mobNum(g("renda"), 2) : null);
+        } else if (layer === "mob_fluxos") {
+            add("Origem", g("origem_zona") || g("origem_regiao"));
+            add("Destino", g("destino_zona") || "Sem zona");
+            const pct = mobFluxoRotulo(feature);
+            add("Participação", pct ? pct + " do total de deslocamentos" : "abaixo de 0,1% do total");
+        }
+
+        document.getElementById("mob-ficha-camada").textContent = MOB_CAMADA_NOME[layer] || "Mobilidade urbana";
+        document.getElementById("mob-ficha-titulo").textContent = titulo || "—";
+        const icone =
+            layer === "mob_sinalizacoes" && g("icone")
+                ? `<img src="${mobEsc(g("icone"))}" alt="" style="width:40px;height:40px;object-fit:contain;border-radius:8px;border:1px solid #e5e7eb;background:#fff;margin-bottom:8px;">`
+                : "";
+        // Grade rótulo | valor: o valor tem coluna própria e quebra por palavra (antes, na
+        // caixa estreita, "Não possui" virava uma letra por linha)
+        document.getElementById("mob-ficha-corpo").innerHTML =
+            icone +
+            (linhas.length
+                ? linhas
+                      .map(
+                          ([r, v]) =>
+                              `<div style="display:grid; grid-template-columns:minmax(170px, 38%) 1fr; gap:14px; padding:8px 0; border-top:1px solid #f3f4f6; align-items:start;"><span style="color:#6b7280;">${mobEsc(r)}</span><span style="font-weight:600; color:#111827; overflow-wrap:anywhere;">${mobEsc(v)}</span></div>`,
+                      )
+                      .join("")
+                : '<p style="color:#9ca3af; margin:0;">Sem atributos cadastrados.</p>');
+        box.style.display = "block";
+    };
+
+    // Hover das feições de mobilidade: destaque + texto do tooltip (espelho da intranet)
+    function mobHoverInfo(feature) {
+        const layer = feature.get("layer");
+        const seq = feature.get("sequential_id");
+        const titulo = mobEsc(feature.get("name") || (seq ? "#" + seq : ""));
+        let detalhe = "";
+        let estilo = null;
+        const halo = (cor, w) => [
+            new ol.style.Style({ stroke: new ol.style.Stroke({ color: "#ffffff", width: w + 3.5 }) }),
+            new ol.style.Style({ stroke: new ol.style.Stroke({ color: cor, width: w }) }),
+        ];
+        const ponto = (cor, r) =>
+            new ol.style.Style({
+                image: new ol.style.Circle({
+                    radius: r,
+                    fill: new ol.style.Fill({ color: cor }),
+                    stroke: new ol.style.Stroke({ color: "#f59e0b", width: 3 }),
+                }),
+            });
+        const metros = (v) => (v ? " · " + Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " m" : "");
+        if (layer === "mob_trechos") {
+            estilo = halo(mobTrechoCor(feature), 5.5);
+            detalhe =
+                "Trecho do levantamento" +
+                (feature.get("tipo_de_pavimentacao") ? " · " + mobEsc(feature.get("tipo_de_pavimentacao")) : "") +
+                metros(feature.get("extensao_geo"));
+        } else if (layer === "mob_vias") {
+            estilo = halo(mobViaCor(feature), 5.5);
+            detalhe = mobSentidoTexto(feature.get("sentido")) + metros(feature.get("extensao_geo"));
+        } else if (layer === "mob_eixos") {
+            estilo = halo(MOB_EIXO_CORES[feature.get("tipo")] || "#0ea5e9", 6);
+            const ext = feature.get("extensao_geo");
+            detalhe =
+                mobEsc(mobRotulo("eixo", feature.get("tipo")) || "") +
+                (ext ? " · " + (ext / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + " km" : "");
+        } else if (layer === "mob_fluxos") {
+            const vol = Number(feature.get("valores")) || 0;
+            const w = 4 + Math.min(9, Math.sqrt(vol) * 0.6);
+            estilo = [
+                new ol.style.Style({ stroke: new ol.style.Stroke({ color: "#ffffff", width: w + 3, lineCap: "round" }) }),
+                new ol.style.Style({ stroke: new ol.style.Stroke({ color: mobFluxoCor(feature), width: w, lineCap: "round" }) }),
+            ];
+            const pct = mobFluxoRotulo(feature);
+            detalhe = (pct ? "<strong>" + pct + "</strong> do total de deslocamentos" : "abaixo de 0,1% do total") + " · clique para a ficha";
+        } else if (layer === "mob_sinalizacoes") {
+            estilo = ponto(feature.get("cor") || "#9ca3af", 10);
+            detalhe = feature.get("tipo_vh") === "horizontal" ? "Sinalização horizontal" : "Sinalização vertical";
+        } else if (layer === "mob_pontos_interesse") {
+            estilo = ponto(MOB_POI_CORES[feature.get("categoria")] || "#64748b", 11);
+            detalhe = mobEsc(mobRotulo("poi", feature.get("categoria")) || "");
+        } else if (layer === "mob_cameras") {
+            estilo = ponto(feature.get("ativo") === false ? "#9ca3af" : "#dc2626", 13);
+            detalhe =
+                (feature.get("ativo") === false ? "Câmera inativa" : "&#128308; Ao vivo — clique para assistir") +
+                (feature.get("provedor") ? " · " + mobEsc(feature.get("provedor")) : "");
+        } else if (layer === "mob_zonas") {
+            const cfg = MOB_ZONA_CORES[feature.get("tipo")] || MOB_ZONA_CORES.setor_censitario;
+            estilo = new ol.style.Style({
+                stroke: new ol.style.Stroke({ color: cfg.stroke, width: 3.5 }),
+                fill: new ol.style.Fill({ color: cfg.fill.replace(/0\.\d+\)$/, "0.25)") }),
+            });
+            detalhe = mobEsc(mobRotulo("zona", feature.get("tipo")) || "") + " · clique para a ficha";
+        }
+        return { titulo, detalhe, estilo };
+    }
 
     // 8. INTERFACE JANELA DE CAMADAS
     const panel = document.getElementById("layers-panel");
@@ -1563,14 +2274,24 @@ document.addEventListener("DOMContentLoaded", function () {
                 "rural-estradas",
                 "pontos_panoramicos",
             ];
-            map.getTargetElement().style.cursor = hoverableLayers.includes(
-                layer,
-            )
-                ? "pointer"
-                : "";
+            const ehMob = !!(layer && layer.startsWith("mob_"));
+            map.getTargetElement().style.cursor = hoverableLayers.includes(layer) || ehMob ? "pointer" : "";
 
-            // Se for Logradouro (Rua), acende de azul e mostra a caixinha com o nome
-            if (layer === "logradouros" || layer === "rural-estradas") {
+            if (ehMob) {
+                // ── MOBILIDADE URBANA (só leitura): destaque + tooltip, espelho da intranet ──
+                hoveredFeature = featureNormal;
+                const dica = mobHoverInfo(featureNormal);
+                if (dica.estilo) featureNormal.setStyle(dica.estilo);
+                if (featureTooltip) {
+                    featureTooltip.innerHTML =
+                        `<div style="font-size:12px; font-weight:bold;">${dica.titulo}</div>` +
+                        (dica.detalhe ? `<div style="font-size:10px; color:#cbd5e1;">${dica.detalhe}</div>` : "");
+                    featureTooltip.style.display = "block";
+                    featureTooltip.style.left = e.originalEvent.clientX + 15 + "px";
+                    featureTooltip.style.top = e.originalEvent.clientY + 15 + "px";
+                }
+            } else if (layer === "logradouros" || layer === "rural-estradas") {
+                // Se for Logradouro (Rua), acende de azul e mostra a caixinha com o nome
                 hoveredFeature = featureNormal;
 
                 // Estilo de destaque (Rua mais grossa e azul claro)
@@ -1796,14 +2517,23 @@ document.addEventListener("DOMContentLoaded", function () {
         const pick = (layerName) => feats.find((f) => f.get("layer") === layerName);
         // T2.3 — logradouro clicável: a LINHA ganha da zona (polígono cobre tudo),
         // mas perde para lote/ponto (alvos mais específicos do clique).
-        const feature = pick("lotes") || pick("pontos_panoramicos") || pick("logradouros") || pick("zonas") || feats[0];
+        // D8 (público): mobilidade entra na prioridade — pontos antes de linhas, linhas antes de polígonos
+        // Edificações do lote (camada auxiliar desenhada por cima): ficha só leitura (2026-09-05)
+        const feature =
+            pick("edificacoes") || pick("lotes") || pick("pontos_panoramicos") ||
+            pick("mob_cameras") || pick("mob_sinalizacoes") || pick("mob_pontos_interesse") ||
+            pick("logradouros") || pick("mob_vias") || pick("mob_trechos") || pick("mob_eixos") || pick("mob_fluxos") ||
+            pick("zonas") || pick("mob_zonas") || feats[0];
 
         if (feature) {
             // Mudamos o nome da variável para evitar o erro "layer is not defined"
             const featureLayer = feature.get("layer");
             const featureId = feature.get("id");
 
-            if (featureLayer === "lotes") {
+            if (featureLayer === "edificacoes") {
+                // Ficha SÓ LEITURA da edificação (área, campos do município) — modal Livewire
+                Livewire.dispatch("abrirFichaEdificacaoPublica", { id: featureId });
+            } else if (featureLayer === "lotes") {
                 const loteNome =
                     feature.get("titulo") || feature.get("name") || "S/N";
                 // Avisa o Livewire para abrir a ficha do lote
@@ -1822,6 +2552,12 @@ document.addEventListener("DOMContentLoaded", function () {
             } else if (featureLayer === "zonas") {
                 // T1.6 — ficha pública da zona (parâmetros + usos)
                 Livewire.dispatch("abrirFichaZona", { zonaId: featureId });
+            } else if (featureLayer === "mob_cameras") {
+                // D8 — player público da câmera (modal Livewire, sem formulário)
+                Livewire.dispatch("abrirCameraPublica", { id: featureId });
+            } else if (featureLayer && featureLayer.startsWith("mob_")) {
+                // D8 — ficha SÓ LEITURA da feição de mobilidade (painel JS, sem Livewire)
+                window.mobFichaPublica(feature);
             }
         }
     });

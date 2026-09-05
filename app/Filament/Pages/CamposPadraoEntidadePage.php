@@ -37,7 +37,10 @@ class CamposPadraoEntidadePage extends Page implements HasForms
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->temPermissao('gerenciar_campos_customizados') ?? false;
+        // ⚠️ canAccess da classe sobrepõe o do trait HasTenantModule — o módulo tem de
+        // ser checado AQUI (A1 — docs/Modulos_Permissoes.txt)
+        return \App\Support\Modulos::ativo(static::$tenantModule)
+            && (auth()->user()?->temPermissao('gerenciar_campos_customizados') ?? false);
     }
 
     public function getTitle(): string

@@ -1,22 +1,29 @@
 <?php
+
 namespace App\Filament\Resources;
-use App\Models\Logradouro;
+
 use App\Filament\Resources\LogradouroResource\Pages;
+use App\Models\Logradouro;
+use App\Traits\HasTenantModule;
+use Filament\Forms;
+use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Forms;
-use Filament\Forms\Form;
-use App\Traits\HasTenantModule;
 
 class LogradouroResource extends Resource
 {
     use HasTenantModule;
-    protected static ?string $tenantModule = 'imobiliario';
+
+    protected static ?string $tenantModule = 'base_cartografica'; // D1 (docs/Modulos_Permissoes.txt)
+
     protected static ?string $model = Logradouro::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-arrows-right-left';
-    protected static ?string $navigationGroup = 'Módulo Imobiliário';
-     protected static ?int $navigationSort = 3;
+
+    protected static ?string $navigationGroup = 'Base Cartográfica';
+
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {
@@ -54,7 +61,7 @@ class LogradouroResource extends Resource
                             ->rows(10)
                             ->columnSpanFull()
                             ->helperText('O sistema desenha automaticamente no mapa, mas você pode colar um GeoJSON completo OU uma lista simples de coordenadas do traçado (ex: "-50.404263 -26.972014, -50.401214 -26.974058...")'),
-                    ])->columns(2)
+                    ])->columns(2),
             ]);
     }
 
@@ -85,7 +92,7 @@ class LogradouroResource extends Resource
                         // Verifica a profundidade exata dependendo se o banco devolveu MultiLineString ou LineString
                         if ($record->geo_json && isset($record->geo_json->coordinates)) {
                             $tipo = $record->geo_json->type ?? '';
-                            
+
                             if ($tipo === 'MultiLineString' && isset($record->geo_json->coordinates[0][0])) {
                                 $lon = $record->geo_json->coordinates[0][0][0] ?? null;
                                 $lat = $record->geo_json->coordinates[0][0][1] ?? null;
@@ -96,12 +103,13 @@ class LogradouroResource extends Resource
                         }
 
                         if ($lon && $lat) {
-                            return url('/app/' . $tenant->slug . '/mapa-interativo?layer=logradouros&focus_lat=' . $lat . '&focus_lon=' . $lon);
+                            return url('/app/'.$tenant->slug.'/mapa-interativo?layer=logradouros&focus_lat='.$lat.'&focus_lon='.$lon);
                         }
-                        return url('/app/' . $tenant->slug . '/mapa-interativo');
+
+                        return url('/app/'.$tenant->slug.'/mapa-interativo');
                     })
                     ->visible(fn (Logradouro $record) => $record->geo_json !== null),
-                    
+
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ]);

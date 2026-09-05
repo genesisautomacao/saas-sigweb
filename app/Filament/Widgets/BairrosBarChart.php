@@ -2,16 +2,25 @@
 
 namespace App\Filament\Widgets;
 
-use Filament\Widgets\ChartWidget;
 use App\Models\Bairro;
+use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str; // <-- Importante para o limitador de texto
 
 class BairrosBarChart extends ChartWidget
 {
     protected static ?string $heading = 'Área Territorial por Bairro (m²)';
-    protected static ?int $sort = 3;
-    protected int | string | array $columnSpan = ['md' => 1, 'xl' => 1];
+
+    /** Bairros são da base cartográfica (docs/Modulos_Permissoes.txt, D1) */
+    public static function canView(): bool
+    {
+        return \App\Support\Modulos::ativo('base_cartografica');
+    }
+
+    /** Linha da base cartográfica: bairros à esquerda, logradouros à direita (D8, 2026-09-05) */
+    protected static ?int $sort = 2;
+
+    protected int|string|array $columnSpan = ['md' => 1, 'xl' => 1];
 
     protected function getData(): array
     {
@@ -28,13 +37,13 @@ class BairrosBarChart extends ChartWidget
             'datasets' => [
                 [
                     'label' => 'Metros Quadrados (m²)',
-                    'data' => $bairros->map(fn($b) => round($b->area_calc, 2))->toArray(),
+                    'data' => $bairros->map(fn ($b) => round($b->area_calc, 2))->toArray(),
                     'backgroundColor' => '#3b82f6',
                     'borderRadius' => 4,
                 ],
             ],
             // Corta a string se passar de 30 caracteres
-            'labels' => $bairros->map(fn($b) => Str::limit($b->name, 30))->toArray(),
+            'labels' => $bairros->map(fn ($b) => Str::limit($b->name, 30))->toArray(),
         ];
     }
 

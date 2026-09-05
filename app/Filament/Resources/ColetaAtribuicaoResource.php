@@ -22,7 +22,7 @@ class ColetaAtribuicaoResource extends Resource
 {
     use HasTenantModule;
 
-    protected static ?string $tenantModule = 'imobiliario';
+    protected static ?string $tenantModule = 'coleta_cadastral'; // D4 (docs/Modulos_Permissoes.txt)
 
     protected static ?string $model = ColetaAtribuicao::class;
 

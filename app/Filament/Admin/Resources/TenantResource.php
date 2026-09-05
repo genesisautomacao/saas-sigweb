@@ -369,25 +369,30 @@ class TenantResource extends Resource
                     ->icon('heroicon-o-squares-2x2')
                     ->visible(fn () => static::pode('admin_gerenciar_modulos'))
                     ->schema([
+                        // Chaves e rótulos vêm do catálogo config/modulos.php (docs/Modulos_Permissoes.txt).
+                        // Módulo ligado aqui = telas, camadas, ferramentas e caixas de permissão
+                        // aparecem na prefeitura; desligado = somem para todo mundo (Manager incluído).
                         Forms\Components\Select::make('modules')
                             ->label('Módulos Liberados para esta Prefeitura')
                             ->multiple()
-                            ->options([
-                                'administrativo' => 'ADM - Administrativo',
-                                'imobiliario' => 'GIS - Cadastro Imobiliário',
-                                'arborizacao' => 'GIS - Arborização Urbana',
-                                'iluminacao' => 'GIS - Iluminação Pública',
-                                'estoque' => 'ADM - Estoque',
-                                'manutencao' => 'ADM - Manutenção e Serviços',
-                                'cemiterio' => 'GIS - Gestão de Cemitérios',
-                                'social' => 'ADM - Cadastro Social',
-                                'pgv' => 'PGV - Planta Genérica de Valores',
-                                'processos' => 'BPMN - Processos Digitais',
-                                'rural' => 'GIS - Módulo Rural',
-                                'patrimonios' => 'ADM - Patrimônios Públicos',
-                                'mob_infra' => 'Mobilidade - Infraestrutura',
-                                // Adicione os módulos do CSV que você me mandou aqui!
-                            ]),
+                            ->live()
+                            ->options(\App\Support\Modulos::opcoesTenant()),
+
+                        // Pré-requisitos (D4): nada é bloqueado, mas o operador é avisado.
+                        Forms\Components\Placeholder::make('aviso_modulos')
+                            ->hiddenLabel()
+                            ->visible(fn (Forms\Get $get) => \App\Support\Modulos::requisitosFaltantes((array) ($get('modules') ?? [])) !== [])
+                            ->content(function (Forms\Get $get): \Illuminate\Support\HtmlString {
+                                $faltando = \App\Support\Modulos::requisitosFaltantes((array) ($get('modules') ?? []));
+                                $linhas = collect($faltando)->map(fn ($req, $mod) => '<strong>'.e(\App\Support\Modulos::label($mod)).'</strong> precisa de '
+                                    .collect($req)->map(fn ($r) => '<strong>'.e(\App\Support\Modulos::label($r)).'</strong>')->implode(' e '))->implode('<br>');
+
+                                return new \Illuminate\Support\HtmlString(
+                                    '<div style="border:1px solid #f59e0b;background:#fffbeb;color:#92400e;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.6;">'
+                                    .'⚠️ Pré-requisito não marcado:<br>'.$linhas
+                                    .'<br><span style="color:#b45309;">As telas do módulo dependente ficam vazias até o pré-requisito ser ligado.</span></div>'
+                                );
+                            }),
                     ]),
             ]);
     }
@@ -576,8 +581,18 @@ class TenantResource extends Resource
                             // 2. Avisamos o Spatie em qual Tenant estamos operando
                             setPermissionsTeamId($record->id);
 
-                            // 3. Atribui o papel (agora ele vai achar o Manager exclusivo desta Tenant)
-                            $user->assignRole('Manager');
+                            // 3. Atribui o papel de sistema "manager" da prefeitura (D7: pela flag —
+                            //    o nome pode ter sido trocado). Autocura se a prefeitura nasceu sem ele.
+                            $manager = \App\Models\Role::managerDe($record->id)
+                                ?? \App\Models\Role::create([
+                                    'name' => 'Manager', 'tenant_id' => $record->id, 'guard_name' => 'web',
+                                    'papel_sistema' => \App\Models\Role::SISTEMA_MANAGER, 'todos_modulos' => true,
+                                ]);
+                            if ($manager->papel_sistema !== \App\Models\Role::SISTEMA_MANAGER) {
+                                $manager->forceFill(['papel_sistema' => \App\Models\Role::SISTEMA_MANAGER, 'todos_modulos' => true])->save();
+                            }
+                            $record->syncManagerPermissions($manager);
+                            $user->assignRole($manager);
 
                             \Filament\Notifications\Notification::make()
                                 ->title('Manager criado e vinculado com sucesso!')

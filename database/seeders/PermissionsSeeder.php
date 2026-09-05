@@ -295,6 +295,10 @@ class PermissionsSeeder extends Seeder
             'ver_camada_rural_pontos_interesse',
             'ver_camada_pontos_panoramicos',
             'ver_camada_toponimias',
+            // A3 (docs/Modulos_Permissoes.txt): camadas que existiam no painel sem permissão
+            'ver_camada_coleta',
+            'ver_camada_chamados',
+            'ver_camada_areas_reurb',
 
             /* Camadas do Módulo Mobilidade Urbana */
             'ver_camada_mob_trechos',

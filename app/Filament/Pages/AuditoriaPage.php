@@ -91,7 +91,7 @@ class AuditoriaPage extends Page implements HasTable
                 ->label('Limpar filtro do lote')
                 ->icon('heroicon-o-x-mark')
                 ->color('gray')
-                ->visible(fn () => $this->loteId !== null)
+                ->visible(fn() => $this->loteId !== null)
                 ->action('limparFocoLote'),
 
             // PoC AC item 6 — exporta respeitando os filtros da tabela
@@ -172,7 +172,7 @@ class AuditoriaPage extends Page implements HasTable
                 // PoC AC — além do ID, o identificador legível da entidade
                 // (numero_lote p/ Lote, name/nome/inscrição p/ as demais),
                 // inclusive de registros já excluídos (busca sem escopos).
-                ->getStateUsing(fn (Activity $record) => \App\Services\Exports\AuditoriaExportService::rotuloRegistro($record))
+                ->getStateUsing(fn(Activity $record) => \App\Services\Exports\AuditoriaExportService::rotuloRegistro($record))
                 ->sortable(),
 
             Tables\Columns\TextColumn::make('description')
@@ -183,6 +183,7 @@ class AuditoriaPage extends Page implements HasTable
                     'deleted' => 'Excluído',
                     default   => $state,
                 })
+                ->wrap()
                 ->limit(60),
         ];
     }
@@ -206,13 +207,13 @@ class AuditoriaPage extends Page implements HasTable
 
                     return \App\Models\User::query()
                         ->where('tipo', 'prefeitura')
-                        ->whereHas('tenants', fn ($q) => $q->where('tenants.id', $tenantId))
+                        ->whereHas('tenants', fn($q) => $q->where('tenants.id', $tenantId))
                         ->orderBy('name')
                         ->pluck('name', 'id');
                 })
-                ->query(fn (Builder $query, array $data) => $query->when(
+                ->query(fn(Builder $query, array $data) => $query->when(
                     $data['value'] ?? null,
-                    fn ($q, $v) => $q->where('causer_type', \App\Models\User::class)->where('causer_id', $v)
+                    fn($q, $v) => $q->where('causer_type', \App\Models\User::class)->where('causer_id', $v)
                 )),
 
             Tables\Filters\SelectFilter::make('event')

@@ -12,6 +12,11 @@ use Filament\Tables\Table;
 
 class CategoriaChamadoResource extends Resource
 {
+    use \App\Traits\HasTenantModule;
+
+    /** App de Chamados faz parte do módulo Coleta Cadastral (D4 — docs/Modulos_Permissoes.txt) */
+    protected static ?string $tenantModule = 'chamados'; // D8 (2026-09-05): módulo próprio
+
     protected static ?string $model = CategoriaChamado::class;
 
     protected static ?string $tenantRelationshipName = 'categoriasChamado';

@@ -30,11 +30,18 @@ class AppServiceProvider extends ServiceProvider
 
             // Fazemos uma consulta direta (RAW) no banco de dados.
             // Isso ignora completamente o cache do Spatie e a perda de contexto do Livewire.
+            // D7 (docs/Modulos_Permissoes.txt): o papel é de sistema pela FLAG
+            // roles.papel_sistema, não pelo nome — renomear "Manager" não derruba nada.
+            // A9: filtra pela prefeitura da sessão (SyncSpatieTenant seta o team id) —
+            // Manager em A não vira Manager em B. Sem team id (console/API) mantém o
+            // comportamento antigo (qualquer papel de sistema vale).
+            $teamId = function_exists('getPermissionsTeamId') ? getPermissionsTeamId() : null;
             $hasSuperPower = DB::table('model_has_roles')
                 ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
                 ->where('model_has_roles.model_id', $user->id)
                 ->where('model_has_roles.model_type', get_class($user))
-                ->whereIn('roles.name', ['Master', 'Manager'])
+                ->whereIn('roles.papel_sistema', ['master', 'manager'])
+                ->when($teamId, fn ($q) => $q->where(fn ($w) => $w->whereNull('roles.tenant_id')->orWhere('roles.tenant_id', $teamId)))
                 ->exists();
 
             if ($hasSuperPower) {

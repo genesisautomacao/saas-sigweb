@@ -36,6 +36,13 @@ class MapDataController extends Controller
             return response()->json(['error' => 'Parâmetros inválidos'], 400);
         }
 
+        // MÓDULOS (docs/Modulos_Permissoes.txt): camada de módulo não contratado pela
+        // prefeitura não é servida — defesa em profundidade além do painel/engine.
+        $tenantModulos = \App\Models\Tenant::find($tenantId);
+        if ($tenantModulos && ! \App\Support\Modulos::camadaDisponivel($layer, $tenantModulos)) {
+            return response()->json(['error' => 'Camada indisponível para esta prefeitura (módulo não contratado)'], 403);
+        }
+
         $buildFeatureCollection = function ($items, $layerName) {
             $features = [];
 

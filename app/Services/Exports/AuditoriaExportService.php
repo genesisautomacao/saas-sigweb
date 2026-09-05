@@ -76,43 +76,9 @@ class AuditoriaExportService
      */
     public static function resumoAlteracoes($atividade): string
     {
-        $props = collect($atividade->properties ?? []);
-        $novos = (array) $props->get('attributes', []);
-        $antigos = (array) $props->get('old', []);
-
-        if ($novos === [] && $antigos === []) {
-            return '—';
-        }
-
-        $fmt = function ($v): string {
-            if (is_array($v) || is_object($v)) {
-                $v = json_encode($v, JSON_UNESCAPED_UNICODE);
-            }
-            $v = ($v === null || $v === '') ? 'vazio' : (string) $v;
-
-            return mb_strlen($v) > 60 ? mb_substr($v, 0, 57).'…' : $v;
-        };
-
-        $partes = [];
-        foreach (array_unique(array_merge(array_keys($novos), array_keys($antigos))) as $campo) {
-            if (in_array($campo, ['geo', 'geo_json'], true)) {
-                $partes[] = 'geometria: alterada (croqui em Auditoria → Ver detalhes)';
-                continue;
-            }
-
-            $temNovo = array_key_exists($campo, $novos);
-            $temAntigo = array_key_exists($campo, $antigos);
-            $novo = $temNovo ? $fmt($novos[$campo]) : null;
-            $antigo = $temAntigo ? $fmt($antigos[$campo]) : null;
-
-            $partes[] = ($temNovo && $temAntigo && $antigo !== $novo)
-                ? "{$campo}: {$antigo} → {$novo}"
-                : "{$campo}: ".($novo ?? $antigo);
-        }
-
-        $texto = implode(' · ', $partes);
-
-        return mb_strlen($texto) > 600 ? mb_substr($texto, 0, 597).'…' : $texto;
+        // 2026-09-05: coluna JSON explodida chave a chave, só o que mudou, com o rótulo do
+        // campo do município — mesma fonte do modal "Ver detalhes" (AuditoriaDiffService).
+        return \App\Services\Auditoria\AuditoriaDiffService::resumo($atividade);
     }
 
     private function linha($atividade): array

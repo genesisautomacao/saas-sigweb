@@ -15,14 +15,22 @@ class SecaoLogradouroResource extends Resource
 {
     use HasTenantModule;
 
-    protected static ?string $tenantModule = 'imobiliario';
+    protected static ?string $tenantModule = 'base_cartografica'; // D8 (2026-09-05): a seção segue o logradouro
+
     protected static ?string $model = SecaoLogradouro::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-minus';
-    protected static ?string $navigationGroup = 'Módulo Imobiliário';
-    protected static ?int $navigationSort = 7;
+
+    protected static ?string $navigationGroup = 'Base Cartográfica';
+
+    protected static ?int $navigationSort = 4; // logo abaixo de Logradouros (3)
+
     protected static ?string $navigationLabel = 'Seções de Logradouro';
+
     protected static ?string $modelLabel = 'Seção de Logradouro';
+
     protected static ?string $pluralModelLabel = 'Seções de Logradouro';
+
     protected static ?string $slug = 'secoes-logradouro';
 
     public static function form(Form $form): Form
@@ -146,11 +154,12 @@ class SecaoLogradouroResource extends Resource
                             ->where('id', $record->id)
                             ->first();
                         if ($row && $row->lat && $row->lon) {
-                            return url('/app/' . $tenant->slug . '/mapa-interativo?layer=secoes_logradouro&focus_lat=' . $row->lat . '&focus_lon=' . $row->lon . '&zoom=18');
+                            return url('/app/'.$tenant->slug.'/mapa-interativo?layer=secoes_logradouro&focus_lat='.$row->lat.'&focus_lon='.$row->lon.'&zoom=18');
                         }
+
                         return null;
                     })
-                    ->visible(fn($record) => $record->geo_json !== null),
+                    ->visible(fn ($record) => $record->geo_json !== null),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
@@ -164,9 +173,9 @@ class SecaoLogradouroResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => Pages\ListSecoesLogradouro::route('/'),
+            'index' => Pages\ListSecoesLogradouro::route('/'),
             'create' => Pages\CreateSecaoLogradouro::route('/create'),
-            'edit'   => Pages\EditSecaoLogradouro::route('/{record}/edit'),
+            'edit' => Pages\EditSecaoLogradouro::route('/{record}/edit'),
         ];
     }
 }

@@ -34,7 +34,9 @@ class ProdutividadePage extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->temPermissao('view_produtividade') ?? false;
+        // módulo Coleta Cadastral (D4 — docs/Modulos_Permissoes.txt) + permissão
+        return \App\Support\Modulos::ativo('coleta_cadastral')
+            && (auth()->user()?->temPermissao('view_produtividade') ?? false);
     }
 
     public int $tenantId = 0;

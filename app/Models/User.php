@@ -171,6 +171,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants
                         'name' => $papel,
                         'guard_name' => 'web',
                         'tenant_id' => null,
+                        'papel_sistema' => $papel === self::PAPEL_MASTER ? 'master' : null, // D7
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);

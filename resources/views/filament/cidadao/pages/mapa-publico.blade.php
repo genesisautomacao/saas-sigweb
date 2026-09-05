@@ -22,7 +22,15 @@
                 mapLat: {{ $mapLat }},
                 mapLon: {{ $mapLon }},
                 mapZoom: {{ $mapZoom }},
-                isCidadao: true
+                isCidadao: true,
+                // D8 (2026-09-05): módulos ativos + rótulos das listas da mobilidade (ficha só leitura)
+                modulos: @json($modulos),
+                ortofotos: @json($ortofotos),
+                mobRotulos: {
+                    poi: @json(\App\Models\MobPontoInteresse::CATEGORIAS),
+                    eixo: @json(\App\Models\MobEixo::TIPOS),
+                    zona: @json(\App\Models\MobZona::TIPOS),
+                },
             };
         </script>
 
@@ -262,11 +270,58 @@
 
                 <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
 
-                <button id="btn-satelite" title="Alternar Mapa Base"
-                    class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors flex items-center gap-2 font-bold text-sm">
-                    <x-heroicon-o-globe-americas class="w-5 h-5" />
-                    <span id="satelite-text" class="hidden md:inline">Satélite</span>
-                </button>
+                {{-- DROPDOWN DE MAPAS BASE — espelho da intranet (2026-09-05): OSM, satélite Esri e as
+                     ortofotos ATIVAS cadastradas no /admin (uma opção por ortofoto). Azure Maps fica fora
+                     do público (a chave iria no HTML de qualquer visitante). Cores/fundos em style inline:
+                     o CSS do painel cidadão não tem as classes de cor do Tailwind. --}}
+                <div class="relative" x-data="{ open: false, activeBasemap: 'osm' }" @click.away="open = false"
+                    @sync-basemap-ui.window="activeBasemap = $event.detail">
+                    <button @click="open = !open" type="button" title="Alternar Mapa Base"
+                        class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors flex items-center gap-2 font-bold text-sm">
+                        <x-heroicon-o-globe-americas class="w-5 h-5" />
+                        <span class="hidden md:inline">Mapas Base</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform"
+                            x-bind:class="open ? 'rotate-180' : ''" />
+                    </button>
+
+                    <div x-show="open" x-transition
+                        style="display: none; width: 250px; background-color: white; border: 1px solid #e5e7eb;"
+                        class="absolute left-0 mt-2 dark:bg-gray-800 rounded-xl shadow-2xl z-[1001] overflow-hidden">
+                        <div class="p-2">
+                            <div class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mapas de Ruas</div>
+
+                            <button type="button"
+                                @click="activeBasemap = 'osm'; $dispatch('switch-basemap', 'osm'); open = false"
+                                style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; border:none; background:none; border-radius:8px; font-size:13px; text-align:left; cursor:pointer;"
+                                x-bind:style="activeBasemap === 'osm' ? 'color:#1d4ed8; font-weight:700; background:#eff6ff;' : 'color:#374151;'">
+                                <span class="flex items-center gap-2"><x-heroicon-o-map class="w-4 h-4" /> OpenStreetMap</span>
+                                <x-heroicon-o-check x-show="activeBasemap === 'osm'" class="w-4 h-4" />
+                            </button>
+
+                            <div class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-2"
+                                style="border-top:1px solid #f3f4f6;">Imagens Aéreas</div>
+
+                            <button type="button"
+                                @click="activeBasemap = 'esri_sat'; $dispatch('switch-basemap', 'esri_sat'); open = false"
+                                style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; border:none; background:none; border-radius:8px; font-size:13px; text-align:left; cursor:pointer;"
+                                x-bind:style="activeBasemap === 'esri_sat' ? 'color:#1d4ed8; font-weight:700; background:#eff6ff;' : 'color:#374151;'">
+                                <span class="flex items-center gap-2"><x-heroicon-o-globe-asia-australia class="w-4 h-4" /> Esri World Imagery</span>
+                                <x-heroicon-o-check x-show="activeBasemap === 'esri_sat'" class="w-4 h-4" />
+                            </button>
+
+                            {{-- Ortofotos CADASTRADAS da prefeitura (tabela `ortofotos`): sem cadastro = sem opção --}}
+                            @foreach ($ortofotos as $orto)
+                                <button type="button"
+                                    @click="activeBasemap = 'ortofoto_{{ $orto['id'] }}'; $dispatch('switch-basemap', 'ortofoto_{{ $orto['id'] }}'); open = false"
+                                    style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; border:none; background:none; border-radius:8px; font-size:13px; text-align:left; cursor:pointer;"
+                                    x-bind:style="activeBasemap === 'ortofoto_{{ $orto['id'] }}' ? 'color:#1d4ed8; font-weight:700; background:#eff6ff;' : 'color:#374151;'">
+                                    <span class="flex items-center gap-2"><x-heroicon-o-sparkles class="w-4 h-4" /> {{ $orto['nome'] }}</span>
+                                    <x-heroicon-o-check x-show="activeBasemap === 'ortofoto_{{ $orto['id'] }}'" class="w-4 h-4" />
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
 
                 <button id="btn-toggle-layers" title="Camadas do Mapa"
                     class="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-primary-600 dark:text-primary-400 font-bold text-sm flex items-center gap-2">
@@ -295,11 +350,17 @@
             </div>
             <div class="overflow-y-auto overflow-x-hidden max-h-[65vh] custom-scrollbar">
 
-                {{-- GRUPO 1: CADASTRO BASE --}}
+                {{-- D8 (2026-09-05, docs/Modulos_Permissoes.txt §9): os acordeons do mapa PÚBLICO seguem
+                     a MESMA ordem e os MESMOS nomes da intranet, só com o que o cidadão já enxerga, e
+                     cada um só aparece se o módulo estiver ativo na prefeitura ($modulos =
+                     Modulos::ativos, calculado no mount). Mobilidade Urbana entra SÓ LEITURA. --}}
+
+                @if (in_array('base_cartografica', $modulos, true))
+                {{-- GRUPO: BASE CARTOGRÁFICA (abre por padrão — activeTab inicial = base) --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'base' ? '' : 'base'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
-                        <span class="flex items-center gap-2">Cadastro Base</span>
+                        <span class="flex items-center gap-2">Base Cartográfica</span>
                         <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
                             x-bind:class="activeTab === 'base' ? 'rotate-180' : ''" />
                     </button>
@@ -315,15 +376,6 @@
                                 <span class="layer-text truncate">Distritos / Limites</span>
                             </span></label>
 
-                        {{-- Setores --}}
-                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
-                                data-layer="setores_fiscais"
-                                class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0"><span
-                                class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
-                                <span class="layer-text truncate">Setores</span>
-                            </span></label>
-
                         <label class="flex items-center space-x-3 cursor-pointer w-full"><input type="checkbox"
                                 data-layer="bairros"
                                 class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0"><span
@@ -331,7 +383,31 @@
                                 <div class="w-3 h-3 bg-blue-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
                                 <span class="layer-text truncate">Bairros</span>
                             </span></label>
-                        <label class="flex items-center space-x-3 cursor-pointer w-full"><input type="checkbox"
+
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
+                                data-layer="logradouros"
+                                class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0"><span
+                                class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div><span
+                                    class="layer-text truncate">Logradouros</span>
+                            </span></label>
+                    </div>
+                </div>
+                @endif
+
+                @if (in_array('imobiliario', $modulos, true))
+                {{-- GRUPO: CADASTRO IMOBILIÁRIO (módulo imobiliario) --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'imobiliario' ? '' : 'imobiliario'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                        <span class="flex items-center gap-2">Cadastro Imobiliário</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'imobiliario' ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="activeTab === 'imobiliario'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
+
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
                                 data-layer="loteamentos"
                                 class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0"><span
                                 class="layer-label flex items-center gap-2 flex-1 min-w-0">
@@ -352,17 +428,10 @@
                                 <div class="w-3 h-3 bg-emerald-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
                                 </div><span class="layer-text truncate">Lotes</span>
                             </span></label>
-                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
-                                data-layer="logradouros"
-                                class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0"><span
-                                class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div><span
-                                    class="layer-text truncate">Logradouros</span>
-                            </span></label>
                     </div>
                 </div>
 
-                {{-- GRUPO 2: ZONEAMENTO URBANO --}}
+                {{-- GRUPO: ZONEAMENTO URBANO (módulo imobiliario) --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'zonas' ? '' : 'zonas'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
@@ -388,34 +457,19 @@
                         @endforeach
                     </div>
                 </div>
+                @endif
 
-                {{-- GRUPO 3: INFRAESTRUTURA --}}
+                @if (in_array('imageamento', $modulos, true))
+                {{-- GRUPO: IMAGEAMENTO (pontos panorâmicos 360 — saiu de Infraestrutura, D8) --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
-                    <button @click="activeTab = activeTab === 'infra' ? '' : 'infra'"
+                    <button @click="activeTab = activeTab === 'imageamento' ? '' : 'imageamento'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
-                        <span class="flex items-center gap-2">Infraestrutura</span>
+                        <span class="flex items-center gap-2">Imageamento</span>
                         <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
-                            x-bind:class="activeTab === 'infra' ? 'rotate-180' : ''" />
+                            x-bind:class="activeTab === 'imageamento' ? 'rotate-180' : ''" />
                     </button>
-                    <div x-show="activeTab === 'infra'" x-collapse
+                    <div x-show="activeTab === 'imageamento'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
-                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
-                                data-layer="arvores"
-                                class="layer-toggle rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 flex-shrink-0"><span
-                                class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-emerald-500 rounded-full flex-shrink-0"></div><span
-                                    class="layer-text truncate">Arborização Urbana</span>
-                            </span>
-                        </label>
-                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
-                                data-layer="postes"
-                                class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0"><span
-                                class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div><span
-                                    class="layer-text truncate">Iluminação Pública</span>
-                            </span>
-                        </label>
-
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
                             <input type="checkbox" data-layer="pontos_panoramicos"
                                 class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
@@ -427,11 +481,245 @@
                                 <span class="layer-text truncate">Imagens 360º</span>
                             </span>
                         </label>
+                    </div>
+                </div>
+                @endif
+
+                @if ($temMobilidade)
+                {{-- GRUPO: MOBILIDADE URBANA — SÓ LEITURA (D8): as 8 camadas do módulo mob_infra com os
+                     mesmos símbolos da intranet (setas de sentido nas vias, cor por destino nos fluxos).
+                     Sem criação/edição, caneta de sentido, "Colorir por" ou coroplético. Clique = ficha
+                     só leitura (engine); câmera abre o player público. Cores em style inline (o CSS do
+                     painel cidadão não tem as classes de cor do Tailwind). --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'mobilidade' ? '' : 'mobilidade'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                        <span class="flex items-center gap-2">Mobilidade Urbana</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'mobilidade' ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="activeTab === 'mobilidade'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden">
+
+                        {{-- TRECHOS VIÁRIOS (levantamento) --}}
+                        <div class="mt-2">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="mob_trechos"
+                                    class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#0ea5e9;">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0" style="margin-left:10px;">
+                                    <span class="layer-text truncate">Trechos Viários</span>
+                                </span>
+                            </label>
+                            {{-- "Colorir por" em tempo real (mesma lista da intranet: colunas + kit) — só visual --}}
+                            <div style="margin:6px 0 0 28px;">
+                                <select id="mob-trecho-tema-select"
+                                    onchange="window.dispatchEvent(new CustomEvent('sigweb-mob-trecho-tema', { detail: { tema: this.value || null } }))"
+                                    style="width:100%; font-size:12px; border:1px solid #d1d5db; border-radius:8px; padding:5px 8px; background:#fff; color:#374151;">
+                                    <option value="">Colorir por... (cor única)</option>
+                                    @foreach ($mobTrechoTemas as $slug => $label)
+                                        <option value="{{ $slug }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <div id="mob-trecho-legenda" style="margin-top:4px; line-height:1.3; color:#374151;"></div>
+                            </div>
+                            <p style="font-size:10px; color:#9ca3af; margin:4px 0 0 28px; line-height:1.4;">Tiques = direção em que o levantamento foi feito. O sentido de tráfego está nas Vias Urbanas.</p>
+                        </div>
+
+                        {{-- VIAS URBANAS (sentido) + simulador + câmeras --}}
+                        <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="mob_vias"
+                                    class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#2563eb;">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0" style="margin-left:10px;">
+                                    <span class="layer-text truncate">Vias Urbanas (sentido)</span>
+                                </span>
+                            </label>
+                            <div style="margin:4px 0 0 28px;">
+                                <p style="font-size:10px; color:#9ca3af; line-height:1.4; margin:0;">
+                                    <span style="color:#2563eb; font-weight:700;">&#9644;</span> mão única (setas = fluxo) ·
+                                    <span style="color:#dc2626; font-weight:700;">&#9644;</span> mão dupla ·
+                                    <span style="color:#9ca3af; font-weight:700;">&#9476;</span> sem classificação
+                                </p>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11px; color:#4b5563; margin-top:4px;"
+                                    title="Anima as setas das vias no sentido do fluxo. Só visual.">
+                                    <input type="checkbox" id="mob-fluxo-simular" class="rounded border-gray-300 w-3.5 h-3.5"
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-mob-fluxo-simular', { detail: { ligado: this.checked } }))">
+                                    &#9654; Simular fluxo (animar setas)
+                                </label>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11px; color:#4b5563; margin-top:4px;"
+                                    title="Câmeras de monitoramento da cidade. Clique no ícone da câmera para assistir ao vivo.">
+                                    <input type="checkbox" data-layer="mob_cameras" class="layer-toggle rounded border-gray-300 w-3.5 h-3.5">
+                                    <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                        <span class="layer-text truncate">&#127909; Monitoramento em tempo real</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {{-- SINALIZAÇÃO + filtro vertical/horizontal --}}
+                        <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="mob_sinalizacoes"
+                                    class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#dc2626;">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0" style="margin-left:10px;">
+                                    <span class="layer-text truncate">Sinalização Viária</span>
+                                </span>
+                            </label>
+                            <div style="display:flex; gap:16px; margin:4px 0 0 28px;">
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11px; color:#4b5563;">
+                                    <input type="checkbox" class="mob-sub-toggle rounded border-gray-300 w-3.5 h-3.5"
+                                        data-mob-layer="mob_sinalizacoes" data-valor="vertical"> Vertical &#9679;
+                                </label>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11px; color:#4b5563;">
+                                    <input type="checkbox" class="mob-sub-toggle rounded border-gray-300 w-3.5 h-3.5"
+                                        data-mob-layer="mob_sinalizacoes" data-valor="horizontal"> Horizontal &#9670;
+                                </label>
+                            </div>
+                        </div>
+
+                        {{-- PONTOS DE INTERESSE + filtro por categoria --}}
+                        <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="mob_pontos_interesse"
+                                    class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#d97706;">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0" style="margin-left:10px;">
+                                    <span class="layer-text truncate">Pontos de Interesse</span>
+                                </span>
+                            </label>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; margin:4px 0 0 28px;">
+                                @foreach (\App\Models\MobPontoInteresse::CATEGORIAS as $catValor => $catLabel)
+                                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11px; color:#4b5563; min-width:0;">
+                                        <input type="checkbox" class="mob-sub-toggle rounded border-gray-300 w-3.5 h-3.5 flex-shrink-0"
+                                            data-mob-layer="mob_pontos_interesse" data-valor="{{ $catValor }}">
+                                        <span class="truncate">{{ $catLabel }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- EIXOS + filtro por tipo --}}
+                        <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="mob_eixos"
+                                    class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#16a34a;">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0" style="margin-left:10px;">
+                                    <span class="layer-text truncate">Eixos (Ciclo / Carga / Rodovia)</span>
+                                </span>
+                            </label>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; margin:4px 0 0 28px;">
+                                @foreach (\App\Models\MobEixo::TIPOS as $tipoValor => $tipoLabel)
+                                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11px; color:#4b5563; min-width:0;">
+                                        <input type="checkbox" class="mob-sub-toggle rounded border-gray-300 w-3.5 h-3.5 flex-shrink-0"
+                                            data-mob-layer="mob_eixos" data-valor="{{ $tipoValor }}">
+                                        <span class="truncate">{{ $tipoLabel }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- ZONAS DE ESTUDO + filtro por tipo (sem coroplético no público) --}}
+                        <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="mob_zonas"
+                                    class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#2563eb;">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0" style="margin-left:10px;">
+                                    <span class="layer-text truncate">Zonas de Estudo (O/D, IBGE)</span>
+                                </span>
+                            </label>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; margin:4px 0 0 28px;">
+                                @foreach (\App\Models\MobZona::TIPOS as $tipoValor => $tipoLabel)
+                                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11px; color:#4b5563; min-width:0;">
+                                        <input type="checkbox" class="mob-sub-toggle rounded border-gray-300 w-3.5 h-3.5 flex-shrink-0"
+                                            data-mob-layer="mob_zonas" data-valor="{{ $tipoValor }}">
+                                        <span class="truncate">{{ $tipoLabel }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- FLUXOS O/D: cor por destino, rótulo = % do total (só percentuais no mapa) --}}
+                        <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="mob_fluxos"
+                                    class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#0891b2;">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0" style="margin-left:10px;">
+                                    <span class="layer-text truncate">Fluxos O/D (linhas de desejo)</span>
+                                </span>
+                            </label>
+                            @if (($mobFluxoDistribuicao['total'] ?? 0) > 0)
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; margin:4px 0 0 28px;">
+                                    @foreach ($mobFluxoDistribuicao['destinos'] as $destinoValor => $d)
+                                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11px; color:#4b5563; min-width:0;"
+                                            title="Destino {{ $d['label'] }}: {{ number_format($d['percentual'], 1, ',', '.') }}% do total de deslocamentos">
+                                            <input type="checkbox" class="mob-sub-toggle rounded border-gray-300 w-3.5 h-3.5 flex-shrink-0"
+                                                data-mob-layer="mob_fluxos" data-valor="{{ $destinoValor }}">
+                                            <span style="width:10px; height:10px; border-radius:2px; background:{{ $d['cor'] }}; display:inline-block; flex-shrink:0;"></span>
+                                            <span class="truncate">{{ $d['label'] }} <span style="color:#9ca3af;">{{ number_format($d['percentual'], 1, ',', '.') }}%</span></span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @endif
+                            <p style="font-size:10px; color:#9ca3af; margin:4px 0 0 28px; line-height:1.4;">
+                                Rótulo = % do total de deslocamentos · espessura proporcional ao fluxo · clique = ficha.
+                                @if (($mobFluxoDistribuicao['intrazonal'] ?? 0) > 0)
+                                    <br>{{ number_format($mobFluxoDistribuicao['intrazonal_percentual'], 1, ',', '.') }}% são deslocamentos dentro da própria zona — não viram linha no mapa.
+                                @endif
+                            </p>
+                        </div>
 
                     </div>
                 </div>
+                @endif
 
-                {{-- GRUPO 4: CEMITÉRIOS --}}
+                @php $temInfraPublica = array_intersect(['pgv', 'arborizacao', 'iluminacao'], $modulos) !== []; @endphp
+                @if ($temInfraPublica)
+                {{-- GRUPO: INFRAESTRUTURA (setores fiscais — vindo do antigo "Cadastro Base" —, árvores, postes) --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'infra' ? '' : 'infra'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                        <span class="flex items-center gap-2">Infraestrutura</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'infra' ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="activeTab === 'infra'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
+                        @if (in_array('pgv', $modulos, true))
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
+                                data-layer="setores_fiscais"
+                                class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0"><span
+                                class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                {{-- Mesmo marcador (sem cor inline) dos demais itens: no CSS do painel cidadão
+                                     ele fica invisível e só garante o mesmo espaçamento --}}
+                                <div class="w-3 h-3 rounded-full flex-shrink-0"></div>
+                                <span class="layer-text truncate">Setores Fiscais</span>
+                            </span></label>
+                        @endif
+                        @if (in_array('arborizacao', $modulos, true))
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
+                                data-layer="arvores"
+                                class="layer-toggle rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 flex-shrink-0"><span
+                                class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-emerald-500 rounded-full flex-shrink-0"></div><span
+                                    class="layer-text truncate">Arborização Urbana</span>
+                            </span>
+                        </label>
+                        @endif
+                        @if (in_array('iluminacao', $modulos, true))
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
+                                data-layer="postes"
+                                class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0"><span
+                                class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div><span
+                                    class="layer-text truncate">Iluminação Pública</span>
+                            </span>
+                        </label>
+                        @endif
+                    </div>
+                </div>
+                @endif
+
+                @if (in_array('cemiterio', $modulos, true))
+                {{-- GRUPO: GESTÃO DE CEMITÉRIOS --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'cemiterios' ? '' : 'cemiterios'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
@@ -471,8 +759,10 @@
                             </span></label>
                     </div>
                 </div>
+                @endif
 
-                {{-- GRUPO 5: ZONA RURAL --}}
+                @if (in_array('rural', $modulos, true))
+                {{-- GRUPO: CADASTRO RURAL --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'rural' ? '' : 'rural'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
@@ -526,6 +816,27 @@
                             </span></label>
                     </div>
                 </div>
+                @endif
+            </div>
+        </div>
+
+        {{-- D8 (2026-09-05): FICHA SÓ LEITURA das feições de Mobilidade Urbana. Preenchida pelo
+             engine (window.mobFichaPublica) — dentro do wire:ignore para o Livewire não mexer.
+             Estilos inline: o CSS do painel cidadão não tem as classes de cor do Tailwind. --}}
+        {{-- Modal centralizado e largo (pedido 2026-09-05): fundo escurecido fecha ao clicar, Esc também. --}}
+        <div id="mob-ficha-publica" style="display:none; position:fixed; inset:0; z-index:60;">
+            <div onclick="window.mobFichaFechar()" style="position:absolute; inset:0; background:rgba(15,23,42,.35); -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px);"></div>
+            <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(720px, 94vw); max-height:84vh; overflow-y:auto; background:#ffffff; border-radius:16px; box-shadow:0 24px 60px -20px rgba(15,23,42,.5); padding:18px 22px 16px; font-size:13px; color:#1f2937;">
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #f3f4f6;">
+                    <div style="min-width:0;">
+                        <div id="mob-ficha-camada" style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#6b7280;"></div>
+                        <div id="mob-ficha-titulo" style="font-size:18px; font-weight:800; color:#111827; line-height:1.25;"></div>
+                    </div>
+                    <button type="button" onclick="window.mobFichaFechar()" title="Fechar"
+                        style="border:0; background:#f3f4f6; color:#6b7280; width:32px; height:32px; border-radius:999px; font-size:20px; line-height:1; cursor:pointer; flex-shrink:0;">&times;</button>
+                </div>
+                <div id="mob-ficha-corpo"></div>
+                <p style="margin:12px 0 0; font-size:11px; color:#9ca3af;">Consulta pública, somente leitura.</p>
             </div>
         </div>
 

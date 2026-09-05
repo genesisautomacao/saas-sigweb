@@ -650,6 +650,47 @@ Backlog e decisões em [piuma.txt](piuma.txt): 6 entidades + catálogo cobrem os
 
 ---
 
+## ~~Item extra-backlog — Reorganização de módulos × menu × mapa (2026-09-05)~~
+
+**Status:** ✅ Concluído (verificado por render interno de dashboard + mapa em Santa Cecília [16 módulos] e Piúma [base + mobilidade]: ordem da sidebar, dos acordeons, das camadas por acordeon e dos grupos/itens do Criar Artefatos batem com a regra; `ModulosTest` 9/9; backfill `chamados` aplicado no banco local)
+**Concluído em:** 2026-09-05
+**Deploy:** `php artisan modulos:backfill --executar` (quem tem `coleta_cadastral` ganha `chamados`) + conferir módulos por prefeitura no /admin. Sem migration nem permissão nova.
+**Origem:** revisão do usuário sobre o catálogo `config/modulos.php` (decisão D8 em [Modulos_Permissoes.txt](Modulos_Permissoes.txt)).
+
+Regra nova: **a sidebar, os acordeons da janela de camadas e os grupos do "Criar Artefatos" contam a mesma história** — mesmos nomes, mesma ordem, mesmo gate de módulo. Escopo:
+
+1. **Sidebar** (`AppPanelProvider::navigationGroups()`), ordem de exibição: Módulo Administrativo · Base Cartográfica · Módulo Imobiliário · Coleta cadastral · Processos Digitais · Consultas de Viabilidade · **Imageamento** (grupo novo, só Pontos Panorâmicos — sai do Administrativo) · Mobilidade Urbana · Módulo Social · Gestão Tributária (PGV) · Iluminação Pública · Meio Ambiente · Manutenção e Serviços · Estoque e Almoxarifado · Patrimônios Públicos · Gestão de Cemitérios · Cadastro Rural · App de Chamados · WMS · Customizações · Configurações · Ajuda.
+2. **Seções de Logradouro** seguem o Logradouro: Resource no grupo Base Cartográfica, permissões `gerenciar_secoes_logradouro`/`ver_camada_secoes_logradouro` e a camada `secoes_logradouro` saem de `imobiliario` para `base_cartografica`. Continuam sendo criadas a partir do próprio logradouro (sem botão novo no Criar Artefatos).
+3. **App de Chamados vira módulo próprio** (chave `chamados`, sem pré-requisito): 3 Resources, permissões `gerenciar_categorias_chamado`/`gerenciar_fluxos_chamado`/`gerenciar_chamados`/`ver_camada_chamados` e a camada `chamados` saem de `coleta_cadastral`. Backfill: quem tem `coleta_cadastral` ganha `chamados` (`modulos:backfill`).
+4. **Janela de camadas**, ordem espelhando a sidebar: **Base Cartográfica** (renomeado de "Cadastro Base", aberto ao carregar; perímetros, bairros, logradouros, seções) · **Cadastro Imobiliário** (novo: loteamentos, quadras, lotes, edificações, meio-fios) · Zoneamento Urbano · Coleta de Dados · Processos Digitais · **Imageamento** (novo: pontos 360, sai de Infraestrutura) · Mobilidade Urbana · **Cadastro Social** (renomeado de "Inteligência Social") · Infraestrutura (setores fiscais — vindo do Cadastro Base —, áreas REURB, patrimônios, postes, árvores, chamados) · Gestão de Cemitérios · Cadastro Rural · Anotações.
+5. **Criar Artefatos** espelha os acordeons (mesmos nomes/ordem/gates), itens do maior para o menor, tipo de geometria à direita de cada item; grupo "Anotações" com Texto/Toponímia.
+6. **Dashboard:** gráfico de barras por bairro à esquerda + **pizza de logradouros por extensão (m)** à direita (`LogradourosPieChart`, gate `base_cartografica`); donut de zonas abaixo dos dois (largura total, só com `imobiliario`).
+7. Fora do escopo (decisão do usuário): fusão Pessoas + Social (Administrativo fica como está); Pessoas continua no módulo `administrativo`.
+
+---
+
+## ~~Item extra-backlog — Mapa público: acordeons no padrão D8 + Mobilidade Urbana só leitura (2026-09-05)~~
+
+**Status:** ✅ Concluído (render anônimo interno de `/cidadao/mapa-publico?t=slug` em Piúma [Base + Mobilidade, 11 camadas, 26 mini-filtros] e Santa Cecília [8 acordeons na ordem D8, 29 camadas]; `/api/gis-data` serve `mob_vias`/`mob_fluxos` sem login; blade compilado; `node --check` no engine)
+**Concluído em:** 2026-09-05
+**Origem:** pedido do usuário após a reorganização D8 — "o mapa público deve refletir o ajuste dos acordeons existentes e ter o módulo de Mobilidade Urbana com a opção de somente leitura".
+
+Escopo (mapa `/cidadao/mapa-publico`, [MapaPublico](../app/Filament/Cidadao/Pages/MapaPublico.php) + [mapa-publico.blade.php](../resources/views/filament/cidadao/pages/mapa-publico.blade.php) + [mapa-cidadao-engine.js](../public/js/gis/mapa-cidadao-engine.js)):
+
+1. **Acordeons reorganizados no mesmo padrão da intranet, só com o que o público já mostra:** Base Cartográfica (perímetros, bairros, logradouros; abre por padrão) · Cadastro Imobiliário (loteamentos, quadras, lotes) · Zoneamento Urbano · Imageamento (pontos 360, sai de Infraestrutura) · **Mobilidade Urbana** (novo) · Infraestrutura (setores fiscais — vindo do "Cadastro Base" —, arborização, iluminação) · Gestão de Cemitérios · Cadastro Rural.
+2. **Gate por módulo no público** (hoje não existia): cada acordeon só aparece se o módulo estiver ativo na prefeitura (`Modulos::ativos($tenant)` calculado no `mount`, tenant resolvido por login ou `?t=slug`). Sem isso, Mobilidade apareceria para toda cidade e Piúma mostraria acordeons vazios.
+3. **Mobilidade Urbana só leitura:** as 8 camadas (`mob_trechos`, `mob_vias` com setas de sentido, `mob_sinalizacoes`, `mob_pontos_interesse`, `mob_eixos`, `mob_zonas`, `mob_fluxos` coloridos por destino com %, `mob_cameras`) com os mini-filtros por tipo/categoria/destino e o "Simular fluxo" (visual). Clique = **ficha só leitura** (painel JS com os atributos da feição; câmera abre o player público). **Sem** criação, edição, caneta de sentido, "Colorir por" ou coroplético. O endpoint `/api/gis-data` já serve as camadas e devolve 403 para módulo inativo.
+
+---
+
+## ~~Item extra-backlog — Auditoria: diff de coluna JSON chave a chave (2026-09-05)~~
+
+**Status:** ✅ Concluído
+**Concluído em:** 2026-09-05
+Pedido do usuário após teste em Santa Cecília (edificação com 5+ campos do município): o "Ver detalhes" e o PDF/Excel despejavam o `dados_customizados` inteiro antes/depois, escondendo a alteração real. Novo [AuditoriaDiffService](../app/Services/Auditoria/AuditoriaDiffService.php) = fonte única do modal e dos exports: coluna JSON explodida chave a chave, numa atualização só as chaves que mudaram, rótulo do campo customizado do município (inclusive já desativado/excluído), valores de escolha múltipla como lista. Criação/exclusão continuam listando todas as chaves (estado inicial/final).
+
+---
+
 ## Pontos fortes a destacar na demonstração
 
 1. Estatísticas com **gráficos plotados no mapa** (centroide de cada bairro) — item 2.6-41;

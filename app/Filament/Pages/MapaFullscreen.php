@@ -70,6 +70,7 @@ class MapaFullscreen extends Page
     use HasJazigoActions;
     use HasLogradouroActions;
     use HasLogradouroCemiterioActions;
+
     // Injetando as gavetas de lógica (Traits)
     use HasLoteActions;
     use HasLoteamentoActions;
@@ -79,7 +80,6 @@ class MapaFullscreen extends Page
     use HasMobFluxoActions;
     use HasMobPontoInteresseActions;
     use HasMobSinalizacaoActions;
-
     use HasMobTrechoActions;
     use HasMobViaActions;
     use HasMobZonaActions;
@@ -2722,7 +2722,7 @@ class MapaFullscreen extends Page
                 Forms\Components\Group::make([
                     Forms\Components\Select::make('vu_layer')
                         ->label('Camada / Entidade')
-                        ->options([
+                        ->options(\App\Support\Modulos::filtrarCamadas([
                             'lotes' => 'Lotes Urbanos',
                             'edificacoes' => 'Edificações',
                             'quadras' => 'Quadras',
@@ -2735,7 +2735,7 @@ class MapaFullscreen extends Page
                             'postes' => 'Postes',
                             'rural_propriedades' => 'Propriedades Rurais',
                             'rural_estradas' => 'Estradas Rurais',
-                        ])
+                        ]))
                         ->live()
                         ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'valores_unicos'),
 
@@ -2753,7 +2753,7 @@ class MapaFullscreen extends Page
                 Forms\Components\Group::make([
                     Forms\Components\Select::make('hm_layer')
                         ->label('Camada / Entidade')
-                        ->options([
+                        ->options(\App\Support\Modulos::filtrarCamadas([
                             'lotes' => 'Lotes Urbanos',
                             'edificacoes' => 'Edificações',
                             'arvores' => 'Árvores',
@@ -2764,7 +2764,7 @@ class MapaFullscreen extends Page
                             'cemiterios' => 'Cemitérios',
                             'rural_propriedades' => 'Propriedades Rurais',
                             'rural_pontes' => 'Pontes Rurais',
-                        ])
+                        ]))
                         ->live()
                         ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'heatmap'),
 
@@ -2785,7 +2785,7 @@ class MapaFullscreen extends Page
                 Forms\Components\Group::make([
                     Forms\Components\Select::make('layer')
                         ->label('Camada / Entidade')
-                        ->options([
+                        ->options(\App\Support\Modulos::filtrarCamadas([
                             'lotes' => 'Lotes Urbanos',
                             'edificacoes' => 'Edificações',
                             'logradouros' => 'Logradouros',
@@ -2801,7 +2801,7 @@ class MapaFullscreen extends Page
                             'rural_estradas' => 'Estradas Rurais',
                             'rural_pontes' => 'Pontes Rurais',
                             'rural_localidades' => 'Localidades Rurais',
-                        ])
+                        ]))
                         ->live()
                         ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'atributo'),
 
@@ -2882,14 +2882,14 @@ class MapaFullscreen extends Page
                 Forms\Components\Group::make([
                     Forms\Components\Select::make('spatial_target_layer')
                         ->label('O que você quer encontrar? (Alvo)')
-                        ->options([
+                        ->options(\App\Support\Modulos::filtrarCamadas([
                             'logradouros' => 'Logradouros',
                             'lotes' => 'Lotes Urbanos',
                             'edificacoes' => 'Edificações',
                             'postes' => 'Postes / Iluminação',
                             'arvores' => 'Arborização',
                             'rural_propriedades' => 'Propriedades Rurais (CAR)',
-                        ])
+                        ]))
                         ->required(fn (Forms\Get $get) => $get('tipo_filtro') === 'espacial'),
 
                     Forms\Components\Select::make('spatial_operator')

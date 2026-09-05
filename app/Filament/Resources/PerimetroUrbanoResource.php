@@ -15,16 +15,24 @@ class PerimetroUrbanoResource extends Resource
 {
     use HasTenantModule;
 
-    protected static ?string $tenantModule = 'imobiliario';
+    protected static ?string $tenantModule = 'base_cartografica'; // D1 (docs/Modulos_Permissoes.txt)
+
     protected static ?string $model = PerimetroUrbano::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-globe-americas';
-    protected static ?string $navigationGroup = 'Módulo Imobiliário';
+
+    protected static ?string $navigationGroup = 'Base Cartográfica';
+
     protected static ?int $navigationSort = -10;
+
     // T2.1 (itens 46/54/64) — apresentação FORMAL como Distrito: é o nome que a
     // Comissão vai procurar no menu (o edital nunca diz "perímetro urbano").
     protected static ?string $navigationLabel = 'Distritos';
+
     protected static ?string $modelLabel = 'Distrito';
+
     protected static ?string $pluralModelLabel = 'Distritos';
+
     protected static ?string $slug = 'distritos';
 
     public static function form(Form $form): Form
@@ -100,11 +108,12 @@ class PerimetroUrbanoResource extends Resource
                             ->where('id', $record->id)
                             ->first();
                         if ($row && $row->lat && $row->lon) {
-                            return url('/app/' . $tenant->slug . '/mapa-interativo?layer=perimetros&focus_lat=' . $row->lat . '&focus_lon=' . $row->lon . '&zoom=13');
+                            return url('/app/'.$tenant->slug.'/mapa-interativo?layer=perimetros&focus_lat='.$row->lat.'&focus_lon='.$row->lon.'&zoom=13');
                         }
+
                         return null;
                     })
-                    ->visible(fn($record) => $record->geo_json !== null),
+                    ->visible(fn ($record) => $record->geo_json !== null),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
@@ -117,9 +126,9 @@ class PerimetroUrbanoResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => Pages\ListPerimetrosUrbanos::route('/'),
+            'index' => Pages\ListPerimetrosUrbanos::route('/'),
             'create' => Pages\CreatePerimetroUrbano::route('/create'),
-            'edit'   => Pages\EditPerimetroUrbano::route('/{record}/edit'),
+            'edit' => Pages\EditPerimetroUrbano::route('/{record}/edit'),
         ];
     }
 }

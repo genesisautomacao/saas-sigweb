@@ -25,6 +25,8 @@
                 azureMapsKey: '{{ config('services.azure_maps.key', '') }}',
                 ortofotos: @json($ortofotos),
                 mobSetorTemas: @json(\App\Models\MobZona::TEMAS_SETOR),
+                modulos: @json(\App\Support\Modulos::ativos()),
+                camadasModulo: @json(\App\Support\Modulos::mapaCamadas()),
                 permissionsUrl: '/gis/{{ $tenantSlug }}/map-permissions'
             };
         </script>
@@ -296,7 +298,7 @@
                     {{-- BOTÃO FILTRO AVANÇADO + ESTATÍSTICAS — gated por toolbar_filtros
                          (item 86: perfil sem a permissão não vê nem usa; Master/Manager
                          passam pelo Gate::before) --}}
-                    @if (auth()->user()?->temPermissao('toolbar_filtros'))
+                    @if (\App\Support\Modulos::ferramentaDisponivel('filtros') && auth()->user()?->temPermissao('toolbar_filtros'))
                         <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }"
                             x-on:click="$wire.mountAction('filtroAvancadoAction')"
                             class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -396,7 +398,7 @@
 
                     {{-- DROPDOWN DE CRIAÇÃO (COM SANFONA) — gated por toolbar_criar_artefatos
                          (item 87: o gatilho só aparece com a permissão do perfil) --}}
-                    <div id="toolbar-criar-artefatos" x-data="{ openDraw: false, activeTabDraw: 'urbano' }" class="relative">
+                    <div id="toolbar-criar-artefatos" x-data="{ openDraw: false, activeTabDraw: 'base' }" class="relative">
                         @if (auth()->user()?->temPermissao('toolbar_criar_artefatos'))
                         <button type="button" @click="openDraw = !openDraw" @click.outside="openDraw = false"
                             title="Desenhar no Mapa"
@@ -421,297 +423,406 @@
                             <div
                                 class="overflow-y-auto max-h-[65vh] custom-scrollbar flex flex-col bg-white dark:bg-gray-800">
 
-                                {{-- GRUPO 1: URBANO --}}
+                                {{-- D8 (2026-09-05, docs/Modulos_Permissoes.txt §9): os grupos ESPELHAM os acordeons da
+                                     janela "Camadas do Mapa" (mesmos nomes, mesma ordem, mesmo gate de módulo). Dentro de
+                                     cada grupo os artefatos vão do MAIOR para o MENOR (hierarquia do território) e cada
+                                     linha mostra o tipo de geometria à direita. Novo módulo/camada = mesmo nome nos três. --}}
+
+                                @if (\App\Support\Modulos::ativo('base_cartografica'))
+                                {{-- GRUPO: BASE CARTOGRÁFICA --}}
                                 <div class="border-b border-gray-100 dark:border-gray-700">
-                                    {{-- ADICIONADO TYPE="BUTTON" E .PREVENT.STOP --}}
                                     <button type="button"
-                                        @click.stop.prevent="activeTabDraw = activeTabDraw === 'urbano' ? '' : 'urbano'"
+                                        @click.stop.prevent="activeTabDraw = activeTabDraw === 'base' ? '' : 'base'"
                                         class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
-                                        <span class="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                                            <x-heroicon-o-building-office-2 class="w-4 h-4" /> Cadastro Urbano
+                                        <span class="flex items-center gap-2" style="color:#2563eb;">
+                                            <x-heroicon-o-map class="w-4 h-4 " /> Base Cartográfica
                                         </span>
                                         <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
-                                            x-bind:class="activeTabDraw === 'urbano' ? 'rotate-180' : ''" />
+                                            x-bind:class="activeTabDraw === 'base' ? 'rotate-180' : ''" />
                                     </button>
-
-                                    <div x-show="activeTabDraw === 'urbano'" x-collapse class="py-1">
-                                        <button type="button" onclick="enableDrawing('perimetro_urbano')"
-                                            @click="openDraw = false"
+                                    <div x-show="activeTabDraw === 'base'" x-collapse class="py-1">
+                                        @if (\App\Support\Modulos::artefatoDisponivel('perimetro_urbano'))
+                                        <button type="button" onclick="enableDrawing('perimetro_urbano')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-globe-americas class="w-4 h-4 text-red-500" />
-                                            Distrito / Limite (Polígono)
+                                            <x-heroicon-o-globe-americas class="w-4 h-4 text-red-500" /> Distrito / Limite
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
-
-                                        <button type="button" onclick="enableDrawing('setor_fiscal')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-currency-dollar class="w-4 h-4 text-amber-500" /> Setor
-                                        </button>
-
-                                        <button @click="open = false; enableDrawing('zona')"
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('bairro'))
+                                        <button type="button" onclick="enableDrawing('bairro')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-globe-americas class="w-4 h-4 text-purple-500" />
-                                            Zona de Uso
+                                            <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Bairro
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
-                                        <button type="button" onclick="enableDrawing('bairro')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Bairro (Polígono)
-                                        </button>
-                                        <button type="button" onclick="enableDrawing('loteamento')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Loteamento (Polígono)
-                                        </button>
-                                        <button type="button" onclick="enableDrawing('quadra')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-squares-2x2 class="w-4 h-4 text-orange-500" /> Quadra Urbana
-                                        </button>
-                                        <button type="button" onclick="enableDrawing('lote')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-stop class="w-4 h-4 text-emerald-500" /> Lote (Polígono)
-                                        </button>
-                                        <button type="button" onclick="enableDrawing('edificacao')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-home class="w-4 h-4 text-amber-600" /> Edificação (Polígono)
-                                        </button>
-
-                                        <button type="button" onclick="enableDrawing('logradouro')"
-                                            @click="openDraw = false"
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('logradouro'))
+                                        <button type="button" onclick="enableDrawing('logradouro')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-slate-100 hover:text-slate-700 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-minus class="w-4 h-4 text-slate-500" /> Logradouro (Linha)
+                                            <x-heroicon-o-minus class="w-4 h-4 text-slate-500" /> Logradouro
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
                                         </button>
-                                        <button type="button" onclick="enableDrawing('meio_fio')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-minus class="w-4 h-4 text-amber-700" />
-                                            Meio-fio / Calçada (Linha)
-                                        </button>
-
+                                        @endif
+                                        {{-- Seção de Logradouro nasce do próprio logradouro (modal/aba "Seções" e "Salvar como" da mesa de desenho) — sem botão aqui (D8). --}}
                                     </div>
                                 </div>
+                                @endif
 
-                                {{-- GRUPO 2: INFRAESTRUTURA E FISCAL --}}
+                                @if (\App\Support\Modulos::ativo('imobiliario'))
+                                {{-- GRUPO: CADASTRO IMOBILIÁRIO --}}
                                 <div class="border-b border-gray-100 dark:border-gray-700">
                                     <button type="button"
-                                        @click.stop.prevent="activeTabDraw = activeTabDraw === 'infra' ? '' : 'infra'"
+                                        @click.stop.prevent="activeTabDraw = activeTabDraw === 'imobiliario' ? '' : 'imobiliario'"
                                         class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
-                                        <span class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                                            <x-heroicon-o-light-bulb class="w-4 h-4" /> Infra. e outros
+                                        <span class="flex items-center gap-2" style="color:#059669;">
+                                            <x-heroicon-o-building-office-2 class="w-4 h-4 " /> Cadastro Imobiliário
                                         </span>
                                         <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
-                                            x-bind:class="activeTabDraw === 'infra' ? 'rotate-180' : ''" />
+                                            x-bind:class="activeTabDraw === 'imobiliario' ? 'rotate-180' : ''" />
                                     </button>
-
-                                    <div x-show="activeTabDraw === 'infra'" x-collapse
-                                        class="py-1 bg-gray-50/30 dark:bg-gray-900/20">
-                                        <button type="button" onclick="enableDrawing('patrimonio_publico')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-building-library class="w-4 h-4 text-indigo-500" />
-                                            Patrimônio Público
-                                        </button>
-                                        <button type="button" onclick="enableDrawing('poste')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-yellow-50 hover:text-yellow-600 flex items-center gap-3 transition-colors">
-                                            <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor"
-                                                viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
-                                                </path>
-                                            </svg>
-                                            Poste / Ponto de Luz
-                                        </button>
-                                        <button type="button" onclick="enableDrawing('area_reurb')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-home-modern class="w-4 h-4 text-amber-500" />
-                                            Área de Regularização (REURB)
-                                        </button>
-                                        <button type="button" onclick="enableDrawing('arvore')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-sparkles class="w-4 h-4 text-emerald-500" /> Árvore
-                                        </button>
-
-                                        <button @click="open = false; enableDrawing('ponto_panoramico')"
+                                    <div x-show="activeTabDraw === 'imobiliario'" x-collapse class="py-1">
+                                        @if (\App\Support\Modulos::artefatoDisponivel('loteamento'))
+                                        <button type="button" onclick="enableDrawing('loteamento')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-camera class="w-4 h-4 text-blue-500" />
-                                            Ponto 360º
+                                            <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Loteamento
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
-                                        <button type="button"
-                                            @click="openDraw = false; window.ativarFerramentaToponimiia(true)"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-violet-50 hover:text-violet-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-chat-bubble-bottom-center-text
-                                                class="w-4 h-4 text-violet-500" />
-                                            Texto / Toponímia
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('quadra'))
+                                        <button type="button" onclick="enableDrawing('quadra')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-squares-2x2 class="w-4 h-4 text-orange-500" /> Quadra
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
-
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('lote'))
+                                        <button type="button" onclick="enableDrawing('lote')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-stop class="w-4 h-4 text-emerald-500" /> Lote
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
+                                        </button>
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('edificacao'))
+                                        <button type="button" onclick="enableDrawing('edificacao')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-home class="w-4 h-4 text-amber-600" /> Edificação
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
+                                        </button>
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('meio_fio'))
+                                        <button type="button" onclick="enableDrawing('meio_fio')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-minus class="w-4 h-4 text-amber-700" /> Meio-fio / Calçada
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
+                                        </button>
+                                        @endif
                                     </div>
                                 </div>
+                                @endif
 
-                                {{-- GRUPO: MOBILIDADE URBANA (módulo mob_infra — docs/piuma.txt) --}}
+                                @if (\App\Support\Modulos::ativo('imobiliario'))
+                                {{-- GRUPO: ZONEAMENTO URBANO --}}
+                                <div class="border-b border-gray-100 dark:border-gray-700">
+                                    <button type="button"
+                                        @click.stop.prevent="activeTabDraw = activeTabDraw === 'zonas' ? '' : 'zonas'"
+                                        class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
+                                        <span class="flex items-center gap-2" style="color:#c026d3;">
+                                            <x-heroicon-o-globe-americas class="w-4 h-4 " /> Zoneamento Urbano
+                                        </span>
+                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                                            x-bind:class="activeTabDraw === 'zonas' ? 'rotate-180' : ''" />
+                                    </button>
+                                    <div x-show="activeTabDraw === 'zonas'" x-collapse class="py-1">
+                                        @if (\App\Support\Modulos::artefatoDisponivel('zona'))
+                                        <button type="button" onclick="enableDrawing('zona')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-purple-50 hover:text-purple-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-stop class="w-4 h-4 text-purple-500" /> Zona de Uso
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
+                                        </button>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endif
+
+                                @if (\App\Support\Modulos::ativo('imageamento'))
+                                {{-- GRUPO: IMAGEAMENTO --}}
+                                <div class="border-b border-gray-100 dark:border-gray-700">
+                                    <button type="button"
+                                        @click.stop.prevent="activeTabDraw = activeTabDraw === 'imageamento' ? '' : 'imageamento'"
+                                        class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
+                                        <span class="flex items-center gap-2" style="color:#4f46e5;">
+                                            <x-heroicon-o-camera class="w-4 h-4 " /> Imageamento
+                                        </span>
+                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                                            x-bind:class="activeTabDraw === 'imageamento' ? 'rotate-180' : ''" />
+                                    </button>
+                                    <div x-show="activeTabDraw === 'imageamento'" x-collapse class="py-1">
+                                        @if (\App\Support\Modulos::artefatoDisponivel('ponto_panoramico'))
+                                        <button type="button" onclick="enableDrawing('ponto_panoramico')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-camera class="w-4 h-4 text-blue-500" /> Ponto Panorâmico 360º
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
+                                        </button>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endif
+
                                 @if ($temMobilidade)
+                                {{-- GRUPO: MOBILIDADE URBANA --}}
                                 <div class="border-b border-gray-100 dark:border-gray-700">
                                     <button type="button"
                                         @click.stop.prevent="activeTabDraw = activeTabDraw === 'mobilidade' ? '' : 'mobilidade'"
                                         class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
-                                        <span class="flex items-center gap-2 text-sky-600 dark:text-sky-400">
-                                            <x-heroicon-o-arrows-right-left class="w-4 h-4" /> Mobilidade Urbana
+                                        <span class="flex items-center gap-2" style="color:#0284c7;">
+                                            <x-heroicon-o-arrows-right-left class="w-4 h-4 " /> Mobilidade Urbana
                                         </span>
                                         <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
                                             x-bind:class="activeTabDraw === 'mobilidade' ? 'rotate-180' : ''" />
                                     </button>
-
                                     <div x-show="activeTabDraw === 'mobilidade'" x-collapse class="py-1">
-                                        <button type="button" onclick="enableDrawing('mob_trecho')"
-                                            @click="openDraw = false"
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_trecho'))
+                                        <button type="button" onclick="enableDrawing('mob_trecho')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-sky-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-arrow-long-right class="w-4 h-4 text-sky-500" />
-                                            Trecho Viário (levantamento — desenho = direção do mapeamento)
+                                            <x-heroicon-o-arrow-long-right class="w-4 h-4 text-sky-500" /> Trecho Viário (desenho = direção do levantamento)
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
                                         </button>
-                                        <button type="button" onclick="enableDrawing('mob_via')"
-                                            @click="openDraw = false"
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_via'))
+                                        <button type="button" onclick="enableDrawing('mob_via')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-sky-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-arrows-right-left class="w-4 h-4 text-blue-600" />
-                                            Via Urbana (fluxo — desenho = sentido)
+                                            <x-heroicon-o-arrows-right-left class="w-4 h-4 text-blue-600" /> Via Urbana (desenho = sentido do fluxo)
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
                                         </button>
-                                        <button type="button" onclick="enableDrawing('mob_sinalizacao')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-map-pin class="w-4 h-4 text-red-500" />
-                                            Sinalização (Ponto)
-                                        </button>
-                                        <button type="button" onclick="enableDrawing('mob_ponto_interesse')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-map-pin class="w-4 h-4 text-amber-500" />
-                                            Ponto de Interesse
-                                        </button>
-                                        <button type="button" onclick="enableDrawing('mob_camera')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-video-camera class="w-4 h-4 text-red-500" />
-                                            Câmera de Monitoramento (Ponto)
-                                        </button>
-                                        <button type="button" onclick="enableDrawing('mob_eixo')"
-                                            @click="openDraw = false"
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_eixo'))
+                                        <button type="button" onclick="enableDrawing('mob_eixo')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-green-50 hover:text-green-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-arrow-trending-up class="w-4 h-4 text-green-600" />
-                                            Eixo (Ciclovia / Rota / Rodovia)
+                                            <x-heroicon-o-arrow-trending-up class="w-4 h-4 text-green-600" /> Eixo (Ciclovia / Rota / Rodovia)
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
                                         </button>
-                                        <button type="button" onclick="enableDrawing('mob_zona')"
-                                            @click="openDraw = false"
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_zona'))
+                                        <button type="button" onclick="enableDrawing('mob_zona')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-stop class="w-4 h-4 text-blue-500" />
-                                            Zona de Estudo (Polígono)
+                                            <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Zona de Estudo
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_sinalizacao'))
+                                        <button type="button" onclick="enableDrawing('mob_sinalizacao')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-map-pin class="w-4 h-4 text-red-500" /> Sinalização Viária
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
+                                        </button>
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_ponto_interesse'))
+                                        <button type="button" onclick="enableDrawing('mob_ponto_interesse')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-map-pin class="w-4 h-4 text-amber-500" /> Ponto de Interesse
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
+                                        </button>
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_camera'))
+                                        <button type="button" onclick="enableDrawing('mob_camera')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-video-camera class="w-4 h-4 text-red-500" /> Câmera de Monitoramento
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
+                                        </button>
+                                        @endif
                                         {{-- Fluxo O/D: sem criação pelo mapa — camada só de leitura (decisão da mobilidade, 2026-09-04) --}}
                                     </div>
                                 </div>
                                 @endif
 
-                                {{-- GRUPO 3: CEMITÉRIOS --}}
+                                @if (\App\Support\Modulos::algumAtivo(['pgv', 'imobiliario', 'patrimonios', 'iluminacao', 'arborizacao']))
+                                {{-- GRUPO: INFRAESTRUTURA --}}
+                                <div class="border-b border-gray-100 dark:border-gray-700">
+                                    <button type="button"
+                                        @click.stop.prevent="activeTabDraw = activeTabDraw === 'infra' ? '' : 'infra'"
+                                        class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
+                                        <span class="flex items-center gap-2" style="color:#d97706;">
+                                            <x-heroicon-o-light-bulb class="w-4 h-4 " /> Infraestrutura
+                                        </span>
+                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                                            x-bind:class="activeTabDraw === 'infra' ? 'rotate-180' : ''" />
+                                    </button>
+                                    <div x-show="activeTabDraw === 'infra'" x-collapse class="py-1">
+                                        @if (\App\Support\Modulos::artefatoDisponivel('setor_fiscal'))
+                                        <button type="button" onclick="enableDrawing('setor_fiscal')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-currency-dollar class="w-4 h-4 text-amber-500" /> Setor Fiscal
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
+                                        </button>
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('area_reurb'))
+                                        <button type="button" onclick="enableDrawing('area_reurb')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-home-modern class="w-4 h-4 text-amber-500" /> Área de Regularização (REURB)
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
+                                        </button>
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('patrimonio_publico'))
+                                        <button type="button" onclick="enableDrawing('patrimonio_publico')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-building-library class="w-4 h-4 text-indigo-500" /> Patrimônio Público
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
+                                        </button>
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('poste'))
+                                        <button type="button" onclick="enableDrawing('poste')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-yellow-50 hover:text-yellow-600 flex items-center gap-3 transition-colors">
+                                            <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg> Poste / Ponto de Luz
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
+                                        </button>
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('arvore'))
+                                        <button type="button" onclick="enableDrawing('arvore')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-sparkles class="w-4 h-4 text-emerald-500" /> Árvore
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
+                                        </button>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endif
+
+                                @if (\App\Support\Modulos::ativo('cemiterio'))
+                                {{-- GRUPO: GESTÃO DE CEMITÉRIOS --}}
                                 <div class="border-b border-gray-100 dark:border-gray-700">
                                     <button type="button"
                                         @click.stop.prevent="activeTabDraw = activeTabDraw === 'cemiterio' ? '' : 'cemiterio'"
                                         class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
-                                        <span class="flex items-center gap-2 text-purple-600 dark:text-purple-400">
-                                            <x-heroicon-o-view-columns class="w-4 h-4" /> Cemitérios
+                                        <span class="flex items-center gap-2" style="color:#9333ea;">
+                                            <x-heroicon-o-view-columns class="w-4 h-4 " /> Gestão de Cemitérios
                                         </span>
                                         <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
                                             x-bind:class="activeTabDraw === 'cemiterio' ? 'rotate-180' : ''" />
                                     </button>
-
                                     <div x-show="activeTabDraw === 'cemiterio'" x-collapse class="py-1">
-                                        <button type="button" onclick="enableDrawing('cemiterio')"
-                                            @click="openDraw = false"
+                                        @if (\App\Support\Modulos::artefatoDisponivel('cemiterio'))
+                                        <button type="button" onclick="enableDrawing('cemiterio')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-purple-50 hover:text-purple-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-stop class="w-4 h-4 text-purple-600" /> Cemitério Base
-                                            (Polígono)
+                                            <x-heroicon-o-stop class="w-4 h-4 text-purple-600" /> Cemitério
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
-                                        <button type="button" onclick="enableDrawing('quadra_cemiterio')"
-                                            @click="openDraw = false"
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('quadra_cemiterio'))
+                                        <button type="button" onclick="enableDrawing('quadra_cemiterio')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-squares-2x2 class="w-4 h-4 text-indigo-500" /> Quadra de
-                                            Cemitério
+                                            <x-heroicon-o-squares-2x2 class="w-4 h-4 text-indigo-500" /> Quadra de Cemitério
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
-                                        <button type="button" onclick="enableDrawing('logradouro_cemiterio')"
-                                            @click="openDraw = false"
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('logradouro_cemiterio'))
+                                        <button type="button" onclick="enableDrawing('logradouro_cemiterio')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-slate-100 hover:text-slate-700 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-arrows-right-left class="w-4 h-4 text-slate-500" /> Rua
-                                            Interna
+                                            <x-heroicon-o-arrows-right-left class="w-4 h-4 text-slate-500" /> Rua Interna
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
                                         </button>
-                                        <button type="button" onclick="enableDrawing('jazigo')"
-                                            @click="openDraw = false"
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('jazigo'))
+                                        <button type="button" onclick="enableDrawing('jazigo')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-archive-box class="w-4 h-4 text-stone-600" /> Jazigo / Túmulo
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
+                                        @endif
                                     </div>
                                 </div>
+                                @endif
 
-                                {{-- GRUPO 4: RURAL --}}
-                                <div>
+                                @if (\App\Support\Modulos::ativo('rural'))
+                                {{-- GRUPO: CADASTRO RURAL --}}
+                                <div class="border-b border-gray-100 dark:border-gray-700">
                                     <button type="button"
                                         @click.stop.prevent="activeTabDraw = activeTabDraw === 'rural' ? '' : 'rural'"
                                         class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
-                                        <span class="flex items-center gap-2 text-stone-600 dark:text-stone-400">
-                                            <x-heroicon-o-globe-americas class="w-4 h-4" /> Zona Rural
+                                        <span class="flex items-center gap-2" style="color:#57534e;">
+                                            <x-heroicon-o-globe-americas class="w-4 h-4 " /> Cadastro Rural
                                         </span>
                                         <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
                                             x-bind:class="activeTabDraw === 'rural' ? 'rotate-180' : ''" />
                                     </button>
-
-                                    <div x-show="activeTabDraw === 'rural'" x-collapse
-                                        class="py-1 bg-stone-50/50 dark:bg-stone-900/20">
-                                        <button type="button" onclick="enableDrawing('rural_localidade')"
-                                            @click="openDraw = false"
+                                    <div x-show="activeTabDraw === 'rural'" x-collapse class="py-1">
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_localidade'))
+                                        <button type="button" onclick="enableDrawing('rural_localidade')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-map class="w-4 h-4 text-stone-600" /> Localidade / Distrito
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
-                                        <button type="button" onclick="enableDrawing('rural_propriedade')"
-                                            @click="openDraw = false"
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_propriedade'))
+                                        <button type="button" onclick="enableDrawing('rural_propriedade')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-home-modern class="w-4 h-4 text-stone-600" /> Propriedade
-                                            (CAR)
+                                            <x-heroicon-o-home-modern class="w-4 h-4 text-stone-600" /> Propriedade (CAR)
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
-                                        <button type="button" onclick="enableDrawing('rural_estrada')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-lifebuoy class="w-4 h-4 text-stone-600" /> Estrada / Vicinal
-                                        </button>
-                                        <button type="button" onclick="enableDrawing('rural_hidro_linha')"
-                                            @click="openDraw = false"
-                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-minus class="w-4 h-4 text-cyan-500" /> Rio / Córrego (Linha)
-                                        </button>
-                                        <button type="button" onclick="enableDrawing('rural_hidro_poligono')"
-                                            @click="openDraw = false"
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_hidro_poligono'))
+                                        <button type="button" onclick="enableDrawing('rural_hidro_poligono')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-stop class="w-4 h-4 text-cyan-500" /> Lago / Represa
-                                            (Polígono)
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
-                                        <button type="button" onclick="enableDrawing('rural_hidro_ponto')"
-                                            @click="openDraw = false"
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_estrada'))
+                                        <button type="button" onclick="enableDrawing('rural_estrada')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-lifebuoy class="w-4 h-4 text-stone-600" /> Estrada / Vicinal
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
+                                        </button>
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_hidro_linha'))
+                                        <button type="button" onclick="enableDrawing('rural_hidro_linha')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-sparkles class="w-4 h-4 text-cyan-500" /> Nascente (Ponto)
+                                            <x-heroicon-o-minus class="w-4 h-4 text-cyan-500" /> Rio / Córrego
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
                                         </button>
-                                        <button type="button" onclick="enableDrawing('rural_ponte')"
-                                            @click="openDraw = false"
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_ponte'))
+                                        <button type="button" onclick="enableDrawing('rural_ponte')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-bars-2 class="w-4 h-4 text-amber-600" /> Ponte
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
                                         </button>
-                                        <button type="button" onclick="enableDrawing('rural_ponto_interesse')"
-                                            @click="openDraw = false"
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_hidro_ponto'))
+                                        <button type="button" onclick="enableDrawing('rural_hidro_ponto')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-sparkles class="w-4 h-4 text-cyan-500" /> Nascente
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
+                                        </button>
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_ponto_interesse'))
+                                        <button type="button" onclick="enableDrawing('rural_ponto_interesse')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-teal-50 hover:text-teal-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-star class="w-4 h-4 text-teal-500" /> Ponto de Interesse
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
+                                        </button>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endif
+
+                                {{-- GRUPO: ANOTAÇÕES --}}
+                                <div>
+                                    <button type="button"
+                                        @click.stop.prevent="activeTabDraw = activeTabDraw === 'anotacoes' ? '' : 'anotacoes'"
+                                        class="w-full px-4 py-2.5 text-left font-bold text-[11px] text-gray-500 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center transition-colors">
+                                        <span class="flex items-center gap-2" style="color:#7c3aed;">
+                                            <x-heroicon-o-chat-bubble-bottom-center-text class="w-4 h-4 " /> Anotações
+                                        </span>
+                                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                                            x-bind:class="activeTabDraw === 'anotacoes' ? 'rotate-180' : ''" />
+                                    </button>
+                                    <div x-show="activeTabDraw === 'anotacoes'" x-collapse class="py-1">
+                                        <button type="button" @click="openDraw = false; window.ativarFerramentaToponimiia(true)"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-violet-50 hover:text-violet-600 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-chat-bubble-bottom-center-text class="w-4 h-4 text-violet-500" /> Texto / Toponímia
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
                                         </button>
                                     </div>
                                 </div>
-
                             </div>
                         </div>
                     </div>
@@ -739,10 +850,12 @@
                                 </div>
                                 <div class="py-1 flex flex-col">
 
+                                    @if (\App\Support\Modulos::ferramentaDisponivel('numeracao'))
                                     <button id="btn-tool-numeracao" @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-hashtag class="w-4 h-4 text-blue-500" /> Numeração Predial
                                     </button>
+                                    @endif
 
                                     <button id="btn-tool-altimetria" @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
@@ -750,10 +863,12 @@
                                         (Altimetria)
                                     </button>
 
+                                    @if (\App\Support\Modulos::ferramentaDisponivel('unificar'))
                                     <button id="btn-tool-unificar" @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-purple-50 dark:hover:bg-gray-700 hover:text-purple-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-link class="w-4 h-4 text-purple-500" /> Unificar Lotes (Solda)
                                     </button>
+                                    @endif
 
                                     <button id="btn-tool-azimute" @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
@@ -772,39 +887,49 @@
                                     </button>
                                     @endif
 
+                                    @if (\App\Support\Modulos::ferramentaDisponivel('lidar'))
                                     <button wire:click="mountAction('abrirNuvemPontosAction')"
                                         @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-cube class="w-4 h-4 text-blue-500" /> Visualizador 3D (LiDAR)
                                     </button>
+                                    @endif
 
                                     <button @click="openTools = false; window.dispatchEvent(new Event('abrir-wms-sidebar'))"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-globe-alt class="w-4 h-4 text-emerald-500" /> Camadas WMS
                                     </button>
 
+                                    @if (\App\Support\Modulos::ferramentaDisponivel('pgv_simulador'))
                                     <button wire:click="mountAction('configurarPgvAction')" @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-banknotes class="w-4 h-4 text-emerald-500" /> Simulador de
                                         Valores
                                         (PGV)
                                     </button>
+                                    @endif
 
+                                    @if (\App\Support\Modulos::ferramentaDisponivel('pgv_motor'))
                                     <button @click="openTools = false; window.dispatchEvent(new Event('abrir-motor-pgv'))"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-calculator class="w-4 h-4 text-emerald-600" /> Motor da PGV
                                         (Avaliação em Massa)
                                     </button>
+                                    @endif
 
+                                    @if (\App\Support\Modulos::ferramentaDisponivel('pgv_amostra'))
                                     <button @click="openTools = false; window.pgvIniciarClique('amostra')"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 transition-colors">
                                         <x-heroicon-o-map-pin class="w-4 h-4 text-emerald-500" /> Nova Amostra (clique)
                                     </button>
+                                    @endif
 
+                                    @if (\App\Support\Modulos::ferramentaDisponivel('pgv_polo'))
                                     <button @click="openTools = false; window.pgvIniciarClique('polo')"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 transition-colors">
                                         <x-heroicon-o-star class="w-4 h-4 text-amber-500" /> Novo Pólo Valorizante (clique)
                                     </button>
+                                    @endif
 
                                     {{-- "Nova Face de Quadra" saiu daqui: a face nasce DA QUADRA
                                          (modal da quadra → Nova Face), como logradouro → seções. --}}
@@ -1361,15 +1486,33 @@
                 <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Salvar como</label>
                 <select x-model="entidade"
                     class="w-full text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900">
+                    @if (\App\Support\Modulos::camadaDisponivel('lotes'))
                     <option value="lotes">Lote</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('quadras'))
                     <option value="quadras">Quadra</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('bairros'))
                     <option value="bairros">Bairro</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('loteamentos'))
                     <option value="loteamentos">Loteamento</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('perimetros'))
                     <option value="perimetros">Perímetro Urbano</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('zonas'))
                     <option value="zonas">Zona</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais'))
                     <option value="setores_fiscais">Setor Fiscal</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('areas_reurb'))
                     <option value="areas_reurb">Área REURB</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('patrimonio_publicos'))
                     <option value="patrimonio_publicos">Patrimônio Público</option>
+                    @endif
                 </select>
             </div>
 
@@ -1481,15 +1624,33 @@
                 <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Salvar como</label>
                 <select x-model="entidade"
                     class="w-full text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900">
+                    @if (\App\Support\Modulos::camadaDisponivel('lotes'))
                     <option value="lotes">Lote</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('quadras'))
                     <option value="quadras">Quadra</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('bairros'))
                     <option value="bairros">Bairro</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('loteamentos'))
                     <option value="loteamentos">Loteamento</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('perimetros'))
                     <option value="perimetros">Perímetro Urbano</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('zonas'))
                     <option value="zonas">Zona</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais'))
                     <option value="setores_fiscais">Setor Fiscal</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('areas_reurb'))
                     <option value="areas_reurb">Área REURB</option>
+                    @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('patrimonio_publicos'))
                     <option value="patrimonio_publicos">Patrimônio Público</option>
+                    @endif
                 </select>
             </div>
 
@@ -1699,11 +1860,15 @@
             </div>
             <div class="overflow-y-auto overflow-x-hidden max-h-[65vh] custom-scrollbar">
 
-                {{-- GRUPO 1: CADASTRO BASE --}}
+                {{-- D8 (2026-09-05, docs/Modulos_Permissoes.txt §9): os acordeons ESPELHAM a sidebar e os grupos do
+                     "Criar Artefatos" — mesmos nomes, mesma ordem, mesmo gate de módulo. activeTab inicial = base. --}}
+
+                @if (\App\Support\Modulos::ativo('base_cartografica'))
+                {{-- GRUPO: BASE CARTOGRÁFICA (ex-"Cadastro Base"; abre por padrão) --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'base' ? '' : 'base'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
-                        <span class="flex items-center gap-2">Cadastro Base</span>
+                        <span class="flex items-center gap-2">Base Cartográfica</span>
                         <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
                             x-bind:class="activeTab === 'base' ? 'rotate-180' : ''" />
                     </button>
@@ -1718,7 +1883,9 @@
                                 title="Voltar às cores padrão do sistema">↺ restaurar cores padrão</button>
                         </div>
 
+                        @if (\App\Support\Modulos::camadaDisponivel('perimetros'))
                         <div class="flex items-center justify-between w-full mt-2">
+                            @if (\App\Support\Modulos::camadaDisponivel('perimetros'))
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                 <input type="checkbox" data-layer="perimetros"
                                     class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
@@ -1728,6 +1895,7 @@
                                     <span class="layer-text truncate">Distritos / Limites</span>
                                 </span>
                             </label>
+                            @endif
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
                                 <label
                                     class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
@@ -1746,37 +1914,11 @@
                                 </select>
                             </div>
                         </div>
+                        @endif
 
-                        <div class="flex items-center justify-between w-full mt-2">
-                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
-                                <input type="checkbox" data-layer="setores_fiscais"
-                                    class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
-                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                    <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
-                                    </div>
-                                    <span class="layer-text truncate">Setores</span>
-                                </span>
-                            </label>
-                            <div class="flex items-center gap-1 ml-2 flex-shrink-0">
-                                <label
-                                    class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
-                                    title="Exibir rótulos">
-                                    <input type="checkbox" id="setores_fiscais-label-toggle" checked
-                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_fiscais',enabled:this.checked,field:document.getElementById('setores_fiscais-label-field').value}}))"
-                                        class="rounded border-gray-300 w-3 h-3">
-                                    <span>Rót.</span>
-                                </label>
-                                <select id="setores_fiscais-label-field"
-                                    onchange="if(document.getElementById('setores_fiscais-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_fiscais',enabled:true,field:this.value}}))"
-                                    class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                                    style="font-size:10px;max-width:80px;padding:1px 2px;">
-                                    <option value="__default__">Padrão</option>
-                                    <option value="nome">Nome</option>
-                                </select>
-                            </div>
-                        </div>
-
+                        @if (\App\Support\Modulos::camadaDisponivel('bairros'))
                         <div class="flex items-center justify-between w-full">
+                            @if (\App\Support\Modulos::camadaDisponivel('bairros'))
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                 <input type="checkbox" data-layer="bairros"
                                     class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
@@ -1786,6 +1928,7 @@
                                     <span class="layer-text truncate">Bairros</span>
                                 </span>
                             </label>
+                            @endif
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
                                 <label
                                     class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
@@ -1804,8 +1947,76 @@
                                 </select>
                             </div>
                         </div>
+                        @endif
 
+                        @if (\App\Support\Modulos::camadaDisponivel('logradouros'))
+                        <div class="flex items-center justify-between w-full mt-2">
+                            @if (\App\Support\Modulos::camadaDisponivel('logradouros'))
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="logradouros"
+                                    class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div>
+                                    <span class="layer-text truncate">Logradouros</span>
+                                </span>
+                            </label>
+                            @endif
+                            <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+                                <label
+                                    class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
+                                    title="Exibir rótulos">
+                                    <input type="checkbox" id="logradouros-label-toggle" checked
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'logradouros',enabled:this.checked,field:document.getElementById('logradouros-label-field').value}}))"
+                                        class="rounded border-gray-300 w-3 h-3">
+                                    <span>Rót.</span>
+                                </label>
+                                <select id="logradouros-label-field"
+                                    onchange="if(document.getElementById('logradouros-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'logradouros',enabled:true,field:this.value}}))"
+                                    class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                    style="font-size:10px;max-width:80px;padding:1px 2px;">
+                                    <option value="__default__">Padrão</option>
+                                    <option value="name">Nome</option>
+                                    <option value="cep">CEP</option>
+                                </select>
+                            </div>
+                        </div>
+                        @endif
+
+                        {{-- Seções de Logradouro --}}
+                        @if (\App\Support\Modulos::camadaDisponivel('secoes_logradouro'))
+                        <div class="flex items-center justify-between w-full mt-2">
+                            @if (\App\Support\Modulos::camadaDisponivel('secoes_logradouro'))
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="secoes_logradouro"
+                                    class="layer-toggle rounded border-gray-300 text-violet-700 focus:ring-violet-700 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-1 bg-violet-700 rounded flex-shrink-0"></div>
+                                    <span class="layer-text truncate">Seções de Logradouro</span>
+                                </span>
+                            </label>
+                            @endif
+                        </div>
+                        @endif
+
+                    </div>
+                </div>
+                @endif
+
+                @if (\App\Support\Modulos::ativo('imobiliario'))
+                {{-- GRUPO: CADASTRO IMOBILIÁRIO (módulo imobiliario) --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'imobiliario' ? '' : 'imobiliario'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                        <span class="flex items-center gap-2">Cadastro Imobiliário</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'imobiliario' ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="activeTab === 'imobiliario'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
+
+                        @if (\App\Support\Modulos::camadaDisponivel('loteamentos'))
                         <div class="flex items-center justify-between w-full">
+                            @if (\App\Support\Modulos::camadaDisponivel('loteamentos'))
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                 <input type="checkbox" data-layer="loteamentos"
                                     class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
@@ -1815,6 +2026,7 @@
                                     <span class="layer-text truncate">Loteamentos</span>
                                 </span>
                             </label>
+                            @endif
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
                                 <label
                                     class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
@@ -1833,8 +2045,11 @@
                                 </select>
                             </div>
                         </div>
+                        @endif
 
+                        @if (\App\Support\Modulos::camadaDisponivel('quadras'))
                         <div class="flex items-center justify-between w-full">
+                            @if (\App\Support\Modulos::camadaDisponivel('quadras'))
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                 <input type="checkbox" data-layer="quadras"
                                     class="layer-toggle rounded border-gray-300 text-orange-500 focus:ring-orange-500 w-4 h-4 flex-shrink-0">
@@ -1844,6 +2059,7 @@
                                     <span class="layer-text truncate">Quadras</span>
                                 </span>
                             </label>
+                            @endif
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
                                 <label
                                     class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
@@ -1863,8 +2079,11 @@
                                 </select>
                             </div>
                         </div>
+                        @endif
 
+                        @if (\App\Support\Modulos::camadaDisponivel('lotes'))
                         <div class="flex items-center justify-between w-full mt-2">
+                            @if (\App\Support\Modulos::camadaDisponivel('lotes'))
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                 <input type="checkbox" data-layer="lotes"
                                     class="layer-toggle rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
@@ -1875,6 +2094,7 @@
                                     <span class="layer-text truncate">Lotes</span>
                                 </span>
                             </label>
+                            @endif
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
                                 <label
                                     class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
@@ -1896,12 +2116,15 @@
                                 </select>
                             </div>
                         </div>
+                        @endif
 
                         {{-- PoC AC — camada geral de EDIFICAÇÕES (liga/desliga TODAS; a ficha
                              do lote mantém o toggle por lote). Clique na edificação abre a
                              modal de opções (HasEdificacaoActions). Permissão: herda de lotes
                              (alias no engine). --}}
+                        @if (\App\Support\Modulos::camadaDisponivel('edificacoes'))
                         <div class="flex items-center justify-between w-full mt-2">
+                            @if (\App\Support\Modulos::camadaDisponivel('edificacoes'))
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                 <input type="checkbox" data-layer="edificacoes"
                                     class="layer-toggle rounded border-gray-300 text-amber-700 focus:ring-amber-600 w-4 h-4 flex-shrink-0">
@@ -1911,44 +2134,15 @@
                                     <span class="layer-text truncate">Edificações</span>
                                 </span>
                             </label>
+                            @endif
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0"></div>
                         </div>
-
-                        {{-- "Status de Coleta" movido para o acordeon "Coleta de Dados" (abaixo). --}}
-
-                        {{-- (Toggle antigo de Processos removido — substituído pela camada dedicada "Processos Digitais", acordeon próprio abaixo.) --}}
-
-                        <div class="flex items-center justify-between w-full mt-2">
-                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
-                                <input type="checkbox" data-layer="logradouros"
-                                    class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0">
-                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                    <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div>
-                                    <span class="layer-text truncate">Logradouros</span>
-                                </span>
-                            </label>
-                            <div class="flex items-center gap-1 ml-2 flex-shrink-0">
-                                <label
-                                    class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
-                                    title="Exibir rótulos">
-                                    <input type="checkbox" id="logradouros-label-toggle" checked
-                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'logradouros',enabled:this.checked,field:document.getElementById('logradouros-label-field').value}}))"
-                                        class="rounded border-gray-300 w-3 h-3">
-                                    <span>Rót.</span>
-                                </label>
-                                <select id="logradouros-label-field"
-                                    onchange="if(document.getElementById('logradouros-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'logradouros',enabled:true,field:this.value}}))"
-                                    class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                                    style="font-size:10px;max-width:80px;padding:1px 2px;">
-                                    <option value="__default__">Padrão</option>
-                                    <option value="name">Nome</option>
-                                    <option value="cep">CEP</option>
-                                </select>
-                            </div>
-                        </div>
+                        @endif
 
                         {{-- Meio-fio / Calçada (TR Tangará Intranet #57) --}}
+                        @if (\App\Support\Modulos::camadaDisponivel('meio_fios'))
                         <div class="flex items-center justify-between w-full mt-2">
+                            @if (\App\Support\Modulos::camadaDisponivel('meio_fios'))
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                 <input type="checkbox" data-layer="meio_fios"
                                     class="layer-toggle rounded border-gray-300 text-amber-700 focus:ring-amber-700 w-4 h-4 flex-shrink-0">
@@ -1957,25 +2151,107 @@
                                     <span class="layer-text truncate">Meio-fio / Calçada</span>
                                 </span>
                             </label>
+                            @endif
                         </div>
+                        @endif
 
-                        {{-- Seções de Logradouro --}}
-                        <div class="flex items-center justify-between w-full mt-2">
-                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
-                                <input type="checkbox" data-layer="secoes_logradouro"
-                                    class="layer-toggle rounded border-gray-300 text-violet-700 focus:ring-violet-700 w-4 h-4 flex-shrink-0">
-                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                    <div class="w-3 h-1 bg-violet-700 rounded flex-shrink-0"></div>
-                                    <span class="layer-text truncate">Seções de Logradouro</span>
+                    </div>
+                </div>
+                @endif
+
+                @if (\App\Support\Modulos::ativo('imobiliario'))
+                {{-- GRUPO: ZONEAMENTO URBANO (módulo imobiliario) --}}
+                <div data-permission-group="layer:zonas" class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'zonas' ? '' : 'zonas'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                        <span class="flex items-center gap-2">Zoneamento Urbano</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'zonas' ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="activeTab === 'zonas'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden"
+                        x-data="{ zonasList: @entangle('zonasTipos') }"> {{-- MÁGICA: Conecta ao PHP! --}}
+
+                        <template x-for="zona in zonasList" :key="zona.id">
+                            @if (\App\Support\Modulos::camadaDisponivel('zonas'))
+                            <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"
+                                :title="zona.name">
+                                <input type="checkbox" data-layer="zonas" :data-zona-sigla="zona.sigla"
+                                    class="zona-toggle rounded border-gray-400 shadow-sm w-4 h-4 flex-shrink-0"
+                                    :style="`color: rgb(${ (zona.rgb || '150,150,150').replace(/rgb|\(|\)| /g, '') });`">
+                                <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-2">
+                                    <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10"
+                                        :style="`background-color: rgb(${ (zona.rgb || '150,150,150').replace(/rgb|\(|\)| /g, '') });`">
+                                    </div>
+                                    <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300"
+                                        x-text="`${zona.sigla} - ${zona.name}`"></span>
                                 </span>
                             </label>
-                        </div>
+                            @endif
+                        </template>
 
                     </div>
                 </div>
 
+                @endif
+
+                @if (\App\Support\Modulos::ativo('coleta_cadastral'))
+                {{-- CAMADA: COLETA DE DADOS — status de coleta (camada própria, não depende de "Lotes") + heatmap --}}
+                <div data-permission-group="layer:lotes"
+                    class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'coleta' ? '' : 'coleta'"
+                        class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                        <span class="flex items-center gap-2">Coleta de Dados</span>
+                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
+                            x-bind:class="activeTab === 'coleta' ? 'rotate-180' : ''" />
+                    </button>
+                    <div x-show="activeTab === 'coleta'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden"
+                        x-data="{ heatmapOn: false, statusList: [
+                            { key: 'coletado', nome: 'Coletado', cor: '#00FFFF' },
+                            { key: 'pendente', nome: 'Pendente', cor: '#FF751F' },
+                            { key: 'inconformidade', nome: 'Inconformidade', cor: '#FF3131' },
+                            { key: 'nao_visitado', nome: 'Não visitado', cor: '#FAFF00' },
+                        ] }">
+
+                        {{-- Um toggle por status (mesmo padrão dos fluxos: swatch da cor + nome) --}}
+                        <template x-for="s in statusList" :key="s.key">
+                            @if (\App\Support\Modulos::camadaDisponivel('coleta'))
+                            <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full" :title="s.nome">
+                                <input type="checkbox" data-layer="coleta" :data-status="s.key"
+                                    class="coleta-status-toggle rounded border-gray-400 shadow-sm w-4 h-4 flex-shrink-0"
+                                    :style="`color:${s.cor}`">
+                                <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-2">
+                                    <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10"
+                                        :style="`background-color:${s.cor}`"></div>
+                                    <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300"
+                                        x-text="s.nome"></span>
+                                </span>
+                            </label>
+                            @endif
+                        </template>
+
+                        {{-- Mapa de Calor por status (cada status na sua cor) --}}
+                        <div class="mt-3 pt-3 border-t border-gray-100/60 dark:border-gray-700/40">
+                            <label class="flex items-center space-x-3 cursor-pointer w-full">
+                                <input type="checkbox" x-model="heatmapOn"
+                                    @change="window.dispatchEvent(new CustomEvent('sigweb-coleta-heatmap',{detail:{enabled:heatmapOn}}))"
+                                    class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-1">
+                                    <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm"
+                                        style="background: radial-gradient(circle, #10B981, #F59E0B, #EF4444);"></div>
+                                    <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300">Mapa de
+                                        Calor</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                @endif
+
                 {{-- CAMADA: PROCESSOS DIGITAIS — um toggle por fluxo (só aparece se o tenant tiver fluxos) --}}
-                @if (count($processoFluxos) > 0)
+                @if (\App\Support\Modulos::ativo('processos') && count($processoFluxos) > 0)
                     <div data-permission-group="layer:processos"
                         class="border-b border-gray-100/50 dark:border-gray-700/50">
                         <button @click="activeTab = activeTab === 'processos' ? '' : 'processos'"
@@ -1990,6 +2266,7 @@
 
                             {{-- Um check por fluxo (mesmo padrão do Zoneamento: swatch de cor + nome) --}}
                             <template x-for="fluxo in fluxosList" :key="fluxo.id">
+                                @if (\App\Support\Modulos::camadaDisponivel('processos'))
                                 <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full" :title="fluxo.nome">
                                     <input type="checkbox" data-layer="processos" :data-fluxo-id="fluxo.id"
                                         class="processo-fluxo-toggle rounded border-gray-400 shadow-sm w-4 h-4 flex-shrink-0"
@@ -2001,6 +2278,7 @@
                                             x-text="fluxo.nome"></span>
                                     </span>
                                 </label>
+                                @endif
                             </template>
 
                             {{-- Mapa de Calor (densidade dos processos dos fluxos ativos) --}}
@@ -2024,55 +2302,36 @@
                     </div>
                 @endif
 
-                {{-- CAMADA: COLETA DE DADOS — status de coleta (camada própria, não depende de "Lotes") + heatmap --}}
-                <div data-permission-group="layer:lotes"
-                    class="border-b border-gray-100/50 dark:border-gray-700/50">
-                    <button @click="activeTab = activeTab === 'coleta' ? '' : 'coleta'"
+                @if (\App\Support\Modulos::ativo('imageamento'))
+                {{-- GRUPO: IMAGEAMENTO (pontos panorâmicos 360 — saiu de Infraestrutura, D8) --}}
+                <div class="border-b border-gray-100/50 dark:border-gray-700/50">
+                    <button @click="activeTab = activeTab === 'imageamento' ? '' : 'imageamento'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
-                        <span class="flex items-center gap-2">Coleta de Dados</span>
+                        <span class="flex items-center gap-2">Imageamento</span>
                         <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
-                            x-bind:class="activeTab === 'coleta' ? 'rotate-180' : ''" />
+                            x-bind:class="activeTab === 'imageamento' ? 'rotate-180' : ''" />
                     </button>
-                    <div x-show="activeTab === 'coleta'" x-collapse
-                        class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden"
-                        x-data="{ heatmapOn: false, statusList: [
-                            { key: 'coletado', nome: 'Coletado', cor: '#00FFFF' },
-                            { key: 'pendente', nome: 'Pendente', cor: '#FF751F' },
-                            { key: 'inconformidade', nome: 'Inconformidade', cor: '#FF3131' },
-                            { key: 'nao_visitado', nome: 'Não visitado', cor: '#FAFF00' },
-                        ] }">
+                    <div x-show="activeTab === 'imageamento'" x-collapse
+                        class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
 
-                        {{-- Um toggle por status (mesmo padrão dos fluxos: swatch da cor + nome) --}}
-                        <template x-for="s in statusList" :key="s.key">
-                            <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full" :title="s.nome">
-                                <input type="checkbox" data-layer="coleta" :data-status="s.key"
-                                    class="coleta-status-toggle rounded border-gray-400 shadow-sm w-4 h-4 flex-shrink-0"
-                                    :style="`color:${s.cor}`">
-                                <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-2">
-                                    <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10"
-                                        :style="`background-color:${s.cor}`"></div>
-                                    <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300"
-                                        x-text="s.nome"></span>
-                                </span>
-                            </label>
-                        </template>
+                        {{-- CAMADA: IMAGENS 360º --}}
+                        @if (\App\Support\Modulos::camadaDisponivel('pontos_panoramicos'))
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" data-layer="pontos_panoramicos"
+                                class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div
+                                    class="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0 flex items-center justify-center">
+                                    <x-heroicon-o-camera class="w-2 h-2 text-white" />
+                                </div>
+                                <span class="layer-text truncate">Imagens 360º</span>
+                            </span>
+                        </label>
+                        @endif
 
-                        {{-- Mapa de Calor por status (cada status na sua cor) --}}
-                        <div class="mt-3 pt-3 border-t border-gray-100/60 dark:border-gray-700/40">
-                            <label class="flex items-center space-x-3 cursor-pointer w-full">
-                                <input type="checkbox" x-model="heatmapOn"
-                                    @change="window.dispatchEvent(new CustomEvent('sigweb-coleta-heatmap',{detail:{enabled:heatmapOn}}))"
-                                    class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
-                                <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-1">
-                                    <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm"
-                                        style="background: radial-gradient(circle, #10B981, #F59E0B, #EF4444);"></div>
-                                    <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300">Mapa de
-                                        Calor</span>
-                                </span>
-                            </label>
-                        </div>
                     </div>
                 </div>
+                @endif
 
                 {{-- CAMADAS: MOBILIDADE URBANA (módulo mob_infra — docs/piuma.txt, Onda 2) --}}
                 @if ($temMobilidade)
@@ -2088,6 +2347,7 @@
 
                             {{-- TRECHOS VIÁRIOS + Colorir por + legenda --}}
                             <div class="mt-2">
+                                @if (\App\Support\Modulos::camadaDisponivel('mob_trechos'))
                                 <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                     <input type="checkbox" data-layer="mob_trechos"
                                         class="layer-toggle rounded border-gray-300 text-sky-600 focus:ring-sky-600 w-4 h-4 flex-shrink-0">
@@ -2096,6 +2356,7 @@
                                         <span class="layer-text truncate">Trechos Viários</span>
                                     </span>
                                 </label>
+                                @endif
                                 <div class="mt-2 ps-7">
                                     <select id="mob-trecho-tema-select"
                                         onchange="window.dispatchEvent(new CustomEvent('sigweb-mob-trecho-tema', { detail: { tema: this.value || null } }))"
@@ -2114,6 +2375,7 @@
                                  + direção (ordem dos vértices). Caneta "Classificar Sentidos", "Inverter" e o
                                  simulador de fluxo atuam AQUI (nunca no trecho de levantamento). --}}
                             <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                                @if (\App\Support\Modulos::camadaDisponivel('mob_vias'))
                                 <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                     <input type="checkbox" data-layer="mob_vias"
                                         class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-600 w-4 h-4 flex-shrink-0">
@@ -2122,6 +2384,7 @@
                                         <span class="layer-text truncate">Vias Urbanas (sentido)</span>
                                     </span>
                                 </label>
+                                @endif
                                 <div class="mt-2 ps-7">
                                     <p class="text-[10px] text-gray-400 leading-tight">
                                         <span style="color:#2563eb; font-weight:700;">&#9644;</span> mão única (setas = fluxo) ·
@@ -2137,6 +2400,7 @@
                                     </label>
                                     {{-- MONITORAMENTO EM TEMPO REAL (Onda 5): camada mob_cameras — ícone de câmera,
                                          clique abre o player (HasMobCameraActions). Permissão ver_camada_mob_cameras. --}}
+                                    @if (\App\Support\Modulos::camadaDisponivel('mob_cameras'))
                                     <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-600 dark:text-gray-400 mt-1"
                                         title="Câmeras de monitoramento da cidade. Clique no ícone da câmera para assistir ao vivo.">
                                         <input type="checkbox" data-layer="mob_cameras" class="layer-toggle rounded border-gray-300 w-3.5 h-3.5">
@@ -2145,11 +2409,13 @@
                                             <span class="layer-text truncate">&#127909; Monitoramento em tempo Real</span>
                                         </span>
                                     </label>
+                                    @endif
                                 </div>
                             </div>
 
                             {{-- SINALIZAÇÃO + filtro vertical/horizontal --}}
                             <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                                @if (\App\Support\Modulos::camadaDisponivel('mob_sinalizacoes'))
                                 <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                     <input type="checkbox" data-layer="mob_sinalizacoes"
                                         class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-600 w-4 h-4 flex-shrink-0">
@@ -2158,6 +2424,7 @@
                                         <span class="layer-text truncate">Sinalização Viária</span>
                                     </span>
                                 </label>
+                                @endif
                                 <div class="flex gap-4 ps-7 mt-1">
                                     <label class="flex items-center gap-1.5 cursor-pointer text-xs text-gray-600 dark:text-gray-400">
                                         <input type="checkbox" class="mob-sub-toggle rounded border-gray-300 w-3.5 h-3.5"
@@ -2172,6 +2439,7 @@
 
                             {{-- PONTOS DE INTERESSE + filtro por categoria --}}
                             <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                                @if (\App\Support\Modulos::camadaDisponivel('mob_pontos_interesse'))
                                 <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                     <input type="checkbox" data-layer="mob_pontos_interesse"
                                         class="layer-toggle rounded border-gray-300 text-amber-600 focus:ring-amber-600 w-4 h-4 flex-shrink-0">
@@ -2180,6 +2448,7 @@
                                         <span class="layer-text truncate">Pontos de Interesse</span>
                                     </span>
                                 </label>
+                                @endif
                                 <div class="grid grid-cols-2 gap-x-2 gap-y-1 ps-7 mt-1">
                                     @foreach (\App\Models\MobPontoInteresse::CATEGORIAS as $catValor => $catLabel)
                                         <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-600 dark:text-gray-400 min-w-0">
@@ -2193,6 +2462,7 @@
 
                             {{-- EIXOS + filtro por tipo --}}
                             <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                                @if (\App\Support\Modulos::camadaDisponivel('mob_eixos'))
                                 <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                     <input type="checkbox" data-layer="mob_eixos"
                                         class="layer-toggle rounded border-gray-300 text-green-600 focus:ring-green-600 w-4 h-4 flex-shrink-0">
@@ -2201,6 +2471,7 @@
                                         <span class="layer-text truncate">Eixos (Ciclo / Carga / Rodovia)</span>
                                     </span>
                                 </label>
+                                @endif
                                 <div class="grid grid-cols-2 gap-x-2 gap-y-1 ps-7 mt-1">
                                     @foreach (\App\Models\MobEixo::TIPOS as $tipoValor => $tipoLabel)
                                         <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-600 dark:text-gray-400 min-w-0">
@@ -2214,6 +2485,7 @@
 
                             {{-- ZONAS DE ESTUDO + filtro por tipo --}}
                             <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                                @if (\App\Support\Modulos::camadaDisponivel('mob_zonas'))
                                 <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                     <input type="checkbox" data-layer="mob_zonas"
                                         class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-600 w-4 h-4 flex-shrink-0">
@@ -2222,6 +2494,7 @@
                                         <span class="layer-text truncate">Zonas de Estudo (O/D, IBGE)</span>
                                     </span>
                                 </label>
+                                @endif
                                 <div class="grid grid-cols-2 gap-x-2 gap-y-1 ps-7 mt-1">
                                     @foreach (\App\Models\MobZona::TIPOS as $tipoValor => $tipoLabel)
                                         <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-gray-600 dark:text-gray-400 min-w-0">
@@ -2252,6 +2525,7 @@
                                  = % do total geral, mini-checkboxes por destino (mesmo mecanismo .mob-sub-toggle
                                  das zonas) — "só o que vai para o Central". --}}
                             <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                                @if (\App\Support\Modulos::camadaDisponivel('mob_fluxos'))
                                 <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                     <input type="checkbox" data-layer="mob_fluxos"
                                         class="layer-toggle rounded border-gray-300 text-cyan-600 focus:ring-cyan-600 w-4 h-4 flex-shrink-0">
@@ -2260,6 +2534,7 @@
                                         <span class="layer-text truncate">Fluxos O/D (linhas de desejo)</span>
                                     </span>
                                 </label>
+                                @endif
                                 @if (($mobFluxoDistribuicao['total'] ?? 0) > 0)
                                     <div class="grid grid-cols-2 gap-x-2 gap-y-1 ps-7 mt-1">
                                         @foreach ($mobFluxoDistribuicao['destinos'] as $destinoValor => $d)
@@ -2285,12 +2560,13 @@
                     </div>
                 @endif
 
-                {{-- GRUPO 2: INTELIGÊNCIA SOCIAL (vinculada à camada de lotes) --}}
+                @if (\App\Support\Modulos::ativo('social'))
+                {{-- GRUPO: CADASTRO SOCIAL (módulo social — toggles sobre a camada de lotes; ex-"Inteligência Social", D8) --}}
                 <div data-permission-group="layer:lotes"
                     class="border-b border-gray-100/50 dark:border-gray-700/50 bg-rose-50/30 dark:bg-rose-900/10">
                     <button @click="activeTab = activeTab === 'social' ? '' : 'social'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-rose-700 dark:text-rose-300 hover:bg-rose-100/50 dark:hover:bg-rose-800/50 flex justify-between items-center transition-colors">
-                        <span class="flex items-center gap-2">Inteligência Social</span>
+                        <span class="flex items-center gap-2">Cadastro Social</span>
                         <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
                             x-bind:class="activeTab === 'social' ? 'rotate-180' : ''" />
                     </button>
@@ -2360,38 +2636,10 @@
                     </div>
                 </div>
 
-                {{-- GRUPO 3: ZONEAMENTO URBANO --}}
-                <div data-permission-group="layer:zonas" class="border-b border-gray-100/50 dark:border-gray-700/50">
-                    <button @click="activeTab = activeTab === 'zonas' ? '' : 'zonas'"
-                        class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
-                        <span class="flex items-center gap-2">Zoneamento Urbano</span>
-                        <x-heroicon-o-chevron-down class="w-4 h-4 transition-transform duration-200"
-                            x-bind:class="activeTab === 'zonas' ? 'rotate-180' : ''" />
-                    </button>
-                    <div x-show="activeTab === 'zonas'" x-collapse
-                        class="px-4 pb-4 space-y-3 bg-transparent text-sm w-full overflow-hidden"
-                        x-data="{ zonasList: @entangle('zonasTipos') }"> {{-- MÁGICA: Conecta ao PHP! --}}
+                @endif
 
-                        <template x-for="zona in zonasList" :key="zona.id">
-                            <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"
-                                :title="zona.name">
-                                <input type="checkbox" data-layer="zonas" :data-zona-sigla="zona.sigla"
-                                    class="zona-toggle rounded border-gray-400 shadow-sm w-4 h-4 flex-shrink-0"
-                                    :style="`color: rgb(${ (zona.rgb || '150,150,150').replace(/rgb|\(|\)| /g, '') });`">
-                                <span class="layer-label flex items-center gap-2 text-xs flex-1 min-w-0 ps-2">
-                                    <div class="w-3 h-3 rounded-full flex-shrink-0 opacity-80 shadow-sm border border-black/10"
-                                        :style="`background-color: rgb(${ (zona.rgb || '150,150,150').replace(/rgb|\(|\)| /g, '') });`">
-                                    </div>
-                                    <span class="layer-text truncate font-medium text-gray-700 dark:text-gray-300"
-                                        x-text="`${zona.sigla} - ${zona.name}`"></span>
-                                </span>
-                            </label>
-                        </template>
-
-                    </div>
-                </div>
-
-                {{-- GRUPO 4: INFRAESTRUTURA --}}
+                @if (\App\Support\Modulos::algumAtivo(['pgv', 'imobiliario', 'patrimonios', 'iluminacao', 'arborizacao', 'chamados']))
+                {{-- GRUPO: INFRAESTRUTURA (setores fiscais, REURB, patrimônios, postes, árvores, chamados — D8) --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'infra' ? '' : 'infra'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
@@ -2402,46 +2650,43 @@
                     <div x-show="activeTab === 'infra'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
 
-                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
-                            <input type="checkbox" data-layer="patrimonio_publicos"
-                                class="layer-toggle rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-indigo-500 rounded-sm flex-shrink-0 opacity-80"></div>
-                                <span class="layer-text truncate">Patrimônio Público</span>
-                            </span>
-                        </label>
-
-                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
-                            <input type="checkbox" data-layer="arvores"
-                                class="layer-toggle rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-emerald-500 rounded-full flex-shrink-0"></div><span
-                                    class="layer-text truncate">Arborização Urbana</span>
-                            </span>
-                        </label>
-
-                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
-                            <input type="checkbox" data-layer="postes"
-                                class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div><span
-                                    class="layer-text truncate">Iluminação Pública</span>
-                            </span>
-                        </label>
-
-                        {{-- Chamados (App de Chamados — itens 162/163) --}}
-                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
-                            <input type="checkbox" data-layer="chamados"
-                                class="layer-toggle rounded border-gray-300 text-rose-600 focus:ring-rose-500 w-4 h-4 flex-shrink-0">
-                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-3 h-3 bg-rose-500 rounded-full flex-shrink-0"></div><span
-                                    class="layer-text truncate">Chamados (App)</span>
-                            </span>
-                        </label>
+                        @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais'))
+                        <div class="flex items-center justify-between w-full mt-2">
+                            @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais'))
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="setores_fiscais"
+                                    class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
+                                    </div>
+                                    <span class="layer-text truncate">Setores</span>
+                                </span>
+                            </label>
+                            @endif
+                            <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+                                <label
+                                    class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
+                                    title="Exibir rótulos">
+                                    <input type="checkbox" id="setores_fiscais-label-toggle" checked
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_fiscais',enabled:this.checked,field:document.getElementById('setores_fiscais-label-field').value}}))"
+                                        class="rounded border-gray-300 w-3 h-3">
+                                    <span>Rót.</span>
+                                </label>
+                                <select id="setores_fiscais-label-field"
+                                    onchange="if(document.getElementById('setores_fiscais-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_fiscais',enabled:true,field:this.value}}))"
+                                    class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                    style="font-size:10px;max-width:80px;padding:1px 2px;">
+                                    <option value="__default__">Padrão</option>
+                                    <option value="nome">Nome</option>
+                                </select>
+                            </div>
+                        </div>
+                        @endif
 
                         {{-- Áreas REURB --}}
                         <div data-permission-group="layer:areas_reurb" x-data="{ on: false }">
 
+                            @if (\App\Support\Modulos::camadaDisponivel('areas_reurb'))
                             <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
                                 <input type="checkbox" data-layer="areas_reurb" x-model="on"
                                     class="layer-toggle rounded border-gray-300 text-amber-500 focus:ring-amber-400 w-4 h-4 flex-shrink-0">
@@ -2450,6 +2695,7 @@
                                     <span class="layer-text truncate">Áreas REURB</span>
                                 </span>
                             </label>
+                            @endif
 
                             <div x-show="on" x-transition
                                 class="ml-7 mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-500 dark:text-gray-400">
@@ -2471,23 +2717,58 @@
                             </div>
                         </div>
 
-                        {{-- CAMADA: IMAGENS 360º --}}
+                        @if (\App\Support\Modulos::camadaDisponivel('patrimonio_publicos'))
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
-                            <input type="checkbox" data-layer="pontos_panoramicos"
-                                class="layer-toggle rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 flex-shrink-0">
+                            <input type="checkbox" data-layer="patrimonio_publicos"
+                                class="layer-toggle rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 flex-shrink-0">
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                <div
-                                    class="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0 flex items-center justify-center">
-                                    <x-heroicon-o-camera class="w-2 h-2 text-white" />
-                                </div>
-                                <span class="layer-text truncate">Imagens 360º</span>
+                                <div class="w-3 h-3 bg-indigo-500 rounded-sm flex-shrink-0 opacity-80"></div>
+                                <span class="layer-text truncate">Patrimônio Público</span>
                             </span>
                         </label>
+                        @endif
+
+                        @if (\App\Support\Modulos::camadaDisponivel('postes'))
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" data-layer="postes"
+                                class="layer-toggle rounded border-gray-300 text-slate-600 focus:ring-slate-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-1 bg-slate-600 rounded flex-shrink-0"></div><span
+                                    class="layer-text truncate">Iluminação Pública</span>
+                            </span>
+                        </label>
+                        @endif
+
+                        @if (\App\Support\Modulos::camadaDisponivel('arvores'))
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" data-layer="arvores"
+                                class="layer-toggle rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-emerald-500 rounded-full flex-shrink-0"></div><span
+                                    class="layer-text truncate">Arborização Urbana</span>
+                            </span>
+                        </label>
+                        @endif
+
+                        {{-- Chamados (App de Chamados — itens 162/163) --}}
+                        @if (\App\Support\Modulos::camadaDisponivel('chamados'))
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full">
+                            <input type="checkbox" data-layer="chamados"
+                                class="layer-toggle rounded border-gray-300 text-rose-600 focus:ring-rose-500 w-4 h-4 flex-shrink-0">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 bg-rose-500 rounded-full flex-shrink-0"></div><span
+                                    class="layer-text truncate">Chamados (App)</span>
+                            </span>
+                        </label>
+                        @endif
 
                     </div>
                 </div>
 
-                {{-- GRUPO 6: CEMITÉRIOS --}}
+                @endif
+
+                @if (\App\Support\Modulos::ativo('cemiterio'))
+                {{-- GRUPO: GESTÃO DE CEMITÉRIOS --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'cemiterios' ? '' : 'cemiterios'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
@@ -2498,6 +2779,7 @@
                     <div x-show="activeTab === 'cemiterios'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
 
+                        @if (\App\Support\Modulos::camadaDisponivel('cemiterios'))
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="cemiterios"
                                 class="layer-toggle rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-4 h-4 flex-shrink-0">
@@ -2506,7 +2788,9 @@
                                 <span class="layer-text truncate">Cemitérios</span>
                             </span>
                         </label>
+                        @endif
 
+                        @if (\App\Support\Modulos::camadaDisponivel('quadras_cemiterio'))
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="quadras_cemiterio"
                                 class="layer-toggle rounded border-gray-300 text-indigo-500 focus:ring-indigo-500 w-4 h-4 flex-shrink-0">
@@ -2515,7 +2799,9 @@
                                 <span class="layer-text truncate">Quadras (Cemitério)</span>
                             </span>
                         </label>
+                        @endif
 
+                        @if (\App\Support\Modulos::camadaDisponivel('logradouros_cemiterio'))
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="logradouros_cemiterio"
                                 class="layer-toggle rounded border-gray-300 text-slate-500 focus:ring-slate-500 w-4 h-4 flex-shrink-0">
@@ -2524,7 +2810,9 @@
                                 <span class="layer-text truncate">Ruas (Cemitério)</span>
                             </span>
                         </label>
+                        @endif
 
+                        @if (\App\Support\Modulos::camadaDisponivel('jazigos'))
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="jazigos"
                                 class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
@@ -2533,11 +2821,15 @@
                                 <span class="layer-text truncate">Jazigos / Túmulos</span>
                             </span>
                         </label>
+                        @endif
 
                     </div>
                 </div>
 
-                {{-- GRUPO 7: ZONA RURAL --}}
+                @endif
+
+                @if (\App\Support\Modulos::ativo('rural'))
+                {{-- GRUPO: CADASTRO RURAL --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'rural' ? '' : 'rural'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
@@ -2549,6 +2841,7 @@
                     <div x-show="activeTab === 'rural'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
 
+                        @if (\App\Support\Modulos::camadaDisponivel('rural-localidades'))
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="rural-localidades"
                                 class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
@@ -2557,7 +2850,9 @@
                                 <span class="layer-text truncate">Localidades e Distritos</span>
                             </span>
                         </label>
+                        @endif
 
+                        @if (\App\Support\Modulos::camadaDisponivel('rural-propriedades'))
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="rural-propriedades"
                                 class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
@@ -2566,7 +2861,9 @@
                                 <span class="layer-text truncate">Propriedades (INCRA/CAR)</span>
                             </span>
                         </label>
+                        @endif
 
+                        @if (\App\Support\Modulos::camadaDisponivel('rural-estradas'))
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="rural-estradas"
                                 class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
@@ -2575,7 +2872,9 @@
                                 <span class="layer-text truncate">Estradas e Vicinais</span>
                             </span>
                         </label>
+                        @endif
 
+                        @if (\App\Support\Modulos::camadaDisponivel('rural-hidrografias'))
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="rural-hidrografias"
                                 class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
@@ -2584,7 +2883,9 @@
                                 <span class="layer-text truncate">Rios, Lagos e Nascentes</span>
                             </span>
                         </label>
+                        @endif
 
+                        @if (\App\Support\Modulos::camadaDisponivel('rural-pontes'))
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="rural-pontes"
                                 class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
@@ -2593,7 +2894,9 @@
                                 <span class="layer-text truncate">Pontes Rurais</span>
                             </span>
                         </label>
+                        @endif
 
+                        @if (\App\Support\Modulos::camadaDisponivel('rural-pontos-interesse'))
                         <label class="flex items-center space-x-3 cursor-pointer w-full">
                             <input type="checkbox" data-layer="rural-pontos-interesse"
                                 class="layer-toggle rounded border-gray-300 text-stone-600 focus:ring-stone-600 w-4 h-4 flex-shrink-0">
@@ -2602,9 +2905,12 @@
                                 <span class="layer-text truncate">Pontos de Interesse</span>
                             </span>
                         </label>
+                        @endif
 
                     </div>
                 </div>
+
+                @endif
 
                 {{-- GRUPO: ANOTAÇÕES DO MAPA --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
@@ -2617,7 +2923,9 @@
                     <div x-show="activeTab === 'anotacoes'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
 
+                        @if (\App\Support\Modulos::camadaDisponivel('toponimias'))
                         <div class="flex items-center justify-between w-full mt-2">
+                            @if (\App\Support\Modulos::camadaDisponivel('toponimias'))
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                 <input type="checkbox" data-layer="toponimias"
                                     class="layer-toggle rounded border-gray-300 text-violet-600 focus:ring-violet-500 w-4 h-4 flex-shrink-0">
@@ -2628,12 +2936,14 @@
                                     <span class="layer-text truncate">Toponímias / Textos</span>
                                 </span>
                             </label>
+                            @endif
                             <button type="button" onclick="window.ativarFerramentaToponimiia(true)"
                                 title="Clique no mapa para adicionar um texto"
                                 class="ml-2 flex-shrink-0 text-xs px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-200 transition-colors">
                                 + Texto
                             </button>
                         </div>
+                        @endif
 
                     </div>
                 </div>
@@ -3071,10 +3381,12 @@
                                 </div>
                             </div>
                         </button>
+                        @if (\App\Support\Modulos::artefatoDisponivel('edificacao'))
                         <button onclick="enableDrawing('edificacao')" title="Desenhar Nova Edificação"
                             class="flex-shrink-0 flex items-center justify-center w-[50px] h-[50px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-600 transition-all">
                             <x-heroicon-o-plus class="w-5 h-5" />
                         </button>
+                        @endif
                     </div>
 
                     {{-- VER TESTADAS --}}
@@ -3096,10 +3408,12 @@
                                 </div>
                             </div>
                         </button>
+                        @if (\App\Support\Modulos::artefatoDisponivel('testada'))
                         <button onclick="enableDrawing('testada')" title="Desenhar Nova Testada"
                             class="flex-shrink-0 flex items-center justify-center w-[50px] h-[50px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-green-50 hover:border-green-600 hover:text-green-700 transition-all">
                             <x-heroicon-o-plus class="w-5 h-5" />
                         </button>
+                        @endif
                     </div>
 
                     {{-- BOTÃO DE VIABILIDADE --}}

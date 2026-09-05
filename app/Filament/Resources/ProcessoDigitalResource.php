@@ -60,7 +60,7 @@ class ProcessoDigitalResource extends Resource
                 // Usa hasPermissionTo() — NÃO can() — de propósito: `can()` passa pelo Gate::before,
                 // que dá bypass total ao Manager; assim, retirar a permissão do papel Gerente
                 // realmente passa a filtrá-lo por setor.
-                if ($user && ($user->hasRole('Master') || $user->hasPermissionTo('view_todos_processos'))) {
+                if ($user && ($user->isMaster() || $user->hasPermissionTo('view_todos_processos'))) {
                     return $query;
                 }
 

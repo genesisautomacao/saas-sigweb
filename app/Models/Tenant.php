@@ -34,11 +34,14 @@ class Tenant extends Model implements HasAvatar
     {
         // 1. Quando uma nova Empresa (Tenant) é CRIADA
         static::created(function (Tenant $tenant) {
-            // Cria o papel Manager para esta Tenant
-            $role = \Spatie\Permission\Models\Role::create([
+            // Cria o papel Manager para esta Tenant (D7: de sistema pela FLAG,
+            // acompanha todos os módulos; o nome pode ser trocado depois)
+            $role = Role::create([
                 'name' => 'Manager',
                 'tenant_id' => $tenant->id,
                 'guard_name' => 'web',
+                'papel_sistema' => Role::SISTEMA_MANAGER,
+                'todos_modulos' => true,
             ]);
 
             // Executa a nossa rotina de sincronização de permissões
@@ -56,87 +59,46 @@ class Tenant extends Model implements HasAvatar
 
         // 2. Quando uma Empresa (Tenant) é ATUALIZADA (Ex: Você liberou um módulo novo)
         static::updated(function (Tenant $tenant) {
-            // Só roda se o campo 'modules' tiver sofrido alguma alteração
+            // Só roda se o campo 'modules' tiver sofrido alguma alteração:
+            // todo papel que "acompanha todos os módulos" (Manager incluído) recebe
+            // as permissões dos módulos ativos (D7 — docs/Modulos_Permissoes.txt)
             if ($tenant->wasChanged('modules')) {
-                $role = \Spatie\Permission\Models\Role::where('name', 'Manager')
-                    ->where('tenant_id', $tenant->id)
-                    ->first();
-
-                if ($role) {
-                    $tenant->syncManagerPermissions($role);
-                }
+                $tenant->sincronizarPapeisTodosModulos();
             }
         });
     }
 
     /**
-     * Função auxiliar que aplica as regras de negócio e sincroniza as permissões do Manager
+     * Permissões que um papel "todos os módulos" deve ter nesta prefeitura:
+     * TODAS as cadastradas, menos as dos módulos inativos (catálogo
+     * config/modulos.php). Permissão que o catálogo não conhece = núcleo (entra).
+     */
+    public function permissoesDosModulosAtivos(): \Illuminate\Support\Collection
+    {
+        $inativas = \App\Support\Modulos::permissoesInativas($this);
+
+        return \Spatie\Permission\Models\Permission::where('guard_name', 'web')
+            ->pluck('name')
+            ->reject(fn ($p) => in_array($p, $inativas, true))
+            ->values();
+    }
+
+    /** Re-sincroniza todos os papéis da prefeitura marcados com todos_modulos. */
+    public function sincronizarPapeisTodosModulos(): void
+    {
+        $permissoes = $this->permissoesDosModulosAtivos();
+
+        Role::where('tenant_id', $this->id)->todosModulos()->get()
+            ->each(fn (Role $papel) => $papel->syncPermissions($permissoes));
+    }
+
+    /**
+     * Compatibilidade: sincroniza UM papel (o Manager recém-criado) com as
+     * permissões dos módulos ativos.
      */
     public function syncManagerPermissions(\Spatie\Permission\Models\Role $role): void
     {
-        // Busca TODAS as permissões cadastradas no sistema
-        $allPermissions = \Spatie\Permission\Models\Permission::where('guard_name', 'web')->pluck('name');
-
-        // Pega os módulos ativos desta Tenant
-        $activeModules = $this->modules ?? [];
-
-        // Filtra as permissões com base nas suas regras de negócio
-        $permissionsToAssign = $allPermissions->filter(function ($permission) use ($activeModules) {
-
-            // 1. Módulo Administrativo
-            $adminEntities = ['pessoas', 'contatos', 'enderecos', 'documentos'];
-            foreach ($adminEntities as $entity) {
-                if (str_ends_with($permission, '_'.$entity) && ! in_array('administrativo', $activeModules)) {
-                    return false;
-                }
-            }
-
-            // 2. Módulo de Iluminação Pública
-            $iluminacaoEntities = ['tipos_poste', 'postes'];
-            foreach ($iluminacaoEntities as $entity) {
-                if (str_ends_with($permission, '_'.$entity) && ! in_array('iluminacao', $activeModules)) {
-                    return false;
-                }
-            }
-
-            // 3. Módulo de Arborização (Meio Ambiente)
-            $arborizacaoEntities = ['arvores'];
-            foreach ($arborizacaoEntities as $entity) {
-                if (str_ends_with($permission, '_'.$entity) && ! in_array('arborizacao', $activeModules)) {
-                    return false;
-                }
-            }
-
-            // 4. Módulo de Estoque e Almoxarifado
-            $estoqueEntities = ['locais_estoque', 'marcas', 'produtos', 'estoques', 'movimentacoes'];
-            foreach ($estoqueEntities as $entity) {
-                if (str_ends_with($permission, '_'.$entity) && ! in_array('estoque', $activeModules)) {
-                    return false;
-                }
-            }
-
-            // 5. Módulo de Manutenção e Serviços
-            $manutencaoEntities = ['solicitacoes', 'ordens_servico'];
-            foreach ($manutencaoEntities as $entity) {
-                if (str_ends_with($permission, '_'.$entity) && ! in_array('manutencao', $activeModules)) {
-                    return false;
-                }
-            }
-
-            // 6. Módulo de Gestão de Cemitérios
-            $cemiterioEntities = ['cemiterios', 'quadras_cemiterio', 'logradouros_cemiterio', 'jazigos'];
-            foreach ($cemiterioEntities as $entity) {
-                if (str_ends_with($permission, '_'.$entity) && ! in_array('cemiterio', $activeModules)) {
-                    return false;
-                }
-            }
-
-            // Se for permissão base do sistema (ex: view_users, create_roles), deixa passar
-            return true;
-        });
-
-        // Sincroniza o array filtrado diretamente no papel do Manager
-        $role->syncPermissions($permissionsToAssign);
+        $role->syncPermissions($this->permissoesDosModulosAtivos());
     }
 
     public function getFilamentAvatarUrl(): ?string

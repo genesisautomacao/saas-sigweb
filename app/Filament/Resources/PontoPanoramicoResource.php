@@ -2,26 +2,30 @@
 
 namespace App\Filament\Resources;
 
-use App\Models\PontoPanoramico;
 use App\Filament\Resources\PontoPanoramicoResource\Pages;
-use Filament\Resources\Resource;
+use App\Models\PontoPanoramico;
+use App\Traits\HasTenantModule;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use App\Traits\HasTenantModule;
 
 class PontoPanoramicoResource extends Resource
 {
     use HasTenantModule;
-    
-    protected static ?string $tenantModule = 'administrativo'; // Ou mude para o módulo que preferir
-    protected static ?string $model = PontoPanoramico::class;
-    protected static ?string $navigationIcon = 'heroicon-o-camera';
-    protected static ?string $navigationGroup = 'Módulo Administrativo';
-    protected static ?string $modelLabel = 'Ponto Panorâmico 360º';
-    protected static ?string $pluralModelLabel = 'Imagens 360º';
 
+    protected static ?string $tenantModule = 'imageamento'; // D6 (docs/Modulos_Permissoes.txt)
+
+    protected static ?string $model = PontoPanoramico::class;
+
+    protected static ?string $navigationIcon = 'heroicon-o-camera';
+
+    protected static ?string $navigationGroup = 'Imageamento'; // D8 (2026-09-05): grupo próprio, espelha o acordeon do mapa
+
+    protected static ?string $modelLabel = 'Ponto Panorâmico 360º';
+
+    protected static ?string $pluralModelLabel = 'Imagens 360º';
 
     public static function form(Form $form): Form
     {
@@ -31,7 +35,7 @@ class PontoPanoramicoResource extends Resource
                     ->label('Título do Local (Ex: Praça Matriz)')
                     ->required()
                     ->maxLength(255),
-                
+
                 Forms\Components\DatePicker::make('data_captura')
                     ->label('Data da Captura')
                     ->default(now()),
@@ -50,7 +54,7 @@ class PontoPanoramicoResource extends Resource
                     ->helperText('Exemplo: "-50.418257 -26.965895". Deixe em branco se preferir cadastrar clicando direto no mapa.')
                     ->rows(2)
                     ->columnSpanFull(),
-            ])
+            ]),
         ]);
     }
 
@@ -61,7 +65,7 @@ class PontoPanoramicoResource extends Resource
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
                 Tables\Columns\TextColumn::make('titulo')->label('Local')->searchable()->weight('bold'),
                 Tables\Columns\TextColumn::make('data_captura')->label('Data da Foto')->date('d/m/Y')->sortable(),
-                
+
                 // Indicador visual se é foto real ou simulação
                 Tables\Columns\IconColumn::make('image_path')
                     ->label('Possui Arquivo')
@@ -81,11 +85,13 @@ class PontoPanoramicoResource extends Resource
                         $tenant = \Filament\Facades\Filament::getTenant();
                         if ($record->geo_json && isset($record->geo_json->coordinates)) {
                             $coords = $record->geo_json->coordinates;
-                            return url('/app/' . $tenant->slug . '/mapa-interativo?layer=pontos_panoramicos&focus_lat=' . $coords[1] . '&focus_lon=' . $coords[0] . '&zoom=18');
+
+                            return url('/app/'.$tenant->slug.'/mapa-interativo?layer=pontos_panoramicos&focus_lat='.$coords[1].'&focus_lon='.$coords[0].'&zoom=18');
                         }
+
                         return null;
                     })
-                    ->visible(fn($record) => $record->geo_json !== null),
+                    ->visible(fn ($record) => $record->geo_json !== null),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([

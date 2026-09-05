@@ -9,21 +9,11 @@
     $geoNovo = $atributos['geo_json'] ?? null;
     $temGeo = !empty($geoAntigo) || !empty($geoNovo);
 
-    // Campos "normais" (sem a geometria) para a tabela Antes/Depois
-    $camposTabela = collect($atributos)->except(['geo_json', 'geo']);
-
-    // Valor legível p/ a célula: array/objeto (ex.: dados_customizados) vira
-    // JSON — imprimir array cru estourava o htmlspecialchars do Blade.
-    $fmtValor = function ($v) {
-        if ($v === null || $v === '') {
-            return '—';
-        }
-        if (is_bool($v)) {
-            return $v ? 'true' : 'false';
-        }
-
-        return is_scalar($v) ? $v : json_encode($v, JSON_UNESCAPED_UNICODE);
-    };
+    // Campos "normais" (sem a geometria) para a tabela Antes/Depois — coluna JSON
+    // (dados_customizados…) vem EXPLODIDA chave a chave, só o que mudou, com o rótulo
+    // do campo do município (AuditoriaDiffService = mesma fonte do PDF/Excel).
+    $linhasDiff = \App\Services\Auditoria\AuditoriaDiffService::linhas($activity);
+    $fmtValor = fn ($v) => \App\Services\Auditoria\AuditoriaDiffService::formatar($v);
 
     // Operação em português (traduz o "created"/"updated"/"deleted" padrão do Spatie)
     $operacaoBruta = $activity->description ?: $activity->event;
@@ -55,7 +45,7 @@
         </div>
     </div>
 
-    @if($camposTabela->isNotEmpty())
+    @if(count($linhasDiff) > 0)
         <div class="mt-4">
             <span class="font-semibold text-gray-500">Campos alterados:</span>
             <div class="mt-2 overflow-auto rounded border border-gray-200 dark:border-gray-700">
@@ -68,16 +58,27 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($camposTabela as $campo => $valorNovo)
+                        @foreach($linhasDiff as $l)
                             <tr class="border-t border-gray-200 dark:border-gray-700">
-                                <td class="px-3 py-2 font-mono text-gray-600">{{ $campo }}</td>
-                                <td class="px-3 py-2 text-red-500">{{ $fmtValor($antes[$campo] ?? null) }}</td>
-                                <td class="px-3 py-2 text-green-600">{{ $fmtValor($valorNovo) }}</td>
+                                <td class="px-3 py-2 text-gray-600">
+                                    @if($l['chave'] !== null)
+                                        {{-- chave de coluna JSON: rótulo do município + de onde veio --}}
+                                        <span class="font-medium text-gray-700 dark:text-gray-200">{{ $l['rotulo'] }}</span>
+                                        <span class="block font-mono text-gray-400" style="font-size:10px;">{{ \App\Services\Auditoria\AuditoriaDiffService::rotuloColuna($l['coluna']) }} · {{ $l['chave'] }}</span>
+                                    @else
+                                        <span class="font-mono">{{ $l['rotulo'] }}</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 text-red-500" style="word-break:break-word;">{{ $fmtValor($l['antes']) }}</td>
+                                <td class="px-3 py-2 text-green-600" style="word-break:break-word;">{{ $fmtValor($l['depois']) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
+            @if($operacaoBruta === 'updated' && collect($linhasDiff)->contains(fn ($l) => $l['chave'] !== null))
+                <p class="mt-1 text-gray-400" style="font-size:11px;">Em campos do município só aparecem as chaves que mudaram nesta operação.</p>
+            @endif
         </div>
     @endif
 

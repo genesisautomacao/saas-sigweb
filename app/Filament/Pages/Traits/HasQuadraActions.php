@@ -20,7 +20,9 @@ trait HasQuadraActions
 
     // Variáveis que receberão o auto-preenchimento topológico
     public ?int $quadraBairroPreSelecionadoId = null;
+
     public ?int $quadraLoteamentoPreSelecionadoId = null;
+
     public ?int $quadraPerimetroPreSelecionadoId = null;
 
     // Pré-cálculo de área exibido no modal de criação (preenchido em interceptarDesenho)
@@ -35,9 +37,9 @@ trait HasQuadraActions
             ->form([
                 Placeholder::make('area_calculada')
                     ->label('Área calculada')
-                    ->content(fn(): HtmlString => new HtmlString(
+                    ->content(fn (): HtmlString => new HtmlString(
                         $this->quadraAreaCalculada !== null
-                            ? '<strong style="font-size:14px;color:#0369a1;">' . number_format($this->quadraAreaCalculada, 2, ',', '.') . ' m²</strong>'
+                            ? '<strong style="font-size:14px;color:#0369a1;">'.number_format($this->quadraAreaCalculada, 2, ',', '.').' m²</strong>'
                             : '<em style="color:#9ca3af;">Sem geometria — desenhe a área no mapa primeiro.</em>'
                     )),
 
@@ -54,32 +56,32 @@ trait HasQuadraActions
                 Select::make('bairro_id')
                     ->label('Bairro')
                     ->options(Bairro::where('tenant_id', $this->tenantId)->pluck('name', 'id'))
-                    ->default(fn() => $this->quadraBairroPreSelecionadoId)
+                    ->default(fn () => $this->quadraBairroPreSelecionadoId)
                     ->searchable(),
                 Select::make('loteamento_id')
                     ->label('Loteamento')
                     ->options(Loteamento::where('tenant_id', $this->tenantId)->pluck('name', 'id'))
-                    ->default(fn() => $this->quadraLoteamentoPreSelecionadoId)
+                    ->default(fn () => $this->quadraLoteamentoPreSelecionadoId)
                     ->searchable(),
                 // Item 75 — campos customizados do município (quadra)
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('quadra'),
             ])
             ->action(function (array $data) {
                 // 🛑 VALIDAÇÃO ANTIFRAUDE: O usuário mudou o Select manualmente?
-                $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($this->geometriaRascunho) . "'), 4326)";
+                $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($this->geometriaRascunho)."'), 4326)";
                 $bairroId = $data['bairro_id'] ?? null;
                 $loteamentoId = $data['loteamento_id'] ?? null;
 
-                if (!$bairroId && !$loteamentoId) {
+                if (! $bairroId && ! $loteamentoId) {
                     Notification::make()->title('Erro Obrigatório')->body('A quadra deve pertencer a pelo menos um Bairro ou Loteamento.')->danger()->send();
-                    throw new \Filament\Support\Exceptions\Halt();
+                    throw new \Filament\Support\Exceptions\Halt;
                 }
 
                 if ($bairroId) {
                     $valBairro = DB::selectOne("SELECT ST_Area(ST_Difference($polyWKT, (SELECT geo::geometry FROM bairros WHERE id = ?))::geography) as area_fora", [$bairroId]);
                     if ($valBairro && $valBairro->area_fora > 1.0) {
                         Notification::make()->title('Incompatibilidade Espacial')->body('A quadra desenhada possui áreas que vazam para fora do Bairro selecionado.')->danger()->send();
-                        throw new \Filament\Support\Exceptions\Halt();
+                        throw new \Filament\Support\Exceptions\Halt;
                     }
                 }
 
@@ -87,7 +89,7 @@ trait HasQuadraActions
                     $valLoteamento = DB::selectOne("SELECT ST_Area(ST_Difference($polyWKT, (SELECT geo::geometry FROM loteamentos WHERE id = ?))::geography) as area_fora", [$loteamentoId]);
                     if ($valLoteamento && $valLoteamento->area_fora > 1.0) {
                         Notification::make()->title('Incompatibilidade Espacial')->body('A quadra desenhada possui áreas que vazam para fora do Loteamento selecionado.')->danger()->send();
-                        throw new \Filament\Support\Exceptions\Halt();
+                        throw new \Filament\Support\Exceptions\Halt;
                     }
                 }
 
@@ -101,7 +103,7 @@ trait HasQuadraActions
                 $registro = Quadra::create($data);
 
                 try {
-                    DB::statement("UPDATE quadras SET area_geo = ST_Area(geo::geography) WHERE id = ?", [$registro->id]);
+                    DB::statement('UPDATE quadras SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$registro->id]);
                 } catch (\Exception $e) {
                 }
 
@@ -110,7 +112,7 @@ trait HasQuadraActions
                 $this->dispatch('adicionar-quadra-mapa', [
                     'id' => $registro->id,
                     'name' => $registro->name,
-                    'geo' => $this->geometriaRascunho
+                    'geo' => $this->geometriaRascunho,
                 ]);
                 $this->dispatch('limpar-rascunho-mapa');
 
@@ -126,15 +128,16 @@ trait HasQuadraActions
     {
         return Action::make('opcoesQuadra')
             ->hiddenLabel()
-            ->modalHeading(fn() => 'Editar Quadra: ' . Quadra::find($this->quadraAtivaId)?->name)
+            ->modalHeading(fn () => 'Editar Quadra: '.Quadra::find($this->quadraAtivaId)?->name)
             ->modalWidth('4xl')
             ->modalSubmitActionLabel('Salvar Alterações')
             ->fillForm(function (): array {
                 $reg = Quadra::find($this->quadraAtivaId);
+
                 return [
-                    'name'         => $reg?->name,
-                    'codigo'       => $reg?->codigo,
-                    'bairro_id'    => $reg?->bairro_id,
+                    'name' => $reg?->name,
+                    'codigo' => $reg?->codigo,
+                    'bairro_id' => $reg?->bairro_id,
                     'loteamento_id' => $reg?->loteamento_id,
                     'dados_customizados' => $reg?->dados_customizados ?? [],
                 ];
@@ -145,9 +148,10 @@ trait HasQuadraActions
                     ->content(function (): HtmlString {
                         $reg = Quadra::find($this->quadraAtivaId);
                         $valor = $reg?->area_geo;
+
                         return new HtmlString(
                             $valor !== null
-                                ? '<strong style="font-size:14px;color:#0369a1;">' . number_format((float) $valor, 2, ',', '.') . ' m²</strong>'
+                                ? '<strong style="font-size:14px;color:#0369a1;">'.number_format((float) $valor, 2, ',', '.').' m²</strong>'
                                 : '<em style="color:#9ca3af;">Sem geometria registrada.</em>'
                         );
                     }),
@@ -172,8 +176,8 @@ trait HasQuadraActions
                 // visualização individual (👁) e criação pelo botão "Nova Face" no rodapé.
                 \Filament\Forms\Components\Section::make('Faces de Quadra')
                     ->collapsible()
-                    ->collapsed(fn() => \App\Models\FaceQuadra::query()->where('quadra_id', $this->quadraAtivaId)->doesntExist())
-                    ->visible(fn() => in_array('pgv', \Filament\Facades\Filament::getTenant()?->modules ?? []))
+                    ->collapsed(fn () => \App\Models\FaceQuadra::query()->where('quadra_id', $this->quadraAtivaId)->doesntExist())
+                    ->visible(fn () => \App\Support\Modulos::ativo('pgv'))
                     ->schema([
                         Placeholder::make('faces_da_quadra')
                             ->hiddenLabel()
@@ -191,37 +195,37 @@ trait HasQuadraActions
                                 }
 
                                 $html = '<div style="overflow-x:auto;"><table style="width:100%;font-size:13px;border-collapse:collapse;">'
-                                    . '<thead><tr style="border-bottom:1px solid #e5e7eb;">'
-                                    . '<th style="text-align:center;padding:4px 8px;font-weight:600;color:#6b7280;" title="Exibir no mapa">Mapa</th>'
-                                    . '<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Código</th>'
-                                    . '<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Logradouro</th>'
-                                    . '<th style="text-align:right;padding:4px 8px;font-weight:600;color:#6b7280;">Extensão</th>'
-                                    . '<th style="text-align:right;padding:4px 8px;font-weight:600;color:#6b7280;">Valor m²</th>'
-                                    . '</tr></thead><tbody>';
+                                    .'<thead><tr style="border-bottom:1px solid #e5e7eb;">'
+                                    .'<th style="text-align:center;padding:4px 8px;font-weight:600;color:#6b7280;" title="Exibir no mapa">Mapa</th>'
+                                    .'<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Código</th>'
+                                    .'<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Logradouro</th>'
+                                    .'<th style="text-align:right;padding:4px 8px;font-weight:600;color:#6b7280;">Extensão</th>'
+                                    .'<th style="text-align:right;padding:4px 8px;font-weight:600;color:#6b7280;">Valor m²</th>'
+                                    .'</tr></thead><tbody>';
 
                                 foreach ($faces as $face) {
-                                    $codigo = htmlspecialchars($face->code ?: ('Face #' . $face->sequential_id), ENT_QUOTES, 'UTF-8');
+                                    $codigo = htmlspecialchars($face->code ?: ('Face #'.$face->sequential_id), ENT_QUOTES, 'UTF-8');
                                     $logradouro = htmlspecialchars($face->logradouro?->name ?? '—', ENT_QUOTES, 'UTF-8');
-                                    $ext = $face->extensao_geo !== null ? number_format((float) $face->extensao_geo, 1, ',', '.') . ' m' : '—';
-                                    $valor = $face->valor_m2_calculado !== null ? 'R$ ' . number_format((float) $face->valor_m2_calculado, 2, ',', '.') : '—';
+                                    $ext = $face->extensao_geo !== null ? number_format((float) $face->extensao_geo, 1, ',', '.').' m' : '—';
+                                    $valor = $face->valor_m2_calculado !== null ? 'R$ '.number_format((float) $face->valor_m2_calculado, 2, ',', '.') : '—';
                                     // Estado no servidor (facesQuadraVisiveis): o check sobrevive a fechar/reabrir o modal
                                     $checked = in_array($face->id, $this->facesQuadraVisiveis, true) ? 'checked' : '';
 
                                     $html .= '<tr style="border-bottom:1px solid #f3f4f6;">'
-                                        . '<td style="padding:4px 8px;text-align:center;">'
-                                        . '<input type="checkbox" ' . $checked . ' '
-                                        . 'onchange="Livewire.dispatch(\'toggle-face-quadra\', { faceId: ' . $face->id . ' })" '
-                                        . 'style="width:16px;height:16px;accent-color:#db2777;cursor:pointer;vertical-align:middle;" '
-                                        . 'title="Exibir esta face no mapa" />'
-                                        . '</td>'
-                                        . '<td style="padding:4px 8px;font-weight:600;">' . $codigo . '</td>'
-                                        . '<td style="padding:4px 8px;">' . $logradouro . '</td>'
-                                        . '<td style="padding:4px 8px;text-align:right;">' . $ext . '</td>'
-                                        . '<td style="padding:4px 8px;text-align:right;">' . $valor . '</td>'
-                                        . '</tr>';
+                                        .'<td style="padding:4px 8px;text-align:center;">'
+                                        .'<input type="checkbox" '.$checked.' '
+                                        .'onchange="Livewire.dispatch(\'toggle-face-quadra\', { faceId: '.$face->id.' })" '
+                                        .'style="width:16px;height:16px;accent-color:#db2777;cursor:pointer;vertical-align:middle;" '
+                                        .'title="Exibir esta face no mapa" />'
+                                        .'</td>'
+                                        .'<td style="padding:4px 8px;font-weight:600;">'.$codigo.'</td>'
+                                        .'<td style="padding:4px 8px;">'.$logradouro.'</td>'
+                                        .'<td style="padding:4px 8px;text-align:right;">'.$ext.'</td>'
+                                        .'<td style="padding:4px 8px;text-align:right;">'.$valor.'</td>'
+                                        .'</tr>';
                                 }
 
-                                return new HtmlString($html . '</tbody></table></div>');
+                                return new HtmlString($html.'</tbody></table></div>');
                             }),
                     ]),
             ])
@@ -231,9 +235,9 @@ trait HasQuadraActions
                     $bairroId = $data['bairro_id'] ?? null;
                     $loteamentoId = $data['loteamento_id'] ?? null;
 
-                    if (!$bairroId && !$loteamentoId) {
+                    if (! $bairroId && ! $loteamentoId) {
                         Notification::make()->title('Erro Obrigatório')->body('A quadra deve pertencer a pelo menos um Bairro ou Loteamento.')->danger()->send();
-                        throw new \Filament\Support\Exceptions\Halt();
+                        throw new \Filament\Support\Exceptions\Halt;
                     }
 
                     // 🛑 As travas espaciais foram removidas daqui para permitir o "Override" manual pelo gestor.
@@ -250,7 +254,7 @@ trait HasQuadraActions
                     ->label('Nova Face')
                     ->color('info')
                     ->icon('heroicon-o-view-columns')
-                    ->visible(fn() => in_array('pgv', \Filament\Facades\Filament::getTenant()?->modules ?? [])
+                    ->visible(fn () => \App\Support\Modulos::ativo('pgv')
                         && (auth()->user()?->can('gerenciar_face_quadras') ?? false))
                     ->action(function () {
                         $this->dispatch('iniciar-desenho-face-quadra', quadraId: $this->quadraAtivaId);
@@ -302,12 +306,14 @@ trait HasQuadraActions
     public function imprimirPlantaQuadra($quadraId, $mapImageBase64)
     {
         $quadra = Quadra::query()->find($quadraId);
-        if (!$quadra) {
+        if (! $quadra) {
             Notification::make()->title('Erro')->body('Quadra não encontrada.')->danger()->send();
+
             return;
         }
 
         $service = app(\App\Services\Gis\PlantaQuadraPdfService::class);
+
         return $service->generatePdf($quadraId, $mapImageBase64);
     }
 }

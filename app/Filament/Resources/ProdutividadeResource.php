@@ -18,16 +18,24 @@ class ProdutividadeResource extends Resource
     protected static ?string $model = Lote::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+
     protected static ?string $navigationLabel = 'Coletas Cadastradas';
+
     protected static ?string $navigationGroup = 'Coleta cadastral';
+
     protected static ?string $modelLabel = 'Coleta';
+
     protected static ?string $pluralModelLabel = 'Coletas';
+
     protected static ?int $navigationSort = 32;
+
     protected static ?string $slug = 'coletas-produtividade';
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->temPermissao('view_produtividade') ?? false;
+        // módulo Coleta Cadastral (D4) + permissão
+        return \App\Support\Modulos::ativo('coleta_cadastral')
+            && (auth()->user()?->temPermissao('view_produtividade') ?? false);
     }
 
     public static function canCreate(): bool
@@ -83,17 +91,17 @@ class ProdutividadeResource extends Resource
                     ->label('Status')
                     ->badge()
                     ->formatStateUsing(fn ($state) => match ($state) {
-                        'nao_visitado'   => 'Não Visitado',
-                        'coletado'       => 'Coletado',
-                        'pendente'       => 'Pendente',
+                        'nao_visitado' => 'Não Visitado',
+                        'coletado' => 'Coletado',
+                        'pendente' => 'Pendente',
                         'inconformidade' => 'Inconformidade',
-                        default          => '—',
+                        default => '—',
                     })
                     ->color(fn ($state) => match ($state) {
-                        'coletado'       => 'success',
-                        'pendente'       => 'warning',
+                        'coletado' => 'success',
+                        'pendente' => 'warning',
                         'inconformidade' => 'danger',
-                        default          => 'gray',
+                        default => 'gray',
                     })
                     ->sortable(),
 
@@ -101,10 +109,17 @@ class ProdutividadeResource extends Resource
                     ->label('Fotos')
                     ->state(function (Lote $record): string {
                         $count = 0;
-                        if ($record->foto_frontal)     $count++;
-                        if ($record->foto_lateral_esq) $count++;
-                        if ($record->foto_lateral_dir) $count++;
-                        return $count . '/3';
+                        if ($record->foto_frontal) {
+                            $count++;
+                        }
+                        if ($record->foto_lateral_esq) {
+                            $count++;
+                        }
+                        if ($record->foto_lateral_dir) {
+                            $count++;
+                        }
+
+                        return $count.'/3';
                     })
                     ->badge()
                     ->color(fn ($state) => str_starts_with($state, '3') ? 'success' : (str_starts_with($state, '0') ? 'danger' : 'warning')),
@@ -114,7 +129,7 @@ class ProdutividadeResource extends Resource
                     ->label('Cadastrador')
                     ->options(function (): array {
                         $tenant = \Filament\Facades\Filament::getTenant();
-                        if (!$tenant) {
+                        if (! $tenant) {
                             return [];
                         }
 
@@ -146,8 +161,8 @@ class ProdutividadeResource extends Resource
                 SelectFilter::make('status_cadastro')
                     ->label('Status')
                     ->options([
-                        'coletado'       => 'Coletado',
-                        'pendente'       => 'Pendente',
+                        'coletado' => 'Coletado',
+                        'pendente' => 'Pendente',
                         'inconformidade' => 'Inconformidade',
                     ])
                     ->multiple(),
@@ -167,11 +182,12 @@ class ProdutividadeResource extends Resource
                     ->indicateUsing(function (array $data): array {
                         $indicators = [];
                         if ($data['data_inicio'] ?? null) {
-                            $indicators[] = 'Desde: ' . \Carbon\Carbon::parse($data['data_inicio'])->format('d/m/Y');
+                            $indicators[] = 'Desde: '.\Carbon\Carbon::parse($data['data_inicio'])->format('d/m/Y');
                         }
                         if ($data['data_fim'] ?? null) {
-                            $indicators[] = 'Até: ' . \Carbon\Carbon::parse($data['data_fim'])->format('d/m/Y');
+                            $indicators[] = 'Até: '.\Carbon\Carbon::parse($data['data_fim'])->format('d/m/Y');
                         }
+
                         return $indicators;
                     }),
             ])

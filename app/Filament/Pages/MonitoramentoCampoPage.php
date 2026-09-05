@@ -10,15 +10,22 @@ use Livewire\Attributes\Computed;
 class MonitoramentoCampoPage extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-map-pin';
+
     protected static ?string $navigationLabel = 'Monitoramento de Campo';
+
     protected static ?string $title = 'Monitoramento em Tempo Real';
+
     protected static ?string $navigationGroup = 'Coleta cadastral';
+
     protected static ?int $navigationSort = 30;
+
     protected static string $view = 'filament.pages.monitoramento-campo';
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('view_monitoramento_campo') ?? false;
+        // módulo Coleta Cadastral (D4 — docs/Modulos_Permissoes.txt) + permissão
+        return \App\Support\Modulos::ativo('coleta_cadastral')
+            && (auth()->user()?->can('view_monitoramento_campo') ?? false);
     }
 
     public int $tenantId = 0;
@@ -32,7 +39,7 @@ class MonitoramentoCampoPage extends Page
     #[Computed]
     public function cadastradores(): array
     {
-        if (!$this->tenantId) {
+        if (! $this->tenantId) {
             return [];
         }
 
@@ -63,12 +70,12 @@ class MonitoramentoCampoPage extends Page
                     ->count();
 
                 return [
-                    'user_id'        => $row->user_id,
-                    'name'           => $row->name,
-                    'email'          => $row->email,
-                    'lat'            => (float) $row->lat,
-                    'lon'            => (float) $row->lon,
-                    'updated_at'     => $row->updated_at,
+                    'user_id' => $row->user_id,
+                    'name' => $row->name,
+                    'email' => $row->email,
+                    'lat' => (float) $row->lat,
+                    'lon' => (float) $row->lon,
+                    'updated_at' => $row->updated_at,
                     'coletados_hoje' => $coletadosHoje,
                 ];
             })

@@ -12,19 +12,28 @@ use Livewire\Attributes\Computed;
 class MensagensPage extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
+
     protected static ?string $navigationLabel = 'Mensagens';
+
     protected static ?string $title = 'Mensagens';
+
     protected static ?string $navigationGroup = 'Coleta cadastral';
+
     protected static ?int $navigationSort = 33;
+
     protected static string $view = 'filament.pages.mensagens';
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('view_mensagens') ?? false;
+        // módulo Coleta Cadastral (D4 — docs/Modulos_Permissoes.txt) + permissão
+        return \App\Support\Modulos::ativo('coleta_cadastral')
+            && (auth()->user()?->can('view_mensagens') ?? false);
     }
 
     public int $tenantId = 0;
+
     public ?int $contatoSelecionadoId = null;
+
     public string $novaMsg = '';
 
     public function mount(): void
@@ -36,7 +45,7 @@ class MensagensPage extends Page
     #[Computed]
     public function contatos(): array
     {
-        if (!$this->tenantId) {
+        if (! $this->tenantId) {
             return [];
         }
 
@@ -82,14 +91,14 @@ class MensagensPage extends Page
                 ->count();
 
             return [
-                'id'         => $u->id,
-                'name'       => $u->name,
+                'id' => $u->id,
+                'name' => $u->name,
                 'ultima_msg' => $ultima?->texto,
-                'ultima_em'  => $ultima?->created_at?->format('d/m H:i'),
-                'nao_lidas'  => $naoLidas,
+                'ultima_em' => $ultima?->created_at?->format('d/m H:i'),
+                'nao_lidas' => $naoLidas,
             ];
         })
-            ->sortByDesc(fn($c) => $c['nao_lidas'])
+            ->sortByDesc(fn ($c) => $c['nao_lidas'])
             ->values()
             ->toArray();
     }
@@ -97,7 +106,7 @@ class MensagensPage extends Page
     #[Computed]
     public function conversa()
     {
-        if (!$this->contatoSelecionadoId || !$this->tenantId) {
+        if (! $this->contatoSelecionadoId || ! $this->tenantId) {
             return collect();
         }
 
@@ -133,19 +142,20 @@ class MensagensPage extends Page
     public function enviarMensagem(): void
     {
         $texto = trim($this->novaMsg);
-        if ($texto === '' || !$this->contatoSelecionadoId || !$this->tenantId) {
+        if ($texto === '' || ! $this->contatoSelecionadoId || ! $this->tenantId) {
             return;
         }
         if (mb_strlen($texto) > 2000) {
             Notification::make()->title('Mensagem muito longa (máx 2000 caracteres).')->danger()->send();
+
             return;
         }
 
         Mensagem::create([
-            'tenant_id'       => $this->tenantId,
-            'remetente_id'    => auth()->id(),
+            'tenant_id' => $this->tenantId,
+            'remetente_id' => auth()->id(),
             'destinatario_id' => $this->contatoSelecionadoId,
-            'texto'           => $texto,
+            'texto' => $texto,
         ]);
 
         $this->novaMsg = '';

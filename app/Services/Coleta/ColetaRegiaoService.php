@@ -107,8 +107,8 @@ class ColetaRegiaoService
             ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
             ->where('model_has_roles.model_id', $userId)
             ->where('model_has_roles.model_type', \App\Models\User::class)
-            ->where('roles.tenant_id', $tenantId)
-            ->whereIn('roles.name', ['Master', 'Manager'])
+            ->where(fn ($w) => $w->whereNull('roles.tenant_id')->orWhere('roles.tenant_id', $tenantId))
+            ->whereIn('roles.papel_sistema', ['master', 'manager']) // D7: flag, não nome
             ->exists();
     }
 }

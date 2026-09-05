@@ -1,0 +1,583 @@
+MÓDULOS × PERMISSÕES — LEVANTAMENTO COMPLETO DO SIGWEB
+=======================================================
+Data: 2026-09-04 · Situação: levantamento para decisão conjunta (nenhum código alterado)
+Autor: Claude (Fable 5.1) a pedido do Jesse
+
+0. O QUE SE QUER
+----------------
+Módulo NÃO contratado por um município não pode aparecer em lugar nenhum daquele
+município:
+  a) menu do painel /app (Resources e Pages);
+  b) mapa interativo: acordeons/camadas, "Criar Artefatos", "Ferramentas", "Filtros";
+  c) tela de Papéis: as caixas de permissões de módulos ausentes não são oferecidas
+     ao gestor que monta um papel.
+Exemplo-alvo: Piúma com só "Mobilidade Urbana" → menu mostra só Mobilidade (+ o núcleo:
+Usuários, Papéis, Auditoria, Mapa), mapa só com as camadas/ferramentas de mobilidade,
+papéis só com as caixas de mobilidade (+ núcleo).
+
+1. COMO FUNCIONA HOJE — AS SEIS PORTAS
+--------------------------------------
+1.1 Módulos do tenant
+    - Coluna `tenants.modules` (JSON array). Editada em /admin → Prefeitura → "Módulos
+      Contratados" (TenantResource, seção 6). Chaves existentes (13):
+        administrativo, imobiliario, arborizacao, iluminacao, estoque, manutencao,
+        cemiterio, social, pgv, processos, rural, patrimonios, mob_infra
+    - NÃO existe chave para: App de Chamados, WMS, Panorâmicas 360/LiDAR, Coleta
+      cadastral (hoje vive dentro de imobiliario). ⚠ O CLAUDE.md lista `patrimonio` e
+      `bpmn` — as chaves reais são `patrimonios` e `processos` (corrigir o doc).
+
+1.2 Menu do painel /app — Resources e Pages
+    - Trait HasTenantModule (app/Traits/HasTenantModule.php): `canAccess()` =
+      módulo ativo (static::$tenantModule ∈ tenant.modules) E parent::canAccess()
+      (= Policy). Sem módulo → o Resource some do menu e a URL dá 403. Vale também
+      para Master/Manager (a checagem de módulo é independente do bypass de permissão).
+    - 78 dos 88 Resources usam o trait. Grupo de menu sem Resource visível some sozinho
+      (AppPanelProvider::navigationGroups só ordena).
+    - SEM gate de módulo (só permissão ou nada):
+        UserResource, RoleResource              → núcleo (correto)
+        ProdutividadeResource                   → só `view_produtividade`
+        CategoriaChamado/FluxoChamado/Chamado   → só `gerenciar_*_chamado` (não há chave)
+        CategoriaWms/FonteWms                   → só `gerenciar_wms` (não há chave)
+      Pages: Dashboard, MapaFullscreen, AuditoriaPage (núcleo); MensagensPage,
+        MonitoramentoCampoPage, ProdutividadePage, ValidacaoColetaPage (só permissão,
+        mas são do imobiliário/coleta); ReurbProgressoPage (só permissão, é de processos).
+    - ⚠ BUG LATENTE: CamposPadraoPage, CamposPadraoEntidadePage, BoletimColetaPage e
+      PainelSocialPage declaram `$tenantModule` e usam o trait, MAS definem o próprio
+      `canAccess()` (só permissão). Em PHP o método da classe vence o do trait → o gate
+      de módulo dessas 4 páginas é código morto. Hoje elas aparecem em qualquer tenant.
+
+1.3 Permissões e Policies
+    - Spatie Permission com teams (roles.tenant_id). Permissões globais (guard web),
+      semeadas pelo PermissionsSeeder (≈ 300 nomes; lista completa na seção 2.8).
+    - Policy por model: quarteto view/create/edit/delete OU `gerenciar_x` único.
+      `User::temPermissao()` = falha fechada.
+    - Gate::before (AppServiceProvider): Master e Manager passam em tudo (bypass).
+      Consequência: para Master/Manager só o MÓDULO segura o menu; permissão não.
+
+1.4 Papéis (RoleResource) e o Manager automático
+    - RoleResource::form = 25 Fieldsets ("caixas") com CheckboxList por grupo de
+      permissões (lista na seção 2.7). Nenhuma caixa olha o módulo do tenant: TODAS
+      aparecem sempre.
+    - Create/EditRole: cada caixa vira `$data['permissions_x']` e o save junta tudo com
+      syncPermissions. EditRole::mutateFormDataBeforeFill reparte as permissões do papel
+      nas caixas por whitelist fixa (lista duplicada da RoleResource).
+    - Manager: Tenant::created cria o papel "Manager" do tenant e roda
+      syncManagerPermissions(); Tenant::updated re-roda quando `modules` muda. A regra só
+      conhece 6 módulos antigos (administrativo, iluminacao, arborizacao, estoque,
+      manutencao, cemiterio) por sufixo de permissão; TODO o resto (imobiliário, pgv,
+      social, rural, patrimônios, processos, chamados, mobilidade, camadas, toolbar) é
+      atribuído sempre. Como o Manager tem bypass, isso só importa para a tela.
+
+1.5 Mapa interativo (mapa-fullscreen.blade.php + mapa-engine.js)
+    - Único gate de módulo no mapa: `$temMobilidade` (MapaFullscreen::mount) esconde o
+      grupo Mobilidade no Criar Artefatos, o item "Classificar Sentidos", a barra de
+      sentidos e o acordeon Mobilidade. Todos os outros acordeons/itens são fixos.
+    - Gate de PERMISSÃO (não de módulo), em duas camadas:
+        (i) servidor: `@if temPermissao('toolbar_filtros'|'toolbar_criar_artefatos'|
+            'toolbar_ferramentas')` nos três botões da barra; `can('view_auditoria')`.
+        (ii) cliente: GET /gis/{slug}/map-permissions (routes/web.php:78) → JSON
+            {bypass, layers[], toolbar{}} — Master/Manager recebem bypass=true e o
+            engine não esconde NADA; demais papéis: o engine esconde cada
+            `input.layer-toggle[data-layer]` cujo `ver_camada_<layer>` não veio
+            (aliases: quadras/logradouros_cemiterio e jazigos herdam `cemiterios`;
+            edificacoes herda `lotes`), esconde blocos `data-permission-group="layer:X"`
+            e os ids toolbar-*.
+    - A API /api/gis-data serve qualquer camada para qualquer tenant (o filtro é só
+      visual). Camada de módulo ausente responde vazio, mas responde.
+
+1.6 Fora do painel
+    - App de coletas: login devolve `layers` fixas (5 camadas base); GET /api/map/layers
+      já tem um mini-catálogo camada→módulo (todas com modulo=null hoje). Sem pedido de
+      mudança aqui.
+    - Painel cidadão: ProcessoDigitalResource (processos) sem gate de módulo; MapaPublico
+      com camadas fixas. Fora do escopo salvo decisão contrária.
+    - Dashboard do /app: 4 widgets (DashboardStats, UltimosLotes, ZonasDonut,
+      BairrosBar) todos do imobiliário, exibidos em qualquer tenant.
+
+2. INVENTÁRIO
+-------------
+2.1 Chaves de módulo × rótulo (TenantResource) × grupos de menu que alimentam
+    administrativo  ADM - Administrativo            Módulo Administrativo
+    imobiliario     GIS - Cadastro Imobiliário      Módulo Imobiliário, Customizações,
+                                                    Coleta cadastral, Consultas de Viabilidade
+    arborizacao     GIS - Arborização Urbana        Meio Ambiente
+    iluminacao      GIS - Iluminação Pública        Iluminação Pública
+    estoque         ADM - Estoque                   Estoque e Almoxarifado
+    manutencao      ADM - Manutenção e Serviços     Manutenção e Serviços
+    cemiterio       GIS - Gestão de Cemitérios      Gestão de Cemitérios
+    social          ADM - Cadastro Social           Módulo Social
+    pgv             PGV - Planta Genérica           Gestão Tributária (PGV)
+    processos       BPMN - Processos Digitais       Processos Digitais
+    rural           GIS - Módulo Rural              Cadastro Rural
+    patrimonios     ADM - Patrimônios Públicos      Patrimônios Públicos
+    mob_infra       Mobilidade - Infraestrutura     Mobilidade Urbana
+    (sem chave)     —                               App de Chamados, WMS
+    (núcleo)        —                               Configurações (Usuários, Papéis,
+                                                    Auditoria), Ajuda, Dashboard, Mapa
+    ── CHAVES NOVAS (decisão 2026-09-04, seção 6) ──
+    base_cartografica  GIS - Base Cartográfica      Perímetro, Bairros, Logradouros (sai
+                                                    do imobiliário; pré-requisito dele)
+    coleta_cadastral   APP - Coleta Cadastral       grupo "Coleta cadastral" + App de
+                                                    Chamados (exige imobiliario)
+    imageamento        GIS - Imageamento            Panorâmicas 360 + Visualizador 3D
+
+2.2 Resources por módulo (valor atual de $tenantModule)
+    administrativo (2): Pessoa, PontoPanoramico (⚠ panorâmicas 360 como "administrativo"
+                        é herança; ver pergunta Q4)
+    imobiliario (15): Bairro, Loteamento, Logradouro, Lote, MeioFio, PerimetroUrbano,
+                      Quadra, SecaoLogradouro, Zona, AreaReurb, CampoCustomizado,
+                      ColetaAtribuicao, Cnae, ZoneamentoRegra, ParametroUrbano
+    pgv (9): PgvParametro, SetorFiscal, LoteValorHistorico, PgvAmostra, PgvPolo, PgvCub,
+             PgvDepreciacao, FaceQuadra, ViabilidadeEmissao (⚠ as outras 3 telas de
+             Viabilidade são `imobiliario`; esta ficou `pgv` — inconsistente)
+    arborizacao (1): Arvore
+    iluminacao (2): Poste, TipoPoste
+    estoque (14): Estabelecimento, LocalEstoque, TipoEstoque, Fabricante, Marca,
+                  Fornecedor, FamiliaProduto, UnidadeMedida, Embalagem, Produto,
+                  OperacaoInterna, LoteEstoque, Estoque, EstoqueMovimentacao
+    manutencao (2): SolicitacaoManutencao, OrdemServico
+    cemiterio (4): Cemiterio, QuadraCemiterio, LogradouroCemiterio, Jazigo
+    social (9): CadastroSocial, TipoRenda, TipoEntidade, Entidade, ServicoSocial,
+                Programa, Evento, InformacaoSocial, Empreendimento
+    processos (3): BpmnFluxo, ProcessoDigital, Setor
+    rural (6): RuralLocalidade, RuralPropriedade, RuralEstrada, RuralHidrografia,
+               RuralPonte, RuralPontoInteresse
+    patrimonios (2): TipoPatrimonio, PatrimonioPublico
+    mob_infra (9): MobTrecho, MobVia, MobSinalizacao, MobTipoSinalizacao,
+                   MobPontoInteresse, MobEixo, MobZona, MobFluxo, MobCamera
+    SEM MÓDULO (8): User, Role (núcleo) · Produtividade · CategoriaChamado,
+                    FluxoChamado, Chamado · CategoriaWms, FonteWms
+
+2.3 Pages
+    núcleo: Dashboard, MapaFullscreen, AuditoriaPage
+    imobiliario: CamposPadraoPage, CamposPadraoEntidadePage, BoletimColetaPage (gate
+                 morto — ver 1.2), MonitoramentoCampoPage, ProdutividadePage,
+                 ValidacaoColetaPage, MensagensPage (os 4 últimos só por permissão)
+    social: PainelSocialPage (gate morto — ver 1.2)
+    processos: ReurbProgressoPage (só permissão)
+
+2.4 Camadas do mapa — acordeon → camada (data-layer) → permissão ver_camada_ → módulo
+    Cadastro Base (sem gate de grupo)
+      perimetros            ver_camada_perimetros          imobiliario
+      setores_fiscais       ver_camada_setores_fiscais     pgv
+      bairros               ver_camada_bairros             imobiliario
+      loteamentos           ver_camada_loteamentos         imobiliario
+      quadras               ver_camada_quadras             imobiliario
+      lotes                 ver_camada_lotes               imobiliario
+      edificacoes           (herda lotes)                  imobiliario
+      logradouros           ver_camada_logradouros         imobiliario
+      meio_fios             ver_camada_meio_fios           imobiliario
+      secoes_logradouro     ver_camada_secoes_logradouro   imobiliario
+    Processos Digitais (grupo layer:processos; só se houver fluxos)
+      processos             ver_camada_processos           processos
+    Coleta de Dados (grupo layer:lotes)
+      coleta                (NÃO existe ver_camada_coleta)  imobiliario
+    Mobilidade Urbana (@if $temMobilidade)
+      mob_trechos, mob_vias, mob_cameras, mob_sinalizacoes, mob_pontos_interesse,
+      mob_eixos, mob_zonas, mob_fluxos — ver_camada_mob_*   mob_infra
+    Inteligência Social (grupo layer:lotes; sem data-layer próprio)   social
+    Zoneamento Urbano (grupo layer:zonas)
+      zonas                 ver_camada_zonas               imobiliario
+    Infraestrutura (sem gate de grupo)
+      patrimonio_publicos   ver_camada_patrimonio_publico  patrimonios (⚠ nome difere)
+      arvores               ver_camada_arvores             arborizacao
+      postes                ver_camada_postes              iluminacao
+      chamados              (NÃO existe ver_camada_chamados) chamados (sem chave)
+      areas_reurb           (NÃO existe ver_camada_areas_reurb) imobiliario
+      pontos_panoramicos    ver_camada_pontos_panoramicos  administrativo (ver Q4)
+    Gestão de Cemitérios (sem gate de grupo)
+      cemiterios, quadras_cemiterio, logradouros_cemiterio, jazigos   cemiterio
+    Cadastro Rural (sem gate de grupo)
+      rural-localidades, -propriedades, -estradas, -hidrografias, -pontes,
+      -pontos-interesse     ver_camada_rural_*             rural
+    Anotações
+      toponimias            ver_camada_toponimias          núcleo
+    Barra lateral WMS (Ferramentas → Camadas WMS)          núcleo ou `wms` (Q4)
+
+2.5 Criar Artefatos (dropdown; gate: toolbar_criar_artefatos)
+    Grupo "urbano": perimetro_urbano, setor_fiscal (pgv), zona, bairro, loteamento,
+                    quadra, lote, edificacao, logradouro, meio_fio      → imobiliario
+    Grupo "infra":  patrimonio_publico (patrimonios), poste (iluminacao),
+                    area_reurb (imobiliario), arvore (arborizacao),
+                    ponto_panoramico (administrativo/Q4)
+    Grupo "mobilidade" (@if $temMobilidade): mob_trecho, mob_via, mob_sinalizacao,
+                    mob_ponto_interesse, mob_camera, mob_eixo, mob_zona → mob_infra
+    Grupo "cemiterio": cemiterio, quadra_cemiterio, logradouro_cemiterio, jazigo
+    Grupo "rural": rural_localidade, rural_propriedade, rural_estrada, rural_hidro_*,
+                   rural_ponte, rural_ponto_interesse
+    Ficha do lote: enableDrawing('edificacao'|'testada')              → imobiliario
+    "Salvar como" (Azimutes e Coordenada XY): lotes, quadras, bairros, loteamentos,
+                   perimetros, zonas, setores_fiscais, areas_reurb, patrimonio_publicos
+
+2.6 Ferramentas (dropdown; gate: toolbar_ferramentas) e outros botões
+    Numeração Predial ................. imobiliario
+    Perfil de Terreno (Altimetria) .... núcleo (genérico)
+    Unificar Lotes (Solda) ............ imobiliario
+    Criar por Azimutes / Coordenada XY  núcleo (opções do "Salvar como" filtradas por módulo)
+    Classificar Sentidos (Vias) ....... mob_infra (já gateado)
+    Visualizador 3D (LiDAR) ........... Q4 (núcleo, imobiliário ou módulo "imageamento")
+    Camadas WMS ....................... Q4 (núcleo ou `wms`)
+    Simulador de Valores .............. pgv
+    Motor da PGV / Nova Amostra / Novo Pólo   pgv
+    Medir Distância / Medir Área / Capturar Coordenadas   núcleo
+    Botão CAD (data-permission-group toolbar:ferramentas) .. núcleo
+    Filtros (filtroAvancadoAction; toolbar_filtros): entidades lotes, edificacoes,
+      quadras, bairros, logradouros, arvores, postes → imobiliario (+ arborizacao/
+      iluminacao nas opções de árvore/poste)
+    Também por módulo, dentro de modais: HasQuadraActions já esconde 2 ações quando
+      `pgv` está inativo (único precedente de gate de módulo dentro de trait).
+
+2.7 Caixas da RoleResource → módulo proposto
+    1  permissions_users                  núcleo
+    2  permissions_roles                  núcleo
+    3–6 permissions_pessoas/contatos/enderecos/documentos   administrativo
+    6b permissions_pontos_panoramicos     administrativo (Q4)
+    7  permissions_iluminacao             iluminacao
+    8  permissions_arborizacao            arborizacao
+    9  permissions_estoque                estoque
+    9b permissions_estoque_cadastros      estoque
+    10 permissions_manutencao             manutencao
+    11 permissions_cemiterio              cemiterio
+    12 permissions_imobiliario            imobiliario
+    12b permissions_coleta                imobiliario
+    13 permissions_social                 social
+    13b permissions_social_aux            social
+    14 permissions_rural                  rural (⚠ título da caixa está copiado do
+                                          imobiliário: "Módulo: Imobiliário e Geográfico")
+    15 permissions_patrimonio             patrimonios
+    16 permissions_bpmn                   processos
+    17 permissions_viabilidade            imobiliario (cnaes/regras/parâmetros) — a
+                                          permissão view_viabilidade_emissoes segue a
+                                          decisão do ViabilidadeEmissaoResource
+    18 permissions_pgv                    pgv
+    18b permissions_pgv_avaliacao         pgv
+    19 permissions_administracao          MISTA: view_auditoria (núcleo);
+                                          view_monitoramento_campo, view_produtividade,
+                                          view_mensagens (imobiliario/coleta);
+                                          gerenciar_wms (Q4)
+    19b permissions_chamados              chamados (chave nova)
+    19c permissions_mobilidade            mob_infra
+    20 permissions_mapa_camadas           MISTA: cada ver_camada_* segue o módulo da
+                                          camada (tabela 2.4); toponimias = núcleo
+    "17" permissions_mapa_toolbar         núcleo
+
+2.8 Permissões (PermissionsSeeder) → módulo — resumo por bloco
+    núcleo: *_users, *_roles, view_auditoria, toolbar_criar_artefatos,
+            toolbar_ferramentas, toolbar_filtros, ver_camada_toponimias
+    administrativo: *_pessoas, *_contatos, *_enderecos, *_documentos,
+            *_pontos_panoramicos (Q4), ver_camada_pontos_panoramicos (Q4)
+    imobiliario: *_lotes, *_logradouros, *_bairros, *_perimetros_urbanos, *_meio_fios,
+            *_loteamentos, *_quadras, *_zonas, gerenciar_areas_reurb,
+            gerenciar_secoes_logradouro, gerenciar_campos_customizados,
+            gerenciar_atribuicoes_coleta, view_monitoramento_campo, view_produtividade,
+            view_mensagens, *_cnaes, *_regras_zoneamento, *_parametros_urbanos,
+            ver_camada_{perimetros,bairros,loteamentos,quadras,lotes,logradouros,
+            meio_fios,secoes_logradouro,zonas}
+    pgv: *_pgv_parametros, *_setores_fiscais, *_lote_valor_historicos,
+            gerenciar_pgv_amostras/polos/cubs/depreciacoes, gerenciar_face_quadras,
+            view_viabilidade_emissoes(?), ver_camada_setores_fiscais
+    iluminacao: *_tipos_poste, *_postes, ver_camada_postes
+    arborizacao: *_arvores, ver_camada_arvores
+    estoque: *_locais_estoque, *_marcas, *_produtos, view_estoques, *_movimentacoes,
+            gerenciar_{estabelecimentos,fabricantes,fornecedores,unidade_medidas,
+            embalagens,familia_produtos,tipo_estoques,operacao_internas,lote_estoques}
+    manutencao: *_solicitacoes, *_ordens_servico
+    cemiterio: *_cemiterios, *_quadras_cemiterio, *_logradouros_cemiterio, *_jazigos,
+            ver_camada_cemiterios
+    social: *_cadastros_sociais, view_painel_social, gerenciar_{tipo_rendas,
+            tipo_entidades,entidades,servico_sociais,programas,eventos,
+            informacao_sociais,empreendimentos}
+    processos: *_bpmn_fluxos, *_processos_digitais, gerenciar_setores,
+            view_todos_processos, view_processos_progresso, ver_camada_processos
+    rural: *_rural_{localidades,propriedades,estradas,hidrografias,pontes,
+            pontos_interesse}, ver_camada_rural_*
+    patrimonios: *_tipo_patrimonios, *_patrimonio_publicos, ver_camada_patrimonio_publico
+    chamados (chave nova): gerenciar_categorias_chamado, gerenciar_fluxos_chamado,
+            gerenciar_chamados
+    mob_infra: gerenciar_mob_* (9), ver_camada_mob_* (8)
+    Q4: gerenciar_wms
+
+3. O QUE VAZA HOJE — SIMULAÇÃO "PIÚMA SÓ COM mob_infra"
+------------------------------------------------------
+Menu (Manager ou Master):
+  aparece corretamente: Mobilidade Urbana (9 telas), Configurações (Usuários, Papéis,
+    Auditoria), Ajuda, Dashboard, Mapa.
+  VAZA: Coleta cadastral (Monitoramento, Produtividade ×2, Validação, Mensagens),
+    Customizações (Campos Padrão — gate morto), Boletim de Coleta (gate morto),
+    Painel Social (gate morto), Processos Digitais → Progresso REURB, App de Chamados
+    (3 telas), WMS (2 telas). Dashboard mostra lotes/bairros/zonas zerados.
+Mapa:
+  VAZA tudo: Cadastro Base (10 camadas), Coleta de Dados, Inteligência Social,
+    Zoneamento, Infraestrutura (6), Cemitérios (4), Rural (6); Criar Artefatos com os
+    grupos urbano/infra/cemitério/rural; Ferramentas com Numeração, Unificar, PGV ×4,
+    LiDAR, WMS…; Filtros avançados de lotes.
+Papéis:
+  VAZAM as 25 caixas (o gestor de Piúma vê "Cemitérios", "Estoque", "PGV"…). Um papel
+  pode receber `ver_camada_lotes` e o mapa obedece — não há módulo na conta.
+Dados:
+  /api/gis-data?layer=lotes responde (vazio) para qualquer tenant.
+
+4. ACHADOS COLATERAIS (bugs latentes vistos no levantamento)
+-----------------------------------------------------------
+  A1 Gate de módulo morto em 4 Pages (canAccess da classe sobrepõe o do trait) — 1.2.
+  A2 Camada `patrimonio_publicos` × permissão `ver_camada_patrimonio_publico`: nomes
+     diferem e não há alias → para papéis comuns (sem bypass) o checkbox de Patrimônio
+     Público fica SEMPRE oculto.
+  A3 Camadas `coleta`, `chamados` e `areas_reurb` não têm `ver_camada_*` no seeder →
+     sempre ocultas para papéis comuns (Coleta e Área REURB só aparecem porque o grupo
+     herda `lotes`/`areas_reurb`… e `areas_reurb` também não existe → oculto).
+  A4 Título da CAIXA 14 (Rural) diz "Módulo: Imobiliário e Geográfico (SIGWEB)".
+  A5 ViabilidadeEmissaoResource em `pgv`; as outras 3 telas de Viabilidade em
+     `imobiliario`.
+  A6 syncManagerPermissions só conhece 6 módulos (irrelevante na prática — bypass).
+  A7 EditRole::mutateFormDataBeforeFill duplica as listas da RoleResource (duas fontes
+     da verdade para os mesmos nomes).
+  A8 CLAUDE.md: chaves `patrimonio`/`bpmn` não existem (são `patrimonios`/`processos`).
+  A9 "Manager" e "Master" são especiais SÓ PELO NOME (6 pontos: Gate::before,
+     map-permissions, ColetaRegiaoService, Tenant::created/updated, Delegar Manager,
+     RoleResource). A RoleResource permite RENOMEAR o papel: "Manager" → "Gerente"
+     derruba o bypass, o sync de módulos e o "Delegar Manager" daquele município, em
+     silêncio. Além disso o Gate::before não filtra por município: Manager em A com
+     usuário comum em B tem bypass em B (caso real do Master vinculado a várias).
+
+5. PROPOSTA
+-----------
+5.1 Catálogo único de módulos — config/modulos.php + App\Support\Modulos
+    Uma tabela declarativa, por chave de módulo, com tudo que pertence a ele:
+      'imobiliario' => [
+         'label'      => 'GIS - Cadastro Imobiliário',
+         'pages'      => [MonitoramentoCampoPage::class, ProdutividadePage::class, …],
+         'camadas'    => ['perimetros','bairros','loteamentos','quadras','lotes',
+                          'edificacoes','logradouros','meio_fios','secoes_logradouro',
+                          'zonas','areas_reurb','coleta'],
+         'artefatos'  => ['perimetro_urbano','zona','bairro','loteamento','quadra',
+                          'lote','edificacao','logradouro','meio_fio','area_reurb',
+                          'testada'],
+         'ferramentas'=> ['numeracao','unificar','filtros'],
+         'caixas'     => ['permissions_imobiliario','permissions_coleta',
+                          'permissions_viabilidade'],
+         'permissoes' => [ …nomes… ],   // fonte única p/ RoleResource, EditRole,
+                                        // syncManagerPermissions e map-permissions
+      ]
+    'nucleo' = o que aparece sempre (users, roles, auditoria, toolbar_*, toponimias,
+    medir/capturar/CAD/altimetria/azimutes/coordXY, WMS se decidido núcleo).
+    Helper: Modulos::ativos($tenant), ::ativo('x'), ::daCamada('lotes'),
+    ::daPermissao('view_lotes'), ::daArtefato('lote'), ::daCaixa('permissions_pgv').
+    Resources continuam com `$tenantModule` (já funciona); o catálogo cobre o que o
+    trait não alcança (mapa, papéis, camadas, permissões, pages sem trait).
+
+5.2 Regras por superfície
+    MENU (já com as decisões da seção 6):
+      (a) três chaves novas no TenantResource: `base_cartografica`, `coleta_cadastral`,
+          `imageamento`. Dependências declaradas no catálogo (`requer`): imobiliario →
+          base_cartografica; coleta_cadastral → imobiliario. O TenantResource avisa
+          (Placeholder) quando um módulo é marcado sem o pré-requisito; nada quebra.
+      (b) Resources que MUDAM de módulo: PerimetroUrbano, Bairro, Logradouro →
+          base_cartografica; ColetaAtribuicao, Produtividade, CategoriaChamado,
+          FluxoChamado, Chamado → coleta_cadastral; PontoPanoramico → imageamento;
+          ViabilidadeEmissao → imobiliario (A5). WMS (2 Resources) = núcleo, só
+          `gerenciar_wms`.
+      (c) Pages: BoletimColeta, Monitoramento, Produtividade, Validação, Mensagens →
+          coleta_cadastral; CamposPadrao/CamposPadraoEntidade seguem em imobiliario
+          (Customizações); ReurbProgresso → processos; PainelSocial → social;
+      (d) corrigir as 4 Pages com gate morto (canAccess = Modulos::ativo(...) &&
+          permissão) e dar trait/canAccess de módulo às que só têm permissão;
+      (e) Dashboard: widgets ganham canView() por módulo (imobiliário some em Piúma;
+          futuro: widgets de mobilidade);
+      (f) backfill dos tenants existentes (comando `modulos:backfill`, idempotente):
+          quem tem imobiliario ganha base_cartografica + coleta_cadastral (todos os
+          tenants imobiliários de hoje usam coleta/chamados); quem tem pontos
+          panorâmicos ganha imageamento. Rodar no deploy antes de qualquer login.
+    MAPA (servidor primeiro, cliente como reforço):
+      (a) MapaFullscreen::mount expõe `$modulos` (array) ao blade e a
+          window.mapConfig.modulos; `$temMobilidade` vira caso particular;
+      (b) blade: cada acordeon, cada checkbox de camada, cada grupo/botão do Criar
+          Artefatos, cada item de Ferramentas, as opções do "Salvar como" e as opções
+          do Filtro avançado envolvidos em @if (Modulos::ativo(...)). Elemento de
+          módulo inativo NÃO é renderizado (não é só escondido);
+      (c) /gis/{slug}/map-permissions: filtra `layers` pelo módulo ANTES do bypass e
+          devolve `modulos` — o engine esconde qualquer camada cujo módulo esteja
+          inativo também para o Manager (decisão Q2: dentro do município o módulo
+          vale para todo mundo; o Master não entra nos municípios);
+      (c') mapa por módulo (com as chaves novas):
+          base_cartografica: perimetros, bairros, logradouros · artefatos
+            perimetro_urbano, bairro, logradouro
+          imobiliario: loteamentos, quadras, lotes, edificacoes, meio_fios,
+            secoes_logradouro, zonas, areas_reurb, Inteligência Social (social),
+            Zoneamento · artefatos loteamento, quadra, lote, edificacao, meio_fio,
+            area_reurb, zona, testada · ferramentas Numeração Predial, Unificar Lotes,
+            Filtros avançados
+          coleta_cadastral: coleta (acordeon Coleta de Dados), chamados
+          imageamento: pontos_panoramicos, artefato ponto_panoramico, Visualizador 3D
+          pgv: setores_fiscais, artefato setor_fiscal, Simulador/Motor/Amostra/Pólo
+          demais: como na tabela 2.4
+      (d) MapDataController: camada de módulo inativo responde 403 (defesa em
+          profundidade; hoje responde vazio);
+      (e) traits Has*Actions: ações de módulo (ex.: PGV na quadra) já têm o precedente —
+          padronizar com Modulos::ativo().
+    PAPÉIS:
+      (a) cada Fieldset da RoleResource recebe ->visible(fn () => Modulos::ativo(...));
+          caixas MISTAS (19 Administração, 20 Camadas) filtram as opções pelo módulo
+          de cada permissão; núcleo sempre visível;
+      (b) EditRole/CreateRole passam a montar as listas do catálogo (mata A7);
+      (c) ao salvar um papel num tenant com módulo inativo: PRESERVAR (decisão Q3) —
+          o save faz merge: permissões de caixas ocultas continuam no papel; religar o
+          módulo devolve a configuração;
+      (d) syncManagerPermissions passa a usar o catálogo: Manager = núcleo + permissões
+          dos módulos ativos (mata A6). Desligar módulo NÃO remove permissões dos
+          papéis existentes (só deixam de ser oferecidas/visíveis).
+    CORREÇÕES COLATERAIS: A2 (alias ou renomear a permissão), A3 (criar ver_camada_coleta,
+      ver_camada_chamados, ver_camada_areas_reurb no seeder + caixa 20), A4, A5, A8.
+
+5.3 Núcleo (sempre visível, independe de módulo) — decidido
+    Menu: Dashboard, Mapa, Configurações (Usuários, Papéis, Auditoria), WMS (2 telas,
+      por `gerenciar_wms`), Ajuda.
+    Mapa: botão Camadas, basemaps/ortofotos, Anotações (toponímias), busca, medir,
+      capturar coordenadas, CAD, altimetria, azimutes/coordXY (com "Salvar como"
+      filtrado pelos módulos ativos; sem opção = item oculto), Camadas WMS, Salvar
+      enquadramento, Visão geral.
+    Papéis: caixas 1, 2, view_auditoria, gerenciar_wms, toolbar_*,
+      ver_camada_toponimias.
+
+5.4 Plano de execução (aguarda o "ok" do usuário)
+    E1 Catálogo (config/modulos.php + App\Support\Modulos, com `requer`) + testes
+       unitários do helper ................................................ 2 h
+    E2 Menu: 3 chaves novas no TenantResource (+ aviso de pré-requisito), troca de
+       módulo nos Resources listados em 5.2(b), Pages 5.2(c)/(d), Dashboard por
+       módulo, comando `modulos:backfill` ................................. 2,5 h
+    E3 Papéis: visibilidade das caixas por módulo, listas vindas do catálogo,
+       merge preservando permissões ocultas, Manager sync pelo catálogo ..... 3 h
+    E4 Mapa: `$modulos` no blade (@if por módulo em acordeons, camadas, Criar
+       Artefatos, Ferramentas, Salvar como, Filtros), mapConfig.modulos, endpoint
+       map-permissions filtrando por módulo, 403 no MapDataController ....... 3 h
+    E5 Colaterais A2–A5, A8 + PermissionsSeeder (ver_camada_coleta/chamados/
+       areas_reurb) ........................................................ 1 h
+    E6 Testes headless (Piúma só base+mobilidade × tenant completo × papel comum
+       sem bypass) + docs (CLAUDE.md, este arquivo) ........................ 2 h
+    Total ≈ 2 dias. Deploy: PermissionsSeeder + permission:cache-reset +
+    `modulos:backfill` + conferir `modules` de cada tenant no /admin.
+
+6. DECISÕES (usuário, 2026-09-04)
+---------------------------------
+  D1 Base cartográfica vira módulo leve `base_cartografica` (perímetro, bairros,
+     logradouros). Pré-requisito do imobiliário. Piúma = base_cartografica + mob_infra.
+  D2 Dentro do município o gate de módulo vale para TODOS, Manager incluído. O Master
+     não acessa municípios (só entra por um usuário criado no tenant); o /admin segue
+     vendo tudo.
+  D3 Papéis: permissões de módulos inativos são PRESERVADAS no banco; só deixam de ser
+     oferecidas. Religar o módulo devolve a configuração.
+  D4 Módulo `coleta_cadastral` ("Coleta Cadastral") = grupo Coleta cadastral (Boletim,
+     Regiões, Monitoramento, Produtividade, Validação, Mensagens, camada Coleta) + App
+     de Chamados (3 telas + camada chamados). Exige `imobiliario`: o /admin avisa.
+     Customizações (campos customizados/padrão) ficam no imobiliário.
+  D5 Camadas WMS = núcleo (só `gerenciar_wms`).
+  D6 Panorâmicas 360 + Visualizador 3D = módulo `imageamento`.
+  D7 (proposta a partir da conversa sobre "usuário com todos os papéis" — aguarda ok)
+     Papéis deixam de ser identificados por nome:
+       - `roles.papel_sistema` (null | 'master' | 'manager'): os 6 pontos de A9
+         passam a checar a flag; Gate::before filtra pelo município da sessão; nome
+         fica editável, mas exclusão e troca da flag ficam bloqueadas na tela;
+       - `roles.todos_modulos` (bool, editável em qualquer papel): papel marcado
+         recebe automaticamente as permissões (telas + camadas) de qualquer módulo
+         ligado depois, pelo mesmo hook que atualiza o Manager. O Manager nasce com
+         as duas flags. Sem a flag = permissão explícita, marcada na tela de Papéis
+         (as caixas do módulo novo aparecem assim que ele é ligado);
+       - ao ligar um módulo no /admin, a notificação lista os papéis do município
+         que NÃO acompanham todos os módulos, para o gestor conceder na mão;
+       - migration com backfill: papéis chamados "Manager"/"Master" recebem a flag.
+     Entra na etapa E3 (+1,5 h).
+
+8. IMPLEMENTAÇÃO — 2026-09-04 ✅ (E1–E6 concluídas)
+-----------------------------------------------------
+  Catálogo: config/modulos.php + App\Support\Modulos (testes: tests/Unit/ModulosTest —
+    9 testes, inclusive "toda permissão do seeder tem dono").
+  Menu: 3 chaves novas (TenantResource com aviso de pré-requisito); Perímetro/Bairro/
+    Logradouro → base_cartografica (grupo de menu "Base Cartográfica"); Coleta +
+    Chamados → coleta_cadastral; PontoPanoramico → imageamento; ViabilidadeEmissao →
+    imobiliario; 9 Pages com módulo no canAccess (os 4 gates mortos corrigidos);
+    widgets do dashboard com canView() por módulo; WMS = núcleo.
+  Papéis: RoleResource::caixas() = fonte única (28 caixas) filtrada por módulo;
+    Create/EditRole iteram nela; save PRESERVA permissões de módulos inativos;
+    migration roles.papel_sistema + roles.todos_modulos (backfill Master/Manager);
+    Toggle "Acompanha todos os módulos"; Manager: delete bloqueado, renomear livre;
+    Gate::before / map-permissions / ColetaRegiaoService / Delegar Manager / seeders
+    pela flag; Gate::before filtra pelo município da sessão (A9);
+    Tenant::sincronizarPapeisTodosModulos() no Tenant::updated; EditTenant avisa os
+    papéis que não acompanham módulos.
+  Mapa: blade com @if por módulo (acordeons, 38 checkboxes, 36 botões de desenho,
+    7 ferramentas, Salvar como, Filtros); mapConfig.modulos/camadasModulo; endpoint
+    map-permissions filtra por módulo antes do bypass e devolve camadas_indisponiveis
+    (engine esconde também p/ Manager); MapDataController 403; filtro avançado com
+    opções por módulo; HasQuadraActions via Modulos::ativo('pgv').
+  Colaterais: A2 (alias patrimonio_publicos), A3 (ver_camada_coleta/chamados/
+    areas_reurb no seeder + caixa 20), A4 (título Rural), A5, A8 (CLAUDE.md).
+  Backfill: `php artisan modulos:backfill [--executar]` (rodado local: 4 prefeituras).
+  Achado extra: o Master GLOBAL (tenant_id null) nunca recebia bypass no endpoint
+    map-permissions (a query exigia roles.tenant_id = prefeitura) — as camadas ficavam
+    ocultas p/ ele; corrigido (papel global OU da prefeitura, como no Gate::before).
+  Verificação headless (Chrome real): Piúma [base_cartografica, mob_infra] com Master
+    e com papel comum (sem bypass); Santa Cecília com 16 módulos (regressão: 10
+    acordeons, 34 artefatos, 28 caixas, 200 em todas as camadas).
+  Deploy: migrate + PermissionsSeeder + permission:cache-reset +
+    `modulos:backfill --executar` + revisar módulos por prefeitura no /admin
+    (Piúma = base_cartografica + mob_infra; local já está assim).
+
+7. IMPACTO ESPERADO EM PIÚMA (após implementação; modules = base_cartografica + mob_infra)
+------------------------------------------------------------------------------------------
+  Menu: Dashboard (sem widgets imobiliários), Mapa, Módulo Imobiliário reduzido a
+    Perímetros/Bairros/Logradouros (base), Mobilidade Urbana (9), WMS, Configurações
+    (Usuários, Papéis, Auditoria), Ajuda.
+  Mapa: acordeon Cadastro Base só com perímetros, bairros e logradouros; Mobilidade;
+    Anotações; Criar Artefatos com Perímetro/Bairro/Logradouro + grupo Mobilidade;
+    Ferramentas: Classificar Sentidos, Camadas WMS, medir, capturar, altimetria,
+    azimutes/coordXY (Salvar como: bairro, perímetro), CAD. Somem: lotes, quadras,
+    coleta, social, zoneamento, infraestrutura, cemitérios, rural, PGV, LiDAR,
+    numeração, unificar, filtros.
+  Papéis: caixas Usuários, Papéis, Administração (auditoria + WMS), Imobiliário
+    (só perímetros/bairros/logradouros), Mobilidade, Camadas (perimetros, bairros,
+    logradouros, mob_*, toponímias), Toolbar.
+
+9. DECISÃO D8 — MENU × MAPA × CRIAR ARTEFATOS CONTAM A MESMA HISTÓRIA (usuário, 2026-09-05)
+------------------------------------------------------------------------------------------
+  Regra: a sidebar, os acordeons da janela "Camadas do Mapa" e os grupos do "Criar
+  Artefatos" usam os MESMOS nomes, a MESMA ordem e o MESMO gate de módulo. Dentro de
+  cada grupo do Criar Artefatos os itens vão do maior para o menor (hierarquia do
+  território) e cada linha mostra o tipo de geometria (Polígono/Linha/Ponto) à direita.
+
+  Sidebar (AppPanelProvider::navigationGroups — ordem de exibição):
+    Módulo Administrativo · Base Cartográfica · Módulo Imobiliário · Coleta cadastral ·
+    Processos Digitais · Consultas de Viabilidade · Imageamento (NOVO grupo: Pontos
+    Panorâmicos saem do Administrativo) · Mobilidade Urbana · Módulo Social · Gestão
+    Tributária (PGV) · Iluminação Pública · Meio Ambiente · Manutenção e Serviços ·
+    Estoque e Almoxarifado · Patrimônios Públicos · Gestão de Cemitérios · Cadastro
+    Rural · App de Chamados · WMS · Customizações · Configurações · Ajuda.
+  Janela de camadas (mesma ordem): Base Cartográfica (ex-"Cadastro Base"; abre por
+    padrão; perímetros, bairros, logradouros, seções) · Cadastro Imobiliário (NOVO:
+    loteamentos, quadras, lotes, edificações, meio-fios) · Zoneamento Urbano · Coleta
+    de Dados · Processos Digitais · Imageamento (NOVO: pontos 360, sai de
+    Infraestrutura) · Mobilidade Urbana · Cadastro Social (ex-"Inteligência Social") ·
+    Infraestrutura (setores fiscais — vindo do Cadastro Base —, áreas REURB,
+    patrimônios, postes, árvores, chamados) · Gestão de Cemitérios · Cadastro Rural ·
+    Anotações.
+  Catálogo (config/modulos.php):
+    - Seções de Logradouro seguem o Logradouro: `gerenciar_secoes_logradouro`,
+      `ver_camada_secoes_logradouro` e a camada `secoes_logradouro` saem de
+      `imobiliario` → `base_cartografica`; SecaoLogradouroResource vai para o grupo
+      Base Cartográfica. Continuam sendo criadas pelo próprio logradouro (modal/aba e
+      "Salvar como" da mesa de desenho) — SEM botão novo no Criar Artefatos.
+    - App de Chamados vira módulo próprio `chamados` (sem pré-requisito): as 3 telas,
+      `gerenciar_categorias_chamado`/`gerenciar_fluxos_chamado`/`gerenciar_chamados`,
+      `ver_camada_chamados` e a camada `chamados` saem de `coleta_cadastral`. Backfill
+      (`modulos:backfill`): quem tem coleta_cadastral ganha chamados.
+    - administrativo, imageamento e pgv não mudam de chave — só de lugar na tela.
+  Dashboard: barras por bairro (esq.) + pizza de logradouros por extensão em m (dir.,
+    LogradourosPieChart, gate base_cartografica); donut de zonas abaixo, largura total.
+  Descartado pelo usuário: fusão Pessoas + Social (Administrativo fica como está).
+  Mapa PÚBLICO (/cidadao/mapa-publico, mesma data): acordeons na ordem D8 só com o que
+    o cidadão já via (Base Cartográfica · Cadastro Imobiliário · Zoneamento · Imageamento ·
+    Mobilidade Urbana · Infraestrutura · Cemitérios · Rural), agora GATEADOS por módulo
+    (MapaPublico::$modulos = Modulos::ativos($tenant); antes o público mostrava tudo p/
+    toda cidade). Mobilidade Urbana entra SÓ LEITURA: 8 camadas + mini-filtros + simulador
+    visual, clique = ficha JS (#mob-ficha-publica) e câmera = player público
+    (cameraPublicaAction); sem criar/editar/caneta/"Colorir por"/coroplético. Engine:
+    mapa-cidadao-engine.js (estilos portados do mapa-engine.js).

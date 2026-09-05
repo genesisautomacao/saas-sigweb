@@ -15,14 +15,20 @@ class ViabilidadeEmissaoResource extends Resource
 {
     use HasTenantModule;
 
-    protected static ?string $tenantModule = 'pgv';
+    protected static ?string $tenantModule = 'imobiliario'; // A5: mesmo módulo das outras telas de Viabilidade
 
     protected static ?string $model = ViabilidadeEmissao::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-document-check';
+
     protected static ?string $navigationGroup = 'Consultas de Viabilidade';
+
     protected static ?string $navigationLabel = 'Histórico de Emissões';
+
     protected static ?string $modelLabel = 'Emissão';
+
     protected static ?string $pluralModelLabel = 'Histórico de Emissões';
+
     protected static ?int $navigationSort = 10;
 
     public static function form(Form $form): Form
@@ -46,15 +52,15 @@ class ViabilidadeEmissaoResource extends Resource
                 Tables\Columns\BadgeColumn::make('tipo')
                     ->label('Tipo')
                     ->colors([
-                        'primary'   => 'viabilidade',
-                        'warning'   => 'parcelamento',
-                        'success'   => 'unificacao',
+                        'primary' => 'viabilidade',
+                        'warning' => 'parcelamento',
+                        'success' => 'unificacao',
                     ])
                     ->formatStateUsing(fn (string $state) => match ($state) {
-                        'viabilidade'  => 'Viabilidade',
+                        'viabilidade' => 'Viabilidade',
                         'parcelamento' => 'Parcelamento',
-                        'unificacao'   => 'Unificação',
-                        default        => ucfirst($state),
+                        'unificacao' => 'Unificação',
+                        default => ucfirst($state),
                     }),
 
                 Tables\Columns\BadgeColumn::make('status')
@@ -62,13 +68,13 @@ class ViabilidadeEmissaoResource extends Resource
                     ->colors([
                         'success' => 'permitido',
                         'warning' => 'permissivel',
-                        'danger'  => 'proibido',
+                        'danger' => 'proibido',
                     ])
                     ->formatStateUsing(fn (?string $state) => match ($state) {
-                        'permitido'   => 'Permitido',
+                        'permitido' => 'Permitido',
                         'permissivel' => 'Permissível',
-                        'proibido'    => 'Proibido',
-                        default       => $state ?? '—',
+                        'proibido' => 'Proibido',
+                        default => $state ?? '—',
                     }),
 
                 Tables\Columns\TextColumn::make('numero_lote')
@@ -89,9 +95,9 @@ class ViabilidadeEmissaoResource extends Resource
                 Tables\Filters\SelectFilter::make('tipo')
                     ->label('Tipo')
                     ->options([
-                        'viabilidade'  => 'Viabilidade',
+                        'viabilidade' => 'Viabilidade',
                         'parcelamento' => 'Parcelamento',
-                        'unificacao'   => 'Unificação',
+                        'unificacao' => 'Unificação',
                     ]),
 
                 Tables\Filters\Filter::make('periodo')
@@ -101,7 +107,7 @@ class ViabilidadeEmissaoResource extends Resource
                     ])
                     ->query(function ($query, array $data) {
                         return $query
-                            ->when($data['de'],  fn ($q, $v) => $q->whereDate('created_at', '>=', $v))
+                            ->when($data['de'], fn ($q, $v) => $q->whereDate('created_at', '>=', $v))
                             ->when($data['ate'], fn ($q, $v) => $q->whereDate('created_at', '<=', $v));
                     }),
             ])

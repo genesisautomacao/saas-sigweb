@@ -2087,7 +2087,24 @@ document.addEventListener("DOMContentLoaded", function () {
                 return r.ok ? r.json() : null;
             })
             .then(function (perms) {
-                if (!perms || perms.bypass) return;
+                if (!perms) return;
+
+                // MÓDULOS (docs/Modulos_Permissoes.txt): camada cujo módulo está inativo na
+                // prefeitura some para TODO MUNDO, Manager incluído — reforço do que o
+                // blade já não renderiza (defesa em profundidade).
+                if (Array.isArray(perms.camadas_indisponiveis) && perms.camadas_indisponiveis.length) {
+                    const fora = new Set(perms.camadas_indisponiveis);
+                    document.querySelectorAll("input.layer-toggle[data-layer]").forEach(function (chk) {
+                        if (!fora.has(chk.dataset.layer.replace(/-/g, "_"))) return;
+                        const label = chk.closest("label");
+                        if (!label) return;
+                        const parent = label.parentElement;
+                        const wrapper = parent && parent.tagName === "DIV" && parent.classList.contains("justify-between") ? parent : label;
+                        wrapper.style.display = "none";
+                    });
+                }
+
+                if (perms.bypass) return;
 
                 if (Array.isArray(perms.layers)) {
                     const allowed = new Set(perms.layers);
@@ -2100,6 +2117,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         logradouros_cemiterio: 'cemiterios',
                         jazigos:               'cemiterios',
                         edificacoes:           'lotes', // camada geral herda a permissão de lotes
+                        patrimonio_publicos:   'patrimonio_publico', // A2: a permissão é no singular
                     };
 
                     document
