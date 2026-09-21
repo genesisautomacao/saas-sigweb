@@ -7,15 +7,18 @@ use App\Models\Edificacao;
 use App\Models\Lote;
 use App\Models\MobCamera;
 use App\Models\MobFluxo;
+use App\Models\PontoPanoramico;
 use App\Models\Quadra;
 use App\Models\Zona;
 use App\Services\Coleta\CampoCustomizadoService;
+use App\Services\Gis\PanoramaNavegacaoService;
 use App\Support\Modulos;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Pages\Page;
 use Illuminate\Support\HtmlString;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 
 class MapaPublico extends Page
@@ -41,8 +44,14 @@ class MapaPublico extends Page
 
     public int $mapZoom = 14;
 
+    // ⚠️ #[Locked] (2026-09-21): estas propriedades definem o ESCOPO da página (qual prefeitura,
+    // quais módulos). Em Livewire 3 toda propriedade pública é alterável pelo navegador
+    // ($wire.set) — sem a trava, um visitante anônimo trocaria o tenant e leria dados de outra
+    // cidade pelos métodos públicos (panoramaDados, câmera, edificação). Só o mount() as define.
+    #[Locked]
     public int $tenantId = 0;
 
+    #[Locked]
     public string $tenantSlug = '';
 
     public array $zonasTipos = [];
@@ -53,8 +62,10 @@ class MapaPublico extends Page
 
     // ---- D8 (2026-09-05): GATE POR MÓDULO + MOBILIDADE URBANA SÓ LEITURA ----
     /** Chaves de módulo ativas na prefeitura (Modulos::ativos) — o blade gateia cada acordeon. */
+    #[Locked]
     public array $modulos = [];
 
+    #[Locked]
     public bool $temMobilidade = false;
 
     /** Fluxos O/D: total + distribuição por destino (mini-checkboxes da camada, mesma legenda da intranet). */
@@ -472,8 +483,41 @@ class MapaPublico extends Page
     #[On('abrirVisualizadorPublico360')]
     public function abrirVisualizadorPublico360($id)
     {
-        $this->pontoPanoramicoAtivoId = $id;
+        if (! in_array('imageamento', $this->modulos, true)) {
+            return;
+        }
+        $this->pontoPanoramicoAtivoId = (int) $id;
         $this->mountAction('visualizador360Action');
+    }
+
+    /**
+     * Ponto 360 SEMPRE escopado pela prefeitura do mapa (o painel cidadão não tem tenancy do
+     * Filament, então o escopo global do BelongsToTenant não atua aqui). withoutGlobalScopes
+     * também tira o SoftDeletingScope — por isso o deleted_at explícito.
+     */
+    private function pontoPanoramicoPublico(int $id): ?PontoPanoramico
+    {
+        if (! $this->tenantId || ! in_array('imageamento', $this->modulos, true)) {
+            return null;
+        }
+
+        return PontoPanoramico::withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
+            ->whereNull('deleted_at')
+            ->find($id);
+    }
+
+    /**
+     * 🚗 Navegação estilo Street View no público (2026-09-21): o clique numa seta do panorama
+     * chama este método via $wire e troca a foto sem fechar o modal. Mesmo motor do painel da
+     * prefeitura (PanoramaNavegacaoService); `url` = URL ASSINADA do bucket R2 via accessor
+     * imagem_url — nunca asset('storage/…'), as fotos em massa não estão no disco da VPS.
+     */
+    public function panoramaDados(int $id): ?array
+    {
+        $ponto = $this->pontoPanoramicoPublico($id);
+
+        return $ponto ? PanoramaNavegacaoService::dados($ponto) : null;
     }
 
     public function visualizador360Action(): Action
@@ -484,19 +528,16 @@ class MapaPublico extends Page
             ->modalCancelActionLabel('Fechar')
             ->modalWidth('5xl') // Largura máxima para dar imersão ao Cidadão
             ->modalContent(function () {
-                $ponto = \App\Models\PontoPanoramico::find($this->pontoPanoramicoAtivoId);
-
-                // Lógica idêntica à sua Trait: Pega a foto ou usa a de simulação
-                $imagemUrl = ($ponto && $ponto->image_path)
-                    ? asset('storage/'.$ponto->image_path)
-                    : 'https://pannellum.org/images/alma.jpg';
-
-                $uniqueId = 'pano_'.uniqid();
+                $ponto = $this->pontoPanoramicoAtivoId
+                    ? $this->pontoPanoramicoPublico($this->pontoPanoramicoAtivoId)
+                    : null;
 
                 return view('filament.cidadao.components.visualizador-360-publico', [
                     'ponto' => $ponto,
-                    'imagemUrl' => $imagemUrl,
-                    'uniqueId' => $uniqueId,
+                    // url null = foto ainda não enviada ao bucket → o blade mostra o aviso
+                    // (no público NÃO existe imagem de demonstração)
+                    'dados' => $ponto ? PanoramaNavegacaoService::dados($ponto) : null,
+                    'uniqueId' => 'pano_'.uniqid(),
                 ]);
             });
     }

@@ -691,6 +691,22 @@ Pedido do usuário após teste em Santa Cecília (edificação com 5+ campos do 
 
 ---
 
+## ~~Item extra-backlog — Visualizador 360 do mapa público: URL do R2 + navegação Street View (2026-09-21)~~
+
+**Status:** ✅ Concluído (teste funcional com o componente Livewire anônimo em Bom Princípio: URL assinada do R2, foto HTTP 206 com CORS `*`, navegação ponto 349 → 350 pelas setas, ponto de outra prefeitura → null, `$wire.set('tenantId')` bloqueado, blade com aviso no caso sem foto; painel interno conferido após a extração do motor)
+**Concluído em:** 2026-09-21
+**Deploy:** só código — `git pull` + `php artisan optimize:clear` + `php artisan view:cache`. Sem migration, seeder ou mudança no bucket.
+**Origem:** Bom Princípio — no mapa público a foto 360 dava "The file …/storage/{slug}/panoramicas/… could not be accessed". Causa: `MapaPublico::visualizador360Action` montava `asset('storage/'.$image_path)` (trecho anterior à migração das panorâmicas para o bucket privado R2), enquanto o painel interno usa o accessor `PontoPanoramico::imagem_url` (URL assinada). Não é permissão: o público só tem o gate do módulo `imageamento`.
+
+Escopo (decisão do usuário: correção completa + setas):
+1. URL pelo accessor `imagem_url` (R2 assinado → storage local → simulação); sem CORS novo (mesmo domínio do painel interno).
+2. Busca do ponto escopada pela prefeitura do mapa + `#[Locked]` nas propriedades que definem o escopo (o cliente Livewire não pode trocar o tenant).
+3. `northOffset` = azimute da captura (bússola correta).
+4. Ponto sem foto → aviso "Foto ainda não enviada" (fim da imagem de demonstração do Pannellum no público).
+5. **Navegação estilo Street View** no público (só leitura): setas dentro do panorama, vizinhos da mesma trajetória + cruzamentos em 15 m. Motor extraído do trait interno para `App\Services\Gis\PanoramaNavegacaoService` = fonte única dos dois painéis.
+
+---
+
 ## Pontos fortes a destacar na demonstração
 
 1. Estatísticas com **gráficos plotados no mapa** (centroide de cada bairro) — item 2.6-41;

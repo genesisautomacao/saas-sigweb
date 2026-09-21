@@ -4,11 +4,10 @@ namespace App\Filament\Pages\Traits;
 
 use App\Models\PontoPanoramico;
 use Filament\Actions\Action;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\HtmlString;
 
 trait HasPontoPanoramicoActions
@@ -51,7 +50,7 @@ trait HasPontoPanoramicoActions
                 $this->dispatch('adicionar-ponto_panoramico-mapa', [
                     'id' => $registro->id,
                     'name' => $registro->titulo,
-                    'geo' => $this->geometriaRascunho
+                    'geo' => $this->geometriaRascunho,
                 ]);
                 $this->dispatch('limpar-rascunho-mapa');
             });
@@ -70,74 +69,12 @@ trait HasPontoPanoramicoActions
     }
 
     /**
-     * Vizinhos navegáveis: da MESMA trajetória, só o ponto imediatamente
-     * anterior/seguinte (andar pela rua); de OUTRAS trajetórias, o mais próximo
-     * de cada uma num raio de 15 m (virar no cruzamento). Direção (bearing) e
-     * distância calculadas no PostGIS; setas quase na mesma direção (< 20°)
-     * são deduplicadas ficando a mais próxima. Máximo de 4 setas.
+     * Vizinhos navegáveis + URL do ponto: motor em PanoramaNavegacaoService (fonte única
+     * deste viewer e do mapa público desde 2026-09-21).
      */
     protected function montarDadosPanorama(PontoPanoramico $ponto): array
     {
-        $candidatos = DB::select('
-            SELECT p.id, p.titulo, p.trajectory,
-                   ST_Distance(p.geo::geography, ref.geo::geography) AS dist,
-                   degrees(ST_Azimuth(ref.geo::geometry, p.geo::geometry)) AS bearing
-            FROM pontos_panoramicos p
-            CROSS JOIN (SELECT geo FROM pontos_panoramicos WHERE id = ?) ref
-            WHERE p.tenant_id = ?
-              AND p.id <> ?
-              AND p.deleted_at IS NULL
-              AND p.geo IS NOT NULL
-              AND ST_DWithin(p.geo::geography, ref.geo::geography, 15)
-            ORDER BY dist
-            LIMIT 12
-        ', [$ponto->id, $ponto->tenant_id, $ponto->id]);
-
-        // Mesma trajetória: o nome do arquivo é sequencial → o vizinho imediato
-        // em cada sentido é o de menor distância com título maior/menor.
-        $mesma = collect($candidatos)->filter(fn ($c) => $c->trajectory === $ponto->trajectory);
-        $proximo = $mesma->filter(fn ($c) => $c->titulo > $ponto->titulo)->sortBy('dist')->first();
-        $anterior = $mesma->filter(fn ($c) => $c->titulo < $ponto->titulo)->sortBy('dist')->first();
-
-        // Cruzamentos: o ponto mais próximo de CADA outra trajetória
-        $cruzamentos = collect($candidatos)
-            ->filter(fn ($c) => $c->trajectory !== $ponto->trajectory)
-            ->groupBy('trajectory')
-            ->map(fn ($grupo) => $grupo->sortBy('dist')->first())
-            ->values();
-
-        $setas = [];
-
-        foreach (collect([$proximo, $anterior])->merge($cruzamentos)->filter() as $c) {
-            $bearing = fmod((float) $c->bearing + 360, 360);
-
-            // Duas setas praticamente na mesma direção = fica só a primeira
-            // (anterior/próximo têm prioridade sobre cruzamentos).
-            foreach ($setas as $s) {
-                $delta = abs($s['bearing'] - $bearing);
-                if (min($delta, 360 - $delta) < 20) {
-                    continue 2;
-                }
-            }
-
-            $setas[] = [
-                'id' => (int) $c->id,
-                'bearing' => round($bearing, 1),
-                'dist' => round((float) $c->dist, 1),
-            ];
-
-            if (count($setas) >= 4) {
-                break;
-            }
-        }
-
-        return [
-            'id' => $ponto->id,
-            'titulo' => $ponto->titulo,
-            'url' => $ponto->imagem_url,
-            'azimuth' => (float) ($ponto->azimuth ?? 0),
-            'setas' => $setas,
-        ];
+        return \App\Services\Gis\PanoramaNavegacaoService::dados($ponto);
     }
 
     public function opcoesPontoPanoramicoAction(): Action
@@ -162,7 +99,7 @@ trait HasPontoPanoramicoActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
-                    ->action(function() {
+                    ->action(function () {
                         PontoPanoramico::find($this->pontoPanoramicoAtivoId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-ponto_panoramico-mapa', ['id' => $this->pontoPanoramicoAtivoId]);
@@ -173,7 +110,9 @@ trait HasPontoPanoramicoActions
             // do panorama trocam a foto via $wire.panoramaDados() sem fechar o modal.
             ->modalContent(function () {
                 $ponto = PontoPanoramico::find($this->pontoPanoramicoAtivoId);
-                if (!$ponto) return new HtmlString('Ponto não encontrado.');
+                if (! $ponto) {
+                    return new HtmlString('Ponto não encontrado.');
+                }
 
                 $dados = $this->montarDadosPanorama($ponto);
                 $badge = null;
@@ -193,7 +132,7 @@ trait HasPontoPanoramicoActions
                     'ponto' => $ponto,
                     'dados' => $dados,
                     'badge' => $badge,
-                    'uniqueId' => 'pano-' . $ponto->id,
+                    'uniqueId' => 'pano-'.$ponto->id,
                 ]);
             });
     }
