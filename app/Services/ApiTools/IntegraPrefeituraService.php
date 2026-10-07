@@ -25,6 +25,13 @@ use Illuminate\Support\Facades\File;
  * código no mock funciona quando o JSON usa os nomes de campo do sistema de origem.
  * Os consumidores (☁️ dos modais, Sincronizar do RelationManager, EditLote,
  * comando SincronizarTudoApi) não sabem a diferença entre os modos.
+ *
+ * Escala (Cajazeiras, 2026-10-07 — 39.705 imóveis × 21.818 unidades): o mock é lido
+ * e decodificado UMA vez por processo e indexado por chave de busca (O(1)). Antes,
+ * cada unidade relia 44 MB do disco e varria a lista inteira — horas de execução e
+ * estouro do set_time_limit da ação do /admin. O arquivo aceita 3 formatos
+ * (normalizarImoveis): array na raiz, {"imoveis": [...]} e GeoJSON FeatureCollection
+ * (export do QGIS — os campos ficam em `properties`).
  */
 class IntegraPrefeituraService
 {
@@ -36,6 +43,13 @@ class IntegraPrefeituraService
      * Ex.: 'govbr' => \App\Services\ApiTools\Drivers\GovbrDriver::class,
      */
     public const DRIVERS = [];
+
+    /**
+     * Cache do mock por processo: [tenantId => ['caminho', 'mtime', 'imoveis', 'indices']].
+     * `indices` = [chave => [valor => imóvel]], montado sob demanda por chave de busca.
+     * Invalida sozinho quando o arquivo muda (mtime) ou via limparCacheMock().
+     */
+    protected static array $mockCache = [];
 
     /**
      * Busca um imóvel no sistema tributário usando o PONTO DE LIGAÇÃO do sistema.
@@ -141,7 +155,12 @@ class IntegraPrefeituraService
         }
     }
 
-    /** Busca no JSON de simulação (respeitando o de/para invertido na chave de busca). */
+    /**
+     * Busca no JSON de simulação pelo índice em memória (respeitando o de/para
+     * invertido na chave de busca). Vários imóveis com o mesmo valor da chave
+     * (ex.: código do LOTE compartilhado por sublotes) ⇒ vale o PRIMEIRO do
+     * arquivo — mesma regra do first() antigo; ordene o mock se quiser priorizar.
+     */
     protected static function buscarNoMock(int $tenantId, string $chaveLigacao, string $valor): ?array
     {
         $imoveis = self::lerMock($tenantId);
@@ -150,19 +169,120 @@ class IntegraPrefeituraService
             return null;
         }
 
+        $valor = trim($valor);
+
+        if ($valor === '') {
+            return null;
+        }
+
         // A chave de busca respeita o de/para: se o JSON usa o nome do sistema de
         // origem (ex.: cdImovel → codigo_imovel_tributario), procuramos pelos dois.
-        $chaves = self::chavesDeOrigem($tenantId, $chaveLigacao);
-
-        return collect($imoveis)->first(function ($item) use ($chaves, $valor) {
-            foreach ($chaves as $chave) {
-                if (isset($item[$chave]) && trim((string) $item[$chave]) === trim($valor)) {
-                    return true;
-                }
+        foreach (self::chavesDeOrigem($tenantId, $chaveLigacao) as $chave) {
+            if (! isset(self::$mockCache[$tenantId]['indices'][$chave])) {
+                self::$mockCache[$tenantId]['indices'][$chave] = self::indexar($imoveis, $chave);
             }
 
-            return false;
-        });
+            $indice = self::$mockCache[$tenantId]['indices'][$chave];
+
+            if (isset($indice[$valor])) {
+                return $indice[$valor];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Índice [valor da chave => imóvel] de uma lista de imóveis. Valor repetido:
+     * o primeiro da lista vence. Puro (sem banco) — testável.
+     */
+    public static function indexar(array $imoveis, string $chave): array
+    {
+        $indice = [];
+
+        foreach ($imoveis as $item) {
+            if (! is_array($item) || ! isset($item[$chave])) {
+                continue;
+            }
+
+            $valor = trim((string) $item[$chave]);
+
+            if ($valor === '' || isset($indice[$valor])) {
+                continue;
+            }
+
+            $indice[$valor] = $item;
+        }
+
+        return $indice;
+    }
+
+    /**
+     * Normaliza o JSON de simulação para uma LISTA de imóveis (array assoc cada),
+     * aceitando: array na raiz, {"imoveis": [...]} ou GeoJSON FeatureCollection
+     * (os campos ficam em `properties`; a geometria é descartada). Só ESTRUTURA —
+     * os valores saem exatamente como estão no arquivo, para os mocks já em produção
+     * (Santa Cecília, Bom Princípio…) serem lidos igual a antes. A limpeza de
+     * "NULL"/espaços (limparValores) é aplicada apenas no UPLOAD de arquivo novo.
+     * Null = não é uma lista de imóveis.
+     */
+    public static function normalizarImoveis(mixed $json): ?array
+    {
+        if (is_object($json)) {
+            $json = json_decode(json_encode($json), true);
+        }
+
+        if (! is_array($json)) {
+            return null;
+        }
+
+        if (isset($json['features']) && is_array($json['features'])) {
+            $lista = [];
+
+            foreach ($json['features'] as $feature) {
+                $props = is_array($feature) ? ($feature['properties'] ?? null) : null;
+
+                if (is_array($props)) {
+                    $lista[] = $props;
+                }
+            }
+        } elseif (array_is_list($json)) {
+            $lista = $json;
+        } else {
+            $lista = $json['imoveis'] ?? null;
+        }
+
+        if (! is_array($lista)) {
+            return null;
+        }
+
+        $saida = [];
+
+        foreach ($lista as $item) {
+            if (is_array($item) && $item !== []) {
+                $saida[] = $item;
+            }
+        }
+
+        return $saida === [] ? null : $saida;
+    }
+
+    /**
+     * Limpeza para arquivo NOVO (ação "Simulação Tributária"): apara strings; "" e
+     * "NULL" (qualquer caixa) viram null — export de banco manda "NULL" literal, que
+     * passaria pelo de/para como texto. Não mexe em números/arrays. Não é aplicada
+     * na leitura, para não alterar o comportamento dos mocks já em produção.
+     */
+    public static function limparValores(array $item): array
+    {
+        foreach ($item as $chave => $valor) {
+            if (is_string($valor)) {
+                $valor = trim($valor);
+                $item[$chave] = ($valor === '' || strcasecmp($valor, 'NULL') === 0) ? null : $valor;
+            }
+        }
+
+        return $item;
     }
 
     /**
@@ -210,8 +330,7 @@ class IntegraPrefeituraService
             return null;
         }
 
-        $json = json_decode(File::get($caminho), true);
-        $imoveis = is_array($json) ? (isset($json[0]) ? $json : ($json['imoveis'] ?? [])) : [];
+        $imoveis = self::lerMock((int) $tenant->id) ?? [];
 
         return [
             'imoveis' => count($imoveis),
@@ -219,28 +338,53 @@ class IntegraPrefeituraService
         ];
     }
 
-    /** Lê e normaliza o mock do tenant (aceita array raiz ou chave "imoveis"). */
+    /** Esvazia o cache em memória (após trocar o arquivo pelo /admin ou em testes). */
+    public static function limparCacheMock(): void
+    {
+        self::$mockCache = [];
+    }
+
+    /**
+     * Lê e normaliza o mock do tenant UMA vez por processo (cache por mtime).
+     * Null = sem arquivo ou arquivo que não é uma lista de imóveis.
+     */
     protected static function lerMock(int $tenantId): ?array
     {
-        $tenant = Tenant::find($tenantId);
+        $entrada = self::$mockCache[$tenantId] ?? null;
+        $caminho = $entrada['caminho'] ?? null;
 
-        if (! $tenant) {
-            return null;
+        if ($caminho === null) {
+            $tenant = Tenant::find($tenantId);
+
+            if (! $tenant) {
+                return null;
+            }
+
+            $caminho = self::caminhoMock($tenant);
         }
-
-        $caminho = self::caminhoMock($tenant);
 
         if (! File::exists($caminho)) {
+            unset(self::$mockCache[$tenantId]);
+
             return null;
         }
 
-        $json = json_decode(File::get($caminho), true);
+        $mtime = File::lastModified($caminho);
 
-        if (! is_array($json)) {
-            return null;
+        if ($entrada && ($entrada['mtime'] ?? null) === $mtime) {
+            return $entrada['imoveis'];
         }
 
-        return isset($json[0]) ? $json : ($json['imoveis'] ?? null);
+        $imoveis = self::normalizarImoveis(json_decode(File::get($caminho), true));
+
+        self::$mockCache[$tenantId] = [
+            'caminho' => $caminho,
+            'mtime' => $mtime,
+            'imoveis' => $imoveis,
+            'indices' => [],
+        ];
+
+        return $imoveis;
     }
 
     /**

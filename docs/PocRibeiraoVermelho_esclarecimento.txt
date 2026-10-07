@@ -1,0 +1,152 @@
+PEDIDO DE ESCLARECIMENTO
+
+Ao Município de Ribeirão Vermelho/MG
+Secretaria Municipal de Administração e Fazenda
+À Sra. Pregoeira Caroline Oliveira Teodoro
+E-mail: licitacao@ribeiraovermelho.mg.gov.br (ou pela plataforma BLL Compras)
+
+Processo Licitatório nº 053/2026 — Pregão Eletrônico nº 015/2026
+Objeto: Contratação de serviços técnicos, mediante a utilização de recursos de
+Imagens Aéreas e Frontais, coleta de dados em campo e no cadastro municipal,
+para fins de atualização cadastral imobiliária e atualização cartográfica, com
+fornecimento de software na modalidade on premise, e ainda os serviços técnicos
+de atualização dos Códigos Tributário, Posturas e de Obras.
+
+A empresa [RAZÃO SOCIAL], inscrita no CNPJ sob o nº [00.000.000/0000-00], com
+sede em [ENDEREÇO], por seu representante legal, com fundamento no item 5.1 do
+Edital e no art. 164 da Lei Federal nº 14.133/2021, vem, tempestivamente,
+apresentar os seguintes PEDIDOS DE ESCLARECIMENTO:
+
+------------------------------------------------------------------------------
+1. LOTE 16 — "MÓDULOS DE SISTEMAS SIG/CTM ON PREMISE (DESKTOP ATÉ 03 USUÁRIOS)"
+------------------------------------------------------------------------------
+O Edital e o Termo de Referência não definem o termo "desktop". Pergunta-se:
+
+1.1. Uma solução de arquitetura web, instalada em servidor de propriedade da
+     Prefeitura ou em espaço em nuvem contratado em nome da Prefeitura (conforme
+     admite o item 5.6.7 do Termo de Referência: "estrutura física de servidor
+     de dados GEO e/ou espaço em nuvem"), acessada pelos usuários por meio de
+     navegador em suas estações de trabalho, limitada a 03 usuários licenciados
+     e com licença de uso por período indeterminado, ATENDE ao Lote 16?
+
+1.2. Ou a Administração exige, para o Lote 16, programa executável instalado
+     individualmente em cada estação de trabalho dos 03 usuários?
+
+------------------------------------------------------------------------------
+2. LOTE 17 — COMPOSIÇÃO DOS MÓDULOS WEB
+------------------------------------------------------------------------------
+A tabela de itens (Lote 17) e o item 5.3.6 do Termo de Referência descrevem os
+módulos web como "SIG, Cadastro Social, Módulo de Agendamento de Visita" e
+"Software cadastro socioeconômico — módulo de sistema mobile pesquisa
+dinâmica". Já o Apêndice A — POC PROVA DE CONCEITO descreve e avalia como
+módulos web: "Módulos SIG WEB — Mapa Público, Camadas e Edição de Mapas",
+"Módulo WEB — Uso do Solo", "Módulo WEB — GED (Gestão Eletrônica de
+Documentos)" e "Módulo WEB Aplicativo Móvel — Fiscalização de Campo".
+Pergunta-se:
+
+2.1. Qual das duas relações define o objeto a ser contratado no Lote 17?
+
+2.2. Os módulos GED e Aplicativo Móvel de Fiscalização de Campo integram o
+     objeto contratual e serão exigidos na Prova de Conceito?
+
+2.3. Os módulos Cadastro Social, Agendamento de Visita e pesquisa
+     socioeconômica mobile serão avaliados na Prova de Conceito? Em caso
+     positivo, por quais itens, uma vez que não constam do Apêndice A?
+
+------------------------------------------------------------------------------
+3. APÊNDICE A — ITENS QUE PRESSUPÕEM PROGRAMA INSTALADO LOCALMENTE
+------------------------------------------------------------------------------
+O módulo "Ambiente de Configuração" do Apêndice A contém itens característicos
+de programa instalado na estação do usuário, tais como: configurar local de
+armazenamento das atualizações de versões; configurar se o sistema fará
+atualização automática de versões; configurar no servidor onde se encontram as
+licenças; configurar se o sistema será aberto em tela cheia; e dispositivo de
+configuração do servidor de banco de dados. Pergunta-se:
+
+3.1. Para solução de arquitetura web, esses itens serão considerados atendidos
+     quando a função equivalente estiver disponível no ambiente administrativo
+     do sistema (por exemplo: tela de versão do sistema, tela de licenciamento
+     e tela de conexão com o banco de dados), ou serão avaliados de forma
+     literal?
+
+------------------------------------------------------------------------------
+4. CÁLCULO DO PERCENTUAL MÍNIMO DE 95% (ITEM 4.2.2.3 DO EDITAL; ITENS 1.14 E
+   1.15 DO APÊNDICE A)
+------------------------------------------------------------------------------
+4.1. O que a Administração considera "módulo" para efeito do percentual de
+     95%: cada título do Apêndice A isoladamente (por exemplo, "Mapa Público",
+     "Administrativo", "GED" e "Fiscalização de Campo" como módulos distintos)
+     ou o conjunto "Módulos SIG WEB" como um único módulo?
+
+4.2. Cada parágrafo do Apêndice A corresponde a um item de pontuação igual?
+
+4.3. O que caracteriza "subitem" para a regra do item 4.2.2.3, segundo a qual,
+     havendo subitens, todos devem ser atendidos para que o item seja
+     considerado atendido?
+
+------------------------------------------------------------------------------
+5. COMPONENTES DE CÓDIGO ABERTO (ITEM 8.8.2 DO EDITAL; ITEM 1.8.2 DO
+   APÊNDICE A)
+------------------------------------------------------------------------------
+O item 8.8.2 exige declaração de que a licitante "não usa tecnologia ou
+software de Terceiros" e "detém todos os códigos fontes". Pergunta-se:
+
+5.1. Confirma-se que o uso de componentes de código aberto, tais como o sistema
+     gerenciador de banco de dados exigido no módulo "Banco de Dados" do
+     Apêndice A (código aberto, licença GNU, padrão OGC), bibliotecas de
+     visualização de mapas e frameworks de desenvolvimento, NÃO caracteriza
+     "tecnologia ou software de terceiros", desde que a aplicação seja de
+     desenvolvimento próprio da licitante e esta detenha o seu código-fonte?
+
+------------------------------------------------------------------------------
+6. PROVA DE CONCEITO — CONECTIVIDADE (ITENS 1.9 E 1.10 DO APÊNDICE A)
+------------------------------------------------------------------------------
+6.1. Confirma-se que, para os módulos WEB, é permitido o acesso, por meio de
+     hotspot de dados próprio da licitante, a servidor da licitante hospedado
+     fora das dependências da Prefeitura?
+
+6.2. Confirma-se que, para o aplicativo móvel, basta que esteja previamente
+     instalado no aparelho da licitante e sincronize com esse servidor por meio
+     do mesmo hotspot?
+
+------------------------------------------------------------------------------
+7. PROVA DE CONCEITO — BASE DE DADOS PARA DEMONSTRAÇÃO
+------------------------------------------------------------------------------
+7.1. Considerando que a base cartográfica e cadastral de Ribeirão Vermelho
+     será produzida apenas na execução do contrato, a demonstração poderá ser
+     realizada com base de outro município ou com dados fictícios?
+
+7.2. O Município fornecerá previamente à Prova de Conceito algum dado próprio
+     (malha de lotes, cadastro imobiliário, ortofoto, legislação de uso do
+     solo), conforme sugere o item 5.3.4 do Termo de Referência ("dados
+     fornecidos")?
+
+------------------------------------------------------------------------------
+8. QUALIFICAÇÃO TÉCNICA — ATESTADO DE SOFTWARE (ITEM 8.7, ALÍNEA "c")
+------------------------------------------------------------------------------
+O item 8.7 "c" exige atestado que comprove "Fornecimento de Licença de Uso,
+Implantação e treinamento de Sistemas SIG/CTM (on premise) e produtos WEB, com
+controle de acesso usuários e camadas Editáveis". Pergunta-se:
+
+8.1. Atestado emitido por município que comprove o fornecimento, implantação e
+     treinamento de sistema SIG/CTM de arquitetura web, hospedado em servidor
+     da contratada ou em nuvem, com controle de acesso por usuários e camadas
+     editáveis, atende à exigência quanto a "Sistemas SIG/CTM (on premise)"?
+
+8.2. A comprovação pode ser feita por meio de atestados distintos, somando-se
+     as parcelas (aerofotogrametria, base cartográfica, coleta em campo,
+     imagens 360° e software), ou é exigido um único atestado que reúna todas
+     as parcelas em um mesmo contrato?
+
+------------------------------------------------------------------------------
+Requer-se que as respostas sejam publicadas no campo "mensagens" da plataforma
+BLL Compras e no portal de licitações do Município, conforme item 5.1.4 do
+Edital, com a antecedência necessária à formulação das propostas.
+
+[CIDADE], [DIA] de outubro de 2026.
+
+______________________________________
+[NOME DO REPRESENTANTE LEGAL]
+[CARGO]
+[RAZÃO SOCIAL] — CNPJ [00.000.000/0000-00]
+[E-MAIL] — [TELEFONE]

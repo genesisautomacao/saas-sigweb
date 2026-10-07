@@ -3,7 +3,6 @@
 namespace App\Services\Fiscal;
 
 use App\Models\SistemaTributario;
-use App\Models\UnidadeImobiliaria;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -94,6 +93,9 @@ class MapaFiscalService
         $canonicos = [
             'proprietario_name' => 'proprietario_name',
             'proprietario_cpf' => 'proprietario_cpf',
+            // Pessoa jurídica (Cajazeiras manda CPF e CNPJ em campos separados) — a
+            // sincronização deduplica a Pessoa por CNPJ/CPF VÁLIDO (ProprietarioService).
+            'proprietario_cnpj' => 'proprietario_cnpj',
             'inscricao_imobiliaria' => 'inscricao_imobiliaria',
             'codigo_imovel_tributario' => 'codigo_imovel_tributario',
             'nome_edificio' => 'nome_edificio',

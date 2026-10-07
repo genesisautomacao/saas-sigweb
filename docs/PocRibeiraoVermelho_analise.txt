@@ -1,0 +1,1131 @@
+================================================================================
+POC RIBEIRÃO VERMELHO (MG) — ANÁLISE DE CONFORMIDADE DO SIGWEB
+================================================================================
+Fonte ....: D:\Sistemas e Plataformas\WebGis\Pocs\Ribeirão Vermelho - MG.pdf
+           (Apêndice A — descrição dos módulos e regras da Prova de Conceito)
+Análise ..: 2026-10-05
+Base .....: SIGWEB Release 77 (main) + app de coletas 1.1.3
+
+LEGENDA
+  [OK]   Atendido — já temos; basta preparar a demonstração.
+  [PARC] Parcial — temos a base, falta um complemento (dá para fechar
+         em dias; pode entrar na regra dos 120 dias se não der tempo).
+  [DEV]  Não temos — precisa desenvolver.
+  [N/A]  Não é software (banco, infra, dado que a prefeitura fornece).
+
+Ao lado de cada item: COMO atendemos hoje / O QUE falta.
+
+--------------------------------------------------------------------------------
+REGRAS DA POC QUE PESAM NA PREPARAÇÃO (itens 1.1 a 1.16)
+--------------------------------------------------------------------------------
+- Precisa demonstrar >= 95% dos itens DE CADA MÓDULO, senão o módulo é
+  recusado e a licitante desclassificada (1.14/1.15). Itens não demonstrados
+  têm 120 dias após a ordem de serviço para entrega (1.13).
+- Entregar no início da PoC (e junto à habilitação) a relação de itens por
+  módulo marcando atendido / não atendido (1.8). Esta análise é o rascunho.
+- SEM rede/internet da prefeitura, SEM acesso remoto, SEM manipular banco
+  (1.8.3, 1.9). Da prefeitura só a rede elétrica.
+- Módulos WEB: o edital MANDA usar HOTSPOT próprio (dados do celular) para
+  "gerar acesso de internet" (1.10) — ou seja, a VPS pode ser usada
+  normalmente, via nossa própria conexão 4G/5G. A comissão espera até 5 min
+  por problema de acesso; depois disso, travou ou não trouxe resultado =
+  "item não atendido", e "internet lenta" não é desculpa aceita (1.11).
+  >> IMPLICAÇÃO: o cenário principal é o SIGWEB na VPS acessado pelo
+     hotspot. O risco é o sinal na sala da Secretaria. Mitigações: testar
+     o sinal no local antes; levar dois celulares de operadoras diferentes;
+     e, como seguro contra o 1.11, um notebook com o SIGWEB completo
+     (PostGIS + base + tiles da ortofoto em disco) para assumir se o hotspot
+     falhar. Nessa segunda hipótese, o que depende de nuvem (R2, Resend,
+     Azure Maps, câmeras ao vivo, CDN do hls.js/jsdelivr) não funciona.
+- Mobile: 1.9 exige o app JÁ INSTALADO no aparelho, com base de dados. O
+  app de coletas é offline-first (SQLite), então atende; a sincronização
+  pode ir pela VPS via hotspot ou pelo notebook local.
+- Tudo que for mostrado tem que ser desenvolvimento próprio (1.8.2) — o
+  Potree (viewer 3D) e qualquer WMS de terceiro não contam como item.
+- Cada item: operação completa (entrada, gravação, consulta, PDF) e provar
+  que gravou na data/hora da prova (1.8.1) — a Auditoria ajuda aqui.
+
+--------------------------------------------------------------------------------
+RESUMO POR MÓDULO
+--------------------------------------------------------------------------------
+(contagem feita sobre os itens numerados abaixo; alguns itens do edital
+foram desmembrados quando pediam mais de uma coisa, por isso o total de
+linhas passa um pouco do número de parágrafos do PDF)
+
+Módulo                                   Itens   OK  PARC  DEV   %OK  %OK+PARC
+1  Banco de Dados                            6    6    0    0   100%   100%
+2  Ambiente de Configuração                 74   16   31   27    22%    64%
+3  SIG/CTM — Edição                         28   18   10    0    64%   100%
+4  Cadastro Imobiliário (CTM)               27   15   10    2    56%    93%
+5  Finanças                                 15    5    8    2    33%    87%
+6  Obras / Iluminação Pública               20    6    5    9    30%    55%
+7  Meio Ambiente                            18    9    5    4    50%    78%
+8  Saúde                                    14    1    1   12     7%    14%
+9  Educação                                 10    0    1    9     0%    10%
+10 Trânsito                                  5    4    1    0    80%   100%
+11 Cemitérios                                5    4    1    0    80%   100%
+12 Serviços Urbanos                         11    1    6    4     9%    64%
+13 Ação Social                               5    3    2    0    60%   100%
+14 PGV                                       6    5    1    0    83%   100%
+15 Uso do Solo (Planejamento)               27    6   19    2    22%    93%
+16 SIG WEB — Mapa Público                   28    4    6   18    14%    36%
+17 SIG WEB — Administrativo (edição,        36   13   15    8    36%    78%
+   camadas, mapas, usuários, grupos,
+   configurações, notificações, auditoria)
+18 WEB Uso do Solo (portal cidadão +         21    9    5    7    43%    67%
+   zonas/CNAE/regras/indicadores)
+19 WEB GED                                   14    0    1   13     0%     7%
+20 App Fiscalização de Campo + painel        25    0    7   18     0%    28%
+--------------------------------------------------------------------------------
+TOTAL                                      395  125  135  135    32%    66%
+
+LEITURA RÁPIDA
+- "%OK" é o que demonstramos HOJE sem mexer em nada. "%OK+PARC" é onde
+  chegamos fechando os parciais (ajustes de horas a poucos dias cada).
+- Passam da régua de 95% só com os parciais fechados: Banco, SIG/CTM,
+  Trânsito, Cemitérios, Ação Social, PGV (100%). Imobiliário e Uso do Solo
+  (93%) ficam a 1-2 itens do corte — os DEV deles são pequenos.
+- Mapa Público (36%) e Administrativo (78%) são os que mais assustam no
+  papel, mas são itens pequenos de interface (barra de status, seleção,
+  listar, imprimir, compartilhar, flags de usuário) — "Mapa Público v2"
+  de 3-4 dias resolve.
+- Módulos que NÃO temos e exigem desenvolvimento de verdade: Saúde,
+  Educação, GED, App de Fiscalização de Campo (PWA com checklist). Serviços
+  Urbanos e Obras/Iluminação precisam de cadastros novos + camadas genéricas.
+- O maior "furo transversal" é CAMADA GENÉRICA (criar camada pelo admin,
+  subir Shapefile/GeoJSON, definir campos, cor, opacidade, ordem, rótulo).
+  Aparece em 6 módulos (Config, SIG, Imobiliário, Finanças, Mapa Público,
+  Administrativo). Resolvê-la fecha ~15 itens de uma vez.
+- Segundo furo transversal: TELAS/BUSCAS/RELATÓRIOS CONFIGURÁVEIS (o edital
+  pede que o admin monte a tela do imóvel, a tela de busca, os campos de
+  retorno e os relatórios). Temos campos customizados + boletim, mas não o
+  "construtor de tela".
+
+================================================================================
+1. BANCO DE DADOS (6 itens)
+================================================================================
+1.1 [OK] Suporte a dados espaciais, código aberto, GNU, padrões OGC
+         -> PostgreSQL + PostGIS (OGC Simple Features). Endpoint OGC próprio
+            em /api/ogc/{slug} (WFS/WMS).
+1.2 [OK] Licenças de conexões ilimitadas -> PostgreSQL.
+1.3 [OK] Grupos/perfis e limitação de host de acesso -> roles do Postgres +
+         pg_hba.conf (mostrar o arquivo/comando na demo).
+1.4 [OK] Integridade com controle de transações -> PostgreSQL ACID.
+1.5 [OK] MVCC -> PostgreSQL nativo.
+1.6 [OK] Modelo híbrido objeto-relacional -> PostgreSQL (JSONB, tipos
+         compostos, herança).
+
+================================================================================
+2. AMBIENTE DE CONFIGURAÇÃO (72 itens)
+================================================================================
+--- Parâmetros gerais -----------------------------------------------------------
+2.1  [OK]   Parametrizar período e nome do município -> /admin Prefeitura
+            (name, slug, data) + campanha da coleta.
+2.2  [PARC] Configurar local de armazenamento dos SHAPES/dados geográficos
+            -> hoje é PostGIS + disk `midia` (R2) definido por ApiSetting.
+            Falta: tela que mostre/edite o "local" (basta expor o disco
+            escolhido por prefeitura).
+2.3  [PARC] Local de armazenamento dos documentos digitalizados -> idem 2.2
+            (fotos/anexos vão para storage/R2). Falta tela de escolha.
+2.4  [DEV]  Local de armazenamento das atualizações de versão -> conceito
+            desktop; no SaaS a atualização é no servidor. Fazer tela
+            "Versão do sistema" (versão atual, changelog) e declarar.
+2.5  [DEV]  Ligar/desligar atualização automática de versão -> idem 2.4.
+2.6  [DEV]  Configurar onde ficam as licenças -> idem (tela "Licença da
+            prefeitura": módulos contratados, validade).
+2.7  [DEV]  Restrição de limite de zoom dos projetos -> hoje maxZoom 22
+            fixo. Fazer campo min/max zoom em tenant.data e ler no engine.
+2.8  [PARC] Abrir ou não em tela cheia -> MapaFullscreen já é tela cheia;
+            falta toggle por usuário/prefeitura.
+2.9  [DEV]  Unidade de escala padrão (metric...) -> fixo em metros. Fazer
+            seletor (m/km vs. ft) em config.
+2.10 [DEV]  Parametrizar escala de abertura de arquivos -> zoom inicial é
+            por tenant (map_zoom); falta expor como "escala" (1:N).
+2.11 [PARC] Sistema de coordenadas do sistema -> exibimos SIRGAS 2000 UTM +
+            lat/lon (zona automática). Falta campo de EPSG configurável.
+2.12 [OK]   Formulário dos dados do imóvel configurável, mais de um
+            formulário, aplicado em vários ambientes -> Campos Customizados
+            + Campos Padrão (rótulo/lista/visibilidade) + Boletim de Coleta
+            (3 estados). Demonstrar.
+2.13 [PARC] Composição do código do imóvel "SETOR+QUADRA+LOTE+UNIDADE"
+            -> temos `codigo` municipal em setor/quadra/lote e inscrição
+            vinda do tributário. Falta: tela "Máscara da inscrição"
+            (ordem dos componentes, tamanho, separador) + gerar/recodificar
+            (pendência T2.5 do backlog Tangará).
+2.14 [PARC] Configurar servidor de banco sem conhecimento técnico, pelo
+            sistema -> hoje .env. Fazer tela no /admin "Conexão do banco"
+            (host, porta, usuário, testar conexão) que grava config.
+--- Usuários / perfis -----------------------------------------------------------
+2.15 [OK]   Perfil ADMINISTRADOR -> Manager (papel de sistema, todos os
+            módulos) + Master no SaaS.
+2.16 [OK]   Perfil EDITOR (edita cartografia) -> papel com permissões
+            create/edit das camadas + toolbar_criar_artefatos.
+2.17 [PARC] Perfil HOMOLOGADOR (homologa dados do cadastro imobiliário)
+            -> temos Validação de Coleta (marcar campanha como validada) e
+            checklist de anexos nos processos. Falta um papel pronto
+            "Homologador" + fluxo homologar/rejeitar alteração de lote.
+2.18 [OK]   Perfil VISUALIZADOR (só mapas) -> papel só com ver_camada_*.
+2.19 [PARC] Salvar posição de trabalho POR USUÁRIO ao sair/voltar
+            -> hoje enquadramento é por prefeitura (Salvar Enquadramento).
+            Falta: gravar último centro/zoom por usuário (localStorage ou
+            users.data) e restaurar no login.
+2.20 [PARC] Autorizar ou não o usuário a mudar a própria senha -> Filament
+            tem perfil/senha; falta flag "pode trocar senha" por usuário.
+2.21 [OK]   Ativar/desativar usuário preservando histórico -> soft delete
+            + Auditoria com withTrashed. (Se quiserem "inativo" sem excluir,
+            adicionar flag `ativo` — 1 h.)
+--- Camadas --------------------------------------------------------------------
+2.22 [DEV]  Cadastro de camadas a inserir no sistema (genérico)
+            -> hoje camadas são entidades fixas + WMS externo (persistido por
+            categoria). FALTA a "CAMADA GENÉRICA": tabela camadas_custom
+            (nome, tipo geom, cor, opacidade, ordem, campos) + feições em
+            JSONB + upload GeoJSON/Shapefile ZIP + checkbox automático no
+            painel. É o item transversal mais importante da PoC.
+2.23 [DEV]  Identificar camada como MDT ou MDS -> depende de 2.22 (tipo
+            raster/MDT; servir via XYZ como as ortofotos).
+2.24 [PARC] Identificar camada como RASTER -> ortofotos (XYZ) já são
+            raster por prefeitura; falta o rótulo "tipo" no cadastro.
+2.25 [DEV]  Identificar camada como Shapefile -> 2.22 (upload .zip com
+            .shp/.dbf/.shx/.prj via ogr2ogr, já usado no export).
+2.26 [DEV]  Identificar o local a ser armazenado da camada -> 2.22.
+2.27 [DEV]  Campos da camada shapefile (nome, dimensão, posição, tipo
+            texto/inteiro/decimal/booleano/data) -> 2.22 (ler .dbf e
+            mostrar/editar esquema).
+2.28 [DEV]  Sistema de coordenadas da camada -> 2.22 (ler .prj, permitir
+            escolher EPSG; reprojetar com ST_Transform).
+2.29 [DEV]  Marcar camada como "pontos de interesse" -> 2.22 (flag).
+2.30 [DEV]  Marcar camada como editável ou não -> 2.22 (flag + permissão).
+--- Ambientes de trabalho -------------------------------------------------------
+2.31 [PARC] Configurar ambiente de trabalho por organograma funcional
+            -> temos Setores (swimlanes BPMN) e papéis por secretaria. Falta
+            "Ambiente" = conjunto nomeado (camadas + usuários + ferramentas).
+            Pode ser resolvido como extensão do Papel (papel = ambiente).
+2.32 [PARC] Inserir camadas que farão parte de cada ambiente -> papel já
+            escolhe camadas (ver_camada_*).
+2.33 [PARC] Ambiente com camadas e usuários -> papel + usuários do papel.
+2.34 [PARC] Configurar menu de ferramentas por ambiente -> toolbar_*
+            (Criar Artefatos / Ferramentas / Filtros) por papel. Falta
+            granularidade por ferramenta individual.
+2.35 [OK]   Ferramentas específicas para ADMINISTRADOR -> Manager vê tudo.
+2.36 [OK]   Ferramentas específicas para EDITOR -> permissões do papel.
+2.37 [PARC] Ferramentas específicas para HOMOLOGADOR -> depende de 2.17.
+2.38 [OK]   Ferramentas específicas para VISUALIZADOR -> papel só leitura.
+2.39 [DEV]  Menu rápido com clique do mouse por ambiente -> não temos menu
+            de contexto (botão direito) no mapa. Fazer contextmenu com as
+            ações da feição (ficha, editar, excluir, medir...).
+2.40 [DEV]  Configurar ORDEM dos itens no menu de ferramentas -> ordem é
+            fixa. Fazer ordenação salva por papel/usuário (sortable).
+--- Telas, buscas e relatórios configuráveis -----------------------------------
+2.41 [PARC] Configurar tela de filtro da busca e tela de resultado
+            -> Filtro Avançado (atributo/espacial, inclusive campos custom)
+            + Busca Unificada. Falta "salvar" uma tela de busca nomeada com
+            os campos escolhidos.
+2.42 [DEV]  Gerenciador de relatórios (incluir relatório, editar conteúdo)
+            -> relatórios são fixos (ExportService). Fazer "Relatório
+            Personalizado": escolher entidade, campos, filtros, ordenação,
+            cabeçalho/rodapé, salvar → PDF/Excel. Resolve também 2.56-2.61.
+2.43 [OK]   Incluir/alterar/excluir CNAEs do uso do solo -> CnaeResource.
+2.44 [DEV]  Cadastro de ocorrências endêmicas (agravos, tipo de
+            notificação, unidade, idade, raça, escolaridade, local)
+            -> ver módulo Saúde (8).
+2.45 [DEV]  Cadastro de dados escolares (tipo de turma, turno) -> ver
+            módulo Educação (9).
+2.46 [DEV]  Cadastro de ocorrências de serviços urbanos -> ver (12).
+2.47 [PARC] Classificação por tipo de divergência do cadastro × malha de
+            lotes (chaveamento) -> temos divergência de área (Δ%), lotes sem
+            unidade, divergência de proprietário na coleta. Falta um
+            cadastro "Tipos de divergência" + relatório unificado.
+2.48 [PARC] Cadastro de fiscais -> usuários com papel "Fiscal". Falta
+            cadastro próprio (matrícula, portaria) — pode ser Pessoa com
+            vínculo user + flag.
+2.49 [DEV]  Cadastro de providências para imóveis -> novo cadastro simples
+            (nome, prazo padrão, texto da notificação) ligado à notificação
+            de irregularidade.
+2.50 [DEV]  Cadastro de tipos de receitas -> cadastro simples; só faz
+            sentido com Finanças (5). Pode ser tabela de domínio.
+2.51 [PARC] Campos da zona urbana (coef. aproveitamento, afastamento,
+            testada...) -> ParametroUrbano (área/testada mín-máx) + Campos
+            Customizados em Zona (JSONB). Falta UI unificada "Parâmetros da
+            zona" com os campos típicos do plano diretor.
+2.52 [PARC] Regras da zona urbana -> ZoneamentoRegra (zona × classificação
+            × permitido/permissível/proibido). Falta "condicionado" +
+            condicionantes/base legal (ver 18).
+2.53 [OK]   Gerar cadastro a qualquer momento de dados extraídos dos
+            imóveis (ÁRVORES, INFRA, CALÇADA, MEIO-FIO, MURO...)
+            -> Campos Customizados em 13 entidades + Meio-fio + Árvores +
+            Postes. Demonstrar criando "possui_muro"/"possui_calcada" no lote.
+2.54 [PARC] Moldar a tela de dados do imóvel incluindo separação em páginas
+            -> ficha do lote é fixa + campos custom entram automaticamente.
+            Falta agrupar em abas/seções configuráveis.
+2.55 [OK]   Escolher os campos que compõem a tela do imóvel -> visibilidade
+            de campos padrão + campos customizados (ativo/visível).
+2.56 [DEV]  Várias telas de dados associadas ao ambiente -> depende de 2.54
+            + 2.31.
+2.57 [DEV]  Pré-visualizar a tela antes de concluir -> depende de 2.54.
+2.58 [PARC] Configurar telas de busca de imóveis, quantas quiser -> 2.41.
+2.59 [PARC] Campos da tela de busca -> 2.41.
+2.60 [PARC] Campos da tela de retorno dos dados filtrados -> Filtro
+            Avançado devolve colunas fixas; falta escolher colunas.
+2.61 [DEV]  Executar qualquer script pelo sistema (arquivo ou digitado)
+            -> não temos (e é risco). Opção segura: "Consultas SQL somente
+            leitura" para o Manager com whitelist de tabelas do tenant,
+            resultado em tabela/CSV. Declarar como atendido parcialmente.
+2.62 [OK]   Relatório de produtividade de unidades mapeadas por usuário
+            -> Resumo de Produtividade + PDF + /api/reports/productivity.
+--- Exportações ------------------------------------------------------------------
+2.63 [PARC] Exportar escolhendo tabela base e campos -> exports fixos
+            (XLS/PDF/CSV/XML) em todas as entidades + Shapefile por camada.
+            Falta seletor de campos (cabe no 2.42).
+2.64 [PARC] Exportar filtrando pela tela de busca -> exports respeitam os
+            filtros da tabela Filament; Filtro Avançado do mapa não exporta.
+            Ligar "Exportar resultado" ao Filtro Avançado (1 dia).
+2.65 [PARC] Exportar inserindo dados adicionais (desconto de beiral,
+            quantidade de pisos) -> campos custom já saem nos exports; o
+            "adicional calculado" precisa do 2.42.
+2.66 [OK]   Exportar incluindo imagens aéreas e frontais -> PDF detalhado
+            de produtividade com fotos, BIC com foto + mapa, Planta de
+            Quadra, relação de imóveis com imagem.
+2.67 [PARC] Definir separadores de campo e decimal -> CSV fixo (;/,).
+            Adicionar opções no diálogo de export (meio dia).
+2.68 [OK]   Exportar dados extraídos/gerados (ÁRVORES, INFRA → "tem
+            calçada?") -> export de Árvores + campos custom do lote no
+            export de Lotes; Filtro Avançado por campo custom.
+--- Tributos / mapeamento -------------------------------------------------------
+2.69 [PARC] Configurar campos de medidas do cadastro de tributos (área do
+            lote, área construída, fração ideal) -> colunas fiscais da
+            unidade + Campos Padrão (rótulo/visibilidade) + de/para por
+            sistema tributário. Falta marcar qual campo entra no cálculo
+            do IPTU (PGV simulação usa área × m²).
+2.70 [OK]   Ambientes de mapeamento terrestre/móvel em períodos diferentes
+            -> campanhas da coleta (coleta_imobiliaria.campanha) + lotes de
+            fotos 360 por trajetória/dia (imageamento).
+2.71 [DEV]  Configurar sensores (direção e posição) do mapeamento móvel
+            -> não temos cadastro de sensor. Guardamos azimute/altitude
+            por foto. Fazer cadastro "Equipamentos/Sensores" simples.
+2.72 [DEV]  Configurar equipamentos do mapeamento (nº de sensores) -> idem
+            2.71 (um cadastro cobre os dois).
+2.73 [PARC] Inscrição do imóvel composta por vários campos, formato e
+            separador -> mesmo que 2.13.
+2.74 [PARC] Configurar qualquer mapeamento com base nas imagens coletadas
+            (ex.: árvores extraídas das fotos) -> temos panorâmicas 360 +
+            criação de ponto no mapa; falta "criar feição a partir da foto"
+            (clique na panorâmica → ponto georreferenciado).
+
+================================================================================
+3. SIG/CTM — ROTINAS DE EDIÇÃO (28 itens)
+================================================================================
+3.1  [PARC] Alterar cores/preenchimento/etiqueta da camada, salvo por
+            usuário -> cores por camada (9 camadas estruturais) salvas em
+            localStorage por tenant + rótulos on/off + seletor de campo do
+            rótulo. Falta: salvar no servidor por usuário e cobrir
+            etiqueta (fonte/cor) e todas as camadas.
+3.2  [PARC] Importar Shapefile -> importação GIS do /admin aceita GeoJSON.
+            Falta aceitar .zip de shapefile (ogr2ogr já está no servidor
+            para export; é converter antes de importar — 1 dia). Observação:
+            hoje é no /admin (Master); o edital quer no ambiente da
+            prefeitura — expor a mesma ação para o Manager.
+3.3  [OK]   Exportar camada para Shapefile -> ShapefileExportService
+            (ogr2ogr) + export na ficha pública do lote.
+3.4  [OK]   Import/export da camada inteira -> sim.
+3.5  [PARC] Import/export só da parte visível na tela -> export recebe a
+            camada inteira. Adicionar bbox da view ao export (meio dia).
+3.6  [PARC] Import/export por área selecionada -> Filtro Avançado seleciona
+            por polígono/retângulo/buffer; falta botão "Exportar seleção
+            (SHP/GeoJSON)". Mesma entrega do 2.64.
+3.7  [PARC] Escolher sistema de coordenadas na importação/exportação ->
+            tudo em EPSG:4326. Adicionar seletor EPSG (ST_Transform /
+            -t_srs do ogr2ogr) — meio dia.
+3.8  [OK]   Auditoria de todas as alterações da cartografia por usuário
+            -> spatie/activitylog + LogsGeometryChanges em 13 entidades.
+3.9  [OK]   Auditoria filtrando por camada -> coluna Entidade (filtrar).
+3.10 [OK]   Auditoria por período -> filtro date range.
+3.11 [OK]   Auditoria por operação (alterado/incluído/excluído) -> filtro.
+3.12 [OK]   Localizar no mapa o local da alteração -> croqui Antes/Depois
+            com geometria; falta só botão "abrir no mapa" (1 h) — já
+            abrimos pela ficha do registro.
+3.13 [OK]   Ver "desenho anterior" e "desenho atual" -> croqui Antes/Depois
+            na Auditoria.
+3.14 [OK]   Criar camada temporária -> Mesa de Desenho (cad_draft),
+            Anotações (toponímia) e camada de prévia. Declarar.
+3.15 [OK]   Botão para ocultar/fixar o menu de camadas -> janela "Camadas
+            do Mapa" abre/fecha e fica fixa.
+3.16 [OK]   Selecionar item de uma camada específica mesmo sobreposta
+            (lote dentro da quadra sem pegar a quadra) -> clickPriority +
+            ligar/desligar camadas + Filtro Avançado por camada.
+3.17 [OK]   Editar poligonal informando distância e ângulo por ponto ->
+            Criar por Azimutes (azimute + distância) + Coordenada XY.
+3.18 [PARC] Inserir polígono, linha, círculo ou ponto -> polígono/linha/
+            ponto sim (Criar Artefatos); círculo só como buffer do Filtro.
+            Adicionar "Círculo" na mesa de desenho (ol Draw Circle →
+            polígono) — 2 h.
+3.19 [PARC] Duplicar desenho -> temos clone interno para espelhar; falta
+            botão "Duplicar" explícito (copiar feição para a mesa) — 1 h.
+3.20 [OK]   Espelhar desenho -> CAD Espelhar (horizontal/vertical).
+3.21 [OK]   Rotacionar -> aplicarRotacao (graus) na edição avançada.
+3.22 [OK]   Mover -> ol.interaction.Translate na edição + Reposicionar
+            para pontos.
+3.23 [OK]   Dividir -> Parcelamento / subdivisão de lote.
+3.24 [PARC] Separar uma parte de um desenho -> dividir cobre; "separar
+            multipolígono em partes" não existe (ST_Dump) — 2 h.
+3.25 [OK]   Unir dois desenhos -> Unir (turf.union) + Unificação de lotes.
+3.26 [PARC] Desfazer (voltar ao conteúdo anterior) -> edição tem cancelar
+            antes de salvar; depois de salvo, a Auditoria guarda a geometria
+            anterior mas não tem "Restaurar". Fazer botão "Restaurar esta
+            versão" na Auditoria (meio dia) — resolve de forma elegante.
+3.27 [PARC] Consulta em camadas por atributo gerando um "script" salvável
+            -> Filtro Avançado por atributo (inclui campos custom) — não
+            salva. Fazer "Salvar consulta" (nome + JSON do filtro, por
+            usuário) — 1 dia.
+3.28 [OK]   Visualizar todos os atributos do desenho -> ficha do lote /
+            modal de opções de cada entidade / tabela do Resource.
+
+================================================================================
+4. CADASTRO TÉCNICO MULTIFINALITÁRIO — IMOBILIÁRIO (24 itens)
+================================================================================
+4.1  [OK]   Camada de bairros, ruas, quadras, lotes, construções -> sim.
+4.2  [PARC] Camada por tipos: lotes/construções (residencial, comercial,
+            misto, industrial), públicos, escolas, segurança, saúde (hospital,
+            posto, PSF), pontos turísticos -> temos tipo via campo
+            customizado + "Colorir por" (mob) e tematização de coleta; para
+            lotes, falta "Colorir lotes por campo" genérico (reaproveitar o
+            tema dos trechos — 1 dia). Equipamentos: Patrimônio Público com
+            TipoPatrimonio + POIs de mobilidade (educação, saúde...).
+4.3  [OK]   Camada de equipamentos públicos, saúde, educação -> Patrimônios
+            Públicos (tipo) + MobPontoInteresse (categorias educação/saúde).
+4.4  [PARC] Camada de parques, praças e áreas de lazer -> cadastrar como
+            TipoPatrimonio "Praça/Parque"; ou camada genérica (2.22).
+4.5  [OK]   Selecionar imóveis por atividade do cadastro (residencial,
+            comercial) -> Filtro Avançado por atributo/campo custom.
+4.6  [PARC] Cadastrar comunicados com base nos dados apontados -> temos
+            Notificação de Irregularidade (PDF por lote) e e-mail de
+            processos. Falta cadastro de "Comunicado" (modelo de texto com
+            placeholders, como o requerimento) + geração em lote para a
+            seleção do filtro.
+4.7  [PARC] Imprimir comunicados -> idem 4.6 (PDF individual existe; falta
+            em lote).
+4.8  [OK]   Seleção de dados do mapeamento por MAPEAMENTO e por DATA ->
+            Validação de Coleta filtra campanha/período/coletor; 360 por
+            trajetória.
+4.9  [PARC] Impressão de divergências após chaveamento -> coluna Δ área e
+            filtro de divergência no LoteResource exportam; divergência de
+            proprietário no PDF de validação. Falta um relatório único
+            "Divergências do chaveamento" (lote sem unidade, unidade sem
+            lote, área, proprietário) — 1 dia.
+4.10 [OK]   Chaveamento malha de lotes × cadastro tributário ->
+            codigo_imovel_tributario / inscrição + Sincronizar (single/
+            bulk) + tributario:importar + mock de simulação (demo offline).
+4.11 [PARC] Busca de imóveis parametrizável pelo usuário -> Busca
+            Unificada + Filtro Avançado; falta salvar/configurar (2.41).
+4.12 [OK]   Busca rápida por código -> busca por inscrição/código/nº lote.
+4.13 [OK]   Imprimir resumo (mapeados, não mapeados, cadastrados) ->
+            Produtividade PDF + dashboard + Validação de Coleta.
+4.14 [OK]   Medição linear e poligonal -> régua linha/área.
+4.15 [OK]   Editar itens no mapa (linha, polígono, ponto) -> sim.
+4.16 [OK]   Imprimir itens mapeados (equipamentos, escolas, saúde,
+            segurança, invasões) -> exports de Patrimônio/REURB/POIs +
+            PDF do mapa.
+4.17 [OK]   Visualizar informações do imóvel -> ficha lateral do lote.
+4.18 [PARC] Relação de imóveis com/sem imagens (aérea/frontal), só
+            irregulares, geral ou área selecionada, por bairro/quadra,
+            predial/territorial -> Lotes export + PDF produtividade com
+            fotos + Planta de Quadra. Falta um relatório com esses
+            parâmetros juntos (imagem aérea = StaticMap, já existe no BIC).
+            1-2 dias.
+4.19 [OK]   Vincular dados do cadastro a imagens do mapeamento móvel ->
+            fotos do lote (3) + 360 próximas (Street View na ficha).
+4.20 [PARC] Associar imagem do mapeamento móvel selecionando imagens ->
+            falta "escolher esta panorâmica como foto do lote" (1 dia).
+4.21 [DEV]  Inserir qualquer camada no módulo de configuração -> 2.22.
+4.22 [PARC] Imprimir mapa alterando legendas e títulos -> PDF do mapa
+            (A4/A3, orientação) sem título/legenda editáveis. Adicionar
+            campos título/legenda ao diálogo (meio dia).
+4.23 [DEV]  Calcular medidas em fotografias frontais (calçada, beiral,
+            placa) -> não temos. Exige escala de referência por foto
+            (régua calibrada) — fotogrametria simplificada. Avaliar
+            viabilidade; é item de 120 dias.
+4.24 [OK]   Dados do imóvel vinculados a fotos do mapeamento móvel sem
+            limite -> panorâmicas ilimitadas (46k em Bom Princípio).
+4.25 [OK]   Ficha do imóvel com imagem aérea e de fachada -> BIC (foto
+            frontal + print do mapa/ortofoto).
+4.26 [PARC] Escolher qual foto vai nos relatórios e GUIAS DE IPTU -> foto
+            frontal é a padrão; falta seletor + API para o sistema
+            tributário buscar a foto (endpoint /api/lotes/{id}/foto).
+4.27 [OK]   Imprimir notificação de irregularidades/divergências após o
+            chaveamento (bairro, individual, geral) -> Notificação de
+            Irregularidade (individual). Em lote: cabe no 4.6.
+(obs.: 24 itens no edital; 4.1-4.27 inclui subitens desmembrados)
+
+================================================================================
+5. FINANÇAS (14 itens)
+================================================================================
+Premissa: TODOS os filtros fiscais dependem do dado vir do sistema tributário
+(JSON dados_tributarios / colunas fiscais). Com o de/para por sistema e o
+mock de simulação, dá para demonstrar com um JSON de exemplo.
+5.1  [PARC] Filtrar no mapa imóveis isentos de IPTU -> Filtro Avançado por
+            campo da unidade (precisa coluna/campo "situacao_iptu" no
+            de/para). Falta tematização pronta "Situação fiscal".
+5.2  [PARC] Filtrar IPTU pago à vista/parcelado -> idem 5.1.
+5.3  [PARC] Filtrar em débito no exercício -> idem.
+5.4  [PARC] Filtrar dívida ativa -> idem.
+5.5  [PARC] Identificar contribuintes de ISS -> idem (campo "iss").
+5.6  [DEV]  Imóveis com fim de estacionamento particular -> campo custom
+            "uso = estacionamento" resolve; marcar DEV só porque exige
+            coleta/dado. Com campo custom + filtro = 2 h.
+5.7  [PARC] Prestadores de serviço autônomos -> campo do tributário + filtro.
+5.8  [PARC] Comerciais com e sem alvará -> campo "alvara" do tributário ou
+            consulta de viabilidade emitida; filtro.
+5.9  [OK]   Chaveamento malha × tributos -> 4.10.
+5.10 [PARC] Busca parametrizável (nome, código, logradouro) -> Busca
+            Unificada (proprietário, inscrição, logradouro, nº); falta
+            configurar campos (2.41).
+5.11 [OK]   Busca rápida por código -> sim.
+5.12 [OK]   Medidas linear/poligonal -> sim.
+5.13 [OK]   Editar itens no mapa -> sim.
+5.14 [OK]   Impressão de itens mapeados/selecionados -> export + PDF.
+5.15 [DEV]  Inserir qualquer nova camada neste módulo -> 2.22.
+>> Entrega sugerida: "Tematizar lotes por campo fiscal" (select com os
+   campos da unidade + legenda) cobre 5.1-5.8 de uma vez (2 dias).
+
+================================================================================
+6. OBRAS / ILUMINAÇÃO PÚBLICA (19 itens)
+================================================================================
+6.1  [DEV]  Camada de obras que interferem no trânsito -> não temos. Opção:
+            camada genérica (2.22) ou entidade "Obra" (polígono/linha,
+            período, interdição). Com 2.22 vira dado.
+6.2  [PARC] Área COM pavimentação em m² por bairro -> Seções de Logradouro
+            têm tipo_pavimentacao + extensão; falta LARGURA (m² = extensão ×
+            largura) e agregação por bairro. Adicionar `largura` à seção +
+            widget/relatório — 1 dia.
+6.3  [PARC] Área SEM pavimentação em m² por bairro -> idem 6.2.
+6.4  [PARC] Relatório impresso de áreas com/sem pavimentação -> idem.
+6.5  [DEV]  Camada de linhas de transmissão -> camada genérica (2.22) ou
+            entidade linha simples.
+6.6  [OK]   Camada de postes de iluminação -> sim.
+6.7  [OK]   Cadastro de poste com identificação numérica e localização ->
+            code + geo + sequential_id.
+6.8  [OK]   Tipo de lâmpada (sódio, vapor, LED) -> luminaire_type.
+6.9  [PARC] Lâmpada queimada -> hoje via Solicitação de Manutenção (cor
+            magenta no mapa). Adicionar campo booleano "lampada_queimada"
+            no poste (1 h) para o item ser literal.
+6.10 [DEV]  Potência do reator -> campo novo (1 h).
+6.11 [DEV]  Possui transformador -> campo novo (1 h).
+6.12 [DEV]  Potência do transformador -> campo novo (1 h).
+6.13 [OK]   Potência da lâmpada -> lamp_power.
+6.14 [DEV]  Período de ligação -> campo novo (1 h).
+6.15 [PARC] Cadastro de postes a partir do mapeamento móvel -> importação
+            GIS (GeoJSON) + 360 para conferência; falta "criar poste a
+            partir da panorâmica" (2.74).
+6.16 [OK]   Filtrar por número do poste -> busca/filtro do Resource.
+6.17 [OK]   Filtrar por tipo de lâmpada -> filtro.
+6.18 [DEV]  Filtrar por potência do reator -> após 6.10.
+6.19 [DEV]  Filtrar se possui transformador -> após 6.11.
+6.20 [DEV]  Filtrar por potência do transformador -> após 6.12.
+>> Entrega sugerida: "Poste v2" (5 campos + filtros + Campos Padrão para
+   rótulo) — 1 dia. Fecha 6.9-6.14 e 6.18-6.20.
+
+================================================================================
+7. MEIO AMBIENTE (17 itens)
+================================================================================
+7.1  [PARC] Camada de áreas de preservação/remanescentes -> Hidrografia
+            rural existe; APP como polígono não. Camada genérica (2.22) ou
+            entidade "Área Ambiental" (tipo: APP, remanescente, área verde).
+7.2  [OK]   Camada de nascentes, córregos, rios -> RuralHidrografia.
+7.3  [PARC] Camada de áreas verdes -> idem 7.1.
+7.4  [OK]   Cadastro de inventário arbóreo -> Árvores.
+7.5  [PARC] Nome popular e científico -> botanical_species + family; falta
+            "nome popular" separado (1 h) — ou campo custom.
+7.6  [DEV]  Data da última poda e da próxima -> campos novos + geram o
+            cronograma (7.14). 2 h.
+7.7  [OK]   Estado visual geral (ótimo/bom/regular/péssimo) ->
+            general_state / phytosanitary_condition.
+7.8  [PARC] Local geral (praça, calçada, via, canteiro) -> address livre;
+            adicionar select "local" (1 h).
+7.9  [DEV]  Pavimento onde está (terra, pedra, grama, cimento, cerâmica)
+            -> campo novo (1 h).
+7.10 [OK]   Afloramento de raiz -> root_system.
+7.11 [OK]   Interferência (fiação, poste, iluminação, sinalização, muro)
+            -> urban_interferences.
+7.12 [PARC] Imagem de cada árvore a partir do mapeamento móvel -> falta
+            foto na árvore (campo + upload) e vínculo à panorâmica (2.74).
+7.13 [OK]   Posição geográfica na camada arbórea -> geo POINT.
+7.14 [OK]   Busca por bairro e espécie -> filtros do Resource + Filtro
+            Avançado espacial.
+7.15 [DEV]  Busca por período de podas -> após 7.6.
+7.16 [OK]   Busca por tipo de interferência -> filtro.
+7.17 [DEV]  Impressão do cronograma de podas -> após 7.6 (relatório por
+            mês/bairro).
+7.18 [OK]   Impressão do inventário arbóreo -> export PDF/XLS/CSV/XML.
+>> Entrega sugerida: "Árvore v2" (poda, pavimento, local, nome popular,
+   foto) + cronograma de podas PDF — 1,5 dia.
+
+================================================================================
+8. SAÚDE (13 itens) — NÃO TEMOS O MÓDULO
+================================================================================
+Temos só o ETL do e-SUS (famílias/pessoas/condições de saúde para o
+Cadastro Social) e POIs "saúde" na mobilidade. Tudo abaixo é desenvolvimento:
+8.1  [DEV]  Camada de áreas e microáreas do PSF -> entidade polígono
+            "AreaSaude" (tipo área/microárea, unidade, agente).
+8.2  [PARC] Camada de instalações de saúde (PSF, postos, hospitais, UPA)
+            -> Patrimônio Público tipo "Saúde" / POI saúde. Falta entidade
+            "UnidadeSaude" própria (CNES, tipo, equipe).
+8.3  [DEV]  Camada de controle de endemias -> pontos de ocorrência.
+8.4  [OK]   Busca de imóveis parametrizável -> Busca/Filtro Avançado.
+8.5  [DEV]  Cadastro/controle/resumo por unidade (pessoas atendidas por
+            unidade e agente) -> UnidadeSaude + Agente + vínculo pessoa
+            (e-SUS traz famílias; dá para ligar).
+8.6  [DEV]  Remanejamento de domicílio alterando PSF/agente -> depende 8.5.
+8.7  [DEV]  Inserir ocorrência endêmica por unidade de saúde.
+8.8  [DEV]  Tipo de ocorrência e tipo de notificação (negativa,
+            individual, surto).
+8.9  [DEV]  Tipo de doença parametrizado -> cadastro "Agravo".
+8.10 [DEV]  Dados do paciente (nascimento, sexo, idade, gestante, raça,
+            escolaridade, cartão SUS) -> Pessoa já tem sexo/nascimento;
+            faltam gestante, raça, escolaridade, CNS.
+8.11 [DEV]  Responsável pela notificação (função, unidade).
+8.12 [DEV]  Buscar ocorrências por doença, unidade, data de notificação,
+            data de sintomas.
+8.13 [DEV]  Impressão de estatística de endemias.
+8.14 [DEV]  Impressão da lista de ocorrências.
+>> Estimativa do módulo: 5-7 dias (3 entidades + 2 cadastros + 2
+   relatórios + camadas no mapa; mesmo molde do módulo Social).
+
+================================================================================
+9. EDUCAÇÃO (10 itens) — NÃO TEMOS O MÓDULO
+================================================================================
+9.1  [DEV]  Cadastro de unidades escolares (nome, endereço, telefone) ->
+            entidade "Escola" (POINT) — Patrimônio tipo escola não basta
+            (precisa turmas).
+9.2  [DEV]  Turmas, tipo de turma, turno e vagas -> entidade "Turma".
+9.3  [DEV]  Viabilidade de matrícula por endereço do aluno.
+9.4  [DEV]  Consulta: endereço + turma + turno → escolas com vaga e
+            distância linear de cada uma -> PostGIS ST_Distance (igual ao
+            KNN do lote mais próximo).
+9.5  [DEV]  Impressão das escolas em viabilidade de matrícula -> PDF.
+9.6  [DEV]  Avaliação do IDEB setorial.
+9.7  [PARC] Camada de rotas de transporte escolar rural -> RuralEstrada +
+            MobEixo (linhas) cobrem o traçado; falta tipo "rota escolar".
+9.8  [DEV]  Camada de transporte escolar urbano -> idem (tipo em MobEixo
+            ou entidade "Rota").
+9.9  [DEV]  Camada de pontos de coleta de alunos -> POI tipo novo.
+9.10 [DEV]  Importar IDEB associando ao imóvel e gerar perfil por bairro,
+            quadra, lote, setor, seleção linear/poligonal/circular ->
+            importação CSV + agregação espacial.
+>> Estimativa do módulo: 4-6 dias (Escola, Turma, Rota, Ponto + viabilidade
+   + IDEB import + 2 PDFs).
+
+================================================================================
+10. TRÂNSITO (5 itens)
+================================================================================
+10.1 [OK]   Camada com sentido de todas as vias -> Vias Urbanas (mão
+            única/dupla, setas, simulador de fluxo).
+10.2 [PARC] Camada de semáforos -> MobSinalizacao (catálogo por tipo);
+            cadastrar tipo "Semáforo" no catálogo — é dado, não código.
+10.3 [OK]   Camada de radares/controladores -> idem catálogo (tipo
+            "Radar"); ou POI. Declarar OK com o tipo cadastrado.
+10.4 [OK]   Camada de câmeras de monitoramento -> MobCamera (com player).
+10.5 [OK]   Mudar sentido das vias de forma sistemática -> caneta de
+            sentido (Classificar Sentidos) + inverter.
+
+================================================================================
+11. CEMITÉRIOS (5 itens)
+================================================================================
+11.1 [PARC] Cadastro do sepultado (cemitério, quadra, lote, rua,
+            identificação, contato da família, localização do túmulo) ->
+            Cemitério → Quadra → Jazigo + Falecidos (nome, pessoa, óbito,
+            sepultamento, certidão) + LogradouroCemiterio. Falta "contato
+            da família" (campos ou Pessoa responsável) — 1 h.
+11.2 [OK]   Busca por túmulo e/ou sepultado -> Jazigo (código) + Falecidos
+            (nome) searchable.
+11.3 [OK]   Busca de túmulos por quadra e lote -> filtros.
+11.4 [OK]   Busca por proprietário -> proprietario_id (Pessoa).
+11.5 [OK]   Camada por cemitério, quadra, lote/jazigo, sepultados -> mapa
+            (cemitérios, quadras, jazigos) + ficha com falecidos.
+
+================================================================================
+12. SERVIÇOS URBANOS (10 itens)
+================================================================================
+12.1 [PARC] Camada de rota de coleta de lixo -> MobEixo (linha) com tipo
+            novo "coleta de lixo" ou camada genérica (2.22). 1 h de tipo.
+12.2 [PARC] Camada de rotas de transporte público -> idem (tipo "transporte
+            público").
+12.3 [PARC] Camada de pontos de ônibus -> POI tipo novo (1 h).
+12.4 [DEV]  Cadastro + manutenção + cronograma de serviços gerais
+            (parametrizado por serviço) -> novo: "Serviço Urbano" (tipo,
+            periodicidade, área/rota, equipe) + agenda. Reaproveitar
+            Solicitações/OS da manutenção. 2-3 dias.
+12.5 [PARC] Filtrar imóveis SEM muro e/ou calçada integrado com geração de
+            notificação -> campos custom "possui_muro"/"possui_calcada" +
+            Filtro Avançado por custom + Notificação de Irregularidade.
+            Falta gerar notificação EM LOTE a partir do filtro (= 4.6).
+12.6 [PARC] Criar notificação de serviços urbanos com base em dados
+            mapeados -> 4.6 (modelo de comunicado).
+12.7 [OK]   Imprimir notificação com base em dados mapeados ->
+            Notificação de Irregularidade PDF.
+12.8 [DEV]  Controle de ocorrências de serviços urbanos cadastrados ->
+            Chamados (app do cidadão) + Solicitações de Manutenção cobrem
+            o conceito; falta ligar à entidade "Serviço Urbano" (12.4).
+12.9 [DEV]  Imprimir cronograma por serviço -> após 12.4.
+12.10[DEV]  Tipos de ocorrência + previsão de atendimento + endereço ->
+            Categorias de Chamado + Fases com duração já fazem isso para o
+            app; declarar PARC se demonstrarmos com Chamados.
+12.11[PARC] Gerenciar fechamento de serviços -> OS/Chamado tem
+            encerramento; falta no "Serviço Urbano".
+
+================================================================================
+13. AÇÃO SOCIAL (5 itens)
+================================================================================
+13.1 [OK]   Camada de rendas por imóvel, com importação e edição -> Cadastro
+            Social (família ↔ unidade imobiliária), Rendas por pessoa,
+            Painel Social no mapa, ETL e-SUS. Falta só colorir por faixa de
+            renda no mapa principal (1 h) — hoje é no Painel Social.
+13.2 [OK]   Camada de atendimentos a programas sociais -> Programa +
+            Serviço Social + vínculo família; Painel Social.
+13.3 [PARC] Pontos de venda de bebidas próximos a escolas -> POI/camada
+            genérica + buffer do Filtro Avançado (raio da escola). Dado.
+13.4 [PARC] Pontos de uso de drogas junto a escolas -> idem 13.3
+            (Ocorrência Social já existe como registro; falta ponto no mapa).
+13.5 [OK]   Perímetros de invasões/regularização fundiária -> Áreas REURB
+            (camada + processo REURB no BPMN).
+
+================================================================================
+14. PGV (6 itens)
+================================================================================
+14.1 [OK]   Gestão da PGV, criação/reestruturação de zonas fiscais, export
+            dos lotes por zona, apoio ao IPTU em camadas -> Setores Fiscais
+            + Parâmetros PGV + Faces de Quadra + Simulação IPTU + exports.
+14.2 [PARC] Idem para ITBI -> motor é o mesmo (valor venal); falta rotular/
+            parametrizar alíquota de ITBI na simulação (2 h).
+14.3 [OK]   Manutenção com seleção por linha, círculo, item, retângulo ->
+            Filtro Avançado (polígono, retângulo, buffer circular) + clique.
+14.4 [OK]   Fixar valores de referência (R$/m² predial e territorial) por
+            zona fiscal vinculados ao gráfico -> PgvParametro por setor +
+            faces coloridas.
+14.5 [OK]   Quantidade de imóveis (predial/territorial) por zona fiscal ->
+            estatísticas + dashboard; conferir se separa predial/territorial
+            (ocupação) — se não, 1 h.
+14.6 [OK]   Projeções da PGV fixando valores unitários por zona -> motor de
+            regressão + simulação IPTU com limitador.
+
+================================================================================
+15. USO DO SOLO — PLANEJAMENTO (26 itens)
+================================================================================
+15.1  [OK]   Parametrizar regras de zoneamento -> ZoneamentoRegra.
+15.2  [PARC] Definir campos do zoneamento (ex.: possui asfalto) -> Campos
+             Customizados em Zona. OK se demonstrarmos criando o campo.
+15.3-15.18 (16 itens) [PARC] Configurar por zona se pode ou não: habitação
+             unifamiliar, multifamiliar horizontal, vertical, comércio
+             varejista local, diversificado, especial/atacadista pequeno,
+             médio, grande porte, serviços locais, diversificados,
+             especiais, indústria pequeno, médio, grande porte, agentes
+             poluidores, poluição sonora
+             -> ZoneamentoRegra faz exatamente isso (zona × classificação ×
+             status), mas as CLASSIFICAÇÕES são texto livre. Entrega: seed
+             com essas 16 classificações padrão + tela em GRADE (zona nas
+             linhas, classificação nas colunas, célula = permitido /
+             permissível / proibido / condicionado). 1 dia. Vira 16 OK.
+15.19 [OK]   Inserir CNAEs permitidos na zona -> CNAE com classificações ×
+             regras da zona.
+15.20 [PARC] Parametrizar índices (testada e valor permitido) ->
+             ParametroUrbano (área/testada mín-máx). Falta coeficiente de
+             aproveitamento, taxa de ocupação, recuos, gabarito — campos na
+             mesma tabela (2 h) + usar na avaliação (15.25).
+15.21 [OK]   Vincular um SHAPE a uma zona -> Zonas são polígonos
+             importados (GeoJSON) / desenhados.
+15.22 [OK]   Verificar viabilidade selecionando o endereço -> consulta de
+             viabilidade pelo lote no mapa (interno e público).
+15.23 [PARC] Nome do requerente -> ViabilidadeEmissao tem protocolo; falta
+             campo requerente no formulário (meio dia).
+15.24 [OK]   Informar o CNAE desejado -> sim.
+15.25 [DEV]  Informar os REQUISITOS do endereço (área construída pretendida,
+             nº de pavimentos, recuo...) -> hoje só CNAE × zona. Fazer
+             formulário de requisitos.
+15.26 [DEV]  Avaliar automaticamente requisitos × parâmetros da zona
+             (permitido ou não) -> motor: comparar requisitos (15.25) com
+             ParametroUrbano estendido (15.20). 1-2 dias.
+15.27 [OK]   Exportar zonas fiscais por zona associando tabelas e campos
+             -> export de Zonas/Setores + lotes por zona (XLS/CSV/XML/SHP).
+
+================================================================================
+16. SIG WEB — MAPA PÚBLICO (28 itens)
+================================================================================
+--- Ferramentas -----------------------------------------------------------------
+16.1  [OK]   Mover/Info padrão (arrastar + clique na feição) -> sim.
+16.2  [DEV]  Zoom Retângulo -> ol.interaction.DragZoom (Shift+arrastar já
+             funciona no OpenLayers por padrão!) — expor botão. 1 h.
+16.3  [DEV]  Centralizar (voltar ao centro/zoom inicial) -> intranet tem
+             "Visão Geral"; portar para o público. 30 min.
+16.4  [OK]   Zoom + / − dedicados + roda do mouse -> sim.
+16.5  [OK]   Medir comprimento em tempo real -> régua.
+16.6  [OK]   Medir área/perímetro -> régua de área.
+16.7  [DEV]  Selecionar por retângulo -> portar Filtro Avançado espacial
+             simplificado (seleção + lista) para o público. 1 dia para
+             16.7-16.11 juntos.
+16.8  [DEV]  Selecionar por círculo -> idem (buffer já existe na intranet).
+16.9  [DEV]  Selecionar por polígono -> idem.
+16.10 [DEV]  Seleção mão livre -> idem (ol Draw freehand).
+16.11 [DEV]  Limpar seleção/medição em um clique -> botão.
+16.12 [PARC] Atalho para painel de Informações do sistema -> Portal do
+             município tem; no mapa público falta botão "Sobre" (1 h).
+16.13 [DEV]  Atalho para Ajuda contextual -> painel Ajuda (texto por
+             módulo). 2 h.
+--- Pesquisa ----------------------------------------------------------------------
+16.14 [PARC] Aba Pesquisar por bairro, rua, lote ou campo indexado + filtro
+             dinâmico por camada -> busca com autocomplete existe; falta o
+             filtro por camada e cobrir todas as camadas ligadas.
+16.15 [PARC] Aba Camadas com checkbox, cor e CONTROLE DE OPACIDADE por
+             camada -> checkbox + cor sim; opacidade não (slider +
+             layer.setOpacity — 2 h).
+16.16 [DEV]  Aba Listar com tabela paginada (50/pág) das feições da camada
+             -> não temos no público. Lista + paginação via /cidadao/
+             endpoint. 1 dia.
+16.17 [DEV]  Detecção automática de título/subtítulo por campos comuns ->
+             junto com 16.16.
+16.18 [DEV]  Clique no item da lista centraliza e abre info -> junto 16.16.
+--- Menu ferramentas ------------------------------------------------------------
+16.19 [PARC] Item Informações (sistema e instalação) -> 16.12.
+16.20 [PARC] Mapa Base com 12 opções, salvo para o usuário -> temos OSM,
+             Esri + ortofotos (3-4 opções). Adicionar mais fontes gratuitas
+             (OSM Humanitário, CartoDB claro/escuro, Esri ruas/topo/cinza,
+             OpenTopoMap, Stamen) + salvar em localStorage. Meio dia. OBS:
+             na PoC sem internet só a ortofoto local funciona — levar
+             tiles OSM da região em cache (MBTiles/pasta XYZ).
+16.21 [PARC] Imprimir com papel A4/A3/A1/A0, DPI 100/200/300, escala
+             automática/fixa (1:1.000–1:25.000), orientação, título ->
+             temos A4/A3 + orientação a 150 DPI. Falta A1/A0, DPI, escala
+             fixa e título. 1 dia (jsPDF já está lá).
+16.22 [DEV]  Compartilhar: link direto ou iframe da visão atual (autenticado)
+             -> URL com ?t=slug existe; falta centro/zoom/camadas na URL +
+             botão copiar link/iframe. 2 h.
+16.23 [DEV]  Ajuda com conteúdo por módulo habilitado -> 16.13 (gatear por
+             Modulos::ativos).
+--- Barra de status -------------------------------------------------------------
+16.24 [DEV]  Lat/Lon do cursor em tempo real -> intranet tem; portar (30
+             min).
+16.25 [DEV]  Conversão para UTM -> idem (proj4 já no engine interno).
+16.26 [DEV]  Indicador do zoom atual -> 15 min.
+16.27 [DEV]  Indicador da projeção (SIRGAS 2000) -> junto.
+16.28 [OK→]  Escala gráfica dinâmica -> adicionar ol.control.ScaleLine (15
+             min) nos dois mapas. Marcado DEV na contagem.
+>> Entrega sugerida "Mapa Público v2": barra de status + zoom retângulo +
+   centralizar + opacidade + seleção espacial + Listar + imprimir completo +
+   compartilhar + ajuda — 3-4 dias. Leva o módulo de 36% para ~96%.
+
+================================================================================
+17. SIG WEB — ADMINISTRATIVO (35 itens)
+================================================================================
+--- Edição de feições ----------------------------------------------------------
+17.1  [OK]   Desenhar nova feição (ponto/linha/polígono conforme a camada)
+             pelo navegador -> Criar Artefatos.
+17.2  [OK]   Editar geometria arrastando vértices + confirmação antes de
+             salvar -> edição avançada + Salvar/Cancelar.
+17.3  [OK]   Seletor de mapa base próprio na edição (mesmas opções do
+             público) -> dropdown Mapas Base (ver 16.20 para "12 opções").
+17.4  [PARC] Vincular feição a um ou mais Mapas/Projetos -> não existe
+             "Projeto". Depende de 17.12/17.13.
+17.5  [OK]   Atributos por formulário próprio com campos personalizáveis
+             por camada -> Campos Customizados (13 camadas + mob).
+--- Camadas --------------------------------------------------------------------
+17.6  [DEV]  Cadastro de camada com nome, mapa, tipo, cor e opacidade ->
+             2.22 (camada genérica).
+17.7  [DEV]  Ordem de empilhamento (subir/descer) -> zIndex fixo por
+             camada; fazer ordenação no painel (sortable → setZIndex). 2 h
+             (independe de 2.22).
+17.8  [DEV]  Upload GeoJSON/JSON/ZIP Shapefile -> 2.22 (+3.2).
+17.9  [PARC] Rótulo permanente por camada escolhendo o campo -> existe
+             para lotes/quadras (seletor de campo); generalizar.
+17.10 [PARC] Zoom mínimo configurável para rótulo -> minZoom fixo por
+             camada no engine; expor por camada (1 h).
+17.11 [OK]   Ativar/desativar camada sem excluir dados -> módulos por
+             prefeitura + ortofoto/WMS `ativo`.
+--- Mapas -------------------------------------------------------------------------
+17.12 [DEV]  Cadastro de Mapa (nome, descrição, categoria com cor) ->
+             conceito "Projeto/Mapa" = conjunto de camadas + enquadramento.
+             Entidade simples (1 dia) — casa com 2.31 (ambiente).
+17.13 [DEV]  Centro e zoom inicial por Mapa -> junto 17.12 (hoje é por
+             prefeitura).
+--- Usuários ------------------------------------------------------------------
+17.14 [OK]   Cadastro de usuário (nome, login, e-mail, senha, grupo) -> sim.
+17.15 [PARC] Ativar/desativar sem excluir -> soft delete; adicionar flag
+             `ativo` + bloqueio no login (1 h) para ficar literal.
+17.16 [OK]   Reset de senha pelo administrador -> editar senha no
+             UserResource + reset por e-mail.
+17.17 [PARC] Listagem com nome, login, e-mail, grupo, status e DATA DO
+             ÚLTIMO ACESSO -> falta `last_login_at` (listener de login —
+             30 min).
+--- Grupos --------------------------------------------------------------------
+17.18 [OK]   Cadastro de grupo (nome, descrição) -> Papéis.
+17.19 [PARC] Permissões por grupo: editar dados, editar polígonos, upload
+             de fotos, upload de camadas, compartilhar, imprimir, exportar,
+             gerenciar usuários -> temos a maioria (CRUD, camadas, toolbar,
+             usuários). Faltam permissões explícitas "imprimir",
+             "exportar", "compartilhar", "upload de camadas" (meia hora
+             cada, no PermissionsSeeder + gate nos botões).
+17.20 [PARC] Acesso ao app de campo por módulo (Fiscalização / Pesquisa),
+             acumulando com escritório -> app de coletas usa o mesmo
+             usuário; falta flag por módulo de app (ver 20).
+17.21 [OK]   Permissão por módulo contratado -> Módulos × Permissões
+             (catálogo config/modulos.php).
+17.22 [OK]   Permissão específica de edição dentro do módulo -> CRUD por
+             entidade.
+--- Configurações ---------------------------------------------------------------
+17.23 [DEV]  Templates prontos (paletas de cor em um clique) -> hoje só
+             cor da marca. Fazer 5-6 paletas pré-definidas (2 h).
+17.24 [PARC] Identidade visual: cor primária, acento, fundo, painel,
+             barra, texto, bordas, fonte, formato de painéis, densidade
+             -> só cor primária + logo. Expor mais variáveis CSS (meio
+             dia; Filament já é baseado em CSS vars).
+17.25 [OK]   Faixa da prefeitura (nome no topo, cor da faixa e do texto)
+             -> brand + cor por tenant; cor do texto 15 min.
+17.26 [DEV]  Dados da desenvolvedora da instalação -> ApiSetting "Sobre"
+             ou tela fixa (1 h).
+17.27 [PARC] Mapa base padrão: lat/lon/zoom, zoom mín/máx, URL de tiles,
+             projeção -> lat/lon/zoom + ortofotos sim; zoom mín/máx (2.7)
+             e EPSG (2.11) faltam.
+17.28 [PARC] Gerais e segurança: município, UF, e-mail, telefone,
+             secretaria, expiração de sessão, máx. tentativas de login,
+             modo manutenção -> dados do município sim; sessão é global
+             (SESSION_LIFETIME 120), tentativas = throttle fixo do
+             Filament, manutenção = artisan down. Expor os 3 por tenant/
+             global no /admin (1 dia).
+17.29 [OK]   Tela de Logs com eventos relevantes -> Auditoria (+ logs de
+             push/e-mail no laravel.log — expor seria 2 h).
+--- Notificações ----------------------------------------------------------------
+17.30 [PARC] Templates de notificação por tipo de evento -> e-mails de
+             processo são blades fixas; template do requerimento é
+             editável. Fazer templates editáveis dos 4 e-mails (meio dia).
+17.31 [DEV]  Fila de envio com histórico (data, evento, canal,
+             destinatário, status, tentativas, erro) -> envio é síncrono e
+             best-effort, só Log. Criar tabela notificacoes_envios +
+             Resource (1 dia).
+17.32 [PARC] SMTP próprio configurável (servidor, porta, segurança,
+             usuário, senha, remetente) -> hoje Resend global via
+             ApiSetting. Adicionar mailer SMTP por prefeitura (campos no
+             tenant.data + mailer dinâmico) — meio dia. IMPORTANTE para a
+             PoC offline: SMTP local (Mailpit) prova o envio sem internet.
+--- Auditoria e segurança -------------------------------------------------------
+17.33 [PARC] Auditoria com usuário, tabela, ação, antes/depois lado a
+             lado, IP e data/hora -> tudo menos IP. Gravar IP no
+             `properties` do activitylog (tap no LogsActivity — 1 h).
+17.34 [OK]   Consulta com filtros por usuário, tabela, ação e datas -> sim.
+17.35 [PARC] Sessão com expiração configurável e bloqueio por inatividade
+             -> 17.28.
+17.36 [PARC] Limite configurável de tentativas de login -> 17.28.
+
+================================================================================
+18. MÓDULO WEB — USO DO SOLO (portal do cidadão + administração) (20 itens)
+================================================================================
+--- Portal do cidadão -----------------------------------------------------------
+18.1  [OK]   Conta externa do cidadão por CPF/CNPJ, login/senha separados
+             -> painel /cidadao (RegisterCidadao com CPF ou CNPJ).
+18.2  [OK]   Iniciar consulta pelo mapa público clicando no imóvel (zona e
+             lote pré-preenchidos) -> ficha pública do lote → consultar
+             viabilidade.
+18.3  [PARC] Início manual com busca de CNAE por texto + autocomplete ->
+             select de CNAE existe; conferir se é searchable por descrição
+             (se não, 30 min).
+18.4  [DEV]  Selecionar localização em mapa embutido no formulário (sem vir
+             do mapa) -> mini-mapa no form do cidadão para clicar no lote.
+             Meio dia (temos o ViewField de mapa das regiões de coleta
+             como molde).
+18.5  [PARC] Resultado imediato: Permitido, Proibido, Condicionado ou
+             Encaminhado para análise manual (sem regra) -> hoje
+             permitido/permissível/proibido e sem regra = proibido. Mudar:
+             "permissível" → "Condicionado", sem regra → "Análise manual"
+             (abre Processo Digital de fluxo semente). 2 h.
+18.6  [DEV]  Exibir condicionantes e base legal quando Condicionado ->
+             campos novos em ZoneamentoRegra (condicionantes, base_legal,
+             observacoes) + exibir no resultado/PDF. 2 h.
+18.7  [DEV]  Prazo de validade do documento com data de expiração ->
+             campo `validade_dias` na config + `expira_em` na emissão. 1 h.
+18.8  [OK]   Protocolo único por consulta -> ViabilidadeEmissao::gerarProtocolo.
+18.9  [OK]   Download em PDF -> ViabilidadePdfService.
+18.10 [PARC] QR Code de validação no PDF apontando para a página pública
+             -> página /v/{protocolo} existe; falta o QR (pacote
+             simplesoftwareio/simple-qrcode ou SVG inline — 1 h).
+18.11 [OK]   Página pública de verificação por protocolo digitado ou QR ->
+             /v/{protocolo} (adicionar input de busca na página — 30 min).
+18.12 [OK]   Novas consultas sem limite -> sim.
+--- Administração de zonas e atividades ---------------------------------------
+18.13 [OK]   Zonas com código, nome, cor e descrição -> Zona (codigo,
+             sigla, name, rgb); descrição via campo custom ou coluna (15
+             min).
+18.14 [OK]   Vínculo espacial das zonas (ponto-em-polígono) -> lote.zona_id
+             + PostGIS ST_Intersects (melhor que "sem recurso espacial").
+18.15 [PARC] CNAE com código, descrição e CATEGORIA -> Cnae (codigo,
+             descricao, classificacoes). "Categoria" = classificações.
+18.16 [DEV]  Importar CNAEs em lote por CSV com modelo para download ->
+             import CSV + botão "baixar modelo" (2 h). Levar a tabela CNAE
+             completa do IBGE já carregada.
+--- Regras -----------------------------------------------------------------------
+18.17 [OK]   Regras cruzando CNAE × zona × resultado -> ZoneamentoRegra via
+             classificação (CNAE → classificações → regra).
+18.18 [DEV]  Condicionantes, base legal e observações por regra (obrigatório
+             quando Condicionado) -> 18.6.
+--- Consultas emitidas e indicadores --------------------------------------------
+18.19 [PARC] Listagem administrativa (protocolo, requerente, CNAE, zona,
+             resultado, data, validade) -> ViabilidadeEmissaoResource
+             (view-only). Faltam requerente (15.23) e validade (18.7).
+18.20 [DEV]  Painel resumo do módulo (total, mês a mês, por resultado) ->
+             widgets Filament (meio dia).
+18.21 [DEV]  Mapa de calor das consultas por localização -> ol.layer.Heatmap
+             já usado em Processos/Coleta; camada `viabilidades` (2 h).
+>> Entrega sugerida "Uso do Solo v2": condicionado/análise manual +
+   condicionantes/base legal + validade + QR + requerente + import CNAE +
+   painel + heatmap + mini-mapa — 3 dias. Leva 18 e 15 para ~100%.
+
+================================================================================
+19. MÓDULO WEB — GED (14 itens) — NÃO TEMOS NO SIGWEB
+================================================================================
+O SIGWEB tem Documentos de Pessoa e Anexos de Processo (upload, versão,
+checklist), mas não um GED. Existe o projeto GEDFlow fora do SIGWEB
+(aplicativos-sistemas/gedflow) — pela regra 1.8.2 só vale se for
+desenvolvimento próprio e integrado ao conjunto de módulos.
+19.1  [DEV]  Pastas em árvore com breadcrumb.
+19.2  [DEV]  Upload múltiplo em um envio -> Filament FileUpload multiple
+             (temos no processo PD-6).
+19.3  [DEV]  Descrição e tags em lote por envio.
+19.4  [DEV]  Busca avançada por termo incluindo conteúdo OCR.
+19.5  [DEV]  Filtros por pasta, tag, tipo, datas, ordenação.
+19.6  [DEV]  OCR automático em PDF -> Tesseract/ocrmypdf no servidor
+             (dependência de infra na PoC offline: instalar no notebook).
+19.7  [DEV]  Fila de OCR com status por documento -> jobs + worker.
+19.8  [DEV]  Visualizador embutido (PDF nativo + ícones por tipo).
+19.9  [DEV]  Download individual.
+19.10 [DEV]  Compartilhar por link com token e expiração -> molde: URLs
+             assinadas do Laravel.
+19.11 [DEV]  Revogar link.
+19.12 [DEV]  Lixeira com restauração -> SoftDeletes.
+19.13 [DEV]  Expurgo automático por prazo configurável (agendado) ->
+             scheduler.
+19.14 [PARC] Vínculo de documentos com registros de outros módulos ->
+             já temos documentos em Pessoa, Lote (fotos), Processo; o GED
+             generalizaria com relação polimórfica.
+>> Estimativa do módulo: 5-7 dias (entidades Pasta/Documento/Tag/Link +
+   OCR via job + viewer + lixeira/expurgo). Módulo novo `ged`.
+
+================================================================================
+20. APLICATIVO MÓVEL — FISCALIZAÇÃO DE CAMPO + ADMINISTRATIVO (24 itens)
+================================================================================
+Temos o app de COLETAS (React Native, offline, fila, sync, fotos, GPS) —
+ótimo molde, mas o edital pede PWA de VISTORIA com checklist. Decisão a
+tomar: (a) novo módulo no app RN atual (mesma base offline, SQLite, sync),
+ou (b) PWA web (Laravel + service worker). O edital diz "instalável do
+navegador (PWA)" — item 20.1 só fecha literalmente com PWA; os demais
+fecham com qualquer um dos dois.
+--- App ---------------------------------------------------------------------------
+20.1  [DEV]  PWA instalável do navegador, sem loja.
+20.2  [PARC] Selecionar lote no mapa antes da vistoria, herdando dados ->
+             o app de coletas faz isso (bottom sheet do lote).
+20.3  [DEV]  Vistoria avulsa sem lote.
+20.4  [PARC] GPS automático no registro -> app de coletas envia posição;
+             falta gravar na vistoria.
+20.5  [PARC] Foto pela câmera (frontal/traseira) ou galeria -> app faz.
+20.6  [DEV]  Checklist configurável com 3 estados (pendente/conforme/não
+             conforme) -> construtor no web (molde: boletim de coleta /
+             Builder do boletim de chamados) + render no app.
+20.7  [DEV]  Tipo de vistoria: obra irregular, habite-se, denúncia,
+             rotina, embargo, notificação -> domínio.
+20.8  [DEV]  Situação: regular, irregular, embargo, pendência -> domínio.
+20.9  [DEV]  Vínculo opcional a protocolo de Alvará -> FK para
+             ViabilidadeEmissao/ProcessoDigital.
+20.10 [DEV]  Vínculo opcional a processo de licenciamento ambiental (nº
+             digitado).
+20.11 [DEV]  Observações livres por vistoria.
+20.12 [PARC] 100% offline -> app de coletas é offline-first (SQLite).
+20.13 [PARC] Fila local com contador visível -> app tem (fichas pendentes).
+20.14 [PARC] Sincronização seletiva com revisão e confirmação, nunca
+             automática -> app tem tela Sync manual; falta "selecionar
+             quais".
+20.15 [PARC] Editar vistoria não sincronizada -> app permite reabrir ficha.
+20.16 [DEV]  Excluir vistoria não sincronizada.
+20.17 [DEV]  Aviso discreto ao reconectar sem envio automático.
+--- Administrativo ------------------------------------------------------------
+20.18 [DEV]  Painel de vistorias filtrável (situação, tipo, protocolo,
+             observação) -> Resource Filament.
+20.19 [DEV]  Indicadores (total, no mês, por situação) -> widgets.
+20.20 [DEV]  Foto ampliada -> modal.
+20.21 [DEV]  Laudo de vistoria PDF com cabeçalho institucional -> molde:
+             ChamadoPdfService / BIC.
+20.22 [DEV]  Impressão direta do laudo.
+20.23 [DEV]  Vínculo exibido com alvará e licença ambiental com link.
+20.24 [DEV]  Exclusão pelo admin removendo foto e registrando auditoria.
+20.25 [DEV]  Atalho no painel admin para abrir o app de campo -> link.
+>> Estimativa: backend + web 3-4 dias (Vistoria, Checklist, Resource,
+   PDF, API); app 4-6 dias (RN reaproveitando coletas) ou 6-8 dias (PWA
+   do zero). Módulo novo `fiscalizacao`.
+
+================================================================================
+PLANO DE ATAQUE SUGERIDO (ordem por retorno × esforço)
+================================================================================
+A. TRANSVERSAIS (destravam vários módulos)
+   A1. Camada genérica (cadastro de camada + upload GeoJSON/SHP + campos +
+       cor/opacidade/ordem/rótulo/zoom mínimo + checkbox automático nos 2
+       mapas) ............................................... 4-5 dias
+       Fecha: 2.22-2.30, 4.21, 5.15, 6.1, 6.5, 7.1, 7.3, 12.1-12.3,
+       17.6-17.8 (~18 itens).
+   A2. Mapa Público v2 (barra de status, zoom retângulo, centralizar,
+       opacidade, seleção espacial, Listar, imprimir completo,
+       compartilhar, ajuda, mais basemaps) ................... 3-4 dias
+       Fecha ~17 itens do módulo 16.
+   A3. Uso do Solo v2 (condicionado/análise manual, condicionantes/base
+       legal, validade, QR, requerente, requisitos × parâmetros, grade de
+       classificações, import CNAE, painel, heatmap, mini-mapa) 3-4 dias
+       Fecha ~24 itens dos módulos 15 e 18.
+   A4. Administrativo (ativo/último acesso/IP/permissões imprimir-exportar
+       -compartilhar/SMTP por prefeitura/fila de notificações/templates/
+       sessão-tentativas-manutenção/paletas/dados da desenvolvedora/
+       Projeto-Mapa/ordem de camadas) ........................ 3-4 dias
+       Fecha ~15 itens dos módulos 2 e 17.
+   A5. Comunicados em lote + relatório de divergências + exportar seleção
+       do Filtro Avançado + salvar consulta + restaurar versão da
+       auditoria + duplicar/círculo/separar ................... 3 dias
+       Fecha ~12 itens dos módulos 3, 4, 5, 12.
+
+B. MÓDULOS NOVOS (sem eles o módulo é recusado — não há como chegar a 95%)
+   B1. Saúde (áreas/microáreas PSF, unidades, agentes, endemias,
+       relatórios) ........................................... 5-7 dias
+   B2. Educação (escolas, turmas, rotas, pontos, viabilidade de matrícula,
+       IDEB) .................................................. 4-6 dias
+   B3. GED (pastas, documentos, tags, OCR, links, lixeira) ...... 5-7 dias
+   B4. Fiscalização de Campo (web + app) ....................... 8-12 dias
+   B5. Serviços Urbanos (serviço, cronograma, ocorrências, fechamento) 2-3 dias
+
+C. AJUSTES PEQUENOS POR MÓDULO (cada um < 1,5 dia)
+   C1. Poste v2 (reator, transformador, período, queimada + filtros)
+   C2. Árvore v2 (podas, pavimento, local, nome popular, foto, cronograma)
+   C3. Pavimentação m² por bairro (largura na seção + relatório)
+   C4. Tematizar lotes por campo fiscal/custom (Finanças + CTM por tipo)
+   C5. Cemitério: contato da família
+   C6. PGV: alíquota ITBI + predial/territorial por setor
+   C7. Trânsito: tipos semáforo/radar no catálogo (só dado)
+   C8. Máscara da inscrição + recodificação (T2.5)
+
+D. PREPARAÇÃO DA DEMO (regras 1.9 a 1.11)
+   Cenário principal — VPS via hotspot próprio (permitido pelo 1.10):
+   - Tenant de Ribeirão Vermelho criado na VPS com base de demonstração
+     (pedir a malha à prefeitura; se não vier, usar base de outra cidade
+     deixando claro).
+   - Mock tributário (simulação) carregado para Finanças/chaveamento.
+   - Dois celulares de operadoras diferentes como hotspot; medir o sinal
+     na Secretaria de Administração e Fazenda antes do dia.
+   - Celular com o app instalado e base sincronizada ANTES (exigência
+     literal do 1.9 para mobile).
+   - Roteiro ensaiado com tempo: o 1.11 não aceita "processamento
+     demorado" — evitar camadas pesadas e exports grandes ao vivo.
+   Seguro contra o 1.11 — notebook com o SIGWEB completo:
+   - Laragon/Docker + PostGIS + mesma base do tenant.
+   - Tiles da ortofoto e do OSM da região em disco local (XYZ) cadastrados
+     como ortofoto do tenant.
+   - Mailpit local como SMTP (depois de A4) para provar e-mail.
+   - Bibliotecas de CDN (hls.js, Chart.js, jsPDF) copiadas para
+     /public/vendor para a página não quebrar sem internet.
+
+ESFORÇO TOTAL ESTIMADO: A (16-20 dias) + B (24-35 dias) + C (6-8 dias)
+≈ 46-63 dias de desenvolvimento para 100%. Só com A + C o SIGWEB passa de
+95% em 14 dos 20 módulos (Ambiente de Configuração fica perto, ~85-90%,
+por causa de scripts/sensores/relatórios configuráveis); Saúde, Educação,
+GED, Fiscalização e Serviços Urbanos dependem de B.
+
+Lembrete do CLAUDE.md: antes de implementar qualquer item desta lista,
+registrar a pendência em docs/pendenciasTangara.md (ou abrir um backlog
+próprio docs/pendenciasRibeiraoVermelho.md, já que a PoC é outra).

@@ -126,7 +126,38 @@
       "Bash(grep -oiE \".{20}\\(altimetr|perfil\\)[^;]{0,40}\" resources/views/filament/pages/mapa-fullscreen.blade.php)",
       "Bash(grep -oiE \".{10}\\(street\\)[^;]{0,40}\" resources/views/filament/pages/mapa-fullscreen.blade.php)",
       "Bash(grep -rilE \"anota.{0,3}\\(pdf|documento\\)|pdf.?annot|anexo.?anota\" app/)",
-      "Bash(php -l app/Notifications/ProcessoDigitalNotification.php)"
+      "Bash(php -l app/Notifications/ProcessoDigitalNotification.php)",
+      "Read(//d/Sistemas e Plataformas/WebGis/Pocs//**)",
+      "Bash(python -c \"print\\('py ok'\\)\")",
+      "Bash(php -r 'echo \"php ok\\\\n\";')",
+      "Bash(pdftotext -layout '/d/Sistemas e Plataformas/WebGis/Pocs/Ribeirão Vermelho - MG.pdf' C:/Users/jesse/AppData/Local/Temp/claude/c--laragon-www-saas-sigweb/db2d3503-7e45-41c9-a5f4-19afbb4a7191/scratchpad/poc-ribeirao-vermelho.txt)",
+      "Bash(pdfinfo \"/d/Sistemas e Plataformas/WebGis/Pocs/Ribeirão Vermelho - MG.pdf\")",
+      "Bash(php \"C:/Users/jesse/AppData/Local/Temp/claude/c--laragon-www-saas-sigweb/db2d3503-7e45-41c9-a5f4-19afbb4a7191/scratchpad/contar_poc.php\")",
+      "PowerShell(Copy-Item -LiteralPath \"C:\\\\laragon\\\\www\\\\saas-sigweb\\\\docs\\\\PocRibeiraoVermelho_analise.txt\" -Destination \"D:\\\\Sistemas e Plataformas\\\\WebGis\\\\Pocs\\\\Ribeirão Vermelho - MG - analise SIGWEB.txt\" -Force; \\(Get-Item -LiteralPath \"D:\\\\Sistemas e Plataformas\\\\WebGis\\\\Pocs\\\\Ribeirão Vermelho - MG - analise SIGWEB.txt\"\\).Length)",
+      "WebFetch(domain:licitacao.docbox.com.br)",
+      "WebFetch(domain:www.licitaja.com.br)",
+      "WebFetch(domain:pncp.gov.br)",
+      "Bash(curl -sL -o edital_053_2026_ribeirao_vermelho.pdf \"https://pncp.gov.br/pncp-api/v1/orgaos/18244087000108/compras/2026/15/arquivos/1\")",
+      "Bash(pdfinfo edital_053_2026_ribeirao_vermelho.pdf)",
+      "Bash(pdftotext -layout edital_053_2026_ribeirao_vermelho.pdf edital_053_2026.txt)",
+      "Bash(grep -n -i -m 10 \"bll\\\\|bnc\\\\|licitanet\\\\|portal de compras\\\\|compras.gov\\\\|valor estimado\\\\|valor total\\\\|R\\\\$ \" edital_053_2026.txt)",
+      "Bash(curl -sL \"https://pncp.gov.br/pncp-api/v1/orgaos/18244087000108/compras/2026/15\")",
+      "Bash(curl -s -m 20 \"https://pncp.gov.br/api/consulta/v1/orgaos/18244087000108/compras/2026/15\")",
+      "Bash(curl -s -m 15 \"https://pncp.gov.br:61403/api/consulta/v1/orgaos/18244087000108/compras/2026/15\")",
+      "WebFetch(domain:www.ribeiraovermelho.mg.gov.br)",
+      "WebFetch(domain:bllcompras.com)",
+      "Read(//d/Sistemas e Plataformas/WebGis/Implantações/Cajazeiras/**)",
+      "Bash(php -r '$j=json_decode\\(file_get_contents\\(\"storage/app/mocks/prefeitura-de-santa-cecilia.json\"\\),true\\); echo \"santa cecilia mock: \", is_array\\($j\\)?count\\($j\\):\"?\", \" itens; raiz=\", isset\\($j[0]\\)?\"array\":\"objeto\", \"; chaves do 1o: \", implode\\(\", \", array_keys\\($j[0] ?? []\\)\\), \"\\\\n\";')",
+      "Bash(php -r 'echo \"memory_limit cli local: \", ini_get\\(\"memory_limit\"\\), \"\\\\n\";')",
+      "Bash(php -d memory_limit=2G -r ' *)",
+      "Bash(php -l app/Services/Fiscal/ProprietarioService.php)",
+      "Bash(php -l app/Console/Commands/SincronizarTudoApi.php)",
+      "Bash(php -d memory_limit=1G \"C:/Users/jesse/AppData/Local/Temp/claude/c--laragon-www-saas-sigweb/db2d3503-7e45-41c9-a5f4-19afbb4a7191/scratchpad/smoke_sync_tributario.php\")",
+      "Bash(php -d memory_limit=2048M -r ' *)",
+      "Bash(./vendor/bin/pint app/Services/ApiTools/IntegraPrefeituraService.php app/Services/Fiscal/ProprietarioService.php app/Services/Fiscal/MapaFiscalService.php app/Console/Commands/SincronizarTudoApi.php app/Console/Commands/ImportarDadosTributarios.php tests/Unit/IntegracaoTributariaTest.php)"
+    ],
+    "additionalDirectories": [
+      "D:\\Sistemas e Plataformas\\WebGis\\Pocs"
     ]
   }
 }

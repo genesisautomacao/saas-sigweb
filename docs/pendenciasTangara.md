@@ -707,6 +707,21 @@ Escopo (decisão do usuário: correção completa + setas):
 
 ---
 
+## ~~Item extra-backlog — Simulação tributária em escala + proprietários por CPF/CNPJ (Cajazeiras, 2026-10-07)~~
+
+**Status:** ✅ Concluído (testes unitários `IntegracaoTributariaTest` + smoke transacional local do comando com mock GeoJSON)
+**Concluído em:** 2026-10-07
+**Deploy:** só código — `git pull` + `php artisan optimize:clear`. Sem migration/seeder. Roteiro da implantação em [docs/implantacao-cajazeiras-tributario.md](implantacao-cajazeiras-tributario.md).
+**Origem:** implantação de Cajazeiras/PB — 21.818 unidades importadas pelo GIS (código tributário = setor.quadra.lote) e `cadastro_imobiliario.json` do tributário com 39.705 imóveis (44 MB, **GeoJSON do QGIS** com os campos em `properties`, `"NULL"` literal, campo CPF = código do imóvel com zeros à esquerda). A ação "Simulação Tributária" recusava o GeoJSON; o `tributario:importar` casa por inscrição (que aqui é o código do lote) e pulava tudo **em silêncio**; e o `sigweb:sincronizar-imoveis` relia e decodificava o mock inteiro **a cada unidade** (horas, estouro do tempo da ação do /admin) e criava Pessoa só pelo nome (DESCONHECIDO viraria uma pessoa com 767 imóveis).
+
+Entregue **sem mudar o resultado das prefeituras já em produção** (decisão do usuário — a leitura dos mocks existentes é byte a byte a de antes):
+1. `IntegraPrefeituraService`: mock lido uma vez por processo + **índice por chave** (`indexar`; valor repetido = primeiro do arquivo vence, a mesma regra do `first()` antigo), `normalizarImoveis` aceita array raiz / `{imoveis}` / **GeoJSON** (só estrutura), `limparValores` (`"NULL"`→null, trim) **só no upload de arquivo novo**, `limparCacheMock()`.
+2. [ProprietarioService](../app/Services/Fiscal/ProprietarioService.php) (novo): dedupe **segura** — CNPJ/CPF válido (dígitos verificadores) procura por documento em qualquer formatação → senão pelo nome **sem** documento e grava o documento nessa Pessoa (as criadas pela sync antiga nunca duplicam) → senão cria; sem documento válido = `firstOrCreate` por nome como antes; nomes-curinga não viram Pessoa. Canônico novo `proprietario_cnpj` no de/para.
+3. `sigweb:sincronizar-imoveis`: `chunkById(500)`, memória 2 GB, filtra pela chave de ligação do sistema, **preserva** proprietário/endereço quando a fonte não traz (antes gravava null/"S/N"), contadores no resumo (sem dados · sem proprietário · pessoas criadas · falhas logadas no laravel.log).
+4. `tributario:importar` aceita GeoJSON e avisa quantos ficaram sem inscrição; ações do /admin com limite de memória, mock novo salvo compacto e textos de ajuda apontando o caminho pela CLI para bases grandes.
+
+---
+
 ## Pontos fortes a destacar na demonstração
 
 1. Estatísticas com **gráficos plotados no mapa** (centroide de cada bairro) — item 2.6-41;

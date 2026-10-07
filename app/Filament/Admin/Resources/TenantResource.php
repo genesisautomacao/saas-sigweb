@@ -883,7 +883,7 @@ class TenantResource extends Resource
 
                             Forms\Components\FileUpload::make('arquivo')
                                 ->label('JSON de simulação (substitui o atual)')
-                                ->helperText('Array de imóveis ou {"imoveis": [...]}. Pode usar os nomes de campo do sistema de origem — o de/para traduz na entrada.')
+                                ->helperText('Array de imóveis, {"imoveis": [...]} ou GeoJSON do QGIS (campos em properties). Pode usar os nomes de campo do sistema de origem — o de/para traduz na entrada. Arquivo maior que o limite do servidor (nginx/PHP)? Copie-o direto para storage/app/mocks/{slug}.json na VPS.')
                                 ->acceptedFileTypes(['application/json', 'text/plain', 'application/octet-stream'])
                                 ->maxSize(51200)
                                 ->disk('local')
@@ -892,10 +892,14 @@ class TenantResource extends Resource
 
                             Forms\Components\Toggle::make('importar_agora')
                                 ->label('Importar todos os imóveis agora')
-                                ->helperText('Roda a importação em massa (tributario:importar) em cima do arquivo, gravando nas unidades imobiliárias por inscrição. Sem isto, o arquivo só alimenta a busca por código (☁️/Sincronizar).')
+                                ->helperText('Roda a importação em massa (tributario:importar) em cima do arquivo, gravando nas unidades imobiliárias por INSCRIÇÃO — só funciona se a inscrição do JSON (após o de/para) for igual à da unidade. Para vincular pelo código tributário e criar proprietários, use "Sincronizar Tributário (todos)". Sem isto, o arquivo só alimenta a busca por código (☁️/Sincronizar).')
                                 ->default(false),
                         ])
                         ->action(function (Tenant $record, array $data) {
+                            // Base municipal inteira (40 mil imóveis / 44 MB) é decodificada aqui.
+                            ini_set('memory_limit', '2048M');
+                            set_time_limit(600);
+
                             $mockPath = \App\Services\ApiTools\IntegraPrefeituraService::caminhoMock($record);
                             $mensagens = [];
 
@@ -909,21 +913,27 @@ class TenantResource extends Resource
                                     return;
                                 }
 
+                                // Array raiz, {"imoveis": [...]} ou GeoJSON FeatureCollection (QGIS):
+                                // vira SEMPRE uma lista achatada de imóveis, "NULL" literal → null.
                                 $json = json_decode(file_get_contents($tmpPath), true);
-                                $imoveis = is_array($json) ? (isset($json[0]) ? $json : ($json['imoveis'] ?? null)) : null;
+                                $imoveis = \App\Services\ApiTools\IntegraPrefeituraService::normalizarImoveis($json);
+                                $imoveis = $imoveis === null ? null
+                                    : array_map([\App\Services\ApiTools\IntegraPrefeituraService::class, 'limparValores'], $imoveis);
 
-                                if (! is_array($imoveis) || $imoveis === [] || ! is_array($imoveis[0] ?? null)) {
+                                if ($imoveis === null) {
                                     Notification::make()->danger()
                                         ->title('JSON inválido')
-                                        ->body('Esperado um array de imóveis (ou {"imoveis": [...]}) com ao menos 1 registro.')
+                                        ->body('Esperado um array de imóveis, {"imoveis": [...]} ou um GeoJSON (features com properties) com ao menos 1 registro.')
                                         ->send();
 
                                     return;
                                 }
 
                                 \Illuminate\Support\Facades\File::ensureDirectoryExists(dirname($mockPath));
-                                file_put_contents($mockPath, json_encode($imoveis, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                                // Compacto de propósito: 40 mil imóveis pretty-printed = +50% de disco e de parse.
+                                file_put_contents($mockPath, json_encode($imoveis, JSON_UNESCAPED_UNICODE));
                                 \Illuminate\Support\Facades\Storage::disk('local')->delete($data['arquivo']);
+                                \App\Services\ApiTools\IntegraPrefeituraService::limparCacheMock();
 
                                 // Diagnóstico: quantos ficam localizáveis depois do de/para?
                                 $comInscricao = 0;
@@ -993,11 +1003,13 @@ class TenantResource extends Resource
                                 ->whereNotNull('codigo_imovel_tributario')
                                 ->count();
 
-                            return "Busca os dados fiscais de {$total} unidade(s) com código tributário e atualiza inscrição, endereço, proprietário e o JSON do BIC. Fonte: {$fonte}.";
+                            return "Busca os dados fiscais de {$total} unidade(s) com código tributário e atualiza inscrição, endereço, proprietário e o JSON do BIC. Fonte: {$fonte}. "
+                                .'Base grande (10 mil+ unidades)? Prefira rodar na VPS: php artisan sigweb:sincronizar-imoveis '.$record->id.' — o navegador pode estourar o tempo.';
                         })
                         ->modalSubmitActionLabel('Sim, sincronizar todos')
                         ->action(function (Tenant $record) {
-                            // Bases grandes: cada unidade é uma busca na fonte
+                            // Bases grandes: cada unidade é uma busca na fonte (mock indexado em memória)
+                            ini_set('memory_limit', '2048M');
                             set_time_limit(600);
 
                             \App\Services\Fiscal\MapaFiscalService::limparCache();

@@ -42,6 +42,10 @@ class ImportarDadosTributarios extends Command
             return 1;
         }
 
+        // Bases municipais inteiras (Cajazeiras: 44 MB / 39 mil imóveis) não cabem no
+        // memory_limit padrão do PHP-CLI.
+        ini_set('memory_limit', '2048M');
+
         $json = json_decode(file_get_contents($filePath), true);
         if (! is_array($json)) {
             $this->error('JSON inválido ou não é um array de imóveis.');
@@ -49,8 +53,9 @@ class ImportarDadosTributarios extends Command
             return 1;
         }
 
-        // Suporta array raiz ou chave "imoveis"
-        $imoveis = isset($json[0]) ? $json : ($json['imoveis'] ?? []);
+        // Array raiz, {"imoveis": [...]} ou GeoJSON FeatureCollection (campos em properties).
+        // Os valores entram como estão no arquivo (mesmo comportamento de antes).
+        $imoveis = \App\Services\ApiTools\IntegraPrefeituraService::normalizarImoveis($json);
 
         if (empty($imoveis)) {
             $this->warn('Nenhum imóvel encontrado no JSON.');
@@ -64,6 +69,7 @@ class ImportarDadosTributarios extends Command
 
         $atualizados = 0;
         $naoEncontrados = 0;
+        $semInscricao = 0;
 
         $bar = $this->output->createProgressBar(count($imoveis));
         $bar->start();
@@ -80,6 +86,9 @@ class ImportarDadosTributarios extends Command
                 $inscricao = $imovel['inscricao_imobiliaria'] ?? null;
 
                 if (! $inscricao) {
+                    // Antes era pulado em silêncio — "Atualizados: 0" sem explicação quando
+                    // o de/para não aponta nenhum campo para inscricao_imobiliaria.
+                    $semInscricao++;
                     $bar->advance();
 
                     continue;
@@ -136,6 +145,7 @@ class ImportarDadosTributarios extends Command
 
         $this->info("Atualizados: {$atualizados}");
         $naoEncontrados > 0 && $this->warn("Não encontrados (inscrição sem correspondência): {$naoEncontrados}");
+        $semInscricao > 0 && $this->warn("Sem inscrição após o de/para (ignorados): {$semInscricao} — este comando casa por inscricao_imobiliaria; para vincular pelo código tributário use sigweb:sincronizar-imoveis.");
 
         return 0;
     }
