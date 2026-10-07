@@ -723,6 +723,43 @@ Entregue **sem mudar o resultado das prefeituras já em produção** (decisão d
 
 ---
 
+## Release 78 — Ajustes em sistema com ênfase em implementações
+
+#### ~~R78-1 — Lote × Edificação desacoplados + acordeon de edificações + downloads do lote~~
+**Status:** ✅ Concluído (teste funcional com o componente Livewire em Santa Cecília: acordeon, olhinho individual/todos, beiral de 9 m² fora do lote salvo, centro fora bloqueado com a geometria intacta, criação com centro em outro lote bloqueada, aviso ao editar o lote, vínculo pelo clique no mapa com Auditoria `lote_id` 1→29, exclusão pelo acordeon, `lote_158.zip` = xlsx + pdf + fotos/ e `Lote_158_fotos.zip`; falta o teste visual no navegador)
+**Concluído em:** 2026-10-07
+**Deploy:** só código — `git pull` + `php artisan optimize:clear` + `php artisan view:cache`. Sem migration/seeder/permissão.
+**Origem:** pedido da equipe de Engenharia — "editar o lote sem interferir na edificação, dizer a qual lote a edificação pertence, editar edificações e baixar todas as fotos".
+
+Situação atual (levantamento do código):
+- Salvar a geometria do lote **não toca** edificações (só checa sobreposição com outro lote → "Edição Cancelada" — [MapaFullscreen.php:944](../app/Filament/Pages/MapaFullscreen.php#L944)). Por isso o lote pode ser editado para dentro da edificação e salva normalmente.
+- Salvar a geometria da edificação exige que ela fique **inteira dentro do lote** (tolerância de 0,1 m² → "Erro Topológico" — [MapaFullscreen.php:971](../app/Filament/Pages/MapaFullscreen.php#L971)): o beiral de sobrado que passa do muro é recusado. No modo de edição da edificação, o snap universal **gruda nos vértices do lote**.
+- O desmembramento é barrado quando a linha de corte cruza uma edificação ([MapaFullscreen.php:1756](../app/Filament/Pages/MapaFullscreen.php#L1756)); na confirmação, a edificação já vai para a parte que contém o seu centróide.
+- Não existe UI para trocar o `lote_id` de uma edificação. Edificação **não tem fotos** — só o lote (`foto_frontal`/`foto_lateral_esq`/`foto_lateral_dir`, disco `public`, `lotes_fotos/`). Não existe download em zip de fotos.
+
+Escopo (decisões do usuário em 2026-10-07):
+1. **Regra do beiral = centróide no lote:** a edificação pode ultrapassar a divisa; só precisa ter o centróide dentro do lote ao qual pertence. Centróide em outro lote → oferece "Vincular ao lote X".
+2. **Sem snap no lote** durante a edição da geometria da edificação.
+3. **Desmembramento não bloqueia mais** por cruzar edificação (segue a atribuição por centróide já existente).
+4. **Acordeon "Edificações (N)" na ficha do lote** (substitui o toggle único "Ver Edificações"): uma linha por edificação, uma abaixo da outra, com **olhinho** (liga/desliga só aquela no mapa — vários pavimentos), **Editar**, **Excluir**, **Geometria** e **Vincular a outro lote**; "+ Nova edificação" mantido. O modal aberto pelo clique na camada geral "Edificações" ganha o mesmo "Vincular a outro lote".
+5. **Vincular a outro lote = mapa + sugestão:** clica no lote destino no mapa e confirma; o sistema sugere o lote que contém o centróide.
+   - Decisões complementares (2026-10-07): editar o LOTE continua livre — a edificação segue vinculada mesmo com o centro fora do novo desenho (só aviso amarelo); o snap da edição da edificação pega **só nas outras edificações** (paredes geminadas), nunca no lote.
+6. **"Baixar fotos"** no modal de fotos do lote → `Lote_{numero}_fotos.zip`.
+7. **"Baixar lote"** na ficha do lote → `lote_{numero}.zip` com **Excel** (abas Lote / Edificações / Unidades, campos customizados inclusos) + **PDF** detalhado + pasta `fotos/` — reaproveitando `LoteExportService` e `pdf/lote-detalhado-report` recortados para 1 lote.
+
+---
+
+## Release 79
+
+#### R79-1 — Mídias no Cloudflare R2 (fotos do lote etc.)
+**Status:** 📋 A fazer — **adiado para a Release 79** (decisão do usuário em 2026-10-07; era o R78-2)
+- Bucket a criar na Cloudflare para as mídias. O usuário falou em bucket **público**; **decidir antes de codar** público × privado, porque são fotos de imóveis com proprietário (hoje `sigweb-midia` é privado com URL assinada e `sigweb-ortofoto` é o público dos tiles).
+- Fotos novas (web + push do app) gravadas no R2 em `{tenant_slug}/lotes_fotos/...`; leitura via URL assinada.
+- **Leitura dupla** para não quebrar as prefeituras da VPS: caminho no R2 → URL assinada; caminho legado → disco local (BIC, Viabilidade, PDF de Produtividade, ficha do mapa, LoteResource, ZIPs do R78-1).
+- Comando de migração das fotos existentes (simulação por padrão, `--executar` aplica). Impacto detalhado e roteiro de deploy a apresentar antes de codar.
+
+---
+
 ## Pontos fortes a destacar na demonstração
 
 1. Estatísticas com **gráficos plotados no mapa** (centroide de cada bairro) — item 2.6-41;

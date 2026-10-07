@@ -3363,30 +3363,100 @@
                         <x-heroicon-o-chevron-right class="w-4 h-4 text-gray-400 group-hover:text-primary-500" />
                     </button>
 
-                    <div class="flex items-center gap-2 w-full">
-                        <button wire:click="toggleEdificacoesLote"
-                            style="{{ $mostrarEdificacoesLoteAtivo ? 'background-color: #ecfdf5; border-color: #10b981;' : '' }}"
-                            class="flex-1 flex items-center justify-between px-4 py-3 border rounded-xl transition-all group bg-white border-gray-200 hover:border-emerald-500 dark:bg-gray-800 dark:border-gray-700">
-                            <span
-                                class="text-sm font-medium flex items-center gap-2 {{ $mostrarEdificacoesLoteAtivo ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-200 group-hover:text-emerald-600' }}">
+                    {{-- EDIFICAÇÕES — acordeon (R78-1): uma linha por edificação, olhinho
+                         próprio (vários pavimentos) + Editar / Geometria / Vincular / Excluir.
+                         Cores e medidas em style inline (CSS pré-compilado do painel). --}}
+                    @php
+                        $qtdEdif = count($loteEdificacoes);
+                        $todasEdifLigadas = $qtdEdif > 0 && count(array_diff(array_column($loteEdificacoes, 'id'), $edificacoesVisiveis)) === 0;
+                    @endphp
+                    <div x-data="{ aberto: false }" class="w-full border rounded-xl bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700"
+                        style="{{ $mostrarEdificacoesLoteAtivo ? 'border-color: #10b981;' : '' }}">
+                        <div class="flex items-center gap-2" style="padding: 6px 8px 6px 16px;">
+                            <button type="button" @click="aberto = !aberto"
+                                class="flex-1 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200"
+                                style="padding: 6px 0; text-align: left;">
                                 <x-heroicon-o-home class="w-4 h-4" />
-                                {{ $mostrarEdificacoesLoteAtivo ? 'Ocultar' : 'Ver Edificações' }}
-                            </span>
-                            <div class="relative inline-flex items-center cursor-pointer">
-                                <div class="w-9 h-5 rounded-full transition-colors"
-                                    style="{{ $mostrarEdificacoesLoteAtivo ? 'background-color: #10b981;' : 'background-color: #e5e7eb;' }}">
+                                Edificações ({{ $qtdEdif }})
+                                <x-heroicon-o-chevron-down class="w-4 h-4 text-gray-400 transition-transform"
+                                    x-bind:style="aberto ? 'transform: rotate(180deg)' : ''" />
+                            </button>
+                            @if ($qtdEdif > 0)
+                                <button type="button" wire:click="toggleEdificacoesLote"
+                                    title="{{ $todasEdifLigadas ? 'Ocultar todas no mapa' : 'Mostrar todas no mapa' }}"
+                                    class="flex items-center justify-center rounded-lg"
+                                    style="width: 34px; height: 34px; {{ $todasEdifLigadas ? 'color: #059669; background-color: #ecfdf5;' : 'color: #9ca3af;' }}">
+                                    @if ($todasEdifLigadas)
+                                        <x-heroicon-o-eye class="w-5 h-5" />
+                                    @else
+                                        <x-heroicon-o-eye-slash class="w-5 h-5" />
+                                    @endif
+                                </button>
+                            @endif
+                            @if (\App\Support\Modulos::artefatoDisponivel('edificacao'))
+                                <button type="button" onclick="enableDrawing('edificacao')" title="Desenhar Nova Edificação"
+                                    class="flex items-center justify-center rounded-lg text-gray-500 hover:text-emerald-600"
+                                    style="width: 34px; height: 34px;">
+                                    <x-heroicon-o-plus class="w-5 h-5" />
+                                </button>
+                            @endif
+                        </div>
+
+                        <div x-show="aberto" x-cloak class="border-t border-gray-200 dark:border-gray-700">
+                            @forelse ($loteEdificacoes as $edifItem)
+                                @php $edifLigada = in_array($edifItem['id'], $edificacoesVisiveis); @endphp
+                                <div wire:key="edif-acordeon-{{ $edifItem['id'] }}"
+                                    class="flex items-center gap-2 border-b border-gray-100 dark:border-gray-700"
+                                    style="padding: 8px 8px 8px 10px; {{ $edifLigada ? 'background-color: rgba(234, 88, 12, 0.06);' : '' }}">
+                                    <button type="button" wire:click="alternarEdificacaoVisivel({{ $edifItem['id'] }})"
+                                        @disabled(! $edifItem['tem_geo'])
+                                        title="{{ $edifItem['tem_geo'] ? ($edifLigada ? 'Ocultar no mapa' : 'Mostrar no mapa') : 'Sem geometria' }}"
+                                        class="flex items-center justify-center rounded-lg"
+                                        style="width: 30px; height: 30px; flex-shrink: 0; {{ $edifLigada ? 'color: #ea580c;' : 'color: #9ca3af;' }} {{ $edifItem['tem_geo'] ? '' : 'opacity: .4; cursor: not-allowed;' }}">
+                                        @if ($edifLigada)
+                                            <x-heroicon-o-eye class="w-5 h-5" />
+                                        @else
+                                            <x-heroicon-o-eye-slash class="w-5 h-5" />
+                                        @endif
+                                    </button>
+                                    <div class="flex-1" style="min-width: 0;">
+                                        <div class="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                            {{ $edifItem['rotulo'] }}
+                                            @if ($edifItem['area'])
+                                                <span class="text-gray-500 dark:text-gray-400" style="font-weight: 400;">· {{ $edifItem['area'] }}</span>
+                                            @endif
+                                        </div>
+                                        @if ($edifItem['resumo'])
+                                            <div class="text-xs text-gray-500 dark:text-gray-400 truncate" title="{{ $edifItem['resumo'] }}">{{ $edifItem['resumo'] }}</div>
+                                        @endif
+                                    </div>
+                                    <div class="flex items-center" style="gap: 2px; flex-shrink: 0;">
+                                        <button type="button" wire:click="abrirOpcoesEdificacao({{ $edifItem['id'] }})" title="Editar dados"
+                                            class="flex items-center justify-center rounded-lg text-gray-500 hover:text-primary-600" style="width: 28px; height: 28px;">
+                                            <x-heroicon-o-pencil-square class="w-4 h-4" />
+                                        </button>
+                                        @if ($edifItem['tem_geo'])
+                                            <button type="button" wire:click="editarGeometriaEdificacao({{ $edifItem['id'] }})" title="Editar geometria"
+                                                class="flex items-center justify-center rounded-lg text-gray-500 hover:text-warning-600" style="width: 28px; height: 28px;">
+                                                <x-heroicon-o-map class="w-4 h-4" />
+                                            </button>
+                                        @endif
+                                        <button type="button" wire:click="iniciarVinculoEdificacao({{ $edifItem['id'] }})" title="Vincular a outro lote"
+                                            class="flex items-center justify-center rounded-lg text-gray-500 hover:text-primary-600" style="width: 28px; height: 28px;">
+                                            <x-heroicon-o-link class="w-4 h-4" />
+                                        </button>
+                                        <button type="button" wire:click="mountAction('excluirEdificacao', { id: {{ $edifItem['id'] }} })" title="Excluir"
+                                            class="flex items-center justify-center rounded-lg text-gray-500 hover:text-danger-600" style="width: 28px; height: 28px;">
+                                            <x-heroicon-o-trash class="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="absolute left-[2px] top-[2px] bg-white border border-gray-300 rounded-full h-4 w-4 transition-transform"
-                                    style="{{ $mostrarEdificacoesLoteAtivo ? 'transform: translateX(100%); border-color: white;' : '' }}">
+                            @empty
+                                <div class="text-xs text-gray-500 dark:text-gray-400" style="padding: 10px 16px;">
+                                    Nenhuma edificação neste lote.
                                 </div>
-                            </div>
-                        </button>
-                        @if (\App\Support\Modulos::artefatoDisponivel('edificacao'))
-                        <button onclick="enableDrawing('edificacao')" title="Desenhar Nova Edificação"
-                            class="flex-shrink-0 flex items-center justify-center w-[50px] h-[50px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-600 transition-all">
-                            <x-heroicon-o-plus class="w-5 h-5" />
-                        </button>
-                        @endif
+                            @endforelse
+                        </div>
                     </div>
 
                     {{-- VER TESTADAS --}}
@@ -3478,6 +3548,13 @@
                         style="width: 100%; margin-top: 10px; background-color: #4b5563; color: white; font-weight: bold; padding: 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; cursor: pointer;">
                         <x-heroicon-o-camera class="w-5 h-5" />
                         Fotos do Lote
+                    </button>
+
+                    {{-- R78-1: BAIXAR LOTE — lote_{n}.zip (Excel + PDF + fotos/) --}}
+                    <button type="button" wire:click="mountAction('baixarLote')" wire:loading.attr="disabled" wire:target="mountAction('baixarLote')"
+                        style="width: 100%; margin-top: 8px; background-color: white; color: #374151; font-weight: bold; padding: 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #d1d5db; cursor: pointer;">
+                        <x-heroicon-o-arrow-down-tray class="w-5 h-5" />
+                        Baixar lote (.zip)
                     </button>
 
                 </div>

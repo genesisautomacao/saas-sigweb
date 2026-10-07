@@ -1553,6 +1553,44 @@ trait HasLoteActions
                     ]);
                     Notification::make()->title('Fotos atualizadas com sucesso!')->success()->send();
                 }
+            })
+            ->extraModalFooterActions([
+                // R78-1: as 3 fotos num .zip (Lote_{n}_fotos.zip) — fotos já gravadas.
+                Action::make('baixarFotosLote')
+                    ->label('Baixar fotos')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->action(function () {
+                        $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
+                        $zip = $lote ? app(\App\Services\Exports\LoteZipService::class)->fotos($lote) : null;
+
+                        if (! $zip) {
+                            Notification::make()->title('Este lote ainda não tem fotos salvas.')->warning()->send();
+
+                            return null;
+                        }
+
+                        return response()->download($zip, \App\Services\Exports\LoteZipService::nomeZipFotos($lote))->deleteFileAfterSend(true);
+                    }),
+            ]);
+    }
+
+    /**
+     * Ação: Baixar lote (R78-1) — lote_{n}.zip com Excel (Lote / Unidades / Edificações),
+     * PDF detalhado e a pasta fotos/.
+     */
+    public function baixarLoteAction(): Action
+    {
+        return Action::make('baixarLote')
+            ->action(function () {
+                $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
+                if (! $lote) {
+                    return null;
+                }
+
+                $zip = app(\App\Services\Exports\LoteZipService::class)->lote($lote);
+
+                return response()->download($zip, \App\Services\Exports\LoteZipService::nomeZipLote($lote))->deleteFileAfterSend(true);
             });
     }
 

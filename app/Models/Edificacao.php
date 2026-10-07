@@ -4,16 +4,16 @@ namespace App\Models;
 
 use App\Traits\BelongsToTenant;
 use App\Traits\HasTenantSequentialId;
+use App\Traits\LogsGeometryChanges;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
-use App\Traits\LogsGeometryChanges;
 
 class Edificacao extends Model
 {
-    use BelongsToTenant, HasTenantSequentialId, LogsActivity, SoftDeletes, LogsGeometryChanges;
+    use BelongsToTenant, HasTenantSequentialId, LogsActivity, LogsGeometryChanges, SoftDeletes;
 
     /** Croqui Antes/Depois na Auditoria (PoC AC 2026-08-23). */
     public function geometryLogLabel(): string
@@ -44,6 +44,11 @@ class Edificacao extends Model
     protected $hidden = ['geo'];
 
     protected $appends = ['geo_json'];
+
+    public function lote()
+    {
+        return $this->belongsTo(Lote::class);
+    }
 
     public function getGeoJsonAttribute()
     {

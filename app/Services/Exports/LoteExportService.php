@@ -22,6 +22,17 @@ class LoteExportService
 
         $filePath = $path.$fileName;
 
+        $this->escreverExcel($lotes, $filePath);
+
+        return response()->download($filePath)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Grava o workbook (abas Lotes / Unidades Imobiliárias / Edificações) em $filePath.
+     * Reaproveitado pelo export da lista e pelo "Baixar lote" (.zip) da ficha — R78-1.
+     */
+    public function escreverExcel(Collection $lotes, string $filePath): void
+    {
         $lotes->loadMissing(['unidadesImobiliarias.proprietario', 'edificacoes']);
 
         $loteData = $lotes->map(function ($lote) {
@@ -77,14 +88,21 @@ class LoteExportService
         }
 
         $writer->close();
-
-        return response()->download($filePath)->deleteFileAfterSend(true);
     }
 
     public function exportToPdf(Collection $lotes)
     {
         $fileName = 'lotes-'.now()->format('Y-m-d-His').'.pdf';
+        $conteudo = $this->pdfBinario($lotes);
 
+        return response()->streamDownload(function () use ($conteudo) {
+            echo $conteudo;
+        }, $fileName);
+    }
+
+    /** Conteúdo do PDF detalhado (lote + unidades + edificações) — também usado no .zip do lote. */
+    public function pdfBinario(Collection $lotes): string
+    {
         $lotes->loadMissing(['unidadesImobiliarias.proprietario', 'edificacoes']);
 
         $title = 'Relatório de Lotes e Terrenos';
@@ -100,11 +118,9 @@ class LoteExportService
             'edificacao' => CampoDominioService::rotulos('edificacao'),
         ];
 
-        $pdf = Pdf::loadView('pdf.lote-detalhado-report', compact('lotes', 'title', 'camposCustom', 'rotulos'))->setPaper('a4', 'portrait');
-
-        return response()->streamDownload(function () use ($pdf) {
-            echo $pdf->stream();
-        }, $fileName);
+        return Pdf::loadView('pdf.lote-detalhado-report', compact('lotes', 'title', 'camposCustom', 'rotulos'))
+            ->setPaper('a4', 'portrait')
+            ->output();
     }
 
     public function exportToXml(Collection $lotes)

@@ -401,6 +401,7 @@ class MapaFullscreen extends Page
     {
         if ($this->loteAtivoId !== null && $this->loteAtivoId != $loteId) {
             $this->mostrarEdificacoesLoteAtivo = false;
+            $this->edificacoesVisiveis = [];
             $this->dispatch('esconder-edificacoes-lote');
             $this->mostrarTestadasLoteAtivo = false;
             $this->dispatch('esconder-testadas-lote');
@@ -446,6 +447,8 @@ class MapaFullscreen extends Page
                 'created_at' => $p->created_at?->format('d/m/Y H:i'),
             ])
             ->toArray();
+
+        $this->carregarEdificacoesLote(); // R78-1 — acordeon de edificações da ficha
 
         $this->showFicha = true;
     }
@@ -503,18 +506,22 @@ class MapaFullscreen extends Page
             // 🛑 MÁGICA: Monta a ação do Lote aqui e encerra
             $this->mountAction('criarLote');
         } elseif ($entityType === 'edificacao') {
-            $contido = Lote::query()->where('id', $this->loteAtivoId)
-                ->whereRaw("ST_Area(ST_Difference($polyWKT, geo)::geography) <= 0.1")
-                ->exists();
+            // R78-1: a edificação pode ultrapassar a divisa (beiral de sobrado); só o
+            // CENTRÓIDE precisa estar no lote. Sem ficha aberta, vale o lote do centróide.
+            $loteCentro = $this->loteDoCentroideEdificacao($geoJson);
 
-            if (! $contido) {
+            if (! $loteCentro || ($this->loteAtivoId && $loteCentro->id != $this->loteAtivoId)) {
                 Notification::make()->title('Erro de Topologia')
-                    ->body('A edificação invadiu a rua ou o lote vizinho além do limite permitido.')
+                    ->body($loteCentro
+                        ? 'O centro da edificação caiu no '.$this->rotuloLote($loteCentro).', não no lote da ficha aberta.'
+                        : 'O centro da edificação precisa ficar dentro de um lote.')
                     ->danger()->send();
                 $this->dispatch('limpar-rascunho-mapa');
 
                 return;
             }
+
+            $this->edificacaoRascunhoLoteId = $loteCentro->id;
 
             // 🛑 MÁGICA: Monta a ação da Edificação aqui e encerra
             $this->mountAction('criarEdificacao');
@@ -958,29 +965,32 @@ class MapaFullscreen extends Page
             DB::statement('UPDATE unidade_imobiliarias SET geo = (SELECT ST_PointOnSurface(geo) FROM lotes WHERE id = ?) WHERE lote_id = ?', [$lote->id, $lote->id]);
 
             Notification::make()->title('Geometria Atualizada!')->success()->send();
+
+            // R78-1: editar o lote não mexe nas edificações — continuam vinculadas.
+            // Só avisa quando o centro de alguma ficou fora do novo desenho.
+            $fora = DB::table('edificacoes as e')
+                ->join('lotes as l', 'l.id', '=', 'e.lote_id')
+                ->where('e.lote_id', $lote->id)
+                ->whereNull('e.deleted_at')
+                ->whereNotNull('e.geo')
+                ->whereRaw('NOT ST_Contains(l.geo::geometry, ST_Centroid(e.geo::geometry))')
+                ->pluck('e.sequential_id');
+
+            if ($fora->isNotEmpty()) {
+                Notification::make()
+                    ->title('Edificação com o centro fora do lote')
+                    ->body('Edificação #'.$fora->implode(', #').' continua vinculada a este lote. Se preferir, use "Vincular a outro lote" no acordeon da ficha.')
+                    ->warning()
+                    ->send();
+            }
         }
     }
 
     #[On('salvarNovaGeometriaEdificacao')]
     public function salvarNovaGeometriaEdificacao($id, $geoJson)
     {
-        $edif = Edificacao::query()->find($id);
-        if ($edif) {
-            $polyWKT = "ST_GeomFromGeoJSON('".json_encode($geoJson)."')";
-            // Substituímos o ST_Within pelo ST_Difference com tolerância
-            if (! Lote::query()->where('id', $edif->lote_id)->whereRaw("ST_Area(ST_Difference($polyWKT, geo)::geography) <= 0.1")->exists()) {
-                Notification::make()->title('Erro Topológico')->danger()->send();
-                $this->dispatch('desfazer-edicao-geometria');
-
-                return;
-            }
-            $edif->update(['geo' => $geoJson]);
-            DB::statement('UPDATE edificacoes SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$edif->id]);
-            $this->loteAreaConstruida = (float) Edificacao::query()->where('lote_id', $this->loteAtivoId)->sum('area_geo');
-            Notification::make()->title('Geometria Atualizada!')->success()->send();
-            $this->mostrarEdificacoesLoteAtivo = false;
-            $this->toggleEdificacoesLote();
-        }
+        // R78-1: regra do centróide (pode ultrapassar a divisa) — HasEdificacaoActions.
+        $this->salvarGeometriaEdificacao((int) $id, (array) $geoJson);
     }
 
     public function deletarArtefatoAction(): \Filament\Actions\Action
@@ -1752,7 +1762,9 @@ class MapaFullscreen extends Page
         $this->loteParaDesmembrarId = $loteId;
         $this->linhaDeCorteGeoJson = json_encode($linhaCorte);
 
-        // 1. VALIDAÇÃO RIGOROSA: A linha cruza alguma edificação DESTE LOTE? (ST_Intersects)
+        // 1. A linha cruza alguma edificação DESTE LOTE? Só avisa (R78-1): o corte
+        // não é mais barrado — na confirmação cada edificação fica com a parte que
+        // contém o seu centróide (beiral/sobrado podem atravessar a divisa).
         $conflito = DB::selectOne('
             WITH linha AS (
                 SELECT ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) AS geom
@@ -1767,13 +1779,10 @@ class MapaFullscreen extends Page
 
         if ($conflito) {
             \Filament\Notifications\Notification::make()
-                ->title('Operação Ilegal 🛑')
-                ->body('O traçado do desmembramento cruza uma Edificação existente! Refaça o desenho contornando a construção (criando um corredor/servidão).')
-                ->danger()
-                ->persistent()
+                ->title('O corte atravessa uma edificação')
+                ->body('Cada edificação ficará com a parte do lote que contém o seu centro.')
+                ->warning()
                 ->send();
-
-            return;
         }
 
         // 2. A MÁGICA DO CORTE: Extrai o polígono puro e fatia usando a Linha (ST_Split)

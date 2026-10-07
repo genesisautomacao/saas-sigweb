@@ -3569,6 +3569,22 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
+        // 🏠 VINCULAR EDIFICAÇÃO A OUTRO LOTE (R78-1): o clique escolhe o lote destino.
+        if (window.vinculoEdificacaoId) {
+            const idEdif = window.vinculoEdificacaoId;
+            window.vinculoEdificacaoId = null;
+            map.getTargetElement().style.cursor = "";
+            document.getElementById("vinculo-edif-hint")?.remove();
+
+            const [lonVinc, latVinc] = ol.proj.toLonLat(evt.coordinate);
+            Livewire.dispatch("escolherLoteVinculoEdificacao", {
+                id: idEdif,
+                lon: lonVinc,
+                lat: latVinc,
+            });
+            return;
+        }
+
         // ✍️ REPOSICIONAR TOPONÍMIA (PoC AC item 9): o clique define o novo
         // local do texto — move a feição em memória e persiste via Livewire.
         if (window.movendoToponimiaId) {
@@ -4648,6 +4664,34 @@ document.addEventListener("DOMContentLoaded", function () {
 
     window.enableUniversalSnap = function () {
         window.disableUniversalSnap(); // Limpa resquícios anteriores (inclui midpoints)
+
+        // R78-1: editando a geometria de uma EDIFICAÇÃO, o ímã pega só nas OUTRAS
+        // edificações (paredes geminadas/pavimentos) — nunca no lote, senão a
+        // edificação "gruda" na divisa e o beiral não passa do muro.
+        if (featureEmEdicao && featureEmEdicao.get("layer") === "edificacao_ativa") {
+            const idEditado = featureEmEdicao.get("id");
+            const fontes = [edifAtivasSource];
+            const geral = window.loadedLayers["edificacoes"];
+            if (geral && geral.getVisible()) fontes.push(geral.getSource());
+
+            const snapEdifSource = new ol.source.Vector();
+            fontes.forEach((src) =>
+                src.getFeatures().forEach((f) => {
+                    if (f.get("id") == idEditado || !f.getGeometry()) return;
+                    snapEdifSource.addFeature(new ol.Feature(f.getGeometry().clone()));
+                    segmentMidpoints(f.getGeometry()).forEach((mid) =>
+                        midpointSnapSource.addFeature(new ol.Feature(new ol.geom.Point(mid))),
+                    );
+                }),
+            );
+            [snapEdifSource, midpointSnapSource].forEach((src) => {
+                if (src.getFeatures().length === 0) return;
+                const snap = new ol.interaction.Snap({ source: src, pixelTolerance: 12 });
+                map.addInteraction(snap);
+                activeSnaps.push(snap);
+            });
+            return;
+        }
 
         // Varre todas as camadas carregadas no objeto global
         Object.keys(window.loadedLayers).forEach((layerName) => {
@@ -6134,6 +6178,59 @@ document.addEventListener("DOMContentLoaded", function () {
     window.addEventListener("esconder-edificacoes-lote", () =>
         edifAtivasSource.clear(),
     );
+
+    // R78-1: mantém a camada GERAL "Edificações" coerente com as edições feitas
+    // pela ficha (geometria nova / exclusão) sem recarregar a camada inteira.
+    const edifDaCamadaGeral = (id) =>
+        window.loadedLayers["edificacoes"]
+            ?.getSource()
+            .getFeatures()
+            .find((f) => f.get("id") == id);
+
+    window.addEventListener("atualizar-geometria-edificacao", (e) => {
+        const data = e.detail[0] || e.detail;
+        const f = edifDaCamadaGeral(data.id);
+        if (f && data.geo) {
+            f.setGeometry(
+                formatGeoJSON.readGeometry(data.geo, {
+                    dataProjection: "EPSG:4326",
+                    featureProjection: "EPSG:3857",
+                }),
+            );
+        }
+    });
+
+    window.addEventListener("remover-edificacao-mapa", (e) => {
+        const data = e.detail[0] || e.detail;
+        const f = edifDaCamadaGeral(data.id);
+        if (f) window.loadedLayers["edificacoes"].getSource().removeFeature(f);
+    });
+
+    // R78-1: "Vincular a outro lote" — o próximo clique no mapa escolhe o lote de
+    // destino (o servidor acha o lote pelo ponto; Esc cancela).
+    window.vinculoEdificacaoId = null;
+    window.addEventListener("iniciar-vinculo-edificacao", (e) => {
+        const data = e.detail[0] || e.detail;
+        window.vinculoEdificacaoId = data.id;
+        map.getTargetElement().style.cursor = "crosshair";
+
+        document.getElementById("vinculo-edif-hint")?.remove();
+        const hint = document.createElement("div");
+        hint.id = "vinculo-edif-hint";
+        hint.style.cssText =
+            "position:fixed;top:76px;left:50%;transform:translateX(-50%);z-index:99999;" +
+            "background:#065f46;color:#fff;padding:8px 14px;border-radius:12px;" +
+            "box-shadow:0 12px 30px -8px rgba(0,0,0,.5);font-size:13px;font-weight:600;";
+        hint.textContent = "🏠 Clique no lote de destino da edificação (Esc cancela)";
+        document.body.appendChild(hint);
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && window.vinculoEdificacaoId) {
+            window.vinculoEdificacaoId = null;
+            map.getTargetElement().style.cursor = "";
+            document.getElementById("vinculo-edif-hint")?.remove();
+        }
+    });
 
     // 14b. CAMADA TEMPORÁRIA DE TESTADAS DO LOTE
     const testadasAtivasSource = new ol.source.Vector();
