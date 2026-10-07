@@ -401,13 +401,15 @@ trait HasLoteActions
                 TextInput::make('inscricao_imobiliaria')
                     ->label('Inscrição Imobiliária')
                     ->maxLength(255)
-                    ->unique(table: 'unidade_imobiliarias', column: 'inscricao_imobiliaria', modifyRuleUsing: fn (\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId))
+                    // whereNull(deleted_at): unidade na lixeira (modo "Substituir" da importação,
+                    // exclusão manual) não pode bloquear o código — Cajazeiras 2026-10-07.
+                    ->unique(table: 'unidade_imobiliarias', column: 'inscricao_imobiliaria', modifyRuleUsing: fn (\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId)->whereNull('deleted_at'))
                     ->validationMessages(['unique' => 'Esta Inscrição já está cadastrada.']),
 
                 TextInput::make('codigo_imovel_tributario')
                     ->label('Código do Imóvel Tributário')
                     ->maxLength(255)
-                    ->unique(table: 'unidade_imobiliarias', column: 'codigo_imovel_tributario', modifyRuleUsing: fn (\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId))
+                    ->unique(table: 'unidade_imobiliarias', column: 'codigo_imovel_tributario', modifyRuleUsing: fn (\Illuminate\Validation\Rules\Unique $rule) => $rule->where('tenant_id', $this->tenantId)->whereNull('deleted_at'))
                     ->validationMessages(['unique' => 'Este Código Tributário já está cadastrado.'])
                     ->suffixAction(
                         \Filament\Forms\Components\Actions\Action::make('sincronizar_api')
@@ -619,7 +621,7 @@ trait HasLoteActions
                             column: 'inscricao_imobiliaria',
                             // 🛑 BUG 1 RESOLVIDO: Ignora o ID diretamente na query
                             modifyRuleUsing: function (\Illuminate\Validation\Rules\Unique $rule) use ($arguments) {
-                                $rule->where('tenant_id', $this->tenantId);
+                                $rule->where('tenant_id', $this->tenantId)->whereNull('deleted_at');
                                 if (isset($arguments['unidadeId'])) {
                                     $rule->ignore($arguments['unidadeId']);
                                 }
@@ -637,7 +639,7 @@ trait HasLoteActions
                             column: 'codigo_imovel_tributario',
                             // 🛑 BUG 1 RESOLVIDO
                             modifyRuleUsing: function (\Illuminate\Validation\Rules\Unique $rule) use ($arguments) {
-                                $rule->where('tenant_id', $this->tenantId);
+                                $rule->where('tenant_id', $this->tenantId)->whereNull('deleted_at');
                                 if (isset($arguments['unidadeId'])) {
                                     $rule->ignore($arguments['unidadeId']);
                                 }

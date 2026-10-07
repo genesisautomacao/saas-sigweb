@@ -154,7 +154,10 @@
       "Bash(php -l app/Console/Commands/SincronizarTudoApi.php)",
       "Bash(php -d memory_limit=1G \"C:/Users/jesse/AppData/Local/Temp/claude/c--laragon-www-saas-sigweb/db2d3503-7e45-41c9-a5f4-19afbb4a7191/scratchpad/smoke_sync_tributario.php\")",
       "Bash(php -d memory_limit=2048M -r ' *)",
-      "Bash(./vendor/bin/pint app/Services/ApiTools/IntegraPrefeituraService.php app/Services/Fiscal/ProprietarioService.php app/Services/Fiscal/MapaFiscalService.php app/Console/Commands/SincronizarTudoApi.php app/Console/Commands/ImportarDadosTributarios.php tests/Unit/IntegracaoTributariaTest.php)"
+      "Bash(./vendor/bin/pint app/Services/ApiTools/IntegraPrefeituraService.php app/Services/Fiscal/ProprietarioService.php app/Services/Fiscal/MapaFiscalService.php app/Console/Commands/SincronizarTudoApi.php app/Console/Commands/ImportarDadosTributarios.php tests/Unit/IntegracaoTributariaTest.php)",
+      "Bash(php -d memory_limit=1G -r ' *)",
+      "Bash(php -d memory_limit=1G \"C:/Users/jesse/AppData/Local/Temp/claude/c--laragon-www-saas-sigweb/db2d3503-7e45-41c9-a5f4-19afbb4a7191/scratchpad/gerar_resumo_duplicidades.php\")",
+      "Bash(./vendor/bin/pint app/Filament/Pages/Traits/HasLoteActions.php)"
     ],
     "additionalDirectories": [
       "D:\\Sistemas e Plataformas\\WebGis\\Pocs"
