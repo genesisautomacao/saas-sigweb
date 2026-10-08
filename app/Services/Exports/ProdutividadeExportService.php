@@ -98,12 +98,6 @@ class ProdutividadeExportService
      */
     private function fotoToBase64(?string $path): ?string
     {
-        if (! $path || ! Storage::disk('public')->exists($path)) {
-            return null;
-        }
-
-        $mime = Storage::disk('public')->mimeType($path);
-
-        return 'data:'.$mime.';base64,'.base64_encode(Storage::disk('public')->get($path));
+        return \App\Support\FotosLote::dataUri($path); // R79-1: bucket ou disco local
     }
 }

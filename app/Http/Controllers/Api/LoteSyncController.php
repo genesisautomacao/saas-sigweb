@@ -115,9 +115,11 @@ class LoteSyncController extends Controller
             'zona_id' => $l->zona_id,
             'area_geo' => $l->area_geo !== null ? (float) $l->area_geo : null,
             'main_facade_length' => $l->main_facade_length !== null ? (float) $l->main_facade_length : null,
-            'foto_frontal' => $l->foto_frontal,
-            'foto_lateral_esq' => $l->foto_lateral_esq,
-            'foto_lateral_dir' => $l->foto_lateral_dir,
+            // R79-1: foto no bucket vai como URL absoluta (o app já usa "http..." como
+            // está); a legada segue como caminho relativo (o app monta /storage/...).
+            'foto_frontal' => $this->fotoParaApp($l->foto_frontal),
+            'foto_lateral_esq' => $this->fotoParaApp($l->foto_lateral_esq),
+            'foto_lateral_dir' => $this->fotoParaApp($l->foto_lateral_dir),
             'observacao' => $l->observacao,
             'status_cadastro' => $l->status_cadastro ?? 'nao_visitado',
             'ocupacao' => $l->ocupacao,
@@ -276,7 +278,7 @@ class LoteSyncController extends Controller
                 // Fotos (3 slots) — aceita base64 ou caminho existente
                 foreach (['foto_frontal', 'foto_lateral_esq', 'foto_lateral_dir'] as $fotoField) {
                     if (! empty($loteApp[$fotoField]) && str_starts_with($loteApp[$fotoField], 'data:image')) {
-                        $lote->$fotoField = $this->salvarImagemBase64($loteApp[$fotoField]);
+                        $lote->$fotoField = $this->salvarImagemBase64($loteApp[$fotoField], $tenantId);
                         $alteracoes["lote.{$fotoField}"] = ['de' => $antes['fotos'][$fotoField], 'para' => $lote->$fotoField];
                     }
                 }
@@ -417,17 +419,20 @@ class LoteSyncController extends Controller
         }
     }
 
-    private function salvarImagemBase64(string $base64String): string
+    private function salvarImagemBase64(string $base64String, ?int $tenantId = null): string
     {
         $imageParts = explode(';base64,', $base64String);
         $imageTypeAux = explode('image/', $imageParts[0]);
         $imageType = $imageTypeAux[1] ?? 'jpeg';
         $imageBase64 = base64_decode($imageParts[1]);
-        $fileName = Str::uuid().'.'.$imageType;
-        $filePath = 'lotes_fotos/'.$fileName;
 
-        Storage::disk('public')->put($filePath, $imageBase64);
+        // R79-1: bucket público da prefeitura ({slug}/lotes_fotos/); sem credenciais ou
+        // com o bucket falhando, cai no disk "public" — a coleta de campo nunca se perde.
+        return \App\Support\FotosLote::salvar($imageBase64, $imageType, \App\Support\FotosLote::slug($tenantId));
+    }
 
-        return $filePath;
+    private function fotoParaApp(?string $caminho): ?string
+    {
+        return \App\Support\FotosLote::noBucket($caminho) ? \App\Support\FotosLote::url($caminho) : $caminho;
     }
 }

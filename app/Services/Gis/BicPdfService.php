@@ -19,13 +19,8 @@ class BicPdfService
         $fileName = 'BCI-'.($imovel->codigo_imovel_tributario ?? $imovel->id).'.pdf';
 
         // Converte foto frontal do lote para base64 (DomPDF não aceita asset() em produção)
-        $fotoFrontalBase64 = null;
-        $fotoPath = $imovel->lote?->foto_frontal;
-        if ($fotoPath && Storage::disk('public')->exists($fotoPath)) {
-            $mime = Storage::disk('public')->mimeType($fotoPath);
-            $fotoFrontalBase64 = 'data:'.$mime.';base64,'.
-                base64_encode(Storage::disk('public')->get($fotoPath));
-        }
+        // R79-1: lê do bucket ou do disco local conforme o caminho gravado.
+        $fotoFrontalBase64 = \App\Support\FotosLote::dataUri($imovel->lote?->foto_frontal);
 
         // R67-1/5 — campos criados pelo município + campos extras do sistema tributário local
         $camposMunicipio = array_merge(

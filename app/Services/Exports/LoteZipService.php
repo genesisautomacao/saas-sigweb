@@ -3,8 +3,8 @@
 namespace App\Services\Exports;
 
 use App\Models\Lote;
+use App\Support\FotosLote;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
 use ZipArchive;
 
 /**
@@ -33,20 +33,23 @@ class LoteZipService
         return preg_replace('/[^\pL\pN\-]+/u', '_', $id) ?: (string) $lote->id;
     }
 
-    /** Fotos do lote que existem de fato no disco: [nome no zip => caminho absoluto]. */
+    /**
+     * Fotos do lote que existem de fato: [nome no zip => bytes]. R79-1: lê do bucket
+     * público ou do disco local conforme o caminho gravado (FotosLote).
+     */
     public function fotosDisponiveis(Lote $lote, string $prefixo = ''): array
     {
-        $disco = Storage::disk('public');
         $nome = 'Lote_'.self::identificador($lote);
         $saida = [];
 
         foreach (self::FOTOS as $coluna => $sufixo) {
             $caminho = $lote->{$coluna};
-            if (! $caminho || ! $disco->exists($caminho)) {
+            $conteudo = FotosLote::conteudo($caminho);
+            if ($conteudo === null) {
                 continue;
             }
             $ext = strtolower(pathinfo($caminho, PATHINFO_EXTENSION)) ?: 'jpg';
-            $saida[$prefixo."{$nome}_{$sufixo}.{$ext}"] = $disco->path($caminho);
+            $saida[$prefixo."{$nome}_{$sufixo}.{$ext}"] = $conteudo;
         }
 
         return $saida;
@@ -71,8 +74,8 @@ class LoteZipService
         }
 
         return $this->montarZip(self::nomeZipFotos($lote), function (ZipArchive $zip) use ($fotos) {
-            foreach ($fotos as $nome => $caminho) {
-                $zip->addFile($caminho, $nome);
+            foreach ($fotos as $nome => $conteudo) {
+                $zip->addFromString($nome, $conteudo);
             }
         });
     }
@@ -91,8 +94,8 @@ class LoteZipService
             return $this->montarZip(self::nomeZipLote($lote), function (ZipArchive $zip) use ($id, $xlsx, $pdf, $lote) {
                 $zip->addFile($xlsx, "lote_{$id}.xlsx");
                 $zip->addFromString("lote_{$id}.pdf", $pdf);
-                foreach ($this->fotosDisponiveis($lote, 'fotos/') as $nome => $caminho) {
-                    $zip->addFile($caminho, $nome);
+                foreach ($this->fotosDisponiveis($lote, 'fotos/') as $nome => $conteudo) {
+                    $zip->addFromString($nome, $conteudo);
                 }
             });
         } finally {

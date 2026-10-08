@@ -126,8 +126,7 @@ class LoteResource extends Resource
                                 ->label('Foto Frontal')
                                 ->image()
                                 ->imageEditor()
-                                ->disk('public')
-                                ->directory('lotes_fotos')
+                                ->fotoDeLote() // R79-1: bucket público ou disco local (FotosLote)
                                 ->maxSize(5120)
                                 ->nullable(),
 
@@ -135,8 +134,7 @@ class LoteResource extends Resource
                                 ->label('Lateral Esquerda')
                                 ->image()
                                 ->imageEditor()
-                                ->disk('public')
-                                ->directory('lotes_fotos')
+                                ->fotoDeLote() // R79-1: bucket público ou disco local (FotosLote)
                                 ->maxSize(5120)
                                 ->nullable(),
 
@@ -144,8 +142,7 @@ class LoteResource extends Resource
                                 ->label('Lateral Direita')
                                 ->image()
                                 ->imageEditor()
-                                ->disk('public')
-                                ->directory('lotes_fotos')
+                                ->fotoDeLote() // R79-1: bucket público ou disco local (FotosLote)
                                 ->maxSize(5120)
                                 ->nullable(),
                         ])->columnSpanFull(),

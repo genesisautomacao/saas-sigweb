@@ -151,11 +151,8 @@ class ViabilidadePdfService
             $fotoPath = \Illuminate\Support\Facades\DB::table('lotes')
                 ->where('id', $loteId)->value('foto_frontal');
 
-            $disk = \Illuminate\Support\Facades\Storage::disk('public');
-            if ($fotoPath && $disk->exists($fotoPath)) {
-                return 'data:'.$disk->mimeType($fotoPath).';base64,'
-                    .base64_encode($disk->get($fotoPath));
-            }
+            // R79-1: bucket ou disco local, conforme o caminho gravado.
+            return \App\Support\FotosLote::dataUri($fotoPath);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Viabilidade: falha ao carregar foto frontal — '.$e->getMessage());
         }

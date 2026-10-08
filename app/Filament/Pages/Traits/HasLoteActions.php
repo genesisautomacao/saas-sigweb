@@ -1519,8 +1519,7 @@ trait HasLoteActions
                         ->label('Frontal')
                         ->image()
                         ->imageEditor()
-                        ->disk('public')
-                        ->directory('lotes_fotos')
+                        ->fotoDeLote() // R79-1: bucket público ou disco local (FotosLote)
                         ->maxSize(5120)
                         ->nullable(),
 
@@ -1528,8 +1527,7 @@ trait HasLoteActions
                         ->label('Lateral Esquerda')
                         ->image()
                         ->imageEditor()
-                        ->disk('public')
-                        ->directory('lotes_fotos')
+                        ->fotoDeLote() // R79-1: bucket público ou disco local (FotosLote)
                         ->maxSize(5120)
                         ->nullable(),
 
@@ -1537,8 +1535,7 @@ trait HasLoteActions
                         ->label('Lateral Direita')
                         ->image()
                         ->imageEditor()
-                        ->disk('public')
-                        ->directory('lotes_fotos')
+                        ->fotoDeLote() // R79-1: bucket público ou disco local (FotosLote)
                         ->maxSize(5120)
                         ->nullable(),
                 ]),

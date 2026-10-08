@@ -426,7 +426,7 @@ class MapaFullscreen extends Page
         // coleta_imobiliaria; situacao_quadra é campo customizado (dados_customizados).
         $coleta = $lote?->coletaVigente;
         $this->loteStatusCadastro = $lote?->status_cadastro;
-        $this->loteFotoFrontal = $lote?->foto_frontal ? asset('storage/'.$lote->foto_frontal) : null;
+        $this->loteFotoFrontal = \App\Support\FotosLote::url($lote?->foto_frontal); // R79-1: bucket ou /storage
         $this->loteOcupacao = $lote?->ocupacao;
         $this->loteSituacaoQuadra = $lote?->dados_customizados['situacao_quadra'] ?? null;
         $this->loteColetadoPor = $coleta?->coletadoPor?->name;

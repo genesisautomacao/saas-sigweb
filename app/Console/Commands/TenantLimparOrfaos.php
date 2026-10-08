@@ -124,27 +124,32 @@ class TenantLimparOrfaos extends Command
         }
         $this->newLine();
 
-        // ── 5. Prefixos órfãos no bucket R2 (best-effort) ────────────────────
-        if (config('filesystems.disks.midia.key')) {
+        // ── 5. Prefixos órfãos nos buckets R2 (best-effort) ──────────────────
+        // R79-1: além do de mídias (360), o bucket público das fotos dos lotes.
+        foreach (['midia' => 'R2 mídias', 'fotos' => 'R2 fotos'] as $disco => $rotulo) {
+            if (! config("filesystems.disks.{$disco}.key")) {
+                $this->comment("  – Bucket {$rotulo} sem credenciais neste ambiente (pulado).");
+
+                continue;
+            }
+
             try {
-                $prefixosOrfaos = collect(Storage::disk('midia')->directories(''))
+                $prefixosOrfaos = collect(Storage::disk($disco)->directories(''))
                     ->reject(fn ($p) => in_array(basename($p), $slugs, true));
 
                 if ($prefixosOrfaos->isEmpty()) {
-                    $this->info('  ✓ Nenhum prefixo órfão no bucket R2.');
+                    $this->info("  ✓ Nenhum prefixo órfão no bucket {$rotulo}.");
                 } else {
                     foreach ($prefixosOrfaos as $prefixo) {
-                        $this->line("  • R2 órfão: {$prefixo}/".($executar ? ' → removido' : ''));
+                        $this->line("  • {$rotulo} órfão: {$prefixo}/".($executar ? ' → removido' : ''));
                         if ($executar) {
-                            Storage::disk('midia')->deleteDirectory($prefixo);
+                            Storage::disk($disco)->deleteDirectory($prefixo);
                         }
                     }
                 }
             } catch (\Throwable $e) {
-                $this->warn('  ⚠ R2 inacessível: '.$e->getMessage());
+                $this->warn("  ⚠ {$rotulo} inacessível: ".$e->getMessage());
             }
-        } else {
-            $this->comment('  – Bucket R2 sem credenciais neste ambiente (pulado).');
         }
 
         $this->newLine();

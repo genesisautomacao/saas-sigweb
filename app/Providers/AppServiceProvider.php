@@ -25,6 +25,13 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // R79-1: campo de foto de lote (bucket público "fotos" ou disco local) — a
+        // decisão do destino e a prévia ficam em App\Support\FotosLote::campoUpload().
+        \Filament\Forms\Components\FileUpload::macro('fotoDeLote', function () {
+            /** @var \Filament\Forms\Components\FileUpload $this */
+            return \App\Support\FotosLote::campoUpload($this);
+        });
+
         // O Bypass Definitivo (God Mode)
         Gate::before(function ($user, $ability) {
 
@@ -105,6 +112,21 @@ class AppServiceProvider extends ServiceProvider
                     Config::set('filesystems.disks.midia.secret', $d['R2_SECRET_ACCESS_KEY'] ?? null);
                     Config::set('filesystems.disks.midia.bucket', $d['R2_BUCKET'] ?? 'sigweb-midia');
                     Config::set('filesystems.disks.midia.endpoint', $d['R2_ENDPOINT'] ?? null);
+                }
+
+                // Cloudflare R2 Fotos (disk "fotos" — bucket PÚBLICO das fotos dos lotes,
+                // R79-1). Sem a linha, as fotos seguem no disk "public" da VPS.
+                $r2Fotos = $settings->get('Cloudflare R2 Fotos');
+                if ($r2Fotos && ! empty($r2Fotos->data['R2_ACCESS_KEY_ID'])) {
+                    $d = array_map(fn ($v) => is_string($v) ? trim($v) : $v, $r2Fotos->data);
+
+                    Config::set('filesystems.disks.fotos.key', $d['R2_ACCESS_KEY_ID']);
+                    Config::set('filesystems.disks.fotos.secret', $d['R2_SECRET_ACCESS_KEY'] ?? null);
+                    Config::set('filesystems.disks.fotos.bucket', $d['R2_BUCKET'] ?? 'sigweb-fotos');
+                    Config::set('filesystems.disks.fotos.endpoint', $d['R2_ENDPOINT'] ?? null);
+                    if (! empty($d['R2_PUBLIC_URL'])) {
+                        Config::set('filesystems.disks.fotos.url', rtrim($d['R2_PUBLIC_URL'], '/'));
+                    }
                 }
             }
         } catch (\Throwable $e) {

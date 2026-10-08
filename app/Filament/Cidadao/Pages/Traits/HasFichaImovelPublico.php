@@ -43,7 +43,7 @@ trait HasFichaImovelPublico
         $this->loteFacePrincipal = $lote ? (float) $lote->main_facade_length : 0.0;
         $this->loteAreaConstruida = (float) Edificacao::where('lote_id', $loteId)->sum('area_geo');
         $this->loteSequentialId = $lote ? $lote->sequential_id : 'S/N';
-        $this->loteFotoFrontal = $lote?->foto_frontal ? asset('storage/'.$lote->foto_frontal) : null;
+        $this->loteFotoFrontal = \App\Support\FotosLote::url($lote?->foto_frontal); // R79-1: bucket ou /storage
 
         $this->showFicha = true;
     }

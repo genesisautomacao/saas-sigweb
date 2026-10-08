@@ -751,12 +751,18 @@ Escopo (decisões do usuário em 2026-10-07):
 
 ## Release 79
 
-#### R79-1 — Mídias no Cloudflare R2 (fotos do lote etc.)
-**Status:** 📋 A fazer — **adiado para a Release 79** (decisão do usuário em 2026-10-07; era o R78-2)
-- Bucket a criar na Cloudflare para as mídias. O usuário falou em bucket **público**; **decidir antes de codar** público × privado, porque são fotos de imóveis com proprietário (hoje `sigweb-midia` é privado com URL assinada e `sigweb-ortofoto` é o público dos tiles).
-- Fotos novas (web + push do app) gravadas no R2 em `{tenant_slug}/lotes_fotos/...`; leitura via URL assinada.
-- **Leitura dupla** para não quebrar as prefeituras da VPS: caminho no R2 → URL assinada; caminho legado → disco local (BIC, Viabilidade, PDF de Produtividade, ficha do mapa, LoteResource, ZIPs do R78-1).
-- Comando de migração das fotos existentes (simulação por padrão, `--executar` aplica). Impacto detalhado e roteiro de deploy a apresentar antes de codar.
+#### ~~R79-1 — Mídias no Cloudflare R2 (fotos do lote etc.)~~
+**Status:** ✅ Concluído (local, Santa Cecília: 15 fotos/12 lotes migradas sem falha; ficha interna, BIC, ZIP, pull e push do app, modal de fotos e EditLote testados com foto no bucket, com foto legada e com upload novo; `fotos:limpar-local` em simulação = 15 apagáveis, 3 órfãos intocados)
+**Concluído em:** 2026-10-08
+**Deploy:** `git pull` + `php artisan optimize:clear` → conferir no /admin a linha "Cloudflare R2 Fotos" → `php artisan fotos:migrar-bucket` (simulação) → `php artisan fotos:migrar-bucket --executar` → dias depois `php artisan fotos:limpar-local` (simulação) e `--executar`. Sem migration.
+**Origem:** era o R78-2, adiado para a Release 79 em 2026-10-07.
+Decisões do usuário (2026-10-08):
+- **Bucket PÚBLICO novo** (o usuário cria; sugestão de nome `sigweb-fotos`) com domínio **`fotos.sigwebmidia.com.br`**. A foto frontal do lote já aparece na ficha do **mapa público** (`HasFichaImovelPublico` → `asset('storage/...')`, ou seja, hoje já abre por URL sem login) — o bucket público não muda a exposição. O `sigweb-midia` (privado, 360) continua como está. Cloudflare: Custom Domain, CORS GET/HEAD e token do R2 com leitura e escrita no bucket novo.
+- **Escopo = só as fotos dos lotes** (`foto_frontal`/`foto_lateral_esq`/`foto_lateral_dir`, web + push do app). Documentos de unidade (escritura/matrícula) e anexos de processos **nunca** vão para bucket público; fotos de chamados/OS ficam fora.
+- **Onde está cada foto = pelo caminho gravado** (sem consultar o bucket): `{tenant_slug}/lotes_fotos/...` → bucket (URL `https://fotos.sigwebmidia.com.br/...`); `lotes_fotos/...` legado → disco local da VPS. A leitura dupla fica no código mesmo após a migração (fotos que chegam durante o comando, falha pontual de cópia).
+- **PDFs e ZIPs leem o arquivo pelo disco do bucket**, nunca pela URL (BIC, Viabilidade, PDF de Produtividade, ZIPs do R78-1) — DomPDF não depende de download remoto. Telas (mapa interno, mapa público, LoteResource) usam a URL pública.
+- **Roteiro na VPS:** deploy (foto nova já nasce no bucket) → comando de migração em simulação (total, faltando no disco, tamanho) → `--executar` (copia, confere no bucket, só então troca o caminho no banco; idempotente e retomável).
+- **Disco da VPS: guardar e limpar depois** — os arquivos locais ficam como backup; comando de limpeza separado (simulação por padrão) apaga só os já confirmados no bucket, quando o usuário decidir.
 
 ---
 

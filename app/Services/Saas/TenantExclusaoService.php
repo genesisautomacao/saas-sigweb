@@ -312,6 +312,18 @@ class TenantExclusaoService
             Log::warning("[TenantExclusao] R2 {$slug}/: ".$e->getMessage());
         }
 
+        // R79-1: fotos dos lotes no bucket público (sigweb-fotos/{slug}/).
+        $resumo['r2_fotos'] = 'não configurado';
+        try {
+            if (\App\Support\FotosLote::bucketAtivo()) {
+                Storage::disk('fotos')->deleteDirectory($slug);
+                $resumo['r2_fotos'] = 'prefixo removido';
+            }
+        } catch (\Throwable $e) {
+            $resumo['r2_fotos'] = 'FALHOU: '.$e->getMessage();
+            Log::warning("[TenantExclusao] R2 fotos {$slug}/: ".$e->getMessage());
+        }
+
         return $resumo;
     }
 }

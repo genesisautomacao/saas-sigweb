@@ -77,6 +77,23 @@ return [
             'report' => false,
         ],
 
+        // Bucket PÚBLICO das fotos dos lotes (R79-1, Cloudflare R2 `sigweb-fotos`,
+        // servido em https://fotos.sigwebmidia.com.br). Estrutura {tenant_slug}/lotes_fotos/...
+        // Credenciais do ApiSetting "Cloudflare R2 Fotos" (injetadas no AppServiceProvider);
+        // sem a linha, App\Support\FotosLote continua gravando no disk "public".
+        'fotos' => [
+            'driver' => 's3',
+            'key' => env('R2_FOTOS_ACCESS_KEY_ID'),
+            'secret' => env('R2_FOTOS_SECRET_ACCESS_KEY'),
+            'region' => 'auto',
+            'bucket' => env('R2_FOTOS_BUCKET', 'sigweb-fotos'),
+            'endpoint' => env('R2_FOTOS_ENDPOINT'),
+            'url' => env('R2_FOTOS_PUBLIC_URL', 'https://fotos.sigwebmidia.com.br'),
+            'use_path_style_endpoint' => true,
+            'throw' => false,
+            'report' => false,
+        ],
+
     ],
 
     /*
