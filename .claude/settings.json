@@ -161,7 +161,9 @@
       "Bash(timeout 60 php C:/Users/jesse/AppData/Local/Temp/claude/c--laragon-www-saas-sigweb/6998ed54-c987-4266-8e67-df1215bff3e5/scratchpad/r2del.php)",
       "Bash(php -l app/Console/Commands/FotosMigrarBucket.php)",
       "Bash(timeout 60 php C:/Users/jesse/AppData/Local/Temp/claude/c--laragon-www-saas-sigweb/6998ed54-c987-4266-8e67-df1215bff3e5/scratchpad/pb.php)",
-      "Bash(php -l app/Filament/Cidadao/Pages/Traits/HasChamadoMapaPublico.php)"
+      "Bash(php -l app/Filament/Cidadao/Pages/Traits/HasChamadoMapaPublico.php)",
+      "Bash(sed -i \"2646s/'arborizacao', 'chamados'\\\\]\\)\\)/'arborizacao', 'chamados', 'chamados_mapa']\\)\\)/\" resources/views/filament/pages/mapa-fullscreen.blade.php)",
+      "Bash(sed -i \"2647s/árvores, chamados — D8\\)/árvores, chamados do App e do mapa público — D8 + R80-1\\)/\" resources/views/filament/pages/mapa-fullscreen.blade.php)"
     ],
     "additionalDirectories": [
       "D:\\Sistemas e Plataformas\\WebGis\\Pocs"

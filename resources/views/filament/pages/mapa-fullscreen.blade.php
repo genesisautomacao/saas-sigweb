@@ -2643,8 +2643,8 @@
 
                 @endif
 
-                @if (\App\Support\Modulos::algumAtivo(['pgv', 'imobiliario', 'patrimonios', 'iluminacao', 'arborizacao', 'chamados']))
-                {{-- GRUPO: INFRAESTRUTURA (setores fiscais, REURB, patrimônios, postes, árvores, chamados — D8) --}}
+                @if (\App\Support\Modulos::algumAtivo(['pgv', 'imobiliario', 'patrimonios', 'iluminacao', 'arborizacao', 'chamados', 'chamados_mapa']))
+                {{-- GRUPO: INFRAESTRUTURA (setores fiscais, REURB, patrimônios, postes, árvores, chamados do App e do mapa público — D8 + R80-1) --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'infra' ? '' : 'infra'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
