@@ -98,6 +98,16 @@ return [
         'ferramentas' => [],
     ],
 
+    'chamados_mapa' => [
+        'label' => 'PUB - Chamados pelo Mapa Público',
+        'descricao' => 'Botão "Fale conosco" no mapa público (formulário aberto, com foto e ponto no mapa) e o grupo "Chamados pelo Mapa" no painel da prefeitura. Independente do App de Chamados.',
+        'requer' => [],
+        'permissoes' => ['gerenciar_chamados_mapa', 'ver_camada_chamados_mapa'],
+        'camadas' => ['chamados_mapa'],
+        'artefatos' => [],
+        'ferramentas' => [],
+    ],
+
     'imageamento' => [
         'label' => 'GIS - Imageamento (360° e 3D)',
         'descricao' => 'Panorâmicas 360 (Street View) e Visualizador 3D / LiDAR.',

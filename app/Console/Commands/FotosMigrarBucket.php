@@ -55,8 +55,23 @@ class FotosMigrarBucket extends Command
         foreach ($tenants as $tenant) {
             $c = ['lotes' => 0, 'fotos' => 0, 'ausentes' => 0, 'bytes' => 0, 'migradas' => 0, 'falhas' => 0];
 
-            $this->candidatos($tenant->id)->chunkById(200, function ($lotes) use (&$c, &$pastas, $tenant, $executar, $local) {
+            // Barra de progresso por prefeitura (a migração de milhares de fotos leva tempo
+            // e, sem ela, a tela parecia travada — VPS 2026-10-08, Jucurutu 12 mil fotos).
+            $barra = null;
+            if ($executar) {
+                $total = $this->candidatos($tenant->id)->count();
+                if ($total === 0) {
+                    continue;
+                }
+                $this->line("  {$tenant->slug} — {$total} lote(s)");
+                $barra = $this->output->createProgressBar($total);
+                $barra->setFormat('  %current%/%max% [%bar%] %percent:3s%% · %elapsed:6s% decorridos · faltam ~%remaining:-6s%');
+                $barra->start();
+            }
+
+            $this->candidatos($tenant->id)->chunkById(200, function ($lotes) use (&$c, &$pastas, $tenant, $executar, $local, $barra) {
                 foreach ($lotes as $lote) {
+                    $barra?->advance();
                     if (! FotosLote::temFotoLocal($lote)) {
                         continue;
                     }
@@ -71,7 +86,9 @@ class FotosMigrarBucket extends Command
                                 default => $c['falhas']++,
                             };
                             if (str_starts_with($status, 'falhou')) {
+                                $barra?->clear();
                                 $this->warn("  ⚠ lote {$lote->id} {$coluna}: {$status}");
+                                $barra?->display();
                             }
                         }
 
@@ -93,6 +110,11 @@ class FotosMigrarBucket extends Command
                     }
                 }
             });
+
+            if ($barra) {
+                $barra->finish();
+                $this->newLine(2);
+            }
 
             if ($c['fotos'] === 0) {
                 continue;

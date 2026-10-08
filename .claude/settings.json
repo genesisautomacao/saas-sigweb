@@ -158,7 +158,10 @@
       "Bash(php -d memory_limit=1G -r ' *)",
       "Bash(php -d memory_limit=1G \"C:/Users/jesse/AppData/Local/Temp/claude/c--laragon-www-saas-sigweb/db2d3503-7e45-41c9-a5f4-19afbb4a7191/scratchpad/gerar_resumo_duplicidades.php\")",
       "Bash(./vendor/bin/pint app/Filament/Pages/Traits/HasLoteActions.php)",
-      "Bash(timeout 60 php C:/Users/jesse/AppData/Local/Temp/claude/c--laragon-www-saas-sigweb/6998ed54-c987-4266-8e67-df1215bff3e5/scratchpad/r2del.php)"
+      "Bash(timeout 60 php C:/Users/jesse/AppData/Local/Temp/claude/c--laragon-www-saas-sigweb/6998ed54-c987-4266-8e67-df1215bff3e5/scratchpad/r2del.php)",
+      "Bash(php -l app/Console/Commands/FotosMigrarBucket.php)",
+      "Bash(timeout 60 php C:/Users/jesse/AppData/Local/Temp/claude/c--laragon-www-saas-sigweb/6998ed54-c987-4266-8e67-df1215bff3e5/scratchpad/pb.php)",
+      "Bash(php -l app/Filament/Cidadao/Pages/Traits/HasChamadoMapaPublico.php)"
     ],
     "additionalDirectories": [
       "D:\\Sistemas e Plataformas\\WebGis\\Pocs"

@@ -467,6 +467,12 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(Chamado::class);
     }
 
+    /** R80-1 — chamados abertos pelo cidadão no mapa público. */
+    public function chamadosMapa(): HasMany
+    {
+        return $this->hasMany(ChamadoMapa::class);
+    }
+
     // Release 67 — customizações do cadastro e coleta cadastral
     public function camposCustomizados(): HasMany
     {

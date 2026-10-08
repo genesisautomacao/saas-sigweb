@@ -188,6 +188,10 @@ class RoleResource extends Resource
                     'gerenciar_fluxos_chamado' => 'Gerenciar Fluxos de Trabalho + Fases',
                     'gerenciar_categorias_chamado' => 'Gerenciar Categorias de Chamado',
                 ]],
+            'permissions_chamados_mapa' => ['titulo' => 'Módulo: Chamados pelo Mapa Público', 'rotulo' => 'Chamados abertos pelo cidadão no mapa público', 'span' => 'full', 'colunas' => 2,
+                'opcoes' => [
+                    'gerenciar_chamados_mapa' => 'Gerenciar Chamados pelo Mapa (ver, alterar situação, responder)',
+                ]],
             'permissions_mobilidade' => ['titulo' => 'Módulo: Mobilidade Urbana', 'rotulo' => 'Entidades da mobilidade urbana (permissão única por entidade)', 'span' => 'full', 'colunas' => 2,
                 'opcoes' => [
                     'gerenciar_mob_trechos' => 'Trechos Viários (levantamento)',
@@ -220,6 +224,7 @@ class RoleResource extends Resource
                     'ver_camada_zonas' => 'Zonas de Uso (PGV)',
                     'ver_camada_patrimonio_publico' => 'Patrimônio Público',
                     'ver_camada_chamados' => 'Chamados (App)',
+                    'ver_camada_chamados_mapa' => 'Chamados pelo Mapa (público)',
                     'ver_camada_cemiterios' => 'Cemitérios',
                     'ver_camada_rural_localidades' => 'Localidades Rurais',
                     'ver_camada_rural_propriedades' => 'Propriedades Rurais',

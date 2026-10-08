@@ -2398,27 +2398,32 @@
                                             onchange="window.dispatchEvent(new CustomEvent('sigweb-mob-fluxo-simular', { detail: { ligado: this.checked } }))">
                                         ▶ Simular fluxo (animar setas)
                                     </label>
-                                    {{-- MONITORAMENTO EM TEMPO REAL (Onda 5): camada mob_cameras — ícone de câmera,
-                                         clique abre o player (HasMobCameraActions). Permissão ver_camada_mob_cameras. --}}
-                                    @if (\App\Support\Modulos::camadaDisponivel('mob_cameras'))
-                                    <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-600 dark:text-gray-400 mt-1"
-                                        title="Câmeras de monitoramento da cidade. Clique no ícone da câmera para assistir ao vivo.">
-                                        <input type="checkbox" data-layer="mob_cameras" class="layer-toggle rounded border-gray-300 w-3.5 h-3.5">
-                                        {{-- .layer-label > .layer-text é OBRIGATÓRIO: o fetchAndDrawLayer escreve "Carregando..." nele --}}
-                                        <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                            <span class="layer-text truncate">&#127909; Monitoramento em tempo Real</span>
-                                        </span>
-                                    </label>
-                                    @endif
                                 </div>
                             </div>
+
+                            {{-- MONITORAMENTO EM TEMPO REAL (Onda 5; item próprio desde o R80-2): camada
+                                 mob_cameras — ícone de câmera, clique abre o player (HasMobCameraActions).
+                                 Permissão ver_camada_mob_cameras. --}}
+                            @if (\App\Support\Modulos::camadaDisponivel('mob_cameras'))
+                            <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                                <label class="flex items-center space-x-3 cursor-pointer flex-1"
+                                    title="Câmeras de monitoramento da cidade. Clique no ícone da câmera para assistir ao vivo.">
+                                    <input type="checkbox" data-layer="mob_cameras"
+                                        class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#dc2626;">
+                                    {{-- .layer-label > .layer-text é OBRIGATÓRIO: o fetchAndDrawLayer escreve "Carregando..." nele --}}
+                                    <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                        <span class="layer-text truncate">&#127909; Monitoramento em tempo real</span>
+                                    </span>
+                                </label>
+                            </div>
+                            @endif
 
                             {{-- SINALIZAÇÃO + filtro vertical/horizontal --}}
                             <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
                                 @if (\App\Support\Modulos::camadaDisponivel('mob_sinalizacoes'))
                                 <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                     <input type="checkbox" data-layer="mob_sinalizacoes"
-                                        class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-600 w-4 h-4 flex-shrink-0">
+                                        class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#dc2626;">
                                     <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                         <div class="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></div>
                                         <span class="layer-text truncate">Sinalização Viária</span>
@@ -2758,6 +2763,20 @@
                             <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-3 bg-rose-500 rounded-full flex-shrink-0"></div><span
                                     class="layer-text truncate">Chamados (App)</span>
+                            </span>
+                        </label>
+                        @endif
+
+                        {{-- R80-1 — Chamados pelo Mapa (abertos no mapa público), cor = situação --}}
+                        @if (\App\Support\Modulos::camadaDisponivel('chamados_mapa'))
+                        <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"
+                            title="Amarelo = pendente · azul = em atendimento · verde = atendido · vermelho = irrelevante/falso">
+                            <input type="checkbox" data-layer="chamados_mapa"
+                                class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#16a34a;">
+                            <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                {{-- espaçador do mesmo tamanho do marcador dos demais itens (alinha o texto) --}}
+                                <div class="w-3 h-3 flex-shrink-0"></div>
+                                <span class="layer-text truncate">Chamados pelo Mapa</span>
                             </span>
                         </label>
                         @endif

@@ -396,6 +396,13 @@ class MapaFullscreen extends Page
         return redirect()->to(\App\Filament\Resources\ChamadoResource::getUrl('view', ['record' => $id]));
     }
 
+    // R80-1 — clique num chamado do mapa público abre a tela do chamado no painel.
+    #[On('abrirChamadoMapa')]
+    public function abrirChamadoMapa($id)
+    {
+        return redirect()->to(\App\Filament\Resources\ChamadoMapaResource::getUrl('view', ['record' => $id]));
+    }
+
     #[On('abrirFichaImovel')]
     public function carregarFicha($loteId, $loteNome = 'S/N')
     {

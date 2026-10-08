@@ -766,6 +766,33 @@ Decisões do usuário (2026-10-08):
 
 ---
 
+## Release 80 — Chamados pelo mapa Público
+
+#### ~~R80-1 — Chamados pelo mapa público (módulo novo)~~
+**Status:** ✅ Concluído (teste funcional local em Santa Cecília: validações, CPF, tempo mínimo com modal aberto, envio sem e com ponto, campo-armadilha, `#[Locked]` bloqueando injeção, limite por IP; painel com filtros, mudança de situação + e-mail interceptado com protocolo/resposta/cor, tela do chamado, camada 200 p/ equipe e 403 p/ anônimo; rota da foto 200 equipe / 403 cidadão e anônimo; Turnstile com as chaves de teste oficiais da Cloudflare; prefeitura sem o módulo sem botão)
+**Concluído em:** 2026-10-08
+**Deploy:** `php artisan migrate` + `php artisan db:seed --class=PermissionsSeeder` + `php artisan permission:cache-reset` + `php artisan optimize:clear` + `php artisan view:cache` → ligar o módulo "PUB - Chamados pelo Mapa Público" nas prefeituras no /admin (papéis que não acompanham todos os módulos precisam de `gerenciar_chamados_mapa`).
+**Origem:** pedido do usuário.
+- Mapa público: botão "Fale conosco" (ícone de chamada) como último item da barra principal, ao lado da pesquisa → modal com nome, celular, e-mail, assunto (Solicitação / Sugestão / Reclamação), título, descrição e uma foto opcional; check "mostrar no mapa" → o cidadão marca o ponto e a localização vai junto com o formulário.
+- Painel `/app`: grupo de menu próprio **"Chamados pelo Mapa"** com a lista, filtros por data e tipo (assunto) e situação do chamado (ex.: pendente, atendido, irrelevante).
+- **Módulo novo** no catálogo (`config/modulos.php`), ligado por prefeitura no `/admin`; sem o módulo, o botão não aparece no mapa público e o grupo não aparece no painel.
+- Separado do "App de Chamados" (módulo `chamados`, que exige cidadão logado e tem categorias/fluxos/fases): aqui é formulário aberto, sem login. Chave de módulo proposta: `chamados_mapa`.
+- Decisões do usuário (2026-10-08):
+  - **Localização:** com "Mostrar no mapa", ao enviar o modal some e o cidadão clica no ponto (ajusta antes de confirmar) + botão "Usar minha localização" (GPS do aparelho) como atalho.
+  - **Situações fixas com cor:** Pendente (amarelo) · Em atendimento (azul) · Atendido (verde) · Irrelevante ou Falso (vermelho). Ao mudar a situação, o cidadão que deixou e-mail recebe aviso pelo **Resend com a marca do município** (protocolo + situação + resposta).
+  - **CPF opcional**, validado pelos dígitos verificadores quando preenchido; guardado normalizado e indexado junto com o protocolo — deixar pronto para uma **futura página pública de consulta de protocolos** (por protocolo/CPF).
+  - **Camada própria no mapa interno**, colorida pela situação; clique abre o chamado; "Ver no mapa" na lista.
+  - Assumidos (sem objeção do usuário): obrigatórios nome, assunto, título, descrição e celular OU e-mail; foto no bucket PRIVADO `sigweb-midia` (URL assinada — pode mostrar pessoas/interior de casas); protocolo exibido ao cidadão ao enviar; permissões próprias (gerenciar + ver camada).
+  - **Anti-spam:** campo-armadilha (honeypot) + tempo mínimo de preenchimento (3 s) + limite de **10 envios por hora por IP**, tudo invisível ao cidadão. **Cloudflare Turnstile pronto no código**, ligado só quando existir a linha "Cloudflare Turnstile" (site key + secret) no /admin.
+  - Futura consulta pública de protocolos: sugerido pedir **protocolo + CPF** (ou protocolo + e-mail) juntos, nunca só o CPF — decidir quando for implementar.
+
+#### ~~R80-2 — "Monitoramento em tempo real" como item independente na janela de camadas~~
+**Status:** ✅ Concluído (mapa interno e público)
+**Concluído em:** 2026-10-08
+- Hoje a camada `mob_cameras` é um sub-check dentro do bloco "Vias Urbanas (sentido)" no acordeon Mobilidade Urbana (mapa interno e público). Passa a ser um bloco próprio no mesmo acordeon, com checkbox no padrão das demais camadas.
+
+---
+
 ## Pontos fortes a destacar na demonstração
 
 1. Estatísticas com **gráficos plotados no mapa** (centroide de cada bairro) — item 2.6-41;

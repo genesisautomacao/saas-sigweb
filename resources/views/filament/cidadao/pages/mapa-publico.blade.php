@@ -329,6 +329,16 @@
                     <span class="hidden md:inline">Camadas</span>
                 </button>
 
+                {{-- R80-1 — FALE CONOSCO (Chamados pelo Mapa): último item da barra, no mesmo padrão
+                     dos demais botões; só com o módulo chamados_mapa ligado. --}}
+                @if ($this->chamadoMapaAtivo())
+                    <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+                    <button type="button" wire:click="mountAction('faleConosco')" title="Fale conosco — abrir chamado com a prefeitura"
+                        class="p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                        <x-heroicon-o-chat-bubble-left-right class="w-5 h-5" />
+                    </button>
+                @endif
+
             </div>
             <div class="w-10"></div>
         </div>
@@ -525,7 +535,7 @@
                             <p style="font-size:10px; color:#9ca3af; margin:4px 0 0 28px; line-height:1.4;">Tiques = direção em que o levantamento foi feito. O sentido de tráfego está nas Vias Urbanas.</p>
                         </div>
 
-                        {{-- VIAS URBANAS (sentido) + simulador + câmeras --}}
+                        {{-- VIAS URBANAS (sentido) + simulador --}}
                         <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                 <input type="checkbox" data-layer="mob_vias"
@@ -546,14 +556,19 @@
                                         onchange="window.dispatchEvent(new CustomEvent('sigweb-mob-fluxo-simular', { detail: { ligado: this.checked } }))">
                                     &#9654; Simular fluxo (animar setas)
                                 </label>
-                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11px; color:#4b5563; margin-top:4px;"
-                                    title="Câmeras de monitoramento da cidade. Clique no ícone da câmera para assistir ao vivo.">
-                                    <input type="checkbox" data-layer="mob_cameras" class="layer-toggle rounded border-gray-300 w-3.5 h-3.5">
-                                    <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
-                                        <span class="layer-text truncate">&#127909; Monitoramento em tempo real</span>
-                                    </span>
-                                </label>
                             </div>
+                        </div>
+
+                        {{-- MONITORAMENTO EM TEMPO REAL — item próprio (R80-2) --}}
+                        <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/40">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1"
+                                title="Câmeras de monitoramento da cidade. Clique no ícone da câmera para assistir ao vivo.">
+                                <input type="checkbox" data-layer="mob_cameras"
+                                    class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#dc2626;">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0" style="margin-left:10px;">
+                                    <span class="layer-text truncate">&#127909; Monitoramento em tempo real</span>
+                                </span>
+                            </label>
                         </div>
 
                         {{-- SINALIZAÇÃO + filtro vertical/horizontal --}}

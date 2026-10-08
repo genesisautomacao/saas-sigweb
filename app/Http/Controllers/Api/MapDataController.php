@@ -581,6 +581,49 @@ class MapDataController extends Controller
                 $data = ['type' => 'FeatureCollection', 'features' => $features];
                 break;
 
+            case 'chamados_mapa':
+                // R80-1 — chamados abertos pelo cidadão no mapa público, coloridos pela SITUAÇÃO.
+                // Dado de cidadão: este endpoint também atende o mapa público, então aqui só
+                // passa a EQUIPE logada e vinculada à prefeitura.
+                $usuario = auth()->user();
+                if (! $usuario || $usuario->isCidadao() || ! $usuario->tenants()->whereKey($tenantId)->exists()) {
+                    return response()->json(['error' => 'Não autorizado'], 403);
+                }
+
+                $rows = DB::table('chamados_mapa')
+                    ->where('tenant_id', $tenantId)
+                    ->whereNull('deleted_at')
+                    ->whereNotNull('geo')
+                    ->orderBy('id')
+                    ->selectRaw('id, protocolo, titulo, assunto, situacao, created_at, ST_AsGeoJSON(geo, 6) AS geo_json')
+                    ->get();
+
+                $features = [];
+                foreach ($rows as $row) {
+                    $geom = $row->geo_json ? json_decode($row->geo_json) : null;
+                    if (! $geom || empty($geom->coordinates)) {
+                        continue;
+                    }
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'id' => $row->id,
+                            'layer' => 'chamados_mapa',
+                            'protocolo' => $row->protocolo,
+                            'titulo' => $row->titulo,
+                            'info' => 'Protocolo '.$row->protocolo, // 2ª linha da tooltip de hover
+                            'assunto' => \App\Models\ChamadoMapa::ASSUNTOS[$row->assunto] ?? $row->assunto,
+                            'situacao' => $row->situacao,
+                            'situacao_label' => \App\Models\ChamadoMapa::rotuloSituacao($row->situacao),
+                            'cor' => \App\Models\ChamadoMapa::corSituacao($row->situacao),
+                            'data' => \Carbon\Carbon::parse($row->created_at)->format('d/m/Y'),
+                        ],
+                        'geometry' => $geom,
+                    ];
+                }
+                $data = ['type' => 'FeatureCollection', 'features' => $features];
+                break;
+
             case 'chamados':
                 // App de Chamados — pontos coloridos pela cor da CATEGORIA. Self-contained.
                 $rows = DB::table('chamados as c')

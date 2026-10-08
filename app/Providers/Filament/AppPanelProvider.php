@@ -61,6 +61,7 @@ class AppPanelProvider extends PanelProvider
                 'Gestão de Cemitérios',
                 'Cadastro Rural',
                 'App de Chamados',
+                'Chamados pelo Mapa',
                 'WMS',
                 'Customizações',
                 'Configurações',

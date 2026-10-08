@@ -1186,6 +1186,25 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
+        // R80-1 — chamados do mapa público, coloridos pela SITUAÇÃO (pendente amarelo,
+        // em atendimento azul, atendido verde, irrelevante vermelho — cor vem do servidor).
+        chamados_mapa: {
+            z: 104,
+            minZoom: 11,
+            style: function (feature) {
+                const cor = feature.get("cor") || "#eab308";
+                return new ol.style.Style({
+                    image: new ol.style.RegularShape({
+                        points: 4,
+                        radius: 10,
+                        angle: Math.PI / 4,
+                        fill: new ol.style.Fill({ color: cor }),
+                        stroke: new ol.style.Stroke({ color: "#ffffff", width: 2 }),
+                    }),
+                });
+            },
+        },
+
         patrimonio_publicos: {
             z: 102,
             minZoom: 13,
@@ -3501,7 +3520,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             // Monta o visual do Tooltip
                             tooltip.innerHTML = `
                             <div style="font-size: 14px; font-weight: 900; color: #ffffff;">${feature.get("titulo")}</div>
-                            <div style="font-size: 10px; color: #cbd5e1; margin-top: 2px;">${feature.get("info")}</div>
+                            ${feature.get("info") ? `<div style="font-size: 10px; color: #cbd5e1; margin-top: 2px;">${feature.get("info")}</div>` : ""}
                         `;
                         }
                     },
@@ -4397,6 +4416,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "testada_ativa",
                 "patrimonio_publicos",
                 "chamados",
+                "chamados_mapa", // R80-1
                 "mob_sinalizacoes",
                 "mob_pontos_interesse",
                 "postes",
@@ -4466,6 +4486,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         break;
                     case "chamados":
                         Livewire.dispatch("abrirChamado", { id: id });
+                        break;
+                    case "chamados_mapa": // R80-1 — abre o chamado no painel
+                        Livewire.dispatch("abrirChamadoMapa", { id: id });
                         break;
                     case "postes":
                         Livewire.dispatch("abrirOpcoesPoste", { id: id });

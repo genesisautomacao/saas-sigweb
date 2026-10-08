@@ -25,6 +25,7 @@ class MapaPublico extends Page
 {
     use \App\Filament\Concerns\MontaOpcoesFiltroMapa;
     use HasFichaImovelPublico;
+    use \App\Filament\Cidadao\Pages\Traits\HasChamadoMapaPublico; // R80-1 — "Fale conosco"
 
     protected static ?string $navigationIcon = 'heroicon-o-map';
 

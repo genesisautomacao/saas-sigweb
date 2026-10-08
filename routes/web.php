@@ -52,6 +52,19 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/coleta/quadras-geojson', \App\Http\Controllers\ColetaQuadrasController::class)->name('coleta.quadras-geojson');
 });
 
+// R80-1 — foto do chamado pelo mapa quando ela ficou no disco local privado (sem o
+// bucket "midia" configurado). Fora do grupo 'auth' de propósito: o middleware redireciona
+// para uma rota 'login' que não existe (500). Autorização manual: equipe da prefeitura.
+Route::get('/chamados-mapa/{chamadoMapa}/foto', function (\App\Models\ChamadoMapa $chamadoMapa) {
+    $user = auth()->user();
+    abort_unless($user && ! $user->isCidadao() && $user->tenants()->whereKey($chamadoMapa->tenant_id)->exists(), 403);
+    app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId($chamadoMapa->tenant_id);
+    abort_unless($user->temPermissao('gerenciar_chamados_mapa'), 403);
+    abort_unless($chamadoMapa->foto && \Illuminate\Support\Facades\Storage::disk('local')->exists($chamadoMapa->foto), 404);
+
+    return \Illuminate\Support\Facades\Storage::disk('local')->response($chamadoMapa->foto);
+})->name('chamados-mapa.foto');
+
 // PT-1 — Portal de links do município: landing pública que a prefeitura usa como
 // destino no site oficial (login cidadão, cadastro, mapa anônimo, vídeo tutorial).
 Route::get('/portal/{tenant_slug}', [\App\Http\Controllers\PortalMunicipioController::class, 'show'])->name('portal.municipio');

@@ -2496,7 +2496,126 @@ document.addEventListener("DOMContentLoaded", function () {
     // ------------------------------------------------------------------------
     // CLIQUE NO LOTE OU PONTO PANORÂMICO (ABRIR FICHA/MODAL DO CIDADÃO)
     // ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // R80-1 — FALE CONOSCO: marcar no mapa o local do chamado (clique ou GPS).
+    // O servidor guarda o formulário já validado; aqui só escolhemos o ponto e
+    // devolvemos via Livewire (confirmarPontoChamado / enviarChamadoSemPonto /
+    // cancelarChamadoPendente). Barra flutuante com estilo inline (CSS enxuto).
+    // ------------------------------------------------------------------------
+    window.chamadoMapaPick = false;
+    let chamadoMapaPonto = null; // [lon, lat]
+    const chamadoMapaSource = new ol.source.Vector();
+    map.addLayer(
+        new ol.layer.Vector({
+            source: chamadoMapaSource,
+            zIndex: 99999,
+            style: new ol.style.Style({
+                image: new ol.style.Circle({
+                    radius: 10,
+                    fill: new ol.style.Fill({ color: "#16a34a" }),
+                    stroke: new ol.style.Stroke({ color: "#ffffff", width: 3 }),
+                }),
+            }),
+        }),
+    );
+
+    const chamadoBotao = (texto, cor, acao) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = texto;
+        b.style.cssText =
+            `border:none; border-radius:10px; padding:9px 14px; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap; ` +
+            `background:${cor}; color:${cor === "#ffffff" ? "#374151" : "#ffffff"}; ` +
+            (cor === "#ffffff" ? "border:1px solid #d1d5db;" : "");
+        b.addEventListener("click", (ev) => { ev.stopPropagation(); acao(); });
+        return b;
+    };
+
+    function chamadoMapaBarra() {
+        document.getElementById("chamado-mapa-barra")?.remove();
+        if (!window.chamadoMapaPick) return;
+
+        const barra = document.createElement("div");
+        barra.id = "chamado-mapa-barra";
+        barra.style.cssText =
+            "position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:99999; " +
+            "background:#ffffff; border-radius:16px; box-shadow:0 18px 40px -10px rgba(0,0,0,.45); " +
+            "padding:14px 18px; width:min(760px, calc(100vw - 32px)); font-family:inherit; text-align:center;";
+
+        const titulo = document.createElement("div");
+        titulo.style.cssText = "font-weight:700; color:#111827; font-size:14px; margin-bottom:4px;";
+        titulo.textContent = chamadoMapaPonto
+            ? "📍 Local marcado — confira e envie"
+            : "📍 Toque no mapa no local do chamado";
+        const sub = document.createElement("div");
+        sub.style.cssText = "color:#6b7280; font-size:12px; margin-bottom:10px;";
+        sub.textContent = chamadoMapaPonto
+            ? "Se precisar, toque em outro lugar para ajustar o ponto."
+            : "Ou use a localização do seu celular.";
+
+        const acoes = document.createElement("div");
+        acoes.style.cssText = "display:flex; flex-wrap:wrap; gap:8px; justify-content:center;";
+        if (chamadoMapaPonto) {
+            acoes.appendChild(chamadoBotao("Confirmar e enviar", "#16a34a", () => {
+                const [lon, lat] = chamadoMapaPonto;
+                Livewire.dispatch("confirmarPontoChamado", { lon, lat });
+            }));
+        }
+        acoes.appendChild(chamadoBotao("Usar minha localização", "#2563eb", chamadoMapaGps));
+        acoes.appendChild(chamadoBotao("Enviar sem local", "#ffffff", () => Livewire.dispatch("enviarChamadoSemPonto")));
+        acoes.appendChild(chamadoBotao("Cancelar", "#ffffff", () => Livewire.dispatch("cancelarChamadoPendente")));
+
+        barra.append(titulo, sub, acoes);
+        document.body.appendChild(barra);
+    }
+
+    function chamadoMapaMarcar(lon, lat, centralizar) {
+        chamadoMapaPonto = [lon, lat];
+        chamadoMapaSource.clear();
+        const coord = ol.proj.fromLonLat([lon, lat]);
+        chamadoMapaSource.addFeature(new ol.Feature(new ol.geom.Point(coord)));
+        if (centralizar) {
+            map.getView().animate({ center: coord, zoom: Math.max(map.getView().getZoom(), 18), duration: 800 });
+        }
+        chamadoMapaBarra();
+    }
+
+    function chamadoMapaGps() {
+        if (!navigator.geolocation) {
+            alert("Seu navegador não permite obter a localização. Toque no mapa para marcar o local.");
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => chamadoMapaMarcar(pos.coords.longitude, pos.coords.latitude, true),
+            () => alert("Não foi possível obter sua localização. Verifique a permissão do navegador ou toque no mapa."),
+            { enableHighAccuracy: true, timeout: 15000 },
+        );
+    }
+
+    window.addEventListener("chamado-mapa-escolher-ponto", () => {
+        window.chamadoMapaPick = true;
+        chamadoMapaPonto = null;
+        chamadoMapaSource.clear();
+        map.getTargetElement().style.cursor = "crosshair";
+        chamadoMapaBarra();
+    });
+
+    window.addEventListener("chamado-mapa-concluido", () => {
+        window.chamadoMapaPick = false;
+        chamadoMapaPonto = null;
+        chamadoMapaSource.clear();
+        map.getTargetElement().style.cursor = "";
+        document.getElementById("chamado-mapa-barra")?.remove();
+    });
+
     map.on("singleclick", function (e) {
+        // R80-1: no modo "marcar local do chamado", o clique só posiciona o ponto.
+        if (window.chamadoMapaPick) {
+            const [lonPick, latPick] = ol.proj.toLonLat(e.coordinate);
+            chamadoMapaMarcar(lonPick, latPick, false);
+            return;
+        }
+
         if (currentMeasureInteraction) return; // Não clica se estiver usando a reguinha
 
         // 🛑 TRAVA GERAL DE DESENHO: ferramenta de desenho ativa inibe o clique padrão

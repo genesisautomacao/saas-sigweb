@@ -259,6 +259,9 @@ class PermissionsSeeder extends Seeder
             'gerenciar_fluxos_chamado',
             'gerenciar_chamados',
 
+            /* R80-1 — Chamados pelo mapa público (módulo chamados_mapa) */
+            'gerenciar_chamados_mapa',
+
             /* Módulo Mobilidade Urbana (mob_infra — docs/piuma.txt, permissão
                única "gerenciar" por entidade, molde Estoque/PGV-Avaliação) */
             'gerenciar_mob_trechos',
@@ -299,6 +302,7 @@ class PermissionsSeeder extends Seeder
             'ver_camada_coleta',
             'ver_camada_chamados',
             'ver_camada_areas_reurb',
+            'ver_camada_chamados_mapa', // R80-1
 
             /* Camadas do Módulo Mobilidade Urbana */
             'ver_camada_mob_trechos',
