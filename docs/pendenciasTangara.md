@@ -793,6 +793,25 @@ Decisões do usuário (2026-10-08):
 
 ---
 
+## Infraestrutura — troca de servidor e arquivos no bucket
+
+#### ~~INF-1 — Migração Hostgator (AlmaLinux + cPanel) → Hostinger (Ubuntu 26.04, sem painel): SIGWEB + site da Líder + Criador de Sites~~
+**Status:** ✅ Concluído — virada em 2026-10-10 (plano, roteiro e conferência em [migracao-servidor.md](migracao-servidor.md))
+**Concluído em:** 2026-10-10
+- Decisão do usuário: **servidor primeiro**; arquivos locais vão por rsync como estão.
+
+#### INF-3 — Backup diário dos bancos de produção no R2 + registro no /admin
+**Status:** 🔄 Em andamento (2026-10-10)
+- Só os **bancos** e só **produção** (o servidor de testes não tem backup). Buckets privados: `sigweb-backup/banco/AAAA-MM-DD.dump` (PostgreSQL do SIGWEB) e `lider-backup/ferramenta/AAAA-MM-DD.sql.gz` (MySQL do Criador de Sites — o site da Líder vai morar nele). Diário às 3h; **30 dias** com Bucket Lock (nem o servidor apaga) + ciclo de vida apagando após 31 dias. Uma chave R2 restrita aos 2 buckets e ao IP do servidor.
+- Script e agendamento só no servidor (`/root/backup-diario.sh`, fora do git). No SIGWEB: tabela `backup_execucoes` + comando `backup:registrar` (chamado pelo script) + tela **"Backups"** no /admin (Configurações Globais, só Master) com alerta de backup atrasado (> 26 h) + e-mail de falha pelo Resend para o endereço do ApiSetting "Backup" (`ALERTA_EMAIL`).
+
+#### INF-2 — Anexos de processos, documentos e demais arquivos no bucket PRIVADO
+**Status:** 📋 A fazer, **depois do INF-1** (decisão do usuário 2026-10-09)
+- Hoje `processos_anexos`, `documentos`, `unidades_imobiliarias/documentos` etc. ficam no disk `public` e **abrem por link sem login**. Destino: bucket privado `sigweb-midia` (`{slug}/...`), leitura por URL assinada + autorização por usuário, leitura dupla durante a migração e comando de migração/limpeza no molde do R79-1 (`fotos:migrar-bucket`).
+- Retoma a parte 1 de [releaseNuvemFerramentasAdmin.md](releaseNuvemFerramentasAdmin.md) (especificada com AWS S3; o padrão agora é Cloudflare R2). Impacto nas prefeituras da VPS a apresentar antes de codar.
+
+---
+
 ## Pontos fortes a destacar na demonstração
 
 1. Estatísticas com **gráficos plotados no mapa** (centroide de cada bairro) — item 2.6-41;
