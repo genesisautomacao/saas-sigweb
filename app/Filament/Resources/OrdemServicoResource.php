@@ -4,24 +4,29 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\OrdemServicoResource\Pages;
 use App\Models\OrdemServico;
+use App\Traits\HasTenantModule;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use App\Traits\HasTenantModule;
 
 class OrdemServicoResource extends Resource
 {
     use HasTenantModule;
+
     protected static ?string $tenantModule = 'manutencao';
 
     protected static ?string $model = OrdemServico::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-wrench-screwdriver';
+
     protected static ?string $navigationGroup = 'Manutenção e Serviços';
+
     protected static ?string $modelLabel = 'Ordem de Serviço (OS)';
+
     protected static ?string $pluralModelLabel = 'Ordens de Serviço (OS)';
+
     protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
@@ -35,7 +40,7 @@ class OrdemServicoResource extends Resource
                             Forms\Components\Select::make('solicitacao_id')
                                 ->label('Chamado / Solicitação de Origem')
                                 ->relationship('solicitacao', 'sequential_id')
-                                ->getOptionLabelFromRecordUsing(fn($record) => "Chamado #{$record->sequential_id} - " . ucfirst($record->tipo_servico))
+                                ->getOptionLabelFromRecordUsing(fn ($record) => "Chamado #{$record->sequential_id} - ".ucfirst($record->tipo_servico))
                                 ->searchable()
                                 ->preload()
                                 ->placeholder('Selecione se houver (Opcional)')
@@ -48,11 +53,10 @@ class OrdemServicoResource extends Resource
                                             $set('asset_type', $sol->asset_type);
                                             $set('asset_id', $sol->asset_id);
                                             $set('prioridade', $sol->prioridade);
-                                            $set('descricao_servico', "Ref. SM #{$sol->sequential_id}: " . $sol->observacao);
+                                            $set('descricao_servico', "Ref. SM #{$sol->sequential_id}: ".$sol->observacao);
                                         }
                                     }
                                 }),
-
 
                             // O MESMO MOTOR DE BUSCA AVANÇADO QUE FIZEMOS ANTES
                             Forms\Components\MorphToSelect::make('asset')
@@ -61,31 +65,35 @@ class OrdemServicoResource extends Resource
                                     Forms\Components\MorphToSelect\Type::make(\App\Models\Poste::class)
                                         ->titleAttribute('sequential_id')
                                         ->label('💡 Poste de Iluminação')
-                                        ->getOptionLabelFromRecordUsing(fn($record) => "Poste #{$record->sequential_id} - Ref: " . ($record->address ?? 'S/N'))
+                                        ->getOptionLabelFromRecordUsing(fn ($record) => "Poste #{$record->sequential_id} - Ref: ".($record->address ?? 'S/N'))
                                         ->getSearchResultsUsing(function (string $search) {
                                             $tenantId = \Filament\Facades\Filament::getTenant()->id;
+
                                             return \App\Models\Poste::where('tenant_id', $tenantId)
                                                 ->where(function ($query) use ($search) {
-                                                    if (is_numeric($search))
+                                                    if (is_numeric($search)) {
                                                         $query->where('sequential_id', $search);
+                                                    }
                                                     $query->orWhere('address', 'ilike', "%{$search}%");
                                                 })->limit(50)->get()
-                                                ->mapWithKeys(fn($poste) => [$poste->id => "Poste #{$poste->sequential_id} - Ref: " . ($poste->address ?? 'S/N')])->toArray();
+                                                ->mapWithKeys(fn ($poste) => [$poste->id => "Poste #{$poste->sequential_id} - Ref: ".($poste->address ?? 'S/N')])->toArray();
                                         }),
 
                                     Forms\Components\MorphToSelect\Type::make(\App\Models\Arvore::class)
                                         ->titleAttribute('sequential_id')
                                         ->label('🌳 Árvore / Indivíduo Arbóreo')
-                                        ->getOptionLabelFromRecordUsing(fn($record) => "Árvore #{$record->sequential_id} - Ref: " . ($record->address ?? 'S/N'))
+                                        ->getOptionLabelFromRecordUsing(fn ($record) => "Árvore #{$record->sequential_id} - Ref: ".($record->address ?? 'S/N'))
                                         ->getSearchResultsUsing(function (string $search) {
                                             $tenantId = \Filament\Facades\Filament::getTenant()->id;
+
                                             return \App\Models\Arvore::where('tenant_id', $tenantId)
                                                 ->where(function ($query) use ($search) {
-                                                    if (is_numeric($search))
+                                                    if (is_numeric($search)) {
                                                         $query->where('sequential_id', $search);
+                                                    }
                                                     $query->orWhere('address', 'ilike', "%{$search}%");
                                                 })->limit(50)->get()
-                                                ->mapWithKeys(fn($arvore) => [$arvore->id => "Árvore #{$arvore->sequential_id} - Ref: " . ($arvore->address ?? 'S/N')])->toArray();
+                                                ->mapWithKeys(fn ($arvore) => [$arvore->id => "Árvore #{$arvore->sequential_id} - Ref: ".($arvore->address ?? 'S/N')])->toArray();
                                         }),
                                 ])
                                 ->searchable()
@@ -135,7 +143,7 @@ class OrdemServicoResource extends Resource
                                         ->columnSpan(1)
                                         // 🟢 TRAVA DE ESTOQUE NEGATIVO 🟢
                                         ->rules([
-                                            fn(Forms\Get $get) => function (string $attribute, $value, \Closure $fail) use ($get) {
+                                            fn (Forms\Get $get) => function (string $attribute, $value, \Closure $fail) use ($get) {
                                                 $produtoId = $get('produto_id');
                                                 $localId = $get('local_estoque_id');
 
@@ -201,7 +209,7 @@ class OrdemServicoResource extends Resource
                                 ->multiple() // Permite selecionar várias pessoas!
                                 ->searchable()
                                 ->preload()
-                                ->getOptionLabelFromRecordUsing(fn($record) => "{$record->name} - CPF: {$record->cpf_cnpj}"),
+                                ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->name} - CPF: {$record->cpf_cnpj}"),
                         ]),
 
                     Forms\Components\Section::make('Evidências Fotográficas')
@@ -209,12 +217,12 @@ class OrdemServicoResource extends Resource
                             Forms\Components\FileUpload::make('foto_antes')
                                 ->label('Foto - Antes do Serviço')
                                 ->image()
-                                ->directory('os_fotos'),
+                                ->midia('os_fotos'),
 
                             Forms\Components\FileUpload::make('foto_depois')
                                 ->label('Foto - Serviço Concluído')
                                 ->image()
-                                ->directory('os_fotos'),
+                                ->midia('os_fotos'),
                         ]),
                 ])->columnSpan(['lg' => 1]),
             ])->columns(3);
@@ -246,14 +254,14 @@ class OrdemServicoResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->color(fn(string $state): string => match ($state) {
+                    ->color(fn (string $state): string => match ($state) {
                         'aberta' => 'danger',
                         'andamento' => 'warning',
                         'pausada' => 'gray',
                         'concluida' => 'success',
                         'cancelada' => 'danger',
                     })
-                    ->formatStateUsing(fn(string $state): string => strtoupper($state)),
+                    ->formatStateUsing(fn (string $state): string => strtoupper($state)),
 
                 // Mostra o nome da primeira pessoa da equipe + contador se houver mais
                 Tables\Columns\TextColumn::make('equipe.name')
@@ -284,10 +292,13 @@ class OrdemServicoResource extends Resource
                         ->color('success')
                         ->visible(fn ($record) => $record->asset !== null)
                         ->url(function ($record) {
-                            if (!$record->asset) return null;
+                            if (! $record->asset) {
+                                return null;
+                            }
                             $tenant = \Filament\Facades\Filament::getTenant();
                             $layer = str_contains($record->asset_type, 'Poste') ? 'postes' : 'arvores';
-                            return url('/app/' . $tenant->slug . '/mapa-interativo?layer=' . $layer . '&id=' . $record->asset_id);
+
+                            return url('/app/'.$tenant->slug.'/mapa-interativo?layer='.$layer.'&id='.$record->asset_id);
                         })
                         ->openUrlInNewTab(),
 
@@ -303,7 +314,7 @@ class OrdemServicoResource extends Resource
                             $mapImageBase64 = null;
                             if ($record->asset_id && $record->asset_type) {
                                 try {
-                                    $table  = str_contains($record->asset_type, 'Poste') ? 'postes' : 'arvores';
+                                    $table = str_contains($record->asset_type, 'Poste') ? 'postes' : 'arvores';
                                     $coords = \Illuminate\Support\Facades\DB::selectOne(
                                         "SELECT ST_X(geo::geometry) AS lon, ST_Y(geo::geometry) AS lat FROM {$table} WHERE id = ?",
                                         [$record->asset_id]
@@ -321,12 +332,12 @@ class OrdemServicoResource extends Resource
                             }
 
                             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.ordem-servico-pdf-template', [
-                                'title'          => 'Ordem de Serviço',
-                                'ordemServico'   => $record,
+                                'title' => 'Ordem de Serviço',
+                                'ordemServico' => $record,
                                 'mapImageBase64' => $mapImageBase64,
                             ]);
 
-                            return response()->streamDownload(fn() => print($pdf->stream()), "OS-{$record->sequential_id}.pdf");
+                            return response()->streamDownload(fn () => print ($pdf->stream()), "OS-{$record->sequential_id}.pdf");
                         }),
 
                 ])->tooltip('Ações'),

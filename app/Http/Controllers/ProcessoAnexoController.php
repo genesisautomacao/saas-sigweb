@@ -3,9 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProcessoAnexo;
+use App\Support\Midia;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 /**
  * Anotação em PDF de anexos do Processo Digital (item 222 / B15).
@@ -20,9 +19,49 @@ class ProcessoAnexoController extends Controller
         $this->autorizar($anexo);
 
         return view('processos.anotar-pdf', [
-            'anexo'  => $anexo,
-            'pdfUrl' => Storage::url($anexo->caminho_arquivo),
+            'anexo' => $anexo,
+            // INF-2: servido pelo próprio sistema (mesma origem) — o PDF.js não depende do
+            // CORS do bucket privado nem de link temporário expirando com o editor aberto.
+            'pdfUrl' => route('processo-anexo.arquivo', $anexo),
         ]);
+    }
+
+    /** PDF do anexo para o editor de anotação (bytes via Midia: bucket ou VPS). */
+    public function arquivo(ProcessoAnexo $anexo)
+    {
+        $this->autorizar($anexo);
+
+        $conteudo = Midia::conteudo($anexo->caminho_arquivo);
+        abort_if($conteudo === null, 404);
+
+        return response($conteudo, 200, [
+            'Content-Type' => 'application/pdf',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    /**
+     * INF-2 — link ESTÁVEL de um anexo (PDF do processo, listas de documentos): confere
+     * quem pede e redireciona para o arquivo (link temporário do bucket privado ou /storage
+     * do legado). Cidadão só abre anexo do próprio processo; equipe, da própria prefeitura.
+     */
+    public function abrir(ProcessoAnexo $anexo)
+    {
+        $user = auth()->user();
+        abort_unless($user, 403);
+
+        if ($user->isCidadao()) {
+            $requerente = \App\Models\ProcessoDigital::withoutGlobalScopes()
+                ->whereKey($anexo->processo_digital_id)->value('requerente_id');
+            abort_unless((int) $requerente === (int) $user->id, 403);
+        } else {
+            abort_unless($user->tenants()->whereKey($anexo->tenant_id)->exists(), 403);
+        }
+
+        $url = Midia::url($anexo->caminho_arquivo);
+        abort_if($url === null, 404);
+
+        return redirect()->away($url);
     }
 
     /** Recebe o PDF anotado (base64) e grava como nova versão do anexo. */
@@ -51,18 +90,17 @@ class ProcessoAnexoController extends Controller
 
         $novaVersao = max($maxVersao, 1) + 1;
 
-        $path = 'processos_anexos/' . Str::uuid() . '.pdf';
-        Storage::disk('public')->put($path, $binary);
+        $path = Midia::salvar($binary, 'processos_anexos', Midia::slug($anexo->tenant_id), 'pdf');
 
         $novo = ProcessoAnexo::create([
-            'tenant_id'           => $anexo->tenant_id,
+            'tenant_id' => $anexo->tenant_id,
             'processo_digital_id' => $anexo->processo_digital_id,
-            'usuario_id'          => auth()->id(),
-            'nome_arquivo'        => pathinfo($anexo->nome_arquivo, PATHINFO_FILENAME) . '-anotado-v' . $novaVersao . '.pdf',
-            'caminho_arquivo'     => $path,
-            'tipo_anexo'          => 'anotado',
-            'versao'              => $novaVersao,
-            'anexo_origem_id'     => $origemId,
+            'usuario_id' => auth()->id(),
+            'nome_arquivo' => pathinfo($anexo->nome_arquivo, PATHINFO_FILENAME).'-anotado-v'.$novaVersao.'.pdf',
+            'caminho_arquivo' => $path,
+            'tipo_anexo' => 'anotado',
+            'versao' => $novaVersao,
+            'anexo_origem_id' => $origemId,
         ]);
 
         return response()->json(['ok' => true, 'id' => $novo->id, 'versao' => $novaVersao]);

@@ -289,6 +289,22 @@ class TenantResource extends Resource
                             ->columns(3),
                     ]),
 
+                // INF-2 — nuvem de pontos no bucket público da ortofoto (o Potree busca
+                // milhares de pedaços; não dá para assinar um a um). Vazio = pasta local
+                // public/nuvem-pontos/{slug} (legado) e, sem ela, a demonstração.
+                Forms\Components\Section::make('Nuvem de pontos (LiDAR)')
+                    ->icon('heroicon-o-cube-transparent')
+                    ->description('Endereço do visualizador 3D da prefeitura (Potree), aberto por Ferramentas → Visualizador 3D no mapa.')
+                    ->schema([
+                        Forms\Components\TextInput::make('data.nuvem_pontos_url')
+                            ->label('Endereço da nuvem de pontos (index.html)')
+                            ->url()
+                            ->maxLength(500)
+                            ->placeholder('https://tiles.sigwebmidia.com.br/{slug}/nuvem-pontos/index.html')
+                            ->helperText('A pasta da prefeitura (index.html + cloud.js + data/) sobe por rclone para o bucket sigweb-ortofoto; a biblioteca fica em /potree/ na raiz do bucket.'),
+                    ])
+                    ->collapsible(),
+
                 // --- SEÇÃO 5: INTEGRAÇÃO TRIBUTÁRIA (R67-5) ---
                 // O de/para de campos vive no catálogo global (Configurações Globais →
                 // Sistemas Tributários); aqui só se aponta QUAL sistema a prefeitura usa.

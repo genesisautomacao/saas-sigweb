@@ -34,7 +34,7 @@ trait HasPontoPanoramicoActions
                 FileUpload::make('image_path')
                     ->label('Imagem 360º (Equirretangular)')
                     ->image()
-                    ->directory('panoramas') // Salva direto no storage certinho
+                    ->midia('panoramicas/avulsas', $this->tenantSlug) // Salva direto no storage certinho
                     ->helperText('Faça o upload agora ou deixe em branco para simulação.')
                     ->columnSpanFull(),
             ])

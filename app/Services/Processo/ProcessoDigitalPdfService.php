@@ -36,8 +36,8 @@ class ProcessoDigitalPdfService
         $etapas = $processo->fluxo ? $processo->fluxo->etapas()->orderBy('ordem')->orderBy('id')->get() : collect();
         $dados = $processo->dados_formulario ?? [];
         foreach ($etapas as $etapa) {
-            $resp = $dados['etapa_' . $etapa->id] ?? null;
-            if (empty($resp) || !is_array($resp)) {
+            $resp = $dados['etapa_'.$etapa->id] ?? null;
+            if (empty($resp) || ! is_array($resp)) {
                 continue;
             }
             $labels = [];
@@ -66,7 +66,7 @@ class ProcessoDigitalPdfService
             ->get()
             ->map(fn ($a) => [
                 'nome' => $a->nome_arquivo,
-                'url' => $a->caminho_arquivo ? asset('storage/' . ltrim($a->caminho_arquivo, '/')) : null,
+                'url' => $a->caminho_arquivo ? $a->urlAbrir() : null, // INF-2: link estável (pede login)
             ])
             ->all();
 
@@ -98,7 +98,7 @@ class ProcessoDigitalPdfService
         ));
         $pdf->setPaper('a4', 'portrait');
 
-        $fileName = 'processo-' . ($processo->codigo_processo ?? $processo->id) . '.pdf';
+        $fileName = 'processo-'.($processo->codigo_processo ?? $processo->id).'.pdf';
 
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
@@ -109,10 +109,12 @@ class ProcessoDigitalPdfService
     {
         if (is_array($valor)) {
             if (isset($valor['lat'], $valor['lon'])) {
-                return number_format((float) $valor['lat'], 5) . ', ' . number_format((float) $valor['lon'], 5);
+                return number_format((float) $valor['lat'], 5).', '.number_format((float) $valor['lon'], 5);
             }
+
             return implode(', ', array_map(fn ($v) => is_scalar($v) ? (string) $v : json_encode($v), $valor));
         }
+
         return (string) $valor;
     }
 }

@@ -41,7 +41,10 @@ class ViewChamado extends ViewRecord
             ])->visible(fn ($record) => ! empty($record->respostas_boletim))->collapsible(),
 
             Infolists\Components\Section::make('Fotos (item 173)')->schema([
-                Infolists\Components\ImageEntry::make('fotos')->hiddenLabel(),
+                // INF-2: URL de cada foto (bucket privado = link temporário; legado = /storage)
+                Infolists\Components\ImageEntry::make('fotos')->hiddenLabel()
+                    ->getStateUsing(fn ($record) => collect($record->fotos ?? [])
+                        ->map(fn ($p) => \App\Support\Midia::url($p))->filter()->values()->all()),
             ])->visible(fn ($record) => ! empty($record->fotos))->collapsible(),
 
             Infolists\Components\Section::make('Observações / Anotações')->schema([

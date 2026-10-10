@@ -2,7 +2,6 @@
 
 namespace App\Filament\Pages\Traits;
 
-use App\Filament\Resources\SecaoLogradouroResource;
 use App\Models\Logradouro;
 use App\Models\SecaoLogradouro;
 use Filament\Actions\Action;
@@ -53,6 +52,7 @@ trait HasSecaoLogradouroActions
 
     // Auto-detecção topológica + cálculo de extensão pré-criação (preenchidos em interceptarDesenho)
     public ?int $secaoLogradouroLogradouroPreSelecionadoId = null;
+
     public ?float $secaoLogradouroExtensaoCalculada = null;
 
     public function criarSecaoLogradouroAction(): Action
@@ -71,7 +71,7 @@ trait HasSecaoLogradouroActions
                     ->label('Extensão calculada')
                     ->content(fn (): HtmlString => new HtmlString(
                         $this->secaoLogradouroExtensaoCalculada !== null
-                            ? '<strong style="font-size:14px;color:#0369a1;">' . number_format($this->secaoLogradouroExtensaoCalculada, 2, ',', '.') . ' m</strong>'
+                            ? '<strong style="font-size:14px;color:#0369a1;">'.number_format($this->secaoLogradouroExtensaoCalculada, 2, ',', '.').' m</strong>'
                             : '<em style="color:#9ca3af;">Sem geometria — desenhe a linha no mapa primeiro.</em>'
                     )),
                 Select::make('logradouro_id')
@@ -100,7 +100,7 @@ trait HasSecaoLogradouroActions
                 \Filament\Forms\Components\FileUpload::make('nova_foto')
                     ->label('Foto da Seção')
                     ->helperText('Opcional. Para mais de uma foto, use o cadastro da seção.')
-                    ->directory('secoes_logradouro/fotos')
+                    ->midia('secoes_logradouro/fotos', $this->tenantSlug)
                     ->image()
                     ->maxSize(5120),
             ])
@@ -113,9 +113,9 @@ trait HasSecaoLogradouroActions
                 $novaFoto = $data['nova_foto'] ?? null;
                 unset($data['nova_foto']);
 
-                $data['tenant_id']    = $this->tenantId;
-                $data['geo']          = $this->geometriaRascunho;
-                $data['code']         = (string) Str::uuid();
+                $data['tenant_id'] = $this->tenantId;
+                $data['geo'] = $this->geometriaRascunho;
+                $data['code'] = (string) Str::uuid();
                 $data['extensao_geo'] = $this->secaoLogradouroExtensaoCalculada;
 
                 $registro = SecaoLogradouro::create($data);
@@ -139,9 +139,9 @@ trait HasSecaoLogradouroActions
                 Notification::make()->title('Seção de Logradouro criada!')->success()->send();
 
                 $this->dispatch('adicionar-secao_logradouro-mapa', [
-                    'id'   => $registro->id,
-                    'name' => $registro->name ?: ('Seção #' . $registro->sequential_id),
-                    'geo'  => $this->geometriaRascunho,
+                    'id' => $registro->id,
+                    'name' => $registro->name ?: ('Seção #'.$registro->sequential_id),
+                    'geo' => $this->geometriaRascunho,
                 ]);
                 $this->dispatch('limpar-rascunho-mapa');
 
@@ -154,16 +154,17 @@ trait HasSecaoLogradouroActions
     {
         return Action::make('opcoesSecaoLogradouro')
             ->hiddenLabel()
-            ->modalHeading(fn () => 'Editar Seção #' . SecaoLogradouro::find($this->secaoLogradouroAtivoId)?->sequential_id)
+            ->modalHeading(fn () => 'Editar Seção #'.SecaoLogradouro::find($this->secaoLogradouroAtivoId)?->sequential_id)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Alterações')
             ->fillForm(function (): array {
                 $reg = SecaoLogradouro::find($this->secaoLogradouroAtivoId);
+
                 return [
-                    'name'               => $reg?->name,
-                    'codigo'             => $reg?->codigo,
-                    'lado'               => $reg?->lado,
-                    'logradouro_id'      => $reg?->logradouro_id,
+                    'name' => $reg?->name,
+                    'codigo' => $reg?->codigo,
+                    'lado' => $reg?->lado,
+                    'logradouro_id' => $reg?->logradouro_id,
                     'dados_customizados' => $reg?->dados_customizados ?? [],
                 ];
             })
@@ -173,9 +174,10 @@ trait HasSecaoLogradouroActions
                     ->content(function (): HtmlString {
                         $reg = SecaoLogradouro::find($this->secaoLogradouroAtivoId);
                         $valor = $reg?->extensao_geo;
+
                         return new HtmlString(
                             $valor !== null
-                                ? '<strong style="font-size:14px;color:#0369a1;">' . number_format((float) $valor, 2, ',', '.') . ' m</strong>'
+                                ? '<strong style="font-size:14px;color:#0369a1;">'.number_format((float) $valor, 2, ',', '.').' m</strong>'
                                 : '<em style="color:#9ca3af;">Sem geometria registrada.</em>'
                         );
                     }),
@@ -209,21 +211,21 @@ trait HasSecaoLogradouroActions
 
                         $html = '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
                         foreach ($fotos as $foto) {
-                            $url = asset('storage/'.$foto->path);
+                            $url = \App\Support\Midia::url($foto->path);
                             $legenda = htmlspecialchars($foto->name ?? '', ENT_QUOTES, 'UTF-8');
-                            $html .= '<a href="' . $url . '" target="_blank" title="' . $legenda . '">'
-                                . '<img src="' . $url . '" alt="' . $legenda . '" '
-                                . 'style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />'
-                                . '</a>';
+                            $html .= '<a href="'.$url.'" target="_blank" title="'.$legenda.'">'
+                                .'<img src="'.$url.'" alt="'.$legenda.'" '
+                                .'style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />'
+                                .'</a>';
                         }
 
-                        return new HtmlString($html . '</div>');
+                        return new HtmlString($html.'</div>');
                     }),
 
                 \Filament\Forms\Components\FileUpload::make('nova_foto')
                     ->label('Adicionar foto')
                     ->helperText('Opcional. Excluir/legendar fotos: cadastro da seção.')
-                    ->directory('secoes_logradouro/fotos')
+                    ->midia('secoes_logradouro/fotos', $this->tenantSlug)
                     ->image()
                     ->maxSize(5120),
             ])
@@ -250,8 +252,8 @@ trait HasSecaoLogradouroActions
                     }
 
                     $this->dispatch('atualizar-label-secao_logradouro', [
-                        'id'   => $reg->id,
-                        'name' => $reg->name ?: ('Seção #' . $reg->sequential_id),
+                        'id' => $reg->id,
+                        'name' => $reg->name ?: ('Seção #'.$reg->sequential_id),
                     ]);
                     Notification::make()->title('Atualizado!')->success()->send();
                 }

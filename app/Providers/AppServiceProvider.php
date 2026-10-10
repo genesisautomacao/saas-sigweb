@@ -32,6 +32,14 @@ class AppServiceProvider extends ServiceProvider
             return \App\Support\FotosLote::campoUpload($this);
         });
 
+        // INF-2: anexos, documentos, fotos de rua e 360 avulsas nos buckets do R2 (com
+        // fallback para a VPS) — destino e prévia em App\Support\Midia::campoUpload().
+        // $tenant = Tenant|id|slug|closure; nulo = tenant do painel.
+        \Filament\Forms\Components\FileUpload::macro('midia', function (string $pasta, $tenant = null) {
+            /** @var \Filament\Forms\Components\FileUpload $this */
+            return \App\Support\Midia::campoUpload($this, $pasta, $tenant);
+        });
+
         // O Bypass Definitivo (God Mode)
         Gate::before(function ($user, $ability) {
 

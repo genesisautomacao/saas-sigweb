@@ -11,6 +11,7 @@ use Filament\Tables\Table;
 class DocumentosRelationManager extends RelationManager
 {
     protected static string $relationship = 'documentos';
+
     protected static ?string $title = 'Anexos e Documentos';
 
     public function form(Form $form): Form
@@ -24,7 +25,7 @@ class DocumentosRelationManager extends RelationManager
 
                 Forms\Components\FileUpload::make('path')
                     ->label('Arquivo')
-                    ->directory('documentos')
+                    ->midia('documentos')
                     ->preserveFilenames()
                     ->maxSize(10240) // 10MB
                     ->openable() // 🛑 NOVO: Permite abrir o arquivo (PDF/Imagem) numa nova aba
@@ -57,7 +58,7 @@ class DocumentosRelationManager extends RelationManager
                     ->label('Baixar')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('success')
-                    ->url(fn ($record) => asset('storage/' . $record->path))
+                    ->url(fn ($record) => \App\Support\Midia::url($record->path))
                     ->openUrlInNewTab(),
 
                 Tables\Actions\EditAction::make(),

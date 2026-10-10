@@ -5,8 +5,6 @@ namespace App\Services\Processo;
 use App\Models\ProcessoAnexo;
 use App\Models\ProcessoDigital;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 /**
  * PD-1 — Requerimento assinado antes da análise.
@@ -165,8 +163,7 @@ class RequerimentoPdfService
             ->orderByDesc('id')
             ->first();
 
-        $path = 'processos_anexos/'.Str::uuid().'.pdf';
-        Storage::disk('public')->put($path, $binario);
+        $path = \App\Support\Midia::salvar($binario, 'processos_anexos', $processo->tenant?->slug, 'pdf');
 
         return ProcessoAnexo::create([
             'tenant_id' => $processo->tenant_id,

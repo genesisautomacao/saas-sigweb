@@ -39,6 +39,12 @@ class ProcessoAnexo extends Model
     }
 
     /** ID da cadeia de versões deste anexo (o original ou ele mesmo). */
+    /** INF-2 — link estável do arquivo (rota com autorização → bucket privado ou VPS). */
+    public function urlAbrir(): string
+    {
+        return route('processo.anexo.abrir', $this);
+    }
+
     public function cadeiaId(): int
     {
         return $this->anexo_origem_id ?? $this->id;

@@ -24,7 +24,7 @@
     <ul class="text-sm divide-y divide-gray-100 dark:divide-gray-800">
         @foreach ($anexos as $anexo)
             @php
-                $url = \Illuminate\Support\Facades\Storage::url($anexo->caminho_arquivo);
+                $url = $anexo->urlAbrir(); // INF-2: link estável com autorização
                 $ehPdf = str_ends_with(strtolower($anexo->nome_arquivo), '.pdf');
                 $ehAnalisavel = $analisaveisIds->contains($anexo->id);
                 $ehUltimaVersao = $ultimas->contains($anexo->id);

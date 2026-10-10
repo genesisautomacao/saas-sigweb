@@ -67,7 +67,7 @@ class ChamadoResource extends Resource
 
             Forms\Components\Section::make('Anexos')->schema([
                 Forms\Components\FileUpload::make('fotos')->label('Fotos da solicitação (item 173)')
-                    ->image()->multiple()->directory('chamados/fotos')->maxSize(4096),
+                    ->image()->multiple()->midia('chamados/fotos')->maxSize(4096),
                 Forms\Components\Textarea::make('observacoes')->label('Observações'),
                 Forms\Components\Textarea::make('anotacoes')->label('Anotações internas'),
             ]),

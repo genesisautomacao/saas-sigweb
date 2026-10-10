@@ -14,8 +14,11 @@ use Filament\Tables\Table;
 class FalecidosRelationManager extends RelationManager
 {
     protected static string $relationship = 'falecidos';
+
     protected static ?string $title = 'Falecidos';
+
     protected static ?string $modelLabel = 'Falecido';
+
     protected static ?string $pluralModelLabel = 'Falecidos';
 
     public function form(Form $form): Form
@@ -24,7 +27,7 @@ class FalecidosRelationManager extends RelationManager
             Forms\Components\Section::make('Identificação')->schema([
                 Forms\Components\Select::make('pessoa_id')
                     ->label('Pessoa Cadastrada (Opcional)')
-                    ->options(fn() => Pessoa::pluck('name', 'id'))
+                    ->options(fn () => Pessoa::pluck('name', 'id'))
                     ->searchable()
                     ->nullable()
                     ->live()
@@ -35,8 +38,8 @@ class FalecidosRelationManager extends RelationManager
                     ->label('Nome do Falecido')
                     ->maxLength(255)
                     ->nullable()
-                    ->visible(fn(Get $get) => ! $get('pessoa_id'))
-                    ->required(fn(Get $get) => ! $get('pessoa_id'))
+                    ->visible(fn (Get $get) => ! $get('pessoa_id'))
+                    ->required(fn (Get $get) => ! $get('pessoa_id'))
                     ->columnSpanFull(),
             ]),
 
@@ -51,7 +54,7 @@ class FalecidosRelationManager extends RelationManager
                                 ->maxLength(255),
                             Forms\Components\FileUpload::make('path')
                                 ->label('Arquivo')
-                                ->directory('documentos/falecidos')
+                                ->midia('documentos/falecidos')
                                 ->preserveFilenames()
                                 ->maxSize(10240)
                                 ->openable()
@@ -99,11 +102,11 @@ class FalecidosRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\TextColumn::make('nome_display')
                     ->label('Nome')
-                    ->getStateUsing(fn(JazigoFalecido $record) => $record->nome_display)
+                    ->getStateUsing(fn (JazigoFalecido $record) => $record->nome_display)
                     ->searchable(query: function ($query, string $search) {
                         $query->where(function ($q) use ($search) {
                             $q->where('nome_falecido', 'ilike', "%{$search}%")
-                              ->orWhereHas('pessoa', fn($p) => $p->where('name', 'ilike', "%{$search}%"));
+                                ->orWhereHas('pessoa', fn ($p) => $p->where('name', 'ilike', "%{$search}%"));
                         });
                     })
                     ->weight('bold'),
@@ -115,7 +118,7 @@ class FalecidosRelationManager extends RelationManager
                     ->falseIcon('heroicon-o-user')
                     ->trueColor('success')
                     ->falseColor('gray')
-                    ->tooltip(fn(JazigoFalecido $record) => $record->pessoa_id ? 'Vinculado ao cadastro de pessoas' : 'Nome livre'),
+                    ->tooltip(fn (JazigoFalecido $record) => $record->pessoa_id ? 'Vinculado ao cadastro de pessoas' : 'Nome livre'),
 
                 Tables\Columns\TextColumn::make('data_obito')
                     ->label('Óbito')
@@ -137,6 +140,7 @@ class FalecidosRelationManager extends RelationManager
                     ->label('Registrar Falecido')
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['tenant_id'] = \Filament\Facades\Filament::getTenant()->id;
+
                         return $data;
                     }),
             ])

@@ -800,13 +800,22 @@ Decisões do usuário (2026-10-08):
 **Concluído em:** 2026-10-10
 - Decisão do usuário: **servidor primeiro**; arquivos locais vão por rsync como estão.
 
-#### INF-3 — Backup diário dos bancos de produção no R2 + registro no /admin
-**Status:** 🔄 Em andamento (2026-10-10)
+#### ~~INF-3 — Backup diário dos bancos de produção no R2 + registro no /admin~~
+**Status:** ✅ Concluído — Release 81 em produção, 1º backup manual OK (SIGWEB 47,9 MB + Criador de Sites 70 KB), trava testada (apagar/sobrescrever recusados), timer diário ligado
+**Concluído em:** 2026-10-10
 - Só os **bancos** e só **produção** (o servidor de testes não tem backup). Buckets privados: `sigweb-backup/banco/AAAA-MM-DD.dump` (PostgreSQL do SIGWEB) e `lider-backup/ferramenta/AAAA-MM-DD.sql.gz` (MySQL do Criador de Sites — o site da Líder vai morar nele). Diário às 3h; **30 dias** com Bucket Lock (nem o servidor apaga) + ciclo de vida apagando após 31 dias. Uma chave R2 restrita aos 2 buckets e ao IP do servidor.
 - Script e agendamento só no servidor (`/root/backup-diario.sh`, fora do git). No SIGWEB: tabela `backup_execucoes` + comando `backup:registrar` (chamado pelo script) + tela **"Backups"** no /admin (Configurações Globais, só Master) com alerta de backup atrasado (> 26 h) + e-mail de falha pelo Resend para o endereço do ApiSetting "Backup" (`ALERTA_EMAIL`).
 
 #### INF-2 — Anexos de processos, documentos e demais arquivos no bucket PRIVADO
-**Status:** 📋 A fazer, **depois do INF-1** (decisão do usuário 2026-10-09)
+**Status:** 🔄 Em andamento (2026-10-10, Release 82) — escopo ampliado e aprovado em 2026-10-10:
+- **Privado `sigweb-midia`** (link temporário gerado só para quem já pode ver a tela): anexos de processos (incl. requerimentos gerados/assinados e anotações), documentos de pessoas/patrimônios/falecidos, documentos das unidades, fotos do App de Chamados, 360 enviadas avulsas pelo painel (29 pontos).
+- **Público `sigweb-fotos`** (fotos de rua, sem dado pessoal): seções de logradouro, solicitações de manutenção, ordens de serviço.
+- **Público `sigweb-ortofoto`** (`tiles.sigwebmidia.com.br/{slug}/nuvem-pontos/` + `potree/`): nuvem de pontos LiDAR — campo "endereço da nuvem de pontos" no cadastro da prefeitura; sem ele, cai na pasta local e depois na demonstração.
+- **Fica na VPS:** logos das prefeituras, ícones (categorias de chamado, sinalização), mocks tributários, cache de imagem da viabilidade, temporários.
+- Regra igual à R79: **o caminho gravado decide onde está o arquivo** (`{slug}/{pasta}/...` = bucket; `{pasta}/...` = VPS) — leitura dupla para sempre, upload novo vai ao bucket com fallback para a VPS se o bucket recusar (inclui o servidor de testes, cuja chave do `sigweb-midia` é só leitura). Comando de migração (copia, confere tamanho, troca o caminho via `DB::table`, inclusive dentro de `dados_formulario`/`processo_respostas`) + comando de limpeza do disco local.
+- **Impacto nas prefeituras:** nenhuma tela muda; links de anexos/documentos deixam de abrir sem login (passam a expirar); a migração roda com o sistema no ar (leitura dupla).
+- **Implementado (2026-10-10, testado no local):** [App\Support\Midia](../app/Support/Midia.php) + macro `->midia($pasta, $tenant)` em 15 campos de upload, rota estável `processo.anexo.abrir` (`/anexos/{id}`), PDF do anotador servido pelo sistema (`processo-anexo.arquivo` — sem depender do CORS do bucket), campo `data.nuvem_pontos_url` no TenantResource, comandos `midia:migrar-bucket` e `midia:limpar-local`. Falta: deploy + migração na VPS + subir o LiDAR (6,4 GB + Potree) para o `sigweb-ortofoto`.
+- Limpezas de 2026-10-10: ZIPs manuais de 29/08 apagados da VPS (`processos_anexos.zip`, `tenant-logos.zip` — 100% redundantes). Pendente: `fotos:limpar-local` (2,5 GB de fotos de lotes já no bucket).
 - Hoje `processos_anexos`, `documentos`, `unidades_imobiliarias/documentos` etc. ficam no disk `public` e **abrem por link sem login**. Destino: bucket privado `sigweb-midia` (`{slug}/...`), leitura por URL assinada + autorização por usuário, leitura dupla durante a migração e comando de migração/limpeza no molde do R79-1 (`fotos:migrar-bucket`).
 - Retoma a parte 1 de [releaseNuvemFerramentasAdmin.md](releaseNuvemFerramentasAdmin.md) (especificada com AWS S3; o padrão agora é Cloudflare R2). Impacto nas prefeituras da VPS a apresentar antes de codar.
 

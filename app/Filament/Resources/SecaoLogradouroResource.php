@@ -91,7 +91,7 @@ class SecaoLogradouroResource extends Resource
                                 ->maxLength(255),
                             Forms\Components\FileUpload::make('path')
                                 ->label('Imagem')
-                                ->directory('secoes_logradouro/fotos')
+                                ->midia('secoes_logradouro/fotos')
                                 ->image()
                                 ->imageEditor()
                                 ->openable()

@@ -168,7 +168,7 @@ trait HasPatrimonioPublicoActions
                     ? '<p style="color:#6b7280;font-size:.875rem;margin:0;">Nenhum documento anexado ainda.</p>'
                     : '<ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;">'
                         .$docs->map(fn ($d) => '<li style="display:flex;align-items:center;gap:8px;">'
-                            .'<a href="'.e(asset('storage/'.$d->path)).'" target="_blank" rel="noopener" '
+                            .'<a href="'.e(\App\Support\Midia::url($d->path)).'" target="_blank" rel="noopener" '
                             .'style="color:#2563eb;text-decoration:underline;font-size:.9rem;">📄 '.e($d->name).'</a>'
                             .'<span style="color:#9ca3af;font-size:.75rem;">'.e(optional($d->created_at)->format('d/m/Y')).'</span>'
                             .'</li>')->implode('')
@@ -196,7 +196,7 @@ trait HasPatrimonioPublicoActions
                                         ->maxLength(255),
                                     \Filament\Forms\Components\FileUpload::make('path')
                                         ->label('Arquivo')
-                                        ->directory('documentos/patrimonios')
+                                        ->midia('documentos/patrimonios', $this->tenantSlug)
                                         ->preserveFilenames()
                                         ->maxSize(10240)
                                         ->openable()

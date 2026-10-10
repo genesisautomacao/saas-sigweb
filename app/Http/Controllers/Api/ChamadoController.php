@@ -11,9 +11,7 @@ use App\Models\MensagemChamado;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 
 class ChamadoController extends Controller
 {
@@ -90,7 +88,7 @@ class ChamadoController extends Controller
         }
 
         $geo = $chamado->geo_json; // {type:'Point', coordinates:[lon,lat]} ou null
-        $fotos = collect($chamado->fotos ?? [])->map(fn ($p) => asset('storage/'.$p))->values()->all();
+        $fotos = collect($chamado->fotos ?? [])->map(fn ($p) => \App\Support\Midia::url($p))->filter()->values()->all();
 
         return response()->json(['data' => [
             'id' => $chamado->id,
@@ -155,7 +153,7 @@ class ChamadoController extends Controller
             $paths = [];
             foreach ($request->input('fotos') as $foto) {
                 if (is_string($foto) && str_contains($foto, 'base64,')) {
-                    $paths[] = $this->salvarImagemBase64($foto);
+                    $paths[] = $this->salvarImagemBase64($foto, \App\Support\Midia::slug((int) $tenantId));
                 }
             }
             if ($paths) {
@@ -242,18 +240,14 @@ class ChamadoController extends Controller
         return response()->json(['data' => $msg], 201);
     }
 
-    /** Decodifica um data-URI base64 e salva no disco público, devolvendo o path relativo. */
-    private function salvarImagemBase64(string $base64String): string
+    /** Decodifica um data-URI base64 e salva (INF-2: bucket privado, fallback VPS), devolvendo o path. */
+    private function salvarImagemBase64(string $base64String, ?string $slug): string
     {
         $imageParts = explode(';base64,', $base64String);
         $imageTypeAux = explode('image/', $imageParts[0]);
         $imageType = $imageTypeAux[1] ?? 'jpeg';
         $imageBase64 = base64_decode($imageParts[1] ?? '');
-        $fileName = Str::uuid().'.'.$imageType;
-        $filePath = 'chamados_fotos/'.$fileName;
 
-        Storage::disk('public')->put($filePath, $imageBase64);
-
-        return $filePath;
+        return \App\Support\Midia::salvar($imageBase64, 'chamados_fotos', $slug, $imageType);
     }
 }

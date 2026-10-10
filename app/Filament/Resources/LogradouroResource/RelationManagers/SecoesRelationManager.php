@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\LogradouroResource\RelationManagers;
 
-use App\Filament\Resources\SecaoLogradouroResource;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -12,7 +11,9 @@ use Filament\Tables\Table;
 class SecoesRelationManager extends RelationManager
 {
     protected static string $relationship = 'secoes';
+
     protected static ?string $title = 'Seções de Logradouro';
+
     protected static ?string $icon = 'heroicon-o-minus';
 
     public function form(Form $form): Form
@@ -55,7 +56,7 @@ class SecoesRelationManager extends RelationManager
                         ->maxLength(255),
                     Forms\Components\FileUpload::make('path')
                         ->label('Imagem')
-                        ->directory('secoes_logradouro/fotos')
+                        ->midia('secoes_logradouro/fotos')
                         ->image()
                         ->openable()
                         ->downloadable()
@@ -98,6 +99,7 @@ class SecoesRelationManager extends RelationManager
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['code'] = (string) \Illuminate\Support\Str::uuid();
                         $data['tenant_id'] = \Filament\Facades\Filament::getTenant()->id;
+
                         return $data;
                     }),
             ])
@@ -113,11 +115,12 @@ class SecoesRelationManager extends RelationManager
                             ->where('id', $record->id)
                             ->first();
                         if ($row && $row->lat && $row->lon) {
-                            return url('/app/' . $tenant->slug . '/mapa-interativo?layer=secoes_logradouro&focus_lat=' . $row->lat . '&focus_lon=' . $row->lon . '&zoom=18');
+                            return url('/app/'.$tenant->slug.'/mapa-interativo?layer=secoes_logradouro&focus_lat='.$row->lat.'&focus_lon='.$row->lon.'&zoom=18');
                         }
+
                         return null;
                     })
-                    ->visible(fn($record) => $record->geo_json !== null),
+                    ->visible(fn ($record) => $record->geo_json !== null),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])

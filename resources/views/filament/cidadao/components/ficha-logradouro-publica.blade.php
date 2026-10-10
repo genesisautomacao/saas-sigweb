@@ -57,9 +57,9 @@
                         @if ($secao->fotos->isNotEmpty())
                             <div class="flex gap-2 flex-wrap mt-2">
                                 @foreach ($secao->fotos as $foto)
-                                    <a href="{{ asset('storage/' . $foto->path) }}" target="_blank"
+                                    <a href="{{ \App\Support\Midia::url($foto->path) }}" target="_blank"
                                         title="{{ $foto->name }}">
-                                        <img src="{{ asset('storage/' . $foto->path) }}" alt="{{ $foto->name }}"
+                                        <img src="{{ \App\Support\Midia::url($foto->path) }}" alt="{{ $foto->name }}"
                                             style="width:84px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" />
                                     </a>
                                 @endforeach

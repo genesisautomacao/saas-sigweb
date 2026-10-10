@@ -4,24 +4,29 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\SolicitacaoManutencaoResource\Pages;
 use App\Models\SolicitacaoManutencao;
+use App\Traits\HasTenantModule;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use App\Traits\HasTenantModule;
 
 class SolicitacaoManutencaoResource extends Resource
 {
     use HasTenantModule;
+
     protected static ?string $tenantModule = 'manutencao';
 
     protected static ?string $model = SolicitacaoManutencao::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-megaphone';
+
     protected static ?string $navigationGroup = 'Manutenção e Serviços';
+
     protected static ?string $modelLabel = 'Solicitação de Serviço';
+
     protected static ?string $pluralModelLabel = 'Solicitações (Ocorrências)';
+
     protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
@@ -31,19 +36,19 @@ class SolicitacaoManutencaoResource extends Resource
                 Forms\Components\Section::make('Identificação da Ocorrência')
                     ->schema([
 
-                       // 🛑 O CAMPO POLIMÓRFICO COM MOTOR DE BUSCA CUSTOMIZADO (POSTGRESQL)
+                        // 🛑 O CAMPO POLIMÓRFICO COM MOTOR DE BUSCA CUSTOMIZADO (POSTGRESQL)
                         Forms\Components\MorphToSelect::make('asset')
                             ->label('Busca de Artefato (Por ID, Plaqueta ou Endereço)')
                             ->types([
                                 Forms\Components\MorphToSelect\Type::make(\App\Models\Poste::class)
                                     ->titleAttribute('sequential_id')
                                     ->label('💡 Poste de Iluminação')
-                                    ->getOptionLabelFromRecordUsing(fn ($record) => "Poste #{$record->sequential_id} - Ref: " . ($record->address ?? 'Sem endereço'))
-                                    
+                                    ->getOptionLabelFromRecordUsing(fn ($record) => "Poste #{$record->sequential_id} - Ref: ".($record->address ?? 'Sem endereço'))
+
                                     // 🟢 MÁGICA: Ensina o Filament a buscar no BD pelo Endereço ou ID
                                     ->getSearchResultsUsing(function (string $search) {
                                         $tenantId = \Filament\Facades\Filament::getTenant()->id;
-                                        
+
                                         return \App\Models\Poste::where('tenant_id', $tenantId)
                                             ->where(function ($query) use ($search) {
                                                 // Se o usuário digitou um número, busca no ID também
@@ -55,19 +60,19 @@ class SolicitacaoManutencaoResource extends Resource
                                             })
                                             ->limit(50) // Limita para não travar a tela
                                             ->get()
-                                            ->mapWithKeys(fn ($poste) => [$poste->id => "Poste #{$poste->sequential_id} - Ref: " . ($poste->address ?? 'Sem endereço')])
+                                            ->mapWithKeys(fn ($poste) => [$poste->id => "Poste #{$poste->sequential_id} - Ref: ".($poste->address ?? 'Sem endereço')])
                                             ->toArray();
                                     }),
 
                                 Forms\Components\MorphToSelect\Type::make(\App\Models\Arvore::class)
                                     ->titleAttribute('sequential_id')
                                     ->label('🌳 Árvore / Indivíduo Arbóreo')
-                                    ->getOptionLabelFromRecordUsing(fn ($record) => "Árvore #{$record->sequential_id} - Ref: " . ($record->address ?? 'Sem endereço'))
-                                    
+                                    ->getOptionLabelFromRecordUsing(fn ($record) => "Árvore #{$record->sequential_id} - Ref: ".($record->address ?? 'Sem endereço'))
+
                                     // 🟢 MÁGICA REPLICADA PARA ÁRVORES
                                     ->getSearchResultsUsing(function (string $search) {
                                         $tenantId = \Filament\Facades\Filament::getTenant()->id;
-                                        
+
                                         return \App\Models\Arvore::where('tenant_id', $tenantId)
                                             ->where(function ($query) use ($search) {
                                                 if (is_numeric($search)) {
@@ -77,7 +82,7 @@ class SolicitacaoManutencaoResource extends Resource
                                             })
                                             ->limit(50)
                                             ->get()
-                                            ->mapWithKeys(fn ($arvore) => [$arvore->id => "Árvore #{$arvore->sequential_id} - Ref: " . ($arvore->address ?? 'Sem endereço')])
+                                            ->mapWithKeys(fn ($arvore) => [$arvore->id => "Árvore #{$arvore->sequential_id} - Ref: ".($arvore->address ?? 'Sem endereço')])
                                             ->toArray();
                                     }),
                             ])
@@ -98,7 +103,7 @@ class SolicitacaoManutencaoResource extends Resource
                                     'Poda por Interferência' => 'Poda por Interferência (Fios/Placas)',
                                     'Remoção' => 'Remoção',
                                     'Tratamento Fitossanitário' => 'Tratamento Fitossanitário',
-                                ]
+                                ],
                             ])
                             ->required()
                             ->searchable(),
@@ -134,7 +139,7 @@ class SolicitacaoManutencaoResource extends Resource
                             Forms\Components\Select::make('pessoa_id')
                                 ->label('Reclamante Cadastrado (Módulo Pessoas)')
                                 ->relationship('pessoa', 'name')
-                                ->getOptionLabelFromRecordUsing(fn($record) => "{$record->name} (Doc: {$record->cpf})")
+                                ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->name} (Doc: {$record->cpf})")
                                 ->searchable()
                                 ->preload(),
 
@@ -151,7 +156,7 @@ class SolicitacaoManutencaoResource extends Resource
                         Forms\Components\FileUpload::make('foto_ocorrencia')
                             ->label('Foto do Problema (Se houver)')
                             ->image()
-                            ->directory('solicitacoes_fotos')
+                            ->midia('solicitacoes_fotos')
                             ->columnSpanFull(),
                     ]),
             ]);
@@ -181,7 +186,7 @@ class SolicitacaoManutencaoResource extends Resource
                             : "{$icone} {$tipo} (excluído)";
                     })
                     ->badge()
-                    ->color(fn($state) => str_contains($state, 'Poste') ? 'warning' : 'success'),
+                    ->color(fn ($state) => str_contains($state, 'Poste') ? 'warning' : 'success'),
 
                 Tables\Columns\TextColumn::make('tipo_servico')
                     ->label('Serviço Requisitado')
@@ -190,18 +195,18 @@ class SolicitacaoManutencaoResource extends Resource
                 Tables\Columns\TextColumn::make('prioridade')
                     ->label('Prioridade')
                     ->badge()
-                    ->color(fn(string $state): string => match ($state) {
+                    ->color(fn (string $state): string => match ($state) {
                         'baixa' => 'success',
                         'media' => 'warning',
                         'alta' => 'danger',
                         'critica' => 'gray',
                     })
-                    ->formatStateUsing(fn(string $state): string => ucfirst($state)),
+                    ->formatStateUsing(fn (string $state): string => ucfirst($state)),
 
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->color(fn(string $state): string => match ($state) {
+                    ->color(fn (string $state): string => match ($state) {
                         'pendente' => 'danger',
                         'analise' => 'warning',
                         'aprovada_os' => 'success',
@@ -209,7 +214,7 @@ class SolicitacaoManutencaoResource extends Resource
                         'rejeitada' => 'gray',
                         default => 'gray',
                     })
-                    ->formatStateUsing(fn(string $state): string => strtoupper($state)),
+                    ->formatStateUsing(fn (string $state): string => strtoupper($state)),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Aberto em')
@@ -233,7 +238,7 @@ class SolicitacaoManutencaoResource extends Resource
                         'critica' => 'Crítica',
                     ]),
             ])
-           ->actions([
+            ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\EditAction::make(),
 
@@ -243,19 +248,22 @@ class SolicitacaoManutencaoResource extends Resource
                         ->color('success')
                         ->visible(fn ($record) => $record->asset !== null)
                         ->url(function ($record) {
-                            if (!$record->asset) return null;
+                            if (! $record->asset) {
+                                return null;
+                            }
                             $tenant = \Filament\Facades\Filament::getTenant();
                             $layer = str_contains($record->asset_type, 'Poste') ? 'postes' : 'arvores';
-                            return url('/app/' . $tenant->slug . '/mapa-interativo?layer=' . $layer . '&id=' . $record->asset_id);
+
+                            return url('/app/'.$tenant->slug.'/mapa-interativo?layer='.$layer.'&id='.$record->asset_id);
                         })
                         ->openUrlInNewTab(),
 
-                   // 🛑 BOTÃO 1: GERAR OS (Só aparece se NÃO tiver virado OS ainda)
+                    // 🛑 BOTÃO 1: GERAR OS (Só aparece se NÃO tiver virado OS ainda)
                     Tables\Actions\Action::make('gerar_os')
                         ->label('Gerar Ordem de Serviço')
                         ->icon('heroicon-o-wrench-screwdriver')
                         ->color('success')
-                        ->visible(fn ($record) => !in_array($record->status, ['aprovada_os', 'concluida']))
+                        ->visible(fn ($record) => ! in_array($record->status, ['aprovada_os', 'concluida']))
                         ->url(fn ($record) => OrdemServicoResource::getUrl('create', ['solicitacao_id' => $record->id])),
 
                     // 🟢 BOTÃO 2: VER OS GERADA (Só aparece quando JÁ TEM OS)
@@ -267,6 +275,7 @@ class SolicitacaoManutencaoResource extends Resource
                         ->url(function ($record) {
                             // Busca a primeira OS que tenha nascido dessa solicitação
                             $os = \App\Models\OrdemServico::where('solicitacao_id', $record->id)->first();
+
                             // Se achou, manda direto para a tela de edição da OS!
                             return $os ? OrdemServicoResource::getUrl('edit', ['record' => $os->id]) : null;
                         }),

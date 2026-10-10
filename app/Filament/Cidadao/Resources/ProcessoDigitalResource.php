@@ -316,7 +316,7 @@ class ProcessoDigitalResource extends Resource
                         ->label('Requerimento assinado (PDF)')
                         ->helperText('Anexe aqui o requerimento gerado acima, já assinado (digitalizado ou com assinatura digital).')
                         ->acceptedFileTypes(['application/pdf'])
-                        ->directory('processos_anexos')
+                        ->midia('processos_anexos') // INF-2: tenant vem do processo (registro)
                         ->maxSize(20480) // 20MB — requerimento com plantas digitalizadas
                         ->required()
                         ->columnSpanFull(),

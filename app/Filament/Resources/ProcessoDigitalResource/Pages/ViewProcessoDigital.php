@@ -12,7 +12,6 @@ use Filament\Infolists;
 use Filament\Infolists\Infolist;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 
 class ViewProcessoDigital extends ViewRecord
@@ -163,7 +162,7 @@ class ViewProcessoDigital extends ViewRecord
         }
 
         if ($anexo->caminho_arquivo) {
-            Storage::disk('public')->delete($anexo->caminho_arquivo);
+            \App\Support\Midia::excluir($anexo->caminho_arquivo);
         }
         $anexo->delete();
 

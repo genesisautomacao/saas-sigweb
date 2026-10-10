@@ -43,7 +43,7 @@ class PontoPanoramicoResource extends Resource
                 Forms\Components\FileUpload::make('image_path')
                     ->label('Imagem 360º (Equirretangular)')
                     ->image()
-                    ->directory('panoramas') // Salvará em storage/app/public/panoramas
+                    ->midia('panoramicas/avulsas') // Salvará em storage/app/public/panoramas
                     ->helperText('Faça o upload de uma imagem JPG/PNG em formato 360º. Caso deixe em branco, o sistema usará uma imagem de simulação para testes.')
                     ->columnSpanFull(),
             ])->columns(2),

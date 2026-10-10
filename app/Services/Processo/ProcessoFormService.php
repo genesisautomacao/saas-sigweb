@@ -148,7 +148,7 @@ class ProcessoFormService
                     ->label($label)
                     ->required($obrigatorio)
                     ->disabled($disabled)
-                    ->directory('processos_anexos')
+                    ->midia('processos_anexos', $processo?->tenant_id ?? $etapa->tenant_id) // INF-2: bucket privado
                     ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                     ->maxSize(20480) // 20MB — plantas/projetos grandes (Livewire aceita até 50MB; ver config/livewire.php)
                     ->downloadable()
@@ -621,7 +621,7 @@ class ProcessoFormService
 
         $html = '<ul class="space-y-2">';
         foreach ($anexos as $anexo) {
-            $url = \Illuminate\Support\Facades\Storage::url($anexo->caminho_arquivo);
+            $url = $anexo->urlAbrir(); // INF-2: link estável com autorização
             $icone = str_ends_with(strtolower($anexo->nome_arquivo), '.pdf') ? '📕' : '🖼️';
 
             $tag = match ($anexo->tipo_anexo) {

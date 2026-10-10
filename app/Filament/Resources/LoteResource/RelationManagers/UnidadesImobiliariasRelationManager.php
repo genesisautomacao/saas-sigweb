@@ -145,7 +145,7 @@ class UnidadesImobiliariasRelationManager extends RelationManager
 
                                 Forms\Components\FileUpload::make('path')
                                     ->label('Arquivo')
-                                    ->directory('unidades_imobiliarias/documentos') // Pasta onde será salvo no storage
+                                    ->midia('unidades_imobiliarias/documentos') // Pasta onde será salvo no storage
                                     ->preserveFilenames()
                                     ->openable() // Permite visualizar o PDF/Imagem direto no navegador
                                     ->downloadable() // Permite baixar o arquivo

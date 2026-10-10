@@ -2100,13 +2100,18 @@ class MapaFullscreen extends Page
             ->modalCancelActionLabel('Fechar Visualizador')
             ->modalContent(function () {
 
-                // 1. O SISTEMA PROCURA O ARQUIVO REAL DO MUNICÍPIO NA PASTA PUBLIC
-                // Estrutura esperada: public/nuvem-pontos/bom-principio/index.html
+                // 1. INF-2: endereço cadastrado na prefeitura (bucket público da ortofoto);
+                // 2. senão, a pasta legada public/nuvem-pontos/{slug}/index.html;
+                // 3. senão, a demonstração.
                 $pastaMunicipio = "nuvem-pontos/{$this->tenantSlug}";
                 $caminhoFisico = public_path("{$pastaMunicipio}/index.html");
+                $urlCadastrada = data_get(\App\Models\Tenant::find($this->tenantId)?->data, 'nuvem_pontos_url');
 
-                // 2. A INTELIGÊNCIA DO FALLBACK
-                if (file_exists($caminhoFisico)) {
+                if (filled($urlCadastrada)) {
+                    $demoUrl = $urlCadastrada;
+                    $mensagem = 'Visualizando dados reais de escaneamento a laser do município.';
+                    $corAviso = 'emerald';
+                } elseif (file_exists($caminhoFisico)) {
                     // O voo de drone existe! Carrega o dado real da prefeitura.
                     $demoUrl = asset("{$pastaMunicipio}/index.html");
                     $mensagem = 'Visualizando dados reais de escaneamento a laser do município.';

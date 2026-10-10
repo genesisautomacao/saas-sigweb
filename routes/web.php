@@ -44,6 +44,7 @@ Route::get('/cidadao/lotes-geojson', [\App\Http\Controllers\CidadaoMapController
 Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/processo-anexo/{anexo}/anotar', [\App\Http\Controllers\ProcessoAnexoController::class, 'anotar'])->name('processo-anexo.anotar');
     Route::post('/processo-anexo/{anexo}/anotar', [\App\Http\Controllers\ProcessoAnexoController::class, 'salvar'])->name('processo-anexo.salvar');
+    Route::get('/processo-anexo/{anexo}/arquivo', [\App\Http\Controllers\ProcessoAnexoController::class, 'arquivo'])->name('processo-anexo.arquivo');
 
     // PD-1 — download do requerimento em PDF (gera a partir do template do fluxo)
     Route::get('/processo/{processo}/requerimento', [\App\Http\Controllers\ProcessoRequerimentoController::class, 'gerar'])->name('processo.requerimento.gerar');
@@ -51,6 +52,12 @@ Route::middleware(['web', 'auth'])->group(function () {
     // R67-4 — quadras (GeoJSON) para o mapa de atribuição de região, com quem já ocupa cada uma
     Route::get('/coleta/quadras-geojson', \App\Http\Controllers\ColetaQuadrasController::class)->name('coleta.quadras-geojson');
 });
+
+// INF-2 — link estável de um anexo de processo (lista de documentos, PDF do processo):
+// confere quem pede e redireciona para o arquivo (bucket privado ou VPS). Fora do grupo
+// 'auth' pelo mesmo motivo da rota abaixo (sem rota 'login' = 500); 403 manual.
+Route::get('/anexos/{anexo}', [\App\Http\Controllers\ProcessoAnexoController::class, 'abrir'])
+    ->middleware('web')->name('processo.anexo.abrir');
 
 // R80-1 — foto do chamado pelo mapa quando ela ficou no disco local privado (sem o
 // bucket "midia" configurado). Fora do grupo 'auth' de propósito: o middleware redireciona

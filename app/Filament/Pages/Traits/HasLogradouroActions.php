@@ -28,9 +28,9 @@ trait HasLogradouroActions
             ->form([
                 Placeholder::make('extensao_calculada')
                     ->label('Extensão calculada')
-                    ->content(fn(): HtmlString => new HtmlString(
+                    ->content(fn (): HtmlString => new HtmlString(
                         $this->logradouroExtensaoCalculada !== null
-                            ? '<strong style="font-size:14px;color:#0369a1;">' . number_format($this->logradouroExtensaoCalculada, 2, ',', '.') . ' m</strong>'
+                            ? '<strong style="font-size:14px;color:#0369a1;">'.number_format($this->logradouroExtensaoCalculada, 2, ',', '.').' m</strong>'
                             : '<em style="color:#9ca3af;">Sem geometria — desenhe a rua no mapa primeiro.</em>'
                     )),
 
@@ -68,7 +68,7 @@ trait HasLogradouroActions
                 $this->dispatch('adicionar-logradouro-mapa', [
                     'id' => $logradouro->id,
                     'name' => $logradouro->name,
-                    'geo' => $this->geometriaRascunho
+                    'geo' => $this->geometriaRascunho,
                 ]);
                 $this->dispatch('limpar-rascunho-mapa');
 
@@ -81,13 +81,14 @@ trait HasLogradouroActions
     {
         return Action::make('opcoesLogradouro')
             ->hiddenLabel()
-            ->modalHeading(fn() => 'Editar Logradouro #' . $this->logradouroAtivoId)
+            ->modalHeading(fn () => 'Editar Logradouro #'.$this->logradouroAtivoId)
             ->modalWidth('3xl')
             ->modalSubmitActionLabel('Salvar Alterações')
             ->fillForm(function (): array {
                 $logradouro = Logradouro::find($this->logradouroAtivoId);
+
                 return [
-                    'name'   => $logradouro ? $logradouro->name : '',
+                    'name' => $logradouro ? $logradouro->name : '',
                     'codigo' => $logradouro?->codigo,
                     'dados_customizados' => $logradouro?->dados_customizados ?? [],
                 ];
@@ -98,9 +99,10 @@ trait HasLogradouroActions
                     ->content(function (): HtmlString {
                         $reg = Logradouro::find($this->logradouroAtivoId);
                         $valor = $reg?->extensao_geo;
+
                         return new HtmlString(
                             $valor !== null
-                                ? '<strong style="font-size:14px;color:#0369a1;">' . number_format((float) $valor, 2, ',', '.') . ' m</strong>'
+                                ? '<strong style="font-size:14px;color:#0369a1;">'.number_format((float) $valor, 2, ',', '.').' m</strong>'
                                 : '<em style="color:#9ca3af;">Sem geometria registrada.</em>'
                         );
                     }),
@@ -131,16 +133,16 @@ trait HasLogradouroActions
                         }
 
                         $html = '<div style="overflow-x:auto;">'
-                            . '<table style="width:100%;font-size:13px;border-collapse:collapse;">'
-                            . '<thead><tr style="border-bottom:1px solid #e5e7eb;">'
-                            . '<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Código</th>'
-                            . '<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Nome</th>'
-                            . '<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Lado</th>'
-                            . '<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Pavimento</th>'
-                            . '<th style="text-align:right;padding:4px 8px;font-weight:600;color:#6b7280;">Extensão</th>'
-                            . '<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Fotos</th>'
-                            . '<th style="padding:4px;"></th>'
-                            . '</tr></thead><tbody>';
+                            .'<table style="width:100%;font-size:13px;border-collapse:collapse;">'
+                            .'<thead><tr style="border-bottom:1px solid #e5e7eb;">'
+                            .'<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Código</th>'
+                            .'<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Nome</th>'
+                            .'<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Lado</th>'
+                            .'<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Pavimento</th>'
+                            .'<th style="text-align:right;padding:4px 8px;font-weight:600;color:#6b7280;">Extensão</th>'
+                            .'<th style="text-align:left;padding:4px 8px;font-weight:600;color:#6b7280;">Fotos</th>'
+                            .'<th style="padding:4px;"></th>'
+                            .'</tr></thead><tbody>';
 
                         foreach ($secoes as $s) {
                             $coords = DB::table('secoes_logradouro')
@@ -148,15 +150,15 @@ trait HasLogradouroActions
                                 ->where('id', $s->id)
                                 ->first();
 
-                            $nome = htmlspecialchars($s->name ?: ('Seção #' . $s->sequential_id), ENT_QUOTES, 'UTF-8');
+                            $nome = htmlspecialchars($s->name ?: ('Seção #'.$s->sequential_id), ENT_QUOTES, 'UTF-8');
                             // Item 44: código composto (logradouro + seção) e lado
                             $codigo = htmlspecialchars($s->codigo_composto ?? '—', ENT_QUOTES, 'UTF-8');
                             $lado = \App\Services\Coleta\CampoDominioService::rotuloValor('secao_logradouro', 'lado', $s->lado) ?? '—';
                             // Refatoração PoC Tangará: tipo_pavimentacao vive em dados_customizados
                             $pav = $s->dados_customizados['tipo_pavimentacao'] ?? null;
                             $tipo = $pav ? ucfirst($pav) : '—';
-                            $ext  = $s->extensao_geo !== null
-                                ? number_format((float) $s->extensao_geo, 0, ',', '.') . ' m'
+                            $ext = $s->extensao_geo !== null
+                                ? number_format((float) $s->extensao_geo, 0, ',', '.').' m'
                                 : '—';
 
                             // T1.7 (item 17): galeria — miniaturas clicáveis das fotos da seção
@@ -165,15 +167,15 @@ trait HasLogradouroActions
                             if ($fotos->isNotEmpty()) {
                                 $fotosHtml = '<div style="display:flex;gap:4px;">';
                                 foreach ($fotos->take(3) as $foto) {
-                                    $url = asset('storage/'.$foto->path);
+                                    $url = \App\Support\Midia::url($foto->path);
                                     $legenda = htmlspecialchars($foto->name ?? '', ENT_QUOTES, 'UTF-8');
-                                    $fotosHtml .= '<a href="' . $url . '" target="_blank" title="' . $legenda . '">'
-                                        . '<img src="' . $url . '" alt="' . $legenda . '" '
-                                        . 'style="width:34px;height:34px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb;" />'
-                                        . '</a>';
+                                    $fotosHtml .= '<a href="'.$url.'" target="_blank" title="'.$legenda.'">'
+                                        .'<img src="'.$url.'" alt="'.$legenda.'" '
+                                        .'style="width:34px;height:34px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb;" />'
+                                        .'</a>';
                                 }
                                 if ($fotos->count() > 3) {
-                                    $fotosHtml .= '<span style="font-size:11px;color:#6b7280;align-self:center;">+' . ($fotos->count() - 3) . '</span>';
+                                    $fotosHtml .= '<span style="font-size:11px;color:#6b7280;align-self:center;">+'.($fotos->count() - 3).'</span>';
                                 }
                                 $fotosHtml .= '</div>';
                             }
@@ -183,25 +185,26 @@ trait HasLogradouroActions
                                 $lat = round((float) $coords->lat, 7);
                                 $lon = round((float) $coords->lon, 7);
                                 $irBtn = '<button type="button" '
-                                    . 'onclick="window.irParaCoordenada(' . $lat . ',' . $lon . ',18);'
-                                    . 'Livewire.dispatch(\'fechar-modal-filament\');" '
-                                    . 'style="background:#7c3aed;color:#fff;border:none;border-radius:4px;'
-                                    . 'padding:2px 10px;cursor:pointer;font-size:12px;white-space:nowrap;">'
-                                    . 'Ir</button>';
+                                    .'onclick="window.irParaCoordenada('.$lat.','.$lon.',18);'
+                                    .'Livewire.dispatch(\'fechar-modal-filament\');" '
+                                    .'style="background:#7c3aed;color:#fff;border:none;border-radius:4px;'
+                                    .'padding:2px 10px;cursor:pointer;font-size:12px;white-space:nowrap;">'
+                                    .'Ir</button>';
                             }
 
                             $html .= '<tr style="border-bottom:1px solid #f3f4f6;">'
-                                . '<td style="padding:4px 8px;font-weight:600;">' . $codigo . '</td>'
-                                . '<td style="padding:4px 8px;">' . $nome . '</td>'
-                                . '<td style="padding:4px 8px;">' . htmlspecialchars($lado, ENT_QUOTES, 'UTF-8') . '</td>'
-                                . '<td style="padding:4px 8px;">' . $tipo . '</td>'
-                                . '<td style="padding:4px 8px;text-align:right;">' . $ext . '</td>'
-                                . '<td style="padding:4px 8px;">' . $fotosHtml . '</td>'
-                                . '<td style="padding:4px 8px;text-align:right;">' . $irBtn . '</td>'
-                                . '</tr>';
+                                .'<td style="padding:4px 8px;font-weight:600;">'.$codigo.'</td>'
+                                .'<td style="padding:4px 8px;">'.$nome.'</td>'
+                                .'<td style="padding:4px 8px;">'.htmlspecialchars($lado, ENT_QUOTES, 'UTF-8').'</td>'
+                                .'<td style="padding:4px 8px;">'.$tipo.'</td>'
+                                .'<td style="padding:4px 8px;text-align:right;">'.$ext.'</td>'
+                                .'<td style="padding:4px 8px;">'.$fotosHtml.'</td>'
+                                .'<td style="padding:4px 8px;text-align:right;">'.$irBtn.'</td>'
+                                .'</tr>';
                         }
 
                         $html .= '</tbody></table></div>';
+
                         return new HtmlString($html);
                     })
                     ->columnSpanFull(),
@@ -215,7 +218,7 @@ trait HasLogradouroActions
                     // 🛑 Ação Cirúrgica de Edição
                     $this->dispatch('atualizar-label-logradouro', [
                         'id' => $logradouro->id,
-                        'name' => $data['name']
+                        'name' => $data['name'],
                     ]);
                 }
             })
