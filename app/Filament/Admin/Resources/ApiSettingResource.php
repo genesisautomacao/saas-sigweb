@@ -45,6 +45,14 @@ class ApiSettingResource extends Resource
                             ->maxLength(255)
                             ->unique(ignoreRecord: true),
 
+                        // R83-7: linha inativa vale como ausente para o sistema inteiro — a credencial
+                        // fica guardada (ex.: Azure com a conta bloqueada) sem aparecer em lugar nenhum.
+                        Forms\Components\Toggle::make('ativo')
+                            ->label('Ativo')
+                            ->helperText('Desligado = o sistema age como se esta linha não existisse (a credencial fica guardada). Ex.: Azure Maps desligado some do seletor de mapas de fundo.')
+                            ->default(true)
+                            ->inline(false),
+
                         // KeyValue = construtor de chaves e valores (mesmo padrão da base Gatefyx).
                         Forms\Components\KeyValue::make('data')
                             ->label('Credenciais / Variáveis')
@@ -65,13 +73,18 @@ class ApiSettingResource extends Resource
                     ->searchable()
                     ->sortable(),
 
+                // R83-7: liga/desliga direto na lista (o save invalida o cache api_settings.all)
+                Tables\Columns\ToggleColumn::make('ativo')
+                    ->label('Ativo')
+                    ->tooltip('Desligado = como se a linha não existisse (credencial guardada)'),
+
                 Tables\Columns\TextColumn::make('updated_at')
                     ->label('Última Atualização')
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
             ])
             ->filters([
-                //
+                Tables\Filters\TernaryFilter::make('ativo')->label('Ativo'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

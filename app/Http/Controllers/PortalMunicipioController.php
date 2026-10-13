@@ -19,7 +19,7 @@ class PortalMunicipioController extends Controller
 
         abort_unless($tenant, 404, 'Município não encontrado.');
 
-        $videoUrl = ApiSetting::where('name', 'Portal')->first()?->data['VIDEO_TUTORIAL_URL'] ?? null;
+        $videoUrl = ApiSetting::dados('Portal')['VIDEO_TUTORIAL_URL'] ?? null; // R83-7: só linha ativa
 
         $brandColor = (string) data_get($tenant->data, 'color', '#3b82f6');
 

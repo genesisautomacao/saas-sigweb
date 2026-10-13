@@ -127,8 +127,8 @@ class ChamadoMapaService
     private static function turnstile(string $chave): ?string
     {
         try {
-            $linha = \Illuminate\Support\Facades\Cache::rememberForever('api_settings.all', fn () => \App\Models\ApiSetting::query()->get()->keyBy('name'))
-                ->get('Cloudflare Turnstile');
+            // R83-7: fonte única do cache (só linhas ATIVAS)
+            $linha = \App\Models\ApiSetting::ativasCache()->get('Cloudflare Turnstile');
 
             $valor = $linha?->data[$chave] ?? null;
 

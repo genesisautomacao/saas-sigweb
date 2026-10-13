@@ -242,7 +242,8 @@
       "Bash(ssh -i ~/.ssh/claude_vps -o BatchMode=yes root@179.199.155.36 'mysql -N lider_ferramentas_site -e \"show tables\" | head -30; echo; tail -12 /root/migracao/fotos-limpar-local.log; ps -eo etime,args | grep \"[f]otos:limpar-local\"; du -sh /srv/webgis/saas-sigweb/storage/app/public/lotes_fotos 2>/dev/null')",
       "Bash(ssh -i ~/.ssh/claude_vps -o BatchMode=yes root@179.199.155.36 'mysql lider_ferramentas_site -e \"select * from municipalities limit 0\" ; mysql -N lider_ferramentas_site -e \"describe municipalities\" | cut -f1 | tr \"\\\\n\" \" \"')",
       "Bash(ssh -i ~/.ssh/claude_vps -o BatchMode=yes root@179.199.155.36 'mysql -N lider_ferramentas_site -e \"select slug, name, state, active from municipalities order by name\"')",
-      "Bash(awk '{print $1}')"
+      "Bash(awk '{print $1}')",
+      "Bash(grep -v \"DEPRECATED\\\\|^\\\\s*$\")"
     ],
     "additionalDirectories": [
       "D:\\Sistemas e Plataformas\\WebGis\\Pocs",

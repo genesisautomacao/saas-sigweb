@@ -78,10 +78,8 @@ class AppServiceProvider extends ServiceProvider
         // com config:cache ativo, env() fora dos arquivos de config retorna null (E1.5).
         try {
             if (Schema::hasTable('api_settings')) {
-                $settings = \Illuminate\Support\Facades\Cache::rememberForever(
-                    'api_settings.all',
-                    fn () => ApiSetting::query()->get()->keyBy('name')
-                );
+                // R83-7: só as linhas ATIVAS (flag no /admin); inativa = como se não existisse.
+                $settings = ApiSetting::ativasCache();
 
                 // Resend (e-mail transacional) — vale para TODAS as tenants.
                 $resend = $settings->get('Resend');
@@ -98,10 +96,13 @@ class AppServiceProvider extends ServiceProvider
                 }
 
                 // Azure Maps (basemaps Road/Satélite do mapa — item 1-4 da PoC Tangará).
+                // R83-7: a linha do /admin MANDA sozinha — sem linha ativa a chave vira null,
+                // mesmo que o .env (ou o config:cache) ainda tenha AZURE_MAPS_KEY; assim as
+                // opções Azure somem do seletor de mapas ao desativar/excluir a linha.
                 $azure = $settings->get('Azure Maps');
-                if ($azure && ! empty($azure->data['AZURE_MAPS_KEY'])) {
-                    Config::set('services.azure_maps.key', $azure->data['AZURE_MAPS_KEY']);
-                }
+                Config::set('services.azure_maps.key', ($azure && ! empty($azure->data['AZURE_MAPS_KEY']))
+                    ? $azure->data['AZURE_MAPS_KEY']
+                    : null);
 
                 // Google Maps (Street View / visualizador 360 + perfil altimétrico).
                 $google = $settings->get('Google Maps');

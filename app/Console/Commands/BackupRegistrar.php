@@ -62,7 +62,7 @@ class BackupRegistrar extends Command
 
     private function alertar(BackupExecucao $execucao): void
     {
-        $destinos = collect(explode(',', (string) data_get(ApiSetting::where('name', 'Backup')->value('data'), 'ALERTA_EMAIL')))
+        $destinos = collect(explode(',', (string) (ApiSetting::dados('Backup')['ALERTA_EMAIL'] ?? ''))) // R83-7: só linha ativa
             ->map(fn ($e) => trim($e))
             ->filter(fn ($e) => filter_var($e, FILTER_VALIDATE_EMAIL))
             ->values();
