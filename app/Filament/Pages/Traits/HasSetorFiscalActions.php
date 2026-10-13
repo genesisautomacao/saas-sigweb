@@ -21,6 +21,7 @@ trait HasSetorFiscalActions
     public function criarSetorFiscal(): Action
     {
         return Action::make('criarSetorFiscal')
+            ->authorize(fn () => $this->podeNoMapa('setores_fiscais', 'criar')) // R83
             ->modalHeading('Novo Setor Fiscal (PGV)')
             ->modalDescription('Preencha os dados da Zona de Valor que você acabou de desenhar.')
             ->modalSubmitActionLabel('Salvar Setor')
@@ -56,6 +57,8 @@ trait HasSetorFiscalActions
 
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('setores_fiscais', 'criar'); // R83
+
                 if (!$this->geometriaRascunho) {
                     Notification::make()->title('Erro de Geometria')->danger()->send();
                     return;
@@ -92,6 +95,10 @@ trait HasSetorFiscalActions
     public function opcoesSetorFiscal(): Action
     {
         return Action::make('opcoesSetorFiscal')
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('setores_fiscais', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('setores_fiscais', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('setores_fiscais', 'editar') ? $action : false)
             ->modalHeading(fn () => 'Setor Fiscal: ' . (SetorFiscal::find($this->setorFiscalAtivoId)?->nome ?? ''))
             ->modalSubmitActionLabel('Salvar Alterações')
             ->color('primary')
@@ -138,6 +145,8 @@ trait HasSetorFiscalActions
                 ];
             })
             ->action(function (array $data) {
+                $this->exigirNoMapa('setores_fiscais', 'editar'); // R83
+
                 $setor = SetorFiscal::find($this->setorFiscalAtivoId);
                 if ($setor) {
                     // codigo e dados_customizados entram no update (o codigo era
@@ -160,7 +169,9 @@ trait HasSetorFiscalActions
                     ->label('Remodelar Polígono')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('setores_fiscais', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('setores_fiscais', 'editar');
                         // Dispara o evento para o OpenLayers ativar as "bolinhas" de edição
                         $this->dispatch('iniciar-edicao-geometria-setor_fiscal', ['id' => $this->setorFiscalAtivoId]);
                         $this->dispatch('fechar-modal-filament'); // <-- CORREÇÃO AQUI
@@ -171,7 +182,9 @@ trait HasSetorFiscalActions
                     ->color('danger')
                     ->requiresConfirmation()
                     ->icon('heroicon-o-trash')
+                    ->visible(fn () => $this->podeNoMapa('setores_fiscais', 'excluir')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('setores_fiscais', 'excluir');
                         $setor = SetorFiscal::find($this->setorFiscalAtivoId);
                         if ($setor) {
                             $setor->delete();

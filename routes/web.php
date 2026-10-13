@@ -33,6 +33,14 @@ Route::middleware(['web', 'auth'])->match(['get', 'post'], '/api/mapa/export-shp
         abort(400, 'Parâmetros layer e tenant_id são obrigatórios.');
     }
 
+    // R83: equipe da prefeitura + ferramenta "exportar_shp" + permissão de ver a camada
+    $tenant = \App\Models\Tenant::find($tenantId);
+    abort_unless($tenant, 404);
+    $user = $request->user();
+    abort_unless(\App\Support\MapaPermissoes::vincularEquipe($user, $tenantId), 403, 'Só a equipe da prefeitura exporta camadas.');
+    abort_unless(\App\Support\MapaPermissoes::podeFerramenta('exportar_shp', $user, $tenant), 403, 'Seu papel não tem a exportação SHP liberada.');
+    abort_unless(\App\Support\MapaPermissoes::podeVerCamada($layer, $user, $tenant), 403, 'Sem permissão para esta camada.');
+
     return app(\App\Services\Exports\ShapefileExportService::class)
         ->exportStream($layer, $tenantId, is_string($drawnGeometry) ? $drawnGeometry : null);
 })->name('api.mapa.export-shp');
@@ -105,74 +113,30 @@ Route::get('/gis/{tenantSlug}/map-permissions', function (\Illuminate\Http\Reque
         abort(404);
     }
 
-    $userId = auth()->id();
-    $tenantId = $tenant->id;
-
     // MÓDULOS da prefeitura valem para TODO MUNDO, Manager incluído (decisão D2 de
     // docs/Modulos_Permissoes.txt): camadas de módulo inativo saem antes do bypass.
     $modulos = \App\Support\Modulos::ativos($tenant);
     $camadasIndisponiveis = \App\Support\Modulos::camadasIndisponiveis($tenant);
 
-    // Bypass de PERMISSÃO para Master e Manager (raw query — evita cache Spatie).
-    // D7: pela flag roles.papel_sistema, não pelo nome.
-    $isPrivileged = \Illuminate\Support\Facades\DB::table('model_has_roles')
-        ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
-        ->where('model_has_roles.model_id', $userId)
-        ->where('model_has_roles.model_type', 'App\\Models\\User')
-        // papel global (Master, tenant_id null) ou de sistema desta prefeitura — mesma
-        // regra do Gate::before
-        ->where(fn ($w) => $w->whereNull('roles.tenant_id')->orWhere('roles.tenant_id', $tenantId))
-        ->whereIn('roles.papel_sistema', ['master', 'manager'])
-        ->exists();
-
-    if ($isPrivileged) {
-        return response()->json(['bypass' => true, 'modulos' => $modulos, 'camadas_indisponiveis' => $camadasIndisponiveis]);
+    // R83 (2026-10-12): fonte única = config/mapa.php via MapaPermissoes. Fora do
+    // Filament o team id do Spatie não está setado — vincularEquipe() resolve isso e
+    // devolve false para quem não é equipe da prefeitura (cidadão / sem vínculo).
+    $user = auth()->user();
+    $vazio = ['bypass' => false, 'layers' => [], 'permissoes' => [], 'artefatos' => [], 'ferramentas' => [],
+        'modulos' => $modulos, 'camadas_indisponiveis' => $camadasIndisponiveis];
+    if (! \App\Support\MapaPermissoes::vincularEquipe($user, (int) $tenant->id)) {
+        return response()->json($vazio);
     }
 
-    // IDs dos roles do usuário neste tenant
-    $roleIds = \Illuminate\Support\Facades\DB::table('model_has_roles')
-        ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
-        ->where('model_has_roles.model_id', $userId)
-        ->where('model_has_roles.model_type', 'App\\Models\\User')
-        ->where('roles.tenant_id', $tenantId)
-        ->pluck('roles.id');
-
-    // Todas as permissões desses roles
-    $permNames = \Illuminate\Support\Facades\DB::table('role_has_permissions')
-        ->join('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
-        ->whereIn('role_has_permissions.role_id', $roleIds)
-        ->pluck('permissions.name')
-        ->unique();
-
-    // Camadas: null = sem configuração (backward compat — mostra tudo)
-    $anyLayerPerm = \Illuminate\Support\Facades\DB::table('permissions')
-        ->where('name', 'like', 'ver_camada_%')->exists();
-    $layers = null;
-    if ($anyLayerPerm) {
-        $layers = $permNames
-            ->filter(fn ($p) => str_starts_with($p, 'ver_camada_'))
-            ->map(fn ($p) => str_replace('ver_camada_', '', $p))
-            // permissão de camada cujo módulo está inativo não libera nada
-            ->filter(fn ($camada) => \App\Support\Modulos::camadaDisponivel($camada, $tenant))
-            ->values();
-    }
-
-    // Toolbar: null = sem configuração (mostra tudo)
-    $anyToolbarPerm = \Illuminate\Support\Facades\DB::table('permissions')
-        ->where('name', 'like', 'toolbar_%')->exists();
-    $toolbar = null;
-    if ($anyToolbarPerm) {
-        $toolbar = [
-            'criar_artefatos' => $permNames->contains('toolbar_criar_artefatos'),
-            'ferramentas' => $permNames->contains('toolbar_ferramentas'),
-            'filtros' => $permNames->contains('toolbar_filtros'),
-        ];
-    }
+    $resumo = \App\Support\MapaPermissoes::resumo($user, $tenant);
 
     return response()->json([
-        'bypass' => false,
-        'layers' => $layers,
-        'toolbar' => $toolbar,
+        'bypass' => $resumo['bypass'],
+        // `layers` = camadas (chave com "_" e com "-") que o papel vê; null = bypass (engine não esconde nada)
+        'layers' => $resumo['bypass'] ? null : array_keys(array_filter($resumo['camadas'])),
+        'permissoes' => $resumo['entidades'],   // entidade => {mapa, criar, editar, excluir}
+        'artefatos' => $resumo['artefatos'],     // tipo do enableDrawing => pode criar
+        'ferramentas' => $resumo['ferramentas'], // id => pode usar
         'modulos' => $modulos,
         'camadas_indisponiveis' => $camadasIndisponiveis,
     ]);

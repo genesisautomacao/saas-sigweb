@@ -21,6 +21,7 @@ trait HasJazigoActions
     public function criarJazigoAction(): Action
     {
         return Action::make('criarJazigo')
+            ->authorize(fn () => $this->podeNoMapa('jazigos', 'criar')) // R83
             ->modalHeading('Cadastrar Novo Jazigo / Túmulo')
             ->modalSubmitActionLabel('Salvar Jazigo')
             ->modalWidth('3xl')
@@ -58,6 +59,8 @@ trait HasJazigoActions
                     ->columnSpanFull(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('jazigos', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['code'] = (string) Str::uuid();
@@ -82,6 +85,10 @@ trait HasJazigoActions
     {
         return Action::make('opcoesJazigo')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('jazigos', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('jazigos', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('jazigos', 'editar') ? $action : false)
             ->modalHeading(fn() => 'Jazigo #' . $this->jazigoAtivoId)
             ->modalDescription(function (): string {
                 $count = JazigoFalecido::query()->where('jazigo_id', $this->jazigoAtivoId)->count();
@@ -113,6 +120,8 @@ trait HasJazigoActions
                 Select::make('proprietario_id')->label('Proprietário')->options(fn() => Pessoa::pluck('name', 'id'))->searchable()->columnSpanFull(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('jazigos', 'editar'); // R83
+
                 $jazigo = Jazigo::find($this->jazigoAtivoId);
                 if ($jazigo) {
                     $jazigo->update($data);
@@ -131,7 +140,9 @@ trait HasJazigoActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('jazigos', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('jazigos', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-jazigo', id: $this->jazigoAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -141,7 +152,9 @@ trait HasJazigoActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('jazigos', 'excluir')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('jazigos', 'excluir');
                         Jazigo::find($this->jazigoAtivoId)?->delete();
                         Notification::make()->title('Jazigo Excluído!')->success()->send();
                         $this->dispatch('remover-jazigo-mapa', ['id' => $this->jazigoAtivoId]);

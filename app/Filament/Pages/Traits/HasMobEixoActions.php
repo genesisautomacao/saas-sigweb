@@ -56,6 +56,7 @@ trait HasMobEixoActions
     public function criarMobEixoAction(): Action
     {
         return Action::make('criarMobEixo')
+            ->authorize(fn () => $this->podeNoMapa('mob_eixos', 'criar')) // R83
             ->modalHeading('Cadastrar Novo Eixo de Mobilidade')
             ->modalWidth('3xl')
             ->modalSubmitActionLabel('Salvar')
@@ -70,6 +71,8 @@ trait HasMobEixoActions
                 ...$this->mobEixoFormulario(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_eixos', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
 
@@ -91,6 +94,10 @@ trait HasMobEixoActions
     {
         return Action::make('opcoesMobEixo')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('mob_eixos', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('mob_eixos', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('mob_eixos', 'editar') ? $action : false)
             ->modalHeading(function () {
                 $e = MobEixo::withoutGlobalScopes()->find($this->mobEixoAtivoId);
 
@@ -122,6 +129,8 @@ trait HasMobEixoActions
                 ...$this->mobEixoFormulario(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_eixos', 'editar'); // R83
+
                 $e = MobEixo::withoutGlobalScopes()->find($this->mobEixoAtivoId);
                 if (! $e) {
                     return;
@@ -137,7 +146,9 @@ trait HasMobEixoActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('mob_eixos', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('mob_eixos', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-mob_eixo', id: $this->mobEixoAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -146,7 +157,9 @@ trait HasMobEixoActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('mob_eixos', 'excluir')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('mob_eixos', 'excluir');
                         MobEixo::withoutGlobalScopes()->find($this->mobEixoAtivoId)?->delete();
                         Notification::make()->title('Eixo excluído!')->success()->send();
                         $this->dispatch('remover-mob_eixos-mapa', ['id' => $this->mobEixoAtivoId]);
@@ -165,6 +178,13 @@ trait HasMobEixoActions
     #[On('salvarNovaGeometriaMobEixo')]
     public function salvarNovaGeometriaMobEixo($id, $geoJson): void
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('mob_eixos', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $e = MobEixo::withoutGlobalScopes()->where('tenant_id', $this->tenantId)->find($id);
         if (! $e) {
             return;

@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\RoleResource\Pages;
 use App\Models\Role;
+use App\Support\MapaPermissoes;
 use App\Support\Modulos;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -20,6 +21,12 @@ use Filament\Tables\Table;
  * permissões já gravadas nesses módulos são PRESERVADAS no save (decisão D3 de
  * docs/Modulos_Permissoes.txt). Papel de sistema (Manager) é identificado pela
  * flag roles.papel_sistema (D7): pode ser renomeado, não excluído.
+ *
+ * R83 (2026-10-12): as caixas dos módulos GIS viraram MATRIZES por entidade
+ * (Menu · Mapa · Criar · Editar · Excluir), montadas do catálogo config/mapa.php
+ * (MapaPermissoes) — a mesma permissão vale na tela do menu e no mapa. As antigas
+ * caixas "Mapa — Camadas" e "Mapa — Toolbar" saíram: ver camada é a coluna "Mapa"
+ * de cada entidade e as ferramentas têm a caixa "Mapa — Ferramentas", uma por item.
  */
 class RoleResource extends Resource
 {
@@ -35,6 +42,15 @@ class RoleResource extends Resource
 
     protected static ?int $navigationSort = 34;
 
+    /** Colunas da matriz (R83) — chave do catálogo => rótulo da coluna. */
+    public const COLUNAS_MATRIZ = [
+        'menu' => 'Menu',
+        'mapa' => 'Mapa',
+        'criar' => 'Criar',
+        'editar' => 'Editar',
+        'excluir' => 'Excluir',
+    ];
+
     private static function quarteto(string $entidade, string $singular, string $plural, string $vis = 'Visualizar'): array
     {
         return [
@@ -46,11 +62,67 @@ class RoleResource extends Resource
     }
 
     /**
+     * Linhas da matriz de um módulo, a partir do catálogo do mapa (config/mapa.php).
+     * Entidade que é só camada de leitura (sem tela nem CRUD — coleta, processos,
+     * chamados) NÃO vira linha: entra como opção simples na caixa do seu módulo.
+     */
+    public static function matrizDoModulo(string $modulo): array
+    {
+        $linhas = [];
+        $entidades = MapaPermissoes::entidades();
+        foreach ($entidades as $chave => $def) {
+            if (($def['modulo'] ?? null) !== $modulo) {
+                continue;
+            }
+            if (empty($def['menu']) && empty($def['criar'])) {
+                continue; // camada só leitura — opção simples na caixa do módulo
+            }
+            $linhas[] = [
+                'chave' => $chave,
+                'label' => (string) ($def['label'] ?? $chave),
+                'nota' => $def['nota'] ?? null,
+                'menu' => $def['menu'] ?? null,
+                // camada compartilhada (quadras/ruas/jazigos de cemitério): a coluna fica na entidade-mãe
+                'mapa' => empty($def['mapa_de']) ? ($def['mapa'] ?? null) : null,
+                'mapa_de' => ! empty($def['mapa_de']) ? (string) ($entidades[$def['mapa_de']]['label'] ?? $def['mapa_de']) : null,
+                'criar' => $def['criar'] ?? null,
+                'editar' => $def['editar'] ?? null,
+                'excluir' => $def['excluir'] ?? null,
+            ];
+        }
+
+        return $linhas;
+    }
+
+    /** Opções da caixa "Mapa — Ferramentas": uma permissão por item, rotulada pelo grupo. */
+    public static function opcoesFerramentas(): array
+    {
+        $opcoes = [];
+        foreach (MapaPermissoes::ferramentas() as $id => $def) {
+            $exige = [];
+            foreach ((array) ($def['exige'] ?? []) as $entidade => $acao) {
+                $exige[] = $acao.' '.(MapaPermissoes::entidade((string) $entidade)['label'] ?? $entidade);
+            }
+            $opcoes[MapaPermissoes::permissaoFerramenta((string) $id)] = ($def['grupo'] ?? 'Ferramentas').' · '.($def['label'] ?? $id)
+                .($exige ? ' (exige '.implode(', ', $exige).')' : '');
+        }
+
+        return $opcoes;
+    }
+
+    /**
      * Definição das caixas: chave (campo do form) => [titulo, rotulo (null = sem rótulo),
-     * opcoes (permissão => rótulo), colunas, span ('full'|1), ajuda?].
+     * opcoes (permissão => rótulo) OU matriz (linhas de matrizDoModulo) + modulo, colunas,
+     * span ('full'|1), ajuda?].
      */
     public static function caixas(): array
     {
+        $matriz = fn (string $modulo, string $titulo, ?string $ajuda = null) => [
+            'titulo' => $titulo, 'rotulo' => null, 'span' => 'full', 'modulo' => $modulo,
+            'matriz' => self::matrizDoModulo($modulo), 'opcoes' => [],
+            'ajuda' => $ajuda ?? 'Menu = ver a tela; Mapa = ver a camada; Criar/Editar/Excluir valem no mapa E na tela.',
+        ];
+
         return [
             'permissions_users' => ['titulo' => 'Módulo: Equipe (Usuários)', 'rotulo' => 'Gestão de Usuários', 'span' => 1, 'colunas' => 1,
                 'opcoes' => self::quarteto('users', 'Usuário', 'Usuários')],
@@ -64,13 +136,23 @@ class RoleResource extends Resource
                 'opcoes' => self::quarteto('enderecos', 'Endereço', 'Endereços')],
             'permissions_documentos' => ['titulo' => 'Módulo Administrativo: Documentos', 'rotulo' => 'Gestão de Documentos', 'span' => 1, 'colunas' => 1,
                 'opcoes' => self::quarteto('documentos', 'Documento', 'Documentos')],
-            'permissions_pontos_panoramicos' => ['titulo' => 'Módulo Imageamento: Pontos Panorâmicos 360º', 'rotulo' => 'Gestão de Imagens 360º', 'span' => 1, 'colunas' => 1,
-                'opcoes' => self::quarteto('pontos_panoramicos', 'Ponto 360º', 'Pontos 360º')],
-            'permissions_iluminacao' => ['titulo' => 'Módulo: Iluminação Pública', 'rotulo' => 'Gestão de Iluminação', 'span' => 1, 'colunas' => 1,
-                'opcoes' => self::quarteto('tipos_poste', 'Tipo', 'Tipos') + self::quarteto('postes', 'Poste', 'Postes')],
-            'permissions_arborizacao' => ['titulo' => 'Módulo: Meio Ambiente (Árvores)', 'rotulo' => 'Gestão de Árvores', 'span' => 1, 'colunas' => 1,
-                'opcoes' => self::quarteto('arvores', 'Árvore', 'Árvores')],
-            'permissions_estoque' => ['titulo' => 'Módulo: Estoque', 'rotulo' => 'Gestão de Estoque', 'span' => 'full', 'colunas' => 4,
+
+            // ── GIS em matriz (R83) — nomes D8, mesma ordem da sidebar ──
+            'permissions_base_cartografica' => $matriz('base_cartografica', 'GIS - Base Cartográfica'),
+            'permissions_imobiliario' => $matriz('imobiliario', 'GIS - Cadastro Imobiliário',
+                'Edificações, testadas, unidades e fotos seguem as permissões do Lote. Criar/Editar/Excluir valem no mapa E na tela.'),
+            'permissions_coleta' => ['titulo' => 'Coleta Cadastral (campos, regiões e camada)', 'rotulo' => null, 'span' => 'full', 'colunas' => 3,
+                'opcoes' => [
+                    'gerenciar_campos_customizados' => 'Campos do Município (customizados e padrão)',
+                    'gerenciar_atribuicoes_coleta' => 'Atribuições de Região (cadastradores)',
+                    'ver_camada_coleta' => 'Ver a camada "Coleta de Dados" (status dos lotes) no mapa',
+                ]],
+            'permissions_imageamento' => $matriz('imageamento', 'GIS - Imageamento (360° e 3D)'),
+            'permissions_mobilidade' => $matriz('mob_infra', 'Mobilidade Urbana',
+                'Fluxos O/D são só leitura no mapa (a tela do menu é permissão única). Catálogo de sinalização não tem camada.'),
+            'permissions_iluminacao' => $matriz('iluminacao', 'Módulo: Iluminação Pública'),
+            'permissions_arborizacao' => $matriz('arborizacao', 'Módulo: Meio Ambiente (Árvores)'),
+            'permissions_estoque' => ['titulo' => 'Módulo: Estoque', 'rotulo' => 'Gestão de Estoque', 'span' => 'full', 'colunas' => 3,
                 'opcoes' => self::quarteto('locais_estoque', 'Local', 'Locais', 'Vis.')
                     + self::quarteto('marcas', 'Marca', 'Marcas', 'Vis.')
                     + self::quarteto('produtos', 'Produto', 'Produtos', 'Vis.')
@@ -90,29 +172,8 @@ class RoleResource extends Resource
                 ]],
             'permissions_manutencao' => ['titulo' => 'Módulo: Manutenção e Serviços', 'rotulo' => 'Gestão de Manutenção (O.S.)', 'span' => 'full', 'colunas' => 2,
                 'opcoes' => self::quarteto('solicitacoes', 'Solicitação', 'Solicitações', 'Vis.') + self::quarteto('ordens_servico', 'Ordem (OS)', 'Ordens (OS)', 'Vis.')],
-            'permissions_cemiterio' => ['titulo' => 'Módulo: Gestão de Cemitérios', 'rotulo' => 'Administração de Cemitérios e Jazigos', 'span' => 'full', 'colunas' => 4,
-                'opcoes' => self::quarteto('cemiterios', 'Cemitério', 'Cemitérios', 'Vis.')
-                    + self::quarteto('quadras_cemiterio', 'Quadra', 'Quadras', 'Vis.')
-                    + self::quarteto('logradouros_cemiterio', 'Rua', 'Ruas', 'Vis.')
-                    + self::quarteto('jazigos', 'Jazigo', 'Jazigos', 'Vis.')],
-            'permissions_imobiliario' => ['titulo' => 'Módulo: Imobiliário e Geográfico (SIGWEB)', 'rotulo' => 'Gestão de Lotes, Ruas e Zoneamento', 'span' => 'full', 'colunas' => 4,
-                'opcoes' => self::quarteto('lotes', 'Lote', 'Lotes', 'Vis.')
-                    + self::quarteto('logradouros', 'Rua', 'Ruas', 'Vis.')
-                    + self::quarteto('bairros', 'Bairro', 'Bairros', 'Vis.')
-                    + self::quarteto('perimetros_urbanos', 'Distrito', 'Distritos', 'Vis.')
-                    + self::quarteto('meio_fios', 'Meio-fio', 'Meio-fio', 'Vis.')
-                    + self::quarteto('loteamentos', 'Loteam.', 'Loteamentos', 'Vis.')
-                    + self::quarteto('quadras', 'Quadra', 'Quadras', 'Vis.')
-                    + self::quarteto('zonas', 'Zona', 'Zonas', 'Vis.')
-                    + [
-                        'gerenciar_areas_reurb' => 'Gerenciar Áreas REURB',
-                        'gerenciar_secoes_logradouro' => 'Gerenciar Seções de Logradouro',
-                    ]],
-            'permissions_coleta' => ['titulo' => 'Coleta Cadastral (campos e regiões)', 'rotulo' => null, 'span' => 'full', 'colunas' => 2,
-                'opcoes' => [
-                    'gerenciar_campos_customizados' => 'Campos do Município (customizados e padrão)',
-                    'gerenciar_atribuicoes_coleta' => 'Atribuições de Região (cadastradores)',
-                ]],
+            'permissions_cemiterio' => $matriz('cemiterio', 'Módulo: Gestão de Cemitérios',
+                'A camada do mapa é uma só (Cemitérios): quadras, ruas e jazigos aparecem junto com ela.'),
             'permissions_social' => ['titulo' => 'Módulo: Cadastro Social', 'rotulo' => 'Gestão de Cadastros Sociais', 'span' => 1, 'colunas' => 1,
                 'opcoes' => self::quarteto('cadastros_sociais', 'Cadastro social', 'Cadastros sociais')
                     + ['view_painel_social' => 'Acessar Painel Social (gráfico + mapa)']],
@@ -127,16 +188,8 @@ class RoleResource extends Resource
                     'gerenciar_informacao_sociais' => 'Gerenciar Informações Sociais',
                     'gerenciar_empreendimentos' => 'Gerenciar Empreendimentos',
                 ]],
-            'permissions_rural' => ['titulo' => 'Módulo: Cadastro Rural', 'rotulo' => 'Gestão de Zona Rural', 'span' => 'full', 'colunas' => 4,
-                'opcoes' => self::quarteto('rural_localidades', 'Localidade', 'Localidades/Distritos', 'Ver')
-                    + self::quarteto('rural_propriedades', 'Propriedade', 'Propriedades (CAR/INCRA)', 'Ver')
-                    + self::quarteto('rural_estradas', 'Estrada', 'Estradas', 'Ver')
-                    + self::quarteto('rural_hidrografias', 'Rio', 'Rios/Lagos', 'Ver')
-                    + self::quarteto('rural_pontes', 'Ponte', 'Pontes', 'Ver')
-                    + self::quarteto('rural_pontos_interesse', 'Ponto', 'Pontos de Interesse', 'Ver')],
-            'permissions_patrimonio' => ['titulo' => 'Módulo de Patrimônios Públicos', 'rotulo' => 'Administração Patrimônios Públicos', 'span' => 'full', 'colunas' => 2,
-                'opcoes' => self::quarteto('tipo_patrimonios', 'Tipo', 'Tipos de Patrimônio', 'Ver')
-                    + self::quarteto('patrimonio_publicos', 'Patrimônio', 'Patrimônios Públicos', 'Ver')],
+            'permissions_rural' => $matriz('rural', 'Módulo: Cadastro Rural'),
+            'permissions_patrimonio' => $matriz('patrimonios', 'Módulo de Patrimônios Públicos'),
             'permissions_bpmn' => ['titulo' => 'Módulo: Processos Digitais (BPMN)', 'rotulo' => 'Fluxos BPMN e Processos', 'span' => 'full', 'colunas' => 2,
                 'opcoes' => self::quarteto('bpmn_fluxos', 'Fluxo', 'Fluxos BPMN', 'Ver')
                     + [
@@ -147,6 +200,7 @@ class RoleResource extends Resource
                         'gerenciar_setores' => 'Gerenciar Setores / Departamentos',
                         'view_todos_processos' => 'Ver TODOS os processos (ignora o filtro por setor)',
                         'view_processos_progresso' => 'Ver Progresso dos Processos (dashboard)',
+                        'ver_camada_processos' => 'Ver a camada "Processos Digitais" no mapa',
                     ]],
             'permissions_viabilidade' => ['titulo' => 'Módulo: Consultas de Viabilidade', 'rotulo' => 'CNAEs, Regras de Zoneamento e Parâmetros Urbanísticos', 'span' => 'full', 'colunas' => 2,
                 'opcoes' => [
@@ -157,23 +211,8 @@ class RoleResource extends Resource
                     'edit_parametros_urbanos' => 'Editar Parâmetros de Loteamento', 'delete_parametros_urbanos' => 'Excluir Parâmetros de Loteamento',
                     'view_viabilidade_emissoes' => 'Ver Histórico de Emissões',
                 ]],
-            'permissions_pgv' => ['titulo' => 'Módulo: Gestão Tributária (PGV)', 'rotulo' => 'Parâmetros PGV, Setores Fiscais e Histórico de Valores', 'span' => 'full', 'colunas' => 2,
-                'opcoes' => [
-                    'view_pgv_parametros' => 'Ver Parâmetros Base (PGV)', 'create_pgv_parametros' => 'Criar Parâmetros Base',
-                    'edit_pgv_parametros' => 'Editar Parâmetros Base', 'delete_pgv_parametros' => 'Excluir Parâmetros Base',
-                    'view_setores_fiscais' => 'Ver Setores Fiscais', 'create_setores_fiscais' => 'Criar Setores Fiscais',
-                    'edit_setores_fiscais' => 'Editar Setores Fiscais', 'delete_setores_fiscais' => 'Excluir Setores Fiscais',
-                    'view_lote_valor_historicos' => 'Ver Valores Venais (Histórico)', 'create_lote_valor_historicos' => 'Criar Valores Venais',
-                    'edit_lote_valor_historicos' => 'Editar Valores Venais', 'delete_lote_valor_historicos' => 'Excluir Valores Venais',
-                ]],
-            'permissions_pgv_avaliacao' => ['titulo' => 'PGV — Avaliação em Massa', 'rotulo' => 'Cada permissão libera visualizar, criar, editar e excluir a entidade', 'span' => 'full', 'colunas' => 2,
-                'opcoes' => [
-                    'gerenciar_pgv_amostras' => 'Gerenciar Amostras de Mercado',
-                    'gerenciar_pgv_polos' => 'Gerenciar Pólos Valorizantes',
-                    'gerenciar_pgv_cubs' => 'Gerenciar Tabela CUB',
-                    'gerenciar_pgv_depreciacoes' => 'Gerenciar Depreciação',
-                    'gerenciar_face_quadras' => 'Gerenciar Faces de Quadra',
-                ]],
+            'permissions_pgv' => $matriz('pgv', 'Módulo: Gestão Tributária (PGV)',
+                'Amostras, pólos e faces nascem no mapa (Ferramentas / modal da quadra); CUB e depreciação são telas de permissão única.'),
             'permissions_administracao' => ['titulo' => 'Administração — Páginas Gerenciais', 'rotulo' => 'Acesso às páginas de administração', 'span' => 'full', 'colunas' => 2,
                 'opcoes' => [
                     'view_auditoria' => 'Auditoria (Histórico de Operações)',
@@ -187,70 +226,34 @@ class RoleResource extends Resource
                     'gerenciar_chamados' => 'Gerenciar Chamados (solicitações)',
                     'gerenciar_fluxos_chamado' => 'Gerenciar Fluxos de Trabalho + Fases',
                     'gerenciar_categorias_chamado' => 'Gerenciar Categorias de Chamado',
+                    'ver_camada_chamados' => 'Ver a camada "Chamados (App)" no mapa',
                 ]],
             'permissions_chamados_mapa' => ['titulo' => 'Módulo: Chamados pelo Mapa Público', 'rotulo' => 'Chamados abertos pelo cidadão no mapa público', 'span' => 'full', 'colunas' => 2,
                 'opcoes' => [
                     'gerenciar_chamados_mapa' => 'Gerenciar Chamados pelo Mapa (ver, alterar situação, responder)',
+                    'ver_camada_chamados_mapa' => 'Ver a camada "Chamados pelo Mapa" no mapa',
                 ]],
-            'permissions_mobilidade' => ['titulo' => 'Módulo: Mobilidade Urbana', 'rotulo' => 'Entidades da mobilidade urbana (permissão única por entidade)', 'span' => 'full', 'colunas' => 2,
-                'opcoes' => [
-                    'gerenciar_mob_trechos' => 'Trechos Viários (levantamento)',
-                    'gerenciar_mob_vias' => 'Vias Urbanas (sentido/fluxo)',
-                    'gerenciar_mob_sinalizacoes' => 'Sinalização Viária',
-                    'gerenciar_mob_tipos_sinalizacao' => 'Catálogo de Tipos de Sinalização',
-                    'gerenciar_mob_pontos_interesse' => 'Pontos de Interesse',
-                    'gerenciar_mob_eixos' => 'Eixos (Ciclovias, Rotas de Carga, Rodovias)',
-                    'gerenciar_mob_zonas' => 'Zonas de Estudo (O/D, Setores IBGE)',
-                    'gerenciar_mob_fluxos' => 'Fluxos Origem/Destino',
-                    'gerenciar_mob_cameras' => 'Câmeras de Monitoramento (tempo real)',
-                ]],
-            'permissions_mapa_camadas' => ['titulo' => 'Mapa — Visibilidade de Camadas (ver_camada_*)', 'rotulo' => 'Camadas visíveis no mapa interativo', 'span' => 'full', 'colunas' => 4,
-                'ajuda' => 'Deixe vazio = sem restrição (todos veem). Marque para liberar acesso por camada.',
-                'opcoes' => [
-                    'ver_camada_perimetros' => 'Distritos / Limites',
-                    'ver_camada_setores_fiscais' => 'Setores Fiscais',
-                    'ver_camada_bairros' => 'Bairros',
-                    'ver_camada_loteamentos' => 'Loteamentos',
-                    'ver_camada_meio_fios' => 'Meio-fio / Calçada',
-                    'ver_camada_secoes_logradouro' => 'Seções de Logradouro',
-                    'ver_camada_quadras' => 'Quadras',
-                    'ver_camada_lotes' => 'Lotes',
-                    'ver_camada_areas_reurb' => 'Áreas REURB',
-                    'ver_camada_coleta' => 'Coleta de Dados (status)',
-                    'ver_camada_processos' => 'Processos Digitais',
-                    'ver_camada_logradouros' => 'Logradouros / Ruas',
-                    'ver_camada_postes' => 'Postes / Iluminação',
-                    'ver_camada_arvores' => 'Árvores',
-                    'ver_camada_zonas' => 'Zonas de Uso (PGV)',
-                    'ver_camada_patrimonio_publico' => 'Patrimônio Público',
-                    'ver_camada_chamados' => 'Chamados (App)',
-                    'ver_camada_chamados_mapa' => 'Chamados pelo Mapa (público)',
-                    'ver_camada_cemiterios' => 'Cemitérios',
-                    'ver_camada_rural_localidades' => 'Localidades Rurais',
-                    'ver_camada_rural_propriedades' => 'Propriedades Rurais',
-                    'ver_camada_rural_estradas' => 'Estradas Rurais',
-                    'ver_camada_rural_hidrografias' => 'Hidrografia (Rios)',
-                    'ver_camada_rural_pontes' => 'Pontes',
-                    'ver_camada_rural_pontos_interesse' => 'Pontos de Interesse',
-                    'ver_camada_pontos_panoramicos' => 'Pontos Panorâmicos 360°',
-                    'ver_camada_toponimias' => 'Toponímias / Textos',
-                    'ver_camada_mob_trechos' => 'Mobilidade — Trechos Viários',
-                    'ver_camada_mob_vias' => 'Mobilidade — Vias Urbanas (sentido)',
-                    'ver_camada_mob_sinalizacoes' => 'Mobilidade — Sinalização',
-                    'ver_camada_mob_pontos_interesse' => 'Mobilidade — Pontos de Interesse',
-                    'ver_camada_mob_eixos' => 'Mobilidade — Eixos (Ciclo/Carga/Rodovia)',
-                    'ver_camada_mob_zonas' => 'Mobilidade — Zonas de Estudo',
-                    'ver_camada_mob_fluxos' => 'Mobilidade — Fluxos O/D',
-                    'ver_camada_mob_cameras' => 'Mobilidade — Monitoramento em Tempo Real (câmeras)',
-                ]],
-            'permissions_mapa_toolbar' => ['titulo' => 'Mapa — Toolbar (toolbar_*)', 'rotulo' => 'Seções da barra de ferramentas', 'span' => 'full', 'colunas' => 3,
-                'ajuda' => 'Deixe vazio = sem restrição. A pesquisa é sempre visível.',
-                'opcoes' => [
-                    'toolbar_criar_artefatos' => 'Criar Artefatos (Lotes, Quadras, Ruas...)',
-                    'toolbar_ferramentas' => 'Ferramentas (Medição, Impressão, Exportação)',
-                    'toolbar_filtros' => 'Filtros e Estatísticas',
-                ]],
+            'permissions_anotacoes' => $matriz(Modulos::NUCLEO, 'Mapa — Anotações',
+                'Textos/toponímias soltos no mapa (núcleo, qualquer prefeitura).'),
+            'permissions_mapa_ferramentas' => ['titulo' => 'Mapa — Ferramentas (uma permissão por item)', 'rotulo' => null, 'span' => 'full', 'colunas' => 3,
+                'ajuda' => 'O menu Ferramentas aparece quando o papel tem ao menos um item. Ferramenta que grava exige TAMBÉM a permissão da entidade (entre parênteses). "Criar Artefatos" não tem permissão própria: vem de Criar em cada entidade.',
+                'opcoes' => self::opcoesFerramentas()],
         ];
+    }
+
+    /** Permissões de uma caixa: opções simples + todas as células da matriz (R83). */
+    public static function permissoesDaCaixa(array $caixa): array
+    {
+        $perms = array_keys((array) ($caixa['opcoes'] ?? []));
+        foreach ((array) ($caixa['matriz'] ?? []) as $linha) {
+            foreach (array_keys(self::COLUNAS_MATRIZ) as $col) {
+                if (! empty($linha[$col])) {
+                    $perms[] = $linha[$col];
+                }
+            }
+        }
+
+        return array_values(array_unique($perms));
     }
 
     /** Todas as permissões conhecidas pelas caixas (p/ repartir as do papel no fill). */
@@ -258,16 +261,45 @@ class RoleResource extends Resource
     {
         $todas = [];
         foreach (self::caixas() as $caixa) {
-            $todas = array_merge($todas, array_keys($caixa['opcoes']));
+            $todas = array_merge($todas, self::permissoesDaCaixa($caixa));
         }
 
-        return $todas;
+        return array_values(array_unique($todas));
     }
 
     public static function form(Form $form): Form
     {
+        // R83 (2026-10-13): papel que acompanha todos os módulos (Manager sempre) recebe TUDO no
+        // save e o Manager ainda tem bypass — as caixas ficam travadas para a tela não aceitar
+        // cliques que não valem (o usuário "restringiu" o gerente e nada mudou).
+        $travado = fn (Forms\Get $get): bool => (bool) $get('todos_modulos');
+
         $componentes = [];
         foreach (self::caixas() as $chave => $caixa) {
+            if (! empty($caixa['matriz'])) {
+                // R83: caixa em matriz — some inteira se o módulo estiver inativo na prefeitura
+                // (as permissões já gravadas ficam preservadas — EditRole::mutateFormDataBeforeSave)
+                if (! Modulos::ativo((string) ($caixa['modulo'] ?? Modulos::NUCLEO))) {
+                    continue;
+                }
+                $linhas = $caixa['matriz'];
+                $campo = Forms\Components\ViewField::make($chave)
+                    ->view('filament.forms.components.matriz-permissoes')
+                    ->viewData(fn (Forms\Get $get): array => [
+                        'linhas' => $linhas,
+                        'colunas' => self::COLUNAS_MATRIZ,
+                        'somenteLeitura' => $travado($get),
+                    ])
+                    ->hiddenLabel()
+                    ->default([]);
+                if (! empty($caixa['ajuda'])) {
+                    $campo->helperText($caixa['ajuda']);
+                }
+                $componentes[] = Forms\Components\Fieldset::make($caixa['titulo'])->schema([$campo])->columns(1)->columnSpanFull();
+
+                continue;
+            }
+
             // Caixa de módulo inativo na prefeitura não é oferecida (as permissões já
             // gravadas ficam preservadas — ver EditRole::mutateFormDataBeforeSave)
             $opcoes = Modulos::filtrarOpcoes($caixa['opcoes']);
@@ -278,6 +310,7 @@ class RoleResource extends Resource
             $lista = Forms\Components\CheckboxList::make($chave)
                 ->options($opcoes)
                 ->bulkToggleable()
+                ->disabled($travado)
                 ->columns($caixa['colunas'] ?? 1);
             $lista = $caixa['rotulo'] === null ? $lista->hiddenLabel() : $lista->label($caixa['rotulo']);
             if (! empty($caixa['ajuda'])) {
@@ -317,9 +350,15 @@ class RoleResource extends Resource
                     ->live(),
 
                 Forms\Components\Section::make('Permissões de Acesso')
-                    ->description(fn (Forms\Get $get) => $get('todos_modulos')
-                        ? 'Este papel acompanha todos os módulos: as caixas abaixo são só leitura do que ele recebe automaticamente.'
-                        : 'Selecione as permissões organizadas por módulo do sistema. Só aparecem os módulos liberados para esta prefeitura.')
+                    ->description(function (Forms\Get $get, ?Role $record): string {
+                        if ($record?->ehManager()) {
+                            return 'Papel de sistema (gestor da prefeitura): tem acesso TOTAL ao mapa e às telas, independentemente das caixas — elas ficam travadas e só mostram o que ele recebe. Para um gestor com restrições, crie um papel comum sem "Acompanha todos os módulos".';
+                        }
+
+                        return $get('todos_modulos')
+                            ? 'Este papel acompanha todos os módulos: recebe automaticamente todas as permissões dos módulos ativos ao salvar, então as caixas ficam travadas. Desligue o toggle acima para escolher permissão a permissão.'
+                            : 'Selecione as permissões organizadas por módulo do sistema. Só aparecem os módulos liberados para esta prefeitura. Nas matrizes: Menu = ver a tela, Mapa = ver a camada, Criar/Editar/Excluir valem no mapa e na tela.';
+                    })
                     ->schema($componentes)
                     ->columns(4),
             ]);

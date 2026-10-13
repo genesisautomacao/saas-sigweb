@@ -19,6 +19,7 @@ trait HasRuralPropriedadeActions
     public function criarRuralPropriedadeAction(): Action
     {
         return Action::make('criarRuralPropriedade')
+            ->authorize(fn () => $this->podeNoMapa('rural_propriedades', 'criar')) // R83
             ->modalHeading('Cadastrar Propriedade Rural')
             ->modalSubmitActionLabel('Salvar Propriedade')
             ->modalWidth('xl')
@@ -42,6 +43,7 @@ trait HasRuralPropriedadeActions
                 TextInput::make('codigo_sigef')->label('Código SIGEF')->maxLength(255),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('rural_propriedades', 'criar'); // R83
 
                 // 🛑 REGRA 2: Se o usuário trocar o Select manualmente, verifica se a localidade escolhida cobre o desenho
                 $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('" . json_encode($this->geometriaRascunho) . "'), 4326)";
@@ -85,6 +87,10 @@ trait HasRuralPropriedadeActions
     {
         return Action::make('opcoesRuralPropriedade')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('rural_propriedades', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('rural_propriedades', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('rural_propriedades', 'editar') ? $action : false)
             ->modalHeading(fn() => 'Editar Propriedade: ' . RuralPropriedade::find($this->ruralPropriedadeAtivaId)?->nome_propriedade)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Dados')
@@ -115,6 +121,8 @@ trait HasRuralPropriedadeActions
                 TextInput::make('codigo_sigef')->label('Código SIGEF')->maxLength(255),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('rural_propriedades', 'editar'); // R83
+
                 $reg = RuralPropriedade::find($this->ruralPropriedadeAtivaId);
                 if ($reg) {
                     $reg->update($data);
@@ -127,7 +135,9 @@ trait HasRuralPropriedadeActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('rural_propriedades', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('rural_propriedades', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-rural_propriedade', id: $this->ruralPropriedadeAtivaId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -136,7 +146,9 @@ trait HasRuralPropriedadeActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('rural_propriedades', 'excluir')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('rural_propriedades', 'excluir');
                         RuralPropriedade::find($this->ruralPropriedadeAtivaId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-rural_propriedade-mapa', ['id' => $this->ruralPropriedadeAtivaId]);

@@ -14,12 +14,15 @@ trait HasArvoreActions
     public function criarArvoreAction(): Action
     {
         return Action::make('criarArvore')
+            ->authorize(fn () => $this->podeNoMapa('arvores', 'criar')) // R83
             ->model(\App\Models\Arvore::class)
             ->modalHeading('Cadastrar Nova Árvore')
             ->modalSubmitActionLabel('Salvar Árvore')
             ->modalWidth('2xl')
             ->form($this->getArvoreFormSchema())
             ->action(function (array $data) {
+                $this->exigirNoMapa('arvores', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['code'] = (string) Str::uuid();
@@ -49,6 +52,7 @@ trait HasArvoreActions
     {
         return Action::make('opcoesArvore')
             ->hiddenLabel()
+            ->authorize(fn () => $this->podeNoMapa('arvores', 'mapa')) // R83: ver = abre o menu (modal já é só leitura)
             ->modalHeading(function () {
                 $arvore = Arvore::find($this->arvoreAtivaId);
                 return 'Árvore / Indivíduo Arbóreo #' . ($arvore ? $arvore->sequential_id : '');
@@ -79,7 +83,9 @@ trait HasArvoreActions
                         ->label('Alterar Geometria (Mover)')
                         ->icon('heroicon-o-map')
                         ->color('warning')
+                        ->visible(fn () => $this->podeNoMapa('arvores', 'editar')) // R83
                         ->action(function () {
+                            $this->exigirNoMapa('arvores', 'editar');
                             $this->dispatch('iniciar-edicao-geometria-arvore', id: $this->arvoreAtivaId);
                             $this->dispatch('fechar-modal-filament');
                         }),
@@ -114,6 +120,7 @@ trait HasArvoreActions
                             ->label('Solicitar Serviço / Manejo')
                             ->icon('heroicon-o-scissors')
                             ->color('success')
+                            ->visible(fn () => auth()->user()?->temPermissao('create_solicitacoes') ?? false) // R83: abre chamado = permissão própria da manutenção
                             ->action(fn() => $this->replaceMountedAction('manutencaoArvore')),
                     ])->fullWidth();
                 }
@@ -124,7 +131,9 @@ trait HasArvoreActions
                         ->icon('heroicon-o-trash')
                         ->color('danger')
                         ->requiresConfirmation()
+                        ->visible(fn () => $this->podeNoMapa('arvores', 'excluir')) // R83
                         ->action(function () {
+                            $this->exigirNoMapa('arvores', 'excluir');
                             // 🛑 CORREÇÃO 1: Limpeza Polimórfica (Evita quebrar a lista de Solicitações/OS)
                             $solicitacoes = \App\Models\SolicitacaoManutencao::where('asset_type', \App\Models\Arvore::class)
                                 ->where('asset_id', $this->arvoreAtivaId)->get();
@@ -154,6 +163,10 @@ trait HasArvoreActions
         return Action::make('editarArvore')
             ->model(\App\Models\Arvore::class)
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('arvores', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('arvores', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('arvores', 'editar') ? $action : false)
             ->modalHeading(function () {
                 $arvore = Arvore::find($this->arvoreAtivaId);
                 return 'Editar Ficha - Árvore #' . ($arvore ? $arvore->sequential_id : '');
@@ -184,6 +197,8 @@ trait HasArvoreActions
             })
             ->form($this->getArvoreFormSchema())
             ->action(function (array $data) {
+                $this->exigirNoMapa('arvores', 'editar'); // R83
+
                 $arvore = Arvore::find($this->arvoreAtivaId);
                 if ($arvore) {
                     $logradourosIds = $data['logradouros'] ?? [];
@@ -207,6 +222,7 @@ trait HasArvoreActions
     {
         return Action::make('manutencaoArvore')
             ->hiddenLabel()
+            ->authorize(fn () => auth()->user()?->temPermissao('create_solicitacoes') ?? false) // R83: mesma permissão do botão "Solicitar Serviço / Manejo"
             ->modalHeading('Abertura de Chamado - Manejo Arbóreo')
             ->modalWidth('md')
             ->modalSubmitActionLabel('Abrir Chamado')

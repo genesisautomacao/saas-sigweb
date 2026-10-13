@@ -58,6 +58,7 @@ trait HasSecaoLogradouroActions
     public function criarSecaoLogradouroAction(): Action
     {
         return Action::make('criarSecaoLogradouro')
+            ->authorize(fn () => $this->podeNoMapa('secoes_logradouro', 'criar')) // R83
             ->modalHeading('Cadastrar Nova Seção de Logradouro')
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar')
@@ -105,6 +106,7 @@ trait HasSecaoLogradouroActions
                     ->maxSize(5120),
             ])
             ->action(function (array $data, \Filament\Actions\Action $action) {
+                $this->exigirNoMapa('secoes_logradouro', 'criar'); // R83
                 if ($this->secaoConflitaCodigoLado($data)) {
                     $this->avisarConflitoSecao($data);
                     $action->halt();
@@ -153,6 +155,9 @@ trait HasSecaoLogradouroActions
     public function opcoesSecaoLogradouroAction(): Action
     {
         return Action::make('opcoesSecaoLogradouro')
+            ->authorize(fn () => $this->podeNoMapa('secoes_logradouro', 'mapa')) // R83: ver = abre a ficha; sem editar = só leitura e sem Salvar
+            ->disabledForm(fn () => ! $this->podeNoMapa('secoes_logradouro', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('secoes_logradouro', 'editar') ? $action : false)
             ->hiddenLabel()
             ->modalHeading(fn () => 'Editar Seção #'.SecaoLogradouro::find($this->secaoLogradouroAtivoId)?->sequential_id)
             ->modalWidth('xl')
@@ -230,6 +235,7 @@ trait HasSecaoLogradouroActions
                     ->maxSize(5120),
             ])
             ->action(function (array $data, \Filament\Actions\Action $action) {
+                $this->exigirNoMapa('secoes_logradouro', 'editar'); // R83
                 if ($this->secaoConflitaCodigoLado($data, $this->secaoLogradouroAtivoId)) {
                     $this->avisarConflitoSecao($data);
                     $action->halt();
@@ -260,19 +266,23 @@ trait HasSecaoLogradouroActions
             })
             ->extraModalFooterActions([
                 Action::make('editar_geo_secao_logradouro')
+                    ->visible(fn () => $this->podeNoMapa('secoes_logradouro', 'editar')) // R83
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
                     ->action(function () {
+                        $this->exigirNoMapa('secoes_logradouro', 'editar'); // R83
                         $this->dispatch('iniciar-edicao-geometria-secao_logradouro', id: $this->secaoLogradouroAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
                 Action::make('excluir_secao_logradouro')
+                    ->visible(fn () => $this->podeNoMapa('secoes_logradouro', 'excluir')) // R83
                     ->label('Excluir')
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function () {
+                        $this->exigirNoMapa('secoes_logradouro', 'excluir'); // R83
                         SecaoLogradouro::find($this->secaoLogradouroAtivoId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-secao_logradouro-mapa', ['id' => $this->secaoLogradouroAtivoId]);

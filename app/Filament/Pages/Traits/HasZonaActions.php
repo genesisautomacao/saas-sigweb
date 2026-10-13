@@ -23,6 +23,7 @@ trait HasZonaActions
     public function criarZonaAction(): Action
     {
         return Action::make('criarZona')
+            ->authorize(fn () => $this->podeNoMapa('zonas', 'criar')) // R83
             ->modalHeading('Cadastrar Nova Zona de Uso')
             ->modalWidth('2xl')
             ->modalSubmitActionLabel('Salvar Zona')
@@ -73,6 +74,8 @@ trait HasZonaActions
                     ->required(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('zonas', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['code'] = (string) Str::uuid();
@@ -114,6 +117,10 @@ trait HasZonaActions
     {
         return Action::make('opcoesZona')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('zonas', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('zonas', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('zonas', 'editar') ? $action : false)
             ->modalHeading(fn () => 'Editar Zona: ' . Zona::find($this->zonaAtivaId)?->name)
             ->modalWidth('2xl')
             ->modalSubmitActionLabel('Salvar Alterações')
@@ -196,6 +203,8 @@ trait HasZonaActions
                     ]),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('zonas', 'editar'); // R83
+
                 $reg = Zona::find($this->zonaAtivaId);
                 if ($reg) {
                     if (str_contains($data['rgb'], 'rgb')) {
@@ -221,7 +230,9 @@ trait HasZonaActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('zonas', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('zonas', 'editar');
                         // O Gatilho para o Javascript habilitar os nós do polígono!
                         $this->dispatch('iniciar-edicao-geometria-zona', id: $this->zonaAtivaId);
                         $this->dispatch('fechar-modal-filament');
@@ -231,7 +242,9 @@ trait HasZonaActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('zonas', 'excluir')) // R83
                     ->action(function() {
+                        $this->exigirNoMapa('zonas', 'excluir');
                         $reg = Zona::find($this->zonaAtivaId);
                         if($reg) {
                             $siglaExcluida = $reg->sigla;

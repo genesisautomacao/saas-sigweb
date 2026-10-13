@@ -162,9 +162,9 @@ class PermissionsSeeder extends Seeder
             'edit_zonas',
             'delete_zonas',
 
-            /* Módulo Imobiliário — extras (permissão única "gerenciar" por entidade) */
-            'gerenciar_areas_reurb',
-            'gerenciar_secoes_logradouro',
+            /* Módulo Imobiliário — extras (R83, 2026-10-12: quarteto; eram gerenciar_ únicas) */
+            'view_areas_reurb', 'create_areas_reurb', 'edit_areas_reurb', 'delete_areas_reurb',
+            'view_secoes_logradouro', 'create_secoes_logradouro', 'edit_secoes_logradouro', 'delete_secoes_logradouro',
 
             /* Coleta Cadastral (R67) — integração tributária NÃO tem permissão de
                prefeitura: o de/para é por sistema, no painel /admin (R67-5 revisada) */
@@ -240,12 +240,12 @@ class PermissionsSeeder extends Seeder
             'view_setores_fiscais', 'create_setores_fiscais', 'edit_setores_fiscais', 'delete_setores_fiscais',
             'view_lote_valor_historicos', 'create_lote_valor_historicos', 'edit_lote_valor_historicos', 'delete_lote_valor_historicos',
 
-            /* Módulo PGV — Avaliação em Massa (permissão única "gerenciar" por entidade) */
-            'gerenciar_pgv_amostras',
-            'gerenciar_pgv_polos',
+            /* Módulo PGV — Avaliação em Massa (R83: amostras/pólos/faces em quarteto — têm artefato no mapa) */
+            'view_pgv_amostras', 'create_pgv_amostras', 'edit_pgv_amostras', 'delete_pgv_amostras',
+            'view_pgv_polos', 'create_pgv_polos', 'edit_pgv_polos', 'delete_pgv_polos',
+            'view_face_quadras', 'create_face_quadras', 'edit_face_quadras', 'delete_face_quadras',
             'gerenciar_pgv_cubs',
             'gerenciar_pgv_depreciacoes',
-            'gerenciar_face_quadras',
 
             /* Páginas de Administração */
             'view_auditoria',
@@ -262,17 +262,17 @@ class PermissionsSeeder extends Seeder
             /* R80-1 — Chamados pelo mapa público (módulo chamados_mapa) */
             'gerenciar_chamados_mapa',
 
-            /* Módulo Mobilidade Urbana (mob_infra — docs/piuma.txt, permissão
-               única "gerenciar" por entidade, molde Estoque/PGV-Avaliação) */
-            'gerenciar_mob_trechos',
-            'gerenciar_mob_vias',
-            'gerenciar_mob_sinalizacoes',
+            /* Módulo Mobilidade Urbana (mob_infra — docs/piuma.txt). R83: as 7 entidades
+               editáveis no mapa em quarteto; catálogo e fluxos (só leitura no mapa) seguem únicas */
+            'view_mob_trechos', 'create_mob_trechos', 'edit_mob_trechos', 'delete_mob_trechos',
+            'view_mob_vias', 'create_mob_vias', 'edit_mob_vias', 'delete_mob_vias',
+            'view_mob_sinalizacoes', 'create_mob_sinalizacoes', 'edit_mob_sinalizacoes', 'delete_mob_sinalizacoes',
+            'view_mob_pontos_interesse', 'create_mob_pontos_interesse', 'edit_mob_pontos_interesse', 'delete_mob_pontos_interesse',
+            'view_mob_eixos', 'create_mob_eixos', 'edit_mob_eixos', 'delete_mob_eixos',
+            'view_mob_zonas', 'create_mob_zonas', 'edit_mob_zonas', 'delete_mob_zonas',
+            'view_mob_cameras', 'create_mob_cameras', 'edit_mob_cameras', 'delete_mob_cameras',
             'gerenciar_mob_tipos_sinalizacao',
-            'gerenciar_mob_pontos_interesse',
-            'gerenciar_mob_eixos',
-            'gerenciar_mob_zonas',
             'gerenciar_mob_fluxos',
-            'gerenciar_mob_cameras',
 
             /* Permissões de visibilidade de camadas GIS */
             'ver_camada_perimetros',
@@ -314,10 +314,13 @@ class PermissionsSeeder extends Seeder
             'ver_camada_mob_fluxos',
             'ver_camada_mob_cameras',
 
-            /* Permissões da toolbar do mapa */
-            'toolbar_criar_artefatos',
-            'toolbar_ferramentas',
-            'toolbar_filtros',
+            /* Anotações do mapa (R83): toponímia ganha criar/editar/excluir (ver = ver_camada_toponimias) */
+            'create_toponimias', 'edit_toponimias', 'delete_toponimias',
+
+            /* Ferramentas do mapa (R83, 2026-10-12): UMA permissão por item — fonte config/mapa.php
+               (`ferramentas`). Substituem toolbar_criar_artefatos/ferramentas/filtros: o menu aparece
+               quando o papel tem ≥1 item; criar artefatos vem de create_X de cada entidade. */
+            ...array_map(fn ($id) => 'ferramenta_'.$id, array_keys((array) config('mapa.ferramentas', []))),
         ];
 
         foreach ($permissions as $permission) {

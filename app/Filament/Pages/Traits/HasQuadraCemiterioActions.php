@@ -19,6 +19,7 @@ trait HasQuadraCemiterioActions
     public function criarQuadraCemiterioAction(): Action
     {
         return Action::make('criarQuadraCemiterio')
+            ->authorize(fn () => $this->podeNoMapa('quadras_cemiterio', 'criar')) // R83
             ->modalHeading('Cadastrar Quadra de Cemitério')
             ->modalDescription('Polígono capturado. Defina os dados da quadra.')
             ->modalSubmitActionLabel('Salvar Quadra')
@@ -35,6 +36,8 @@ trait HasQuadraCemiterioActions
                     ->maxLength(255),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('quadras_cemiterio', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho; 
                 $data['code'] = (string) Str::uuid();
@@ -57,6 +60,10 @@ trait HasQuadraCemiterioActions
     {
         return Action::make('opcoesQuadraCemiterio')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('quadras_cemiterio', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('quadras_cemiterio', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('quadras_cemiterio', 'editar') ? $action : false)
             ->modalHeading(fn () => 'Quadra de Cemitério #' . $this->quadraCemiterioAtivaId)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Alterações')
@@ -78,6 +85,8 @@ trait HasQuadraCemiterioActions
                     ->maxLength(255),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('quadras_cemiterio', 'editar'); // R83
+
                 $quadra = QuadraCemiterio::find($this->quadraCemiterioAtivaId);
                 if ($quadra) {
                     $quadra->update($data);
@@ -90,7 +99,9 @@ trait HasQuadraCemiterioActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('quadras_cemiterio', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('quadras_cemiterio', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-quadra_cemiterio', id: $this->quadraCemiterioAtivaId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -100,7 +111,9 @@ trait HasQuadraCemiterioActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('quadras_cemiterio', 'excluir')) // R83
                     ->action(function() {
+                        $this->exigirNoMapa('quadras_cemiterio', 'excluir');
                         QuadraCemiterio::find($this->quadraCemiterioAtivaId)?->delete();
                         Notification::make()->title('Quadra Excluída!')->success()->send();
                         $this->dispatch('remover-quadra_cemiterio-mapa', ['id' => $this->quadraCemiterioAtivaId]);

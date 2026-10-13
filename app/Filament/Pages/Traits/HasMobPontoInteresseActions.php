@@ -41,11 +41,14 @@ trait HasMobPontoInteresseActions
     public function criarMobPontoInteresseAction(): Action
     {
         return Action::make('criarMobPontoInteresse')
+            ->authorize(fn () => $this->podeNoMapa('mob_pontos_interesse', 'criar')) // R83
             ->modalHeading('Cadastrar Novo Ponto de Interesse')
             ->modalWidth('3xl')
             ->modalSubmitActionLabel('Salvar')
             ->form($this->mobPontoInteresseFormulario())
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_pontos_interesse', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
 
@@ -65,6 +68,10 @@ trait HasMobPontoInteresseActions
     {
         return Action::make('opcoesMobPontoInteresse')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('mob_pontos_interesse', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('mob_pontos_interesse', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('mob_pontos_interesse', 'editar') ? $action : false)
             ->modalHeading(fn () => 'POI #'.MobPontoInteresse::withoutGlobalScopes()->find($this->mobPontoInteresseAtivoId)?->sequential_id)
             ->modalWidth('3xl')
             ->modalSubmitActionLabel('Salvar Alterações')
@@ -79,6 +86,8 @@ trait HasMobPontoInteresseActions
             })
             ->form($this->mobPontoInteresseFormulario())
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_pontos_interesse', 'editar'); // R83
+
                 $p = MobPontoInteresse::withoutGlobalScopes()->find($this->mobPontoInteresseAtivoId);
                 if (! $p) {
                     return;
@@ -94,7 +103,9 @@ trait HasMobPontoInteresseActions
                     ->label('Reposicionar')
                     ->color('warning')
                     ->icon('heroicon-o-map-pin')
+                    ->visible(fn () => $this->podeNoMapa('mob_pontos_interesse', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('mob_pontos_interesse', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-mob_ponto_interesse', id: $this->mobPontoInteresseAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -103,7 +114,9 @@ trait HasMobPontoInteresseActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('mob_pontos_interesse', 'excluir')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('mob_pontos_interesse', 'excluir');
                         MobPontoInteresse::withoutGlobalScopes()->find($this->mobPontoInteresseAtivoId)?->delete();
                         Notification::make()->title('Ponto excluído!')->success()->send();
                         $this->dispatch('remover-mob_pontos_interesse-mapa', ['id' => $this->mobPontoInteresseAtivoId]);
@@ -122,6 +135,13 @@ trait HasMobPontoInteresseActions
     #[On('salvarNovaGeometriaMobPontoInteresse')]
     public function salvarNovaGeometriaMobPontoInteresse($id, $geoJson): void
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('mob_pontos_interesse', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $p = MobPontoInteresse::withoutGlobalScopes()->where('tenant_id', $this->tenantId)->find($id);
         if (! $p) {
             return;

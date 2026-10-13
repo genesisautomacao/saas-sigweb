@@ -14,12 +14,15 @@ trait HasPosteActions
     public function criarPosteAction(): Action
     {
         return Action::make('criarPoste')
+            ->authorize(fn () => $this->podeNoMapa('postes', 'criar')) // R83
             ->model(\App\Models\Poste::class)
             ->modalHeading('Cadastrar Novo Poste / Ponto de Luz')
             ->modalSubmitActionLabel('Salvar Poste')
             ->modalWidth('2xl')
             ->form($this->getPosteFormSchema())
             ->action(function (array $data) {
+                $this->exigirNoMapa('postes', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['code'] = (string) Str::uuid();
@@ -49,6 +52,7 @@ trait HasPosteActions
     {
         return Action::make('opcoesPoste')
             ->hiddenLabel()
+            ->authorize(fn () => $this->podeNoMapa('postes', 'mapa')) // R83: ver = abre o menu de opções (sem formulário de dados; modalSubmitAction(false))
             ->modalHeading(function () {
                 $poste = Poste::find($this->posteAtivoId);
                 return 'Ponto de Iluminação #' . ($poste ? $poste->sequential_id : '');
@@ -78,7 +82,9 @@ trait HasPosteActions
                         ->label('Alterar Geometria (Mover)')
                         ->icon('heroicon-o-map')
                         ->color('warning')
+                        ->visible(fn () => $this->podeNoMapa('postes', 'editar')) // R83
                         ->action(function () {
+                            $this->exigirNoMapa('postes', 'editar');
                             $this->dispatch('iniciar-edicao-geometria-poste', id: $this->posteAtivoId);
                             $this->dispatch('fechar-modal-filament');
                         }),
@@ -113,6 +119,7 @@ trait HasPosteActions
                             ->label('Solicitar Manutenção / OS')
                             ->icon('heroicon-o-wrench-screwdriver')
                             ->color('success')
+                            ->visible(fn () => auth()->user()?->temPermissao('create_solicitacoes') ?? false) // R83: cria OUTRA entidade (Solicitação de Manutenção) — permissão própria do módulo
                             ->action(fn() => $this->replaceMountedAction('manutencaoPoste')),
                     ])->fullWidth();
                 }
@@ -123,7 +130,9 @@ trait HasPosteActions
                         ->icon('heroicon-o-trash')
                         ->color('danger')
                         ->requiresConfirmation()
+                        ->visible(fn () => $this->podeNoMapa('postes', 'excluir')) // R83
                         ->action(function () {
+                            $this->exigirNoMapa('postes', 'excluir');
                             // 🛑 CORREÇÃO 1: Limpeza Polimórfica
                             $solicitacoes = \App\Models\SolicitacaoManutencao::where('asset_type', \App\Models\Poste::class)
                                 ->where('asset_id', $this->posteAtivoId)->get();
@@ -152,6 +161,10 @@ trait HasPosteActions
         return Action::make('editarPoste')
             ->model(\App\Models\Poste::class)
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('postes', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('postes', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('postes', 'editar') ? $action : false)
             ->modalHeading(function () {
                 $poste = Poste::find($this->posteAtivoId);
                 return 'Editar Ficha - Poste #' . ($poste ? $poste->sequential_id : '');
@@ -179,6 +192,8 @@ trait HasPosteActions
             })
             ->form($this->getPosteFormSchema())
             ->action(function (array $data) {
+                $this->exigirNoMapa('postes', 'editar'); // R83
+
                 $poste = Poste::find($this->posteAtivoId);
                 if ($poste) {
                     $logradourosIds = $data['logradouros'] ?? [];
@@ -202,6 +217,7 @@ trait HasPosteActions
     {
         return Action::make('manutencaoPoste')
             ->hiddenLabel()
+            ->authorize(fn () => auth()->user()?->temPermissao('create_solicitacoes') ?? false) // R83: permissão própria da Solicitação de Manutenção (mesmo gate do botão que abre esta modal)
             ->modalHeading('Abertura de Chamado - Ordem de Serviço')
             ->modalDescription('Informe o problema reportado para este ponto de luz.')
             ->modalWidth('md')

@@ -18,6 +18,7 @@ trait HasLogradouroCemiterioActions
     public function criarLogradouroCemiterioAction(): Action
     {
         return Action::make('criarLogradouroCemiterio')
+            ->authorize(fn () => $this->podeNoMapa('logradouros_cemiterio', 'criar')) // R83
             ->modalHeading('Cadastrar Caminho/Rua de Cemitério')
             ->modalSubmitActionLabel('Salvar Rua')
             ->modalWidth('xl')
@@ -33,6 +34,8 @@ trait HasLogradouroCemiterioActions
                     ->maxLength(255),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('logradouros_cemiterio', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho; 
                 $data['code'] = (string) Str::uuid();
@@ -54,6 +57,10 @@ trait HasLogradouroCemiterioActions
     {
         return Action::make('opcoesLogradouroCemiterio')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('logradouros_cemiterio', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('logradouros_cemiterio', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('logradouros_cemiterio', 'editar') ? $action : false)
             ->modalHeading(fn () => 'Rua de Cemitério #' . $this->logradouroCemiterioAtivoId)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Alterações')
@@ -75,6 +82,8 @@ trait HasLogradouroCemiterioActions
                     ->maxLength(255),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('logradouros_cemiterio', 'editar'); // R83
+
                 $logradouro = LogradouroCemiterio::find($this->logradouroCemiterioAtivoId);
                 if ($logradouro) {
                     $logradouro->update($data);
@@ -87,7 +96,9 @@ trait HasLogradouroCemiterioActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('logradouros_cemiterio', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('logradouros_cemiterio', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-logradouro_cemiterio', id: $this->logradouroCemiterioAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -97,7 +108,9 @@ trait HasLogradouroCemiterioActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('logradouros_cemiterio', 'excluir')) // R83
                     ->action(function() {
+                        $this->exigirNoMapa('logradouros_cemiterio', 'excluir');
                         LogradouroCemiterio::find($this->logradouroCemiterioAtivoId)?->delete();
                         Notification::make()->title('Rua Excluída!')->success()->send();
                         $this->dispatch('remover-logradouro_cemiterio-mapa', ['id' => $this->logradouroCemiterioAtivoId]);

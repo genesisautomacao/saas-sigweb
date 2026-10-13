@@ -30,12 +30,15 @@ return [
         'permissoes' => [
             ...$quarteto('users'), ...$quarteto('roles'),
             'view_auditoria', 'gerenciar_wms',
-            'toolbar_criar_artefatos', 'toolbar_ferramentas', 'toolbar_filtros',
-            'ver_camada_toponimias',
+            // R83 (2026-10-12): toolbar_* saiu — uma permissão por ferramenta (config/mapa.php)
+            'ferramenta_altimetria', 'ferramenta_azimute', 'ferramenta_coordxy', 'ferramenta_wms', 'ferramenta_medir',
+            'ferramenta_capturar', 'ferramenta_cad', 'ferramenta_imprimir', 'ferramenta_exportar_shp', 'ferramenta_cores',
+            'ferramenta_enquadramento',
+            'ver_camada_toponimias', 'create_toponimias', 'edit_toponimias', 'delete_toponimias',
         ],
         'camadas' => ['toponimias'],
-        'artefatos' => [],
-        'ferramentas' => ['altimetria', 'azimute', 'coordxy', 'wms', 'medir', 'capturar', 'cad'],
+        'artefatos' => ['toponimia'],
+        'ferramentas' => ['altimetria', 'azimute', 'coordxy', 'wms', 'medir', 'capturar', 'cad', 'imprimir', 'exportar_shp', 'cores', 'enquadramento'],
     ],
 
     'base_cartografica' => [
@@ -44,7 +47,7 @@ return [
         'requer' => [],
         'permissoes' => [
             ...$quarteto('perimetros_urbanos'), ...$quarteto('bairros'), ...$quarteto('logradouros'),
-            'gerenciar_secoes_logradouro', // D8 (2026-09-05): a seção segue o logradouro
+            ...$quarteto('secoes_logradouro'), // D8: a seção segue o logradouro; R83: quarteto (era gerenciar_)
             'ver_camada_perimetros', 'ver_camada_bairros', 'ver_camada_logradouros', 'ver_camada_secoes_logradouro',
         ],
         'camadas' => ['perimetros', 'bairros', 'logradouros', 'secoes_logradouro'],
@@ -59,15 +62,17 @@ return [
         'permissoes' => [
             ...$quarteto('lotes'), ...$quarteto('meio_fios'), ...$quarteto('loteamentos'),
             ...$quarteto('quadras'), ...$quarteto('zonas'),
-            'gerenciar_areas_reurb', 'gerenciar_campos_customizados',
+            ...$quarteto('areas_reurb'), 'gerenciar_campos_customizados', // R83: areas_reurb em quarteto (era gerenciar_)
             ...$quarteto('cnaes'), ...$quarteto('regras_zoneamento'), ...$quarteto('parametros_urbanos'),
             'view_viabilidade_emissoes',
             'ver_camada_loteamentos', 'ver_camada_quadras', 'ver_camada_lotes', 'ver_camada_meio_fios',
             'ver_camada_zonas', 'ver_camada_areas_reurb',
+            'ferramenta_filtros', 'ferramenta_estatisticas', 'ferramenta_numeracao', 'ferramenta_unificar',
+            'ferramenta_desmembrar', 'ferramenta_street_view',
         ],
         'camadas' => ['loteamentos', 'quadras', 'lotes', 'edificacoes', 'meio_fios', 'zonas', 'areas_reurb'],
         'artefatos' => ['loteamento', 'quadra', 'lote', 'edificacao', 'meio_fio', 'area_reurb', 'zona', 'testada'],
-        'ferramentas' => ['numeracao', 'unificar', 'filtros'],
+        'ferramentas' => ['numeracao', 'unificar', 'filtros', 'estatisticas', 'desmembrar', 'street_view'],
     ],
 
     'coleta_cadastral' => [
@@ -112,7 +117,7 @@ return [
         'label' => 'GIS - Imageamento (360° e 3D)',
         'descricao' => 'Panorâmicas 360 (Street View) e Visualizador 3D / LiDAR.',
         'requer' => [],
-        'permissoes' => [...$quarteto('pontos_panoramicos'), 'ver_camada_pontos_panoramicos'],
+        'permissoes' => [...$quarteto('pontos_panoramicos'), 'ver_camada_pontos_panoramicos', 'ferramenta_lidar'],
         'camadas' => ['pontos_panoramicos'],
         'artefatos' => ['ponto_panoramico'],
         'ferramentas' => ['lidar'],
@@ -208,9 +213,11 @@ return [
         'requer' => ['imobiliario'],
         'permissoes' => [
             ...$quarteto('pgv_parametros'), ...$quarteto('setores_fiscais'), ...$quarteto('lote_valor_historicos'),
-            'gerenciar_pgv_amostras', 'gerenciar_pgv_polos', 'gerenciar_pgv_cubs', 'gerenciar_pgv_depreciacoes',
-            'gerenciar_face_quadras',
+            // R83: amostras, pólos e faces em quarteto (eram gerenciar_); CUB e depreciação seguem únicas
+            ...$quarteto('pgv_amostras'), ...$quarteto('pgv_polos'), ...$quarteto('face_quadras'),
+            'gerenciar_pgv_cubs', 'gerenciar_pgv_depreciacoes',
             'ver_camada_setores_fiscais',
+            'ferramenta_pgv_simulador', 'ferramenta_pgv_motor', 'ferramenta_pgv_amostra', 'ferramenta_pgv_polo',
         ],
         'camadas' => ['setores_fiscais'],
         'artefatos' => ['setor_fiscal'],
@@ -261,9 +268,11 @@ return [
         'descricao' => 'Mobilidade Urbana: trechos, vias, sinalização, POIs, eixos, zonas, fluxos O/D e câmeras.',
         'requer' => [],
         'permissoes' => [
-            'gerenciar_mob_trechos', 'gerenciar_mob_vias', 'gerenciar_mob_sinalizacoes', 'gerenciar_mob_tipos_sinalizacao',
-            'gerenciar_mob_pontos_interesse', 'gerenciar_mob_eixos', 'gerenciar_mob_zonas', 'gerenciar_mob_fluxos',
-            'gerenciar_mob_cameras',
+            // R83: as 7 entidades editáveis no mapa em quarteto (eram gerenciar_); catálogo e fluxos seguem únicas
+            ...$quarteto('mob_trechos'), ...$quarteto('mob_vias'), ...$quarteto('mob_sinalizacoes'),
+            ...$quarteto('mob_pontos_interesse'), ...$quarteto('mob_eixos'), ...$quarteto('mob_zonas'), ...$quarteto('mob_cameras'),
+            'gerenciar_mob_tipos_sinalizacao', 'gerenciar_mob_fluxos',
+            'ferramenta_sentidos',
             'ver_camada_mob_trechos', 'ver_camada_mob_vias', 'ver_camada_mob_sinalizacoes', 'ver_camada_mob_pontos_interesse',
             'ver_camada_mob_eixos', 'ver_camada_mob_zonas', 'ver_camada_mob_fluxos', 'ver_camada_mob_cameras',
         ],

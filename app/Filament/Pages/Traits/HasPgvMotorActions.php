@@ -30,6 +30,10 @@ trait HasPgvMotorActions
     #[On('pgv-rodar-regressao')]
     public function rodarRegressaoPgv(): void
     {
+        if (! $this->autorizarFerramenta('pgv_motor')) { // R83
+            return;
+        }
+
         $this->regressaoPgv = app(PgvRegressaoService::class)->calcular($this->tenantId);
         $eq = $this->regressaoPgv['equacao'] ?? null;
         if (!$eq) {
@@ -42,6 +46,10 @@ trait HasPgvMotorActions
     #[On('pgv-toggle-espuria')]
     public function toggleEspuriaPgv($amostraId): void
     {
+        if (! $this->autorizarFerramenta('pgv_motor')) { // R83
+            return;
+        }
+
         $this->regressaoPgv = app(PgvRegressaoService::class)->toggleEspuria($this->tenantId, (int) $amostraId);
         $this->dispatch('pgv-regressao-resultado', dados: $this->regressaoPgv);
     }
@@ -50,6 +58,10 @@ trait HasPgvMotorActions
     #[On('pgv-calcular-faces')]
     public function calcularFacesPgv(): void
     {
+        if (! $this->autorizarFerramenta('pgv_motor')) { // R83
+            return;
+        }
+
         $res = app(PgvFaceCalculoService::class)->recalcularTodas($this->tenantId);
         if (!$res['equacao']) {
             Notification::make()->title('Rode a regressão primeiro')->warning()->send();
@@ -80,6 +92,10 @@ trait HasPgvMotorActions
     #[On('pgv-clique-amostra')]
     public function abrirModalAmostra($lon, $lat): void
     {
+        if (! $this->autorizarFerramenta('pgv_amostra')) { // R83 (exige criar amostras)
+            return;
+        }
+
         $this->pgvPontoLon = (string) $lon;
         $this->pgvPontoLat = (string) $lat;
         $this->mountAction('criarAmostraPgvAction');
@@ -88,6 +104,7 @@ trait HasPgvMotorActions
     public function criarAmostraPgvAction(): Action
     {
         return Action::make('criarAmostraPgvAction')
+            ->authorize(fn () => $this->podeNoMapa('pgv_amostras', 'criar')) // R83
             ->modalHeading('Nova Amostra de Mercado')
             ->modalWidth('lg')
             ->form([
@@ -98,6 +115,7 @@ trait HasPgvMotorActions
                 \Filament\Forms\Components\TextInput::make('idade_aparente')->label('Idade Aparente (anos)')->numeric(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('pgv_amostras', 'criar'); // R83
                 PgvAmostra::create([
                     'tenant_id'          => $this->tenantId,
                     'valor_m2'           => $data['valor_m2'],
@@ -115,6 +133,10 @@ trait HasPgvMotorActions
     #[On('pgv-clique-polo')]
     public function abrirModalPolo($lon, $lat): void
     {
+        if (! $this->autorizarFerramenta('pgv_polo')) { // R83 (exige criar pólos)
+            return;
+        }
+
         $this->pgvPontoLon = (string) $lon;
         $this->pgvPontoLat = (string) $lat;
         $this->mountAction('criarPoloPgvAction');
@@ -123,12 +145,14 @@ trait HasPgvMotorActions
     public function criarPoloPgvAction(): Action
     {
         return Action::make('criarPoloPgvAction')
+            ->authorize(fn () => $this->podeNoMapa('pgv_polos', 'criar')) // R83
             ->modalHeading('Novo Pólo Valorizante')
             ->modalWidth('sm')
             ->form([
                 \Filament\Forms\Components\TextInput::make('name')->label('Nome do Pólo')->required(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('pgv_polos', 'criar'); // R83
                 PgvPolo::create([
                     'tenant_id' => $this->tenantId,
                     'name'      => $data['name'],
@@ -152,6 +176,12 @@ trait HasPgvMotorActions
     #[On('pgv-desenho-face')]
     public function abrirModalFace($geoJson, $quadraId = null): void
     {
+        if (! $this->autorizarNoMapa('face_quadras', 'criar')) { // R83
+            $this->dispatch('limpar-rascunho-mapa');
+
+            return;
+        }
+
         $this->pgvFaceGeoJson = json_encode($geoJson);
         $this->pgvFaceQuadraContextoId = $quadraId ? (int) $quadraId : null;
 
@@ -233,6 +263,9 @@ trait HasPgvMotorActions
     public function opcoesFaceQuadraAction(): Action
     {
         return Action::make('opcoesFaceQuadra')
+            ->authorize(fn () => $this->podeNoMapa('quadras', 'mapa')) // R83: a face aparece com a quadra; sem editar faces = só leitura
+            ->disabledForm(fn () => ! $this->podeNoMapa('face_quadras', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('face_quadras', 'editar') ? $action : false)
             ->hiddenLabel()
             ->modalHeading(fn () => 'Editar Face: '.(FaceQuadra::find($this->faceQuadraAtivaId)?->code ?: ('Face #'.FaceQuadra::find($this->faceQuadraAtivaId)?->sequential_id)))
             ->modalWidth('xl')
@@ -274,6 +307,7 @@ trait HasPgvMotorActions
                     ->searchable(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('face_quadras', 'editar'); // R83
                 $face = FaceQuadra::find($this->faceQuadraAtivaId);
 
                 if ($face) {
@@ -283,19 +317,23 @@ trait HasPgvMotorActions
             })
             ->extraModalFooterActions([
                 Action::make('editar_geo_face_quadra')
+                    ->visible(fn () => $this->podeNoMapa('face_quadras', 'editar')) // R83
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
                     ->action(function () {
+                        $this->exigirNoMapa('face_quadras', 'editar'); // R83
                         $this->dispatch('iniciar-edicao-geometria-face_quadra', id: $this->faceQuadraAtivaId);
                         $this->dispatch('fechar-modal-filament');
                     }),
                 Action::make('excluir_face_quadra')
+                    ->visible(fn () => $this->podeNoMapa('face_quadras', 'excluir')) // R83
                     ->label('Excluir')
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function () {
+                        $this->exigirNoMapa('face_quadras', 'excluir'); // R83
                         $faceId = $this->faceQuadraAtivaId;
                         FaceQuadra::find($faceId)?->delete();
 
@@ -314,6 +352,13 @@ trait HasPgvMotorActions
     #[On('salvarNovaGeometriaFaceQuadra')]
     public function salvarNovaGeometriaFaceQuadra($id, $geoJson): void
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('face_quadras', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $face = FaceQuadra::query()->find($id);
 
         if (! $face) {
@@ -354,6 +399,7 @@ trait HasPgvMotorActions
     public function criarFacePgvAction(): Action
     {
         return Action::make('criarFacePgvAction')
+            ->authorize(fn () => $this->podeNoMapa('face_quadras', 'criar')) // R83
             ->modalHeading('Nova Face de Quadra')
             ->modalWidth('lg')
             ->fillForm(fn (): array => [
@@ -377,6 +423,7 @@ trait HasPgvMotorActions
                     ->searchable(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('face_quadras', 'criar'); // R83
                 $geo = json_decode($this->pgvFaceGeoJson, true);
                 $face = FaceQuadra::create([
                     'tenant_id'     => $this->tenantId,
@@ -405,6 +452,7 @@ trait HasPgvMotorActions
     public function simularIptuAction(): Action
     {
         return Action::make('simularIptuAction')
+            ->authorize(fn () => $this->podeFerramenta('pgv_simulador')) // R83
             ->modalHeading('Simulação de IPTU com a nova PGV')
             ->modalWidth('4xl')
             ->modalSubmitActionLabel('Simular')

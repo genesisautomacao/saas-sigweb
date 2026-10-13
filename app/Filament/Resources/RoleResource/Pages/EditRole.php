@@ -19,7 +19,8 @@ class EditRole extends EditRecord
         $permissions = $this->record->permissions->pluck('name')->all();
 
         foreach (RoleResource::caixas() as $chave => $caixa) {
-            $data[$chave] = array_values(array_intersect($permissions, array_keys($caixa['opcoes'])));
+            // R83: caixa em matriz (Menu · Mapa · Criar · Editar · Excluir) também é uma lista de permissões
+            $data[$chave] = array_values(array_intersect($permissions, RoleResource::permissoesDaCaixa($caixa)));
         }
 
         return $data;

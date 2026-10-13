@@ -18,6 +18,7 @@ trait HasRuralPontoInteresseActions
     public function criarRuralPontoInteresseAction(): Action
     {
         return Action::make('criarRuralPontoInteresse')
+            ->authorize(fn () => $this->podeNoMapa('rural_pontos_interesse', 'criar')) // R83
             ->modalHeading('Cadastrar Ponto de Interesse')
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Ponto')
@@ -45,6 +46,8 @@ trait HasRuralPontoInteresseActions
                     ->rows(3),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('rural_pontos_interesse', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['code'] = (string) Str::uuid();
@@ -66,6 +69,10 @@ trait HasRuralPontoInteresseActions
     {
         return Action::make('opcoesRuralPontoInteresse')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('rural_pontos_interesse', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('rural_pontos_interesse', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('rural_pontos_interesse', 'editar') ? $action : false)
             ->modalHeading(fn () => 'Editar Local: ' . RuralPontoInteresse::find($this->ruralPontoInteresseAtivaId)?->nome)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Dados')
@@ -85,6 +92,8 @@ trait HasRuralPontoInteresseActions
                 Textarea::make('observacoes')->label('Observações')->rows(3),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('rural_pontos_interesse', 'editar'); // R83
+
                 $reg = RuralPontoInteresse::find($this->ruralPontoInteresseAtivaId);
                 if ($reg) {
                     $reg->update($data);
@@ -97,7 +106,9 @@ trait HasRuralPontoInteresseActions
                     ->label('Mover Local')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('rural_pontos_interesse', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('rural_pontos_interesse', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-rural_ponto_interesse', id: $this->ruralPontoInteresseAtivaId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -106,7 +117,9 @@ trait HasRuralPontoInteresseActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('rural_pontos_interesse', 'excluir')) // R83
                     ->action(function() {
+                        $this->exigirNoMapa('rural_pontos_interesse', 'excluir');
                         RuralPontoInteresse::find($this->ruralPontoInteresseAtivaId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-rural_ponto_interesse-mapa', ['id' => $this->ruralPontoInteresseAtivaId]);

@@ -70,11 +70,14 @@ trait HasMobCameraActions
     public function criarMobCameraAction(): Action
     {
         return Action::make('criarMobCamera')
+            ->authorize(fn () => $this->podeNoMapa('mob_cameras', 'criar')) // R83
             ->modalHeading('Cadastrar Câmera de Monitoramento')
             ->modalWidth('3xl')
             ->modalSubmitActionLabel('Salvar')
             ->form($this->mobCameraFormulario())
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_cameras', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
 
@@ -94,6 +97,10 @@ trait HasMobCameraActions
     {
         return Action::make('opcoesMobCamera')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('mob_cameras', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('mob_cameras', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('mob_cameras', 'editar') ? $action : false)
             ->modalHeading(function () {
                 $c = MobCamera::withoutGlobalScopes()->find($this->mobCameraAtivoId);
 
@@ -132,6 +139,8 @@ trait HasMobCameraActions
                     ->schema($this->mobCameraFormulario()),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_cameras', 'editar'); // R83
+
                 $c = MobCamera::withoutGlobalScopes()->find($this->mobCameraAtivoId);
                 if (! $c) {
                     return;
@@ -147,7 +156,9 @@ trait HasMobCameraActions
                     ->label('Reposicionar')
                     ->color('warning')
                     ->icon('heroicon-o-map-pin')
+                    ->visible(fn () => $this->podeNoMapa('mob_cameras', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('mob_cameras', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-mob_camera', id: $this->mobCameraAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -156,7 +167,9 @@ trait HasMobCameraActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('mob_cameras', 'excluir')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('mob_cameras', 'excluir');
                         MobCamera::withoutGlobalScopes()->find($this->mobCameraAtivoId)?->delete();
                         Notification::make()->title('Câmera excluída!')->success()->send();
                         $this->dispatch('remover-mob_cameras-mapa', ['id' => $this->mobCameraAtivoId]);
@@ -175,6 +188,13 @@ trait HasMobCameraActions
     #[On('salvarNovaGeometriaMobCamera')]
     public function salvarNovaGeometriaMobCamera($id, $geoJson): void
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('mob_cameras', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $c = MobCamera::withoutGlobalScopes()->where('tenant_id', $this->tenantId)->find($id);
         if (! $c) {
             return;

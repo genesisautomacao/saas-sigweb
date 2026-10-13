@@ -21,6 +21,7 @@ trait HasLoteamentoActions
     public function criarLoteamentoAction(): Action
     {
         return Action::make('criarLoteamento')
+            ->authorize(fn () => $this->podeNoMapa('loteamentos', 'criar')) // R83
             ->modalHeading('Cadastrar Novo Loteamento')
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Loteamento')
@@ -41,6 +42,8 @@ trait HasLoteamentoActions
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('loteamento'),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('loteamentos', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['code'] = (string) Str::uuid();
@@ -69,6 +72,10 @@ trait HasLoteamentoActions
     {
         return Action::make('opcoesLoteamento')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('loteamentos', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('loteamentos', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('loteamentos', 'editar') ? $action : false)
             ->modalHeading(fn () => 'Editar Loteamento: ' . Loteamento::find($this->loteamentoAtivoId)?->name)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Alterações')
@@ -97,6 +104,8 @@ trait HasLoteamentoActions
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('loteamento'),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('loteamentos', 'editar'); // R83
+
                 $reg = Loteamento::find($this->loteamentoAtivoId);
                 if ($reg) {
                     $reg->update($data);
@@ -109,7 +118,9 @@ trait HasLoteamentoActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('loteamentos', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('loteamentos', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-loteamento', id: $this->loteamentoAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -118,7 +129,9 @@ trait HasLoteamentoActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('loteamentos', 'excluir')) // R83
                     ->action(function() {
+                        $this->exigirNoMapa('loteamentos', 'excluir');
                         Loteamento::find($this->loteamentoAtivoId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-loteamento-mapa', ['id' => $this->loteamentoAtivoId]);

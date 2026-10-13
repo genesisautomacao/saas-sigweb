@@ -22,6 +22,7 @@ trait HasLogradouroActions
     public function criarLogradouroAction(): Action
     {
         return Action::make('criarLogradouro')
+            ->authorize(fn () => $this->podeNoMapa('logradouros', 'criar')) // R83
             ->modalHeading('Cadastrar Novo Logradouro')
             ->modalSubmitActionLabel('Salvar Logradouro')
             ->modalWidth('3xl')
@@ -48,6 +49,7 @@ trait HasLogradouroActions
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('logradouro'),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('logradouros', 'criar'); // R83
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['code'] = (string) Str::uuid();
@@ -80,6 +82,9 @@ trait HasLogradouroActions
     public function opcoesLogradouroAction(): Action
     {
         return Action::make('opcoesLogradouro')
+            ->authorize(fn () => $this->podeNoMapa('logradouros', 'mapa')) // R83: ver = abre a ficha; sem editar = só leitura e sem Salvar
+            ->disabledForm(fn () => ! $this->podeNoMapa('logradouros', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('logradouros', 'editar') ? $action : false)
             ->hiddenLabel()
             ->modalHeading(fn () => 'Editar Logradouro #'.$this->logradouroAtivoId)
             ->modalWidth('3xl')
@@ -210,6 +215,7 @@ trait HasLogradouroActions
                     ->columnSpanFull(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('logradouros', 'editar'); // R83
                 $logradouro = Logradouro::find($this->logradouroAtivoId);
                 if ($logradouro) {
                     $logradouro->update($data);
@@ -224,25 +230,30 @@ trait HasLogradouroActions
             })
             ->extraModalFooterActions([
                 Action::make('nova_secao_logradouro')
+                    ->visible(fn () => $this->podeNoMapa('secoes_logradouro', 'criar')) // R83
                     ->label('Nova Seção')
                     ->color('secondary')
                     ->icon('heroicon-o-plus')
                     ->action(function () {
+                        $this->exigirNoMapa('secoes_logradouro', 'criar'); // R83
                         $this->secaoLogradouroLogradouroPreSelecionadoId = $this->logradouroAtivoId;
                         $this->dispatch('fechar-modal-filament');
                         $this->dispatch('iniciar-desenho-entidade', entityType: 'secao_logradouro');
                     }),
 
                 Action::make('editar_geometria')
+                    ->visible(fn () => $this->podeNoMapa('logradouros', 'editar')) // R83
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
                     ->action(function () {
+                        $this->exigirNoMapa('logradouros', 'editar'); // R83
                         $this->dispatch('iniciar-edicao-geometria-logradouro', id: $this->logradouroAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
 
                 Action::make('excluir_logradouro')
+                    ->visible(fn () => $this->podeNoMapa('logradouros', 'excluir')) // R83
                     ->label('Excluir')
                     ->color('danger')
                     ->icon('heroicon-o-trash')
@@ -255,6 +266,7 @@ trait HasLogradouroActions
                             : null;
                     })
                     ->action(function () {
+                        $this->exigirNoMapa('logradouros', 'excluir'); // R83
                         // ⚠️ Delete pelo MODEL, nunca por query builder: o where()->delete()
                         // não dispara eventos Eloquent e a cascata do item 52 (soft delete
                         // das seções em Logradouro::booted) ficava muda — a seção

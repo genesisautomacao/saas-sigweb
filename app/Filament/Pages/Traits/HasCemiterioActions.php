@@ -14,6 +14,7 @@ trait HasCemiterioActions
     public function criarCemiterioAction(): Action
     {
         return Action::make('criarCemiterio')
+            ->authorize(fn () => $this->podeNoMapa('cemiterios', 'criar')) // R83
             ->modalHeading('Cadastrar Novo Cemitério')
             ->modalDescription('O polígono foi capturado. Defina o nome e o endereço deste cemitério.')
             ->modalSubmitActionLabel('Salvar Cemitério')
@@ -23,6 +24,8 @@ trait HasCemiterioActions
                 TextInput::make('address')->label('Endereço / Referência')->maxLength(255),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('cemiterios', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho; 
                 $data['code'] = (string) Str::uuid();
@@ -47,6 +50,10 @@ trait HasCemiterioActions
     {
         return Action::make('opcoesCemiterio')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('cemiterios', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('cemiterios', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('cemiterios', 'editar') ? $action : false)
             ->modalHeading(fn () => 'Cemitério #' . $this->cemiterioAtivoId)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Alterações')
@@ -62,6 +69,8 @@ trait HasCemiterioActions
                 TextInput::make('address')->label('Endereço / Referência')->maxLength(255),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('cemiterios', 'editar'); // R83
+
                 $cemiterio = Cemiterio::find($this->cemiterioAtivoId);
                 if ($cemiterio) {
                     $cemiterio->update($data);
@@ -76,7 +85,9 @@ trait HasCemiterioActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('cemiterios', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('cemiterios', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-cemiterio', id: $this->cemiterioAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -86,7 +97,9 @@ trait HasCemiterioActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('cemiterios', 'excluir')) // R83
                     ->action(function() {
+                        $this->exigirNoMapa('cemiterios', 'excluir');
                         Cemiterio::find($this->cemiterioAtivoId)?->delete();
                         Notification::make()->title('Cemitério Excluído!')->success()->send();
                         

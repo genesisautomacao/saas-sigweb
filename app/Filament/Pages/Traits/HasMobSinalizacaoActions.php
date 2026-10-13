@@ -49,6 +49,7 @@ trait HasMobSinalizacaoActions
     public function criarMobSinalizacaoAction(): Action
     {
         return Action::make('criarMobSinalizacao')
+            ->authorize(fn () => $this->podeNoMapa('mob_sinalizacoes', 'criar')) // R83
             ->modalHeading('Cadastrar Nova Sinalização')
             ->modalWidth('3xl')
             ->modalSubmitActionLabel('Salvar')
@@ -61,6 +62,8 @@ trait HasMobSinalizacaoActions
                 Textarea::make('observacao')->label('Observação')->rows(2)->nullable(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_sinalizacoes', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
 
@@ -80,6 +83,10 @@ trait HasMobSinalizacaoActions
     {
         return Action::make('opcoesMobSinalizacao')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('mob_sinalizacoes', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('mob_sinalizacoes', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('mob_sinalizacoes', 'editar') ? $action : false)
             ->modalHeading(function () {
                 $s = MobSinalizacao::withoutGlobalScopes()->with('tipoSinalizacao')->find($this->mobSinalizacaoAtivoId);
 
@@ -115,6 +122,8 @@ trait HasMobSinalizacaoActions
                 Textarea::make('observacao')->label('Observação')->rows(2)->nullable(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_sinalizacoes', 'editar'); // R83
+
                 $s = MobSinalizacao::withoutGlobalScopes()->find($this->mobSinalizacaoAtivoId);
                 if (! $s) {
                     return;
@@ -130,7 +139,9 @@ trait HasMobSinalizacaoActions
                     ->label('Reposicionar')
                     ->color('warning')
                     ->icon('heroicon-o-map-pin')
+                    ->visible(fn () => $this->podeNoMapa('mob_sinalizacoes', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('mob_sinalizacoes', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-mob_sinalizacao', id: $this->mobSinalizacaoAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -139,7 +150,9 @@ trait HasMobSinalizacaoActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('mob_sinalizacoes', 'excluir')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('mob_sinalizacoes', 'excluir');
                         MobSinalizacao::withoutGlobalScopes()->find($this->mobSinalizacaoAtivoId)?->delete();
                         Notification::make()->title('Sinalização excluída!')->success()->send();
                         $this->dispatch('remover-mob_sinalizacoes-mapa', ['id' => $this->mobSinalizacaoAtivoId]);
@@ -158,6 +171,13 @@ trait HasMobSinalizacaoActions
     #[On('salvarNovaGeometriaMobSinalizacao')]
     public function salvarNovaGeometriaMobSinalizacao($id, $geoJson): void
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('mob_sinalizacoes', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $s = MobSinalizacao::withoutGlobalScopes()->where('tenant_id', $this->tenantId)->find($id);
         if (! $s) {
             return;

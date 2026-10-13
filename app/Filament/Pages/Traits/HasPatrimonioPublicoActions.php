@@ -13,12 +13,15 @@ trait HasPatrimonioPublicoActions
     public function criarPatrimonioPublicoAction(): Action
     {
         return Action::make('criarPatrimonioPublico')
+            ->authorize(fn () => $this->podeNoMapa('patrimonio_publicos', 'criar')) // R83
             ->model(PatrimonioPublico::class)
             ->modalHeading('Cadastrar Patrimônio Público')
             ->modalSubmitActionLabel('Salvar Patrimônio')
             ->modalWidth('3xl')
             ->form($this->getPatrimonioPublicoFormSchema())
             ->action(function (array $data) {
+                $this->exigirNoMapa('patrimonio_publicos', 'criar'); // R83
+
                 $patrimonio = PatrimonioPublico::create([
                     'tenant_id' => $this->tenantId,
                     'name' => $data['name'],
@@ -43,6 +46,7 @@ trait HasPatrimonioPublicoActions
     {
         return Action::make('opcoesPatrimonioPublico')
             ->hiddenLabel()
+            ->authorize(fn () => $this->podeNoMapa('patrimonio_publicos', 'mapa')) // R83: ver abre o menu; cada item tem o seu gate
             ->modalHeading(function () {
                 $p = PatrimonioPublico::find($this->patrimonioPublicoAtivoId);
 
@@ -67,19 +71,25 @@ trait HasPatrimonioPublicoActions
                             ->label('Documentos')
                             ->icon('heroicon-o-paper-clip')
                             ->color('gray')
+                            // R83: ver a lista = view_documentos; anexar (dentro da modal) = create_documentos
+                            ->visible(fn () => auth()->user()?->temPermissao('view_documentos') ?? false)
                             ->action(fn () => $this->replaceMountedAction('documentosPatrimonioPublico')),
-                    ])->fullWidth(),
+                    ])->fullWidth()
+                        ->visible(fn () => auth()->user()?->temPermissao('view_documentos') ?? false), // R83: some o bloco inteiro (Actions vazio deixaria um vão no menu)
 
                     \Filament\Forms\Components\Actions::make([
                         \Filament\Forms\Components\Actions\Action::make('geometria')
                             ->label('Alterar Geometria')
                             ->icon('heroicon-o-map')
                             ->color('warning')
+                            ->visible(fn () => $this->podeNoMapa('patrimonio_publicos', 'editar')) // R83
                             ->action(function () {
+                                $this->exigirNoMapa('patrimonio_publicos', 'editar');
                                 $this->dispatch('iniciar-edicao-geometria-patrimonio_publico', id: $this->patrimonioPublicoAtivoId);
                                 $this->dispatch('fechar-modal-filament');
                             }),
-                    ])->fullWidth(),
+                    ])->fullWidth()
+                        ->visible(fn () => $this->podeNoMapa('patrimonio_publicos', 'editar')), // R83: some o bloco inteiro (sem vão no menu)
 
                     \Filament\Forms\Components\Actions::make([
                         \Filament\Forms\Components\Actions\Action::make('excluir')
@@ -87,13 +97,16 @@ trait HasPatrimonioPublicoActions
                             ->icon('heroicon-o-trash')
                             ->color('danger')
                             ->requiresConfirmation()
+                            ->visible(fn () => $this->podeNoMapa('patrimonio_publicos', 'excluir')) // R83
                             ->action(function () {
+                                $this->exigirNoMapa('patrimonio_publicos', 'excluir');
                                 PatrimonioPublico::find($this->patrimonioPublicoAtivoId)?->delete();
                                 Notification::make()->title('Patrimônio Excluído!')->success()->send();
                                 $this->dispatch('remover-patrimonio_publico-mapa', ['id' => $this->patrimonioPublicoAtivoId]);
                                 $this->dispatch('fechar-modal-filament');
                             }),
-                    ])->fullWidth(),
+                    ])->fullWidth()
+                        ->visible(fn () => $this->podeNoMapa('patrimonio_publicos', 'excluir')), // R83: some o bloco inteiro (sem vão no menu)
                 ];
             });
     }
@@ -103,6 +116,10 @@ trait HasPatrimonioPublicoActions
         return Action::make('editarPatrimonioPublico')
             ->model(PatrimonioPublico::class)
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('patrimonio_publicos', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('patrimonio_publicos', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('patrimonio_publicos', 'editar') ? $action : false)
             ->modalHeading(function () {
                 $p = PatrimonioPublico::find($this->patrimonioPublicoAtivoId);
 
@@ -125,6 +142,8 @@ trait HasPatrimonioPublicoActions
             })
             ->form($this->getPatrimonioPublicoFormSchema())
             ->action(function (array $data) {
+                $this->exigirNoMapa('patrimonio_publicos', 'editar'); // R83
+
                 $p = PatrimonioPublico::find($this->patrimonioPublicoAtivoId);
                 if ($p) {
                     $p->update([
@@ -152,6 +171,10 @@ trait HasPatrimonioPublicoActions
     {
         return Action::make('documentosPatrimonioPublico')
             ->hiddenLabel()
+            // R83: ver a lista = ver a feição + view_documentos; anexar = create_documentos (sem ela, só leitura)
+            ->authorize(fn () => $this->podeNoMapa('patrimonio_publicos', 'mapa') && (auth()->user()?->temPermissao('view_documentos') ?? false))
+            ->disabledForm(fn () => ! (auth()->user()?->temPermissao('create_documentos') ?? false))
+            ->modalSubmitAction(fn ($action) => (auth()->user()?->temPermissao('create_documentos') ?? false) ? $action : false)
             ->modalHeading(function () {
                 $p = PatrimonioPublico::find($this->patrimonioPublicoAtivoId);
 
@@ -207,6 +230,12 @@ trait HasPatrimonioPublicoActions
                 ];
             })
             ->action(function (array $data) {
+                // R83: anexar documento = criar Documento (permissão própria, fora do catálogo do mapa)
+                if (! (auth()->user()?->temPermissao('create_documentos') ?? false)) {
+                    $this->negarNoMapa();
+                    throw new \Filament\Support\Exceptions\Halt;
+                }
+
                 $p = PatrimonioPublico::find($this->patrimonioPublicoAtivoId);
                 if (! $p) {
                     return;

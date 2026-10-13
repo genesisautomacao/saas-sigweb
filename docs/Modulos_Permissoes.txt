@@ -581,3 +581,122 @@ Dados:
     visual, clique = ficha JS (#mob-ficha-publica) e câmera = player público
     (cameraPublicaAction); sem criar/editar/caneta/"Colorir por"/coroplético. Engine:
     mapa-cidadao-engine.js (estilos portados do mapa-engine.js).
+
+10. RELEASE 83 — PERMISSÕES DO MAPA POR CAMADA E POR AÇÃO (2026-10-12)
+----------------------------------------------------------------------
+  Pedido: "não só ver lotes, mas se o papel pode criar, editar e excluir e/ou só
+  visualizar — para todas as camadas de artefatos" + mais opções de uso do mapa.
+
+  10.1 Como estava
+    - ver_camada_* (36) só escondia o checkbox no painel; /api/gis-data sem login e
+      só com gate de módulo (qualquer visitante baixava coleta/processos/chamados/
+      câmeras de qualquer prefeitura); consulta avançada e estatísticas sem login;
+      export SHP sem checar camada; a busca de lotes sem ?publico=1 devolvia
+      proprietário/CPF a anônimos.
+    - Criar = um gate só (toolbar_criar_artefatos) para 36 botões; interceptarDesenho
+      e os 36 criar*Action sem checagem. Editar/excluir = NENHUM gate (ficha do lote,
+      35 modais opcoes*, ~40 listeners salvarNovaGeometria*, unificar, corte, Unir,
+      numeração, caneta de sentido, toponímia — métodos Livewire públicos, chamáveis
+      pelo console). Única exceção: "Nova Face" (gerenciar_face_quadras).
+    - Vocabulário misto: quarteto em 22 entidades, gerenciar_X em 12 editáveis no
+      mapa, nada para toponímias. "Salvar enquadramento" pelo NOME do papel (regressão
+      do D7). Texto de ajuda da caixa de camadas errado (vazio = não vê nada).
+
+  10.2 Decisões (usuário, 2026-10-12)
+    D9  Vocabulário ÚNICO: create_X / edit_X / delete_X valem no mapa E na tela;
+        ver_camada_X = ver no mapa (independente de view_X = ver a tela). As 12
+        gerenciar_X editáveis no mapa viram quarteto (areas_reurb, secoes_logradouro,
+        face_quadras, pgv_amostras, pgv_polos, mob_trechos/vias/sinalizacoes/
+        pontos_interesse/eixos/zonas/cameras); toponimias ganham create/edit/delete.
+        FILHOS do lote (edificação, testada, unidade, fotos): qualquer escrita =
+        edit_lotes; ver = ver_camada_lotes. Cemitério: quadras/ruas/jazigos têm CED
+        próprios, mas a camada do mapa é uma só (ver_camada_cemiterios).
+    D10 Tela de Papéis em MATRIZ por módulo (nomes D8): linha = entidade, colunas
+        Menu · Mapa · Criar · Editar · Excluir (+ marcar linha/coluna). As caixas
+        "Mapa — Camadas" e "Mapa — Toolbar" saíram; camadas só leitura (coleta,
+        processos, chamados, chamados_mapa) viraram opção simples na caixa do módulo.
+    D11 FERRAMENTAS: uma permissão por item (ferramenta_<id>, config/mapa.php):
+        filtros, estatisticas, enquadramento, cad, cores, numeracao, altimetria,
+        unificar, desmembrar, azimute, coordxy, sentidos, lidar, wms, medir, capturar,
+        street_view, pgv_simulador, pgv_motor, pgv_amostra, pgv_polo, imprimir,
+        exportar_shp. toolbar_* deixou de existir: o menu aparece com >= 1 item;
+        "Criar Artefatos" aparece se o papel cria alguma entidade. Ferramenta que
+        grava exige TAMBÉM a entidade (`exige`): numeração/unificar/desmembrar =
+        edit_lotes, sentidos = edit_mob_vias, pgv_amostra/polo = create_*.
+    D12 DADOS: /api/gis-data serve sem login só as camadas PÚBLICAS (as do mapa do
+        cidadão — flag `publica` no catálogo); as demais exigem equipe vinculada +
+        ver_camada_X ou bypass. Mesma regra em advanced-query (cada camada
+        referenciada), estatísticas (area_type/target_layer) e export-shp (+
+        ferramenta_exportar_shp). searchLote sem equipe = modo público.
+    D13 BACKFILL "preservar quem já cria": ver_camada_X + toolbar_criar_artefatos ->
+        create/edit/delete_X; quem só via fica só leitura; gerenciar_X -> quarteto;
+        toolbar_ferramentas -> todas as ferramenta_* do menu; toolbar_filtros ->
+        filtros+estatisticas; toolbar_criar_artefatos -> desmembrar; cores e
+        street_view (sem gate antes) para todos; enquadramento para ninguém
+        (Master/Manager = bypass); papel todos_modulos recebe tudo dos módulos ativos.
+        As 15 permissões antigas são APAGADAS (cascata nos pivôs).
+
+  10.3 Onde vive
+    config/mapa.php ............ catálogo: entidades (módulo, grupo D8, camadas,
+                                 artefatos, menu/mapa/criar/editar/excluir, pública,
+                                 mapa_de), filhos, ferramentas (label, grupo, exige)
+    App\Support\MapaPermissoes . pode($entidade|$camada|$artefato, $acao),
+                                 podeFerramenta($id), podeVerCamada($camada, $user,
+                                 $tenant), resumo() (p/ blade+engine), bypass() pela
+                                 flag papel_sistema, vincularEquipe() (seta o team id
+                                 do Spatie fora do Filament), temPermissaoNoTenant()
+                                 (conjunto do papel lido UMA vez — sem a query crua do
+                                 Gate::before a cada can()). Desconhecido = NÃO (falha
+                                 fechada; o contrário do catálogo de módulos).
+    ChecaPermissoesMapa ........ trait do MapaFullscreen: podeNoMapa/podeFerramenta
+                                 (blade), exigirNoMapa/exigirFerramenta (Halt dentro
+                                 de ->action()), autorizarNoMapa/autorizarFerramenta
+                                 (listeners: notifica e devolve false), permissoesMapa().
+    Traits Has*Actions (36) .... criar: ->authorize(criar) + exigir; opções: ->authorize
+                                 (mapa) + disabledForm(!editar) + modalSubmitAction(false
+                                 sem editar) + exigir(editar); rodapé Geometria/Excluir
+                                 ->visible(editar|excluir) + exigir; listeners de
+                                 geometria: autorizarNoMapa(editar) + desfazer no engine.
+                                 No Filament, ->authorize()/->visible() escondem o botão
+                                 E recusam mount/call (isDisabled inclui isHidden).
+    MapaFullscreen core ........ interceptarDesenho (porta única da criação),
+                                 carregarFicha (ver lotes), habilitarEdicaoGeometria,
+                                 deletarArtefato, numeração (ferramenta), desmembrar,
+                                 unificar, excluirArtefatosUnir (cad + excluir),
+                                 processarCorteGenerico (cad), excluirDocumento,
+                                 salvarEnquadramento (ferramenta, não mais o nome).
+    Blade ...................... @php no topo: $permMapa = $this->permissoesMapa();
+                                 $criaAlgo, $temMenuFerramentas, $podeEditarLote,
+                                 $podeCriarCamada(); botões de desenho = módulo &&
+                                 artefatos[x]; Salvar como = criar da entidade; itens
+                                 de Ferramentas/Imprimir/SHP/CAD/cores por ferramenta;
+                                 ficha do lote por editar/excluir/ferramenta.
+    Engine ..................... window.mapConfig.permissoes (síncrono) ->
+                                 podeCriarArtefato(), podeFerramentaMapa(),
+                                 avisarSemPermissao(); enableDrawing e o "Salvar como"
+                                 do CAD param antes; pickers de cor só com `cores`.
+                                 /gis/{slug}/map-permissions devolve layers (compat) +
+                                 permissoes/artefatos/ferramentas (toolbar saiu).
+    RoleResource ............... caixas() com 'matriz' (matrizDoModulo) + ViewField
+                                 filament.forms.components.matriz-permissoes (estado =
+                                 lista de permissões, igual ao CheckboxList);
+                                 permissoesDaCaixa(); caixa "Mapa — Ferramentas".
+    Migração ................... database/migrations/2026_10_12_100000_r83_* +
+                                 App\Services\Permissoes\MigracaoPermissoesMapaR83
+                                 (plano/aplicar/reverter) + permissoes:simular-r83.
+    Testes ..................... tests/Unit/MapaPermissoesTest (catálogo x módulos x
+                                 seeder x blade x MapDataController), ModulosTest,
+                                 tests/Feature/R83PermissoesMapaTest (funcional contra o
+                                 PostGIS local: DB_CONNECTION=pgsql DB_DATABASE=saas_sigweb
+                                 php artisan test --filter R83 — pulado no sqlite).
+
+  10.4 Regras para quem criar entidade/ferramenta nova no mapa
+    1. Registrar em config/mapa.php (entidade com módulo/grupo/camadas/artefatos/
+       permissões/publica; ferramenta com grupo/exige) E em config/modulos.php
+       (permissões do módulo) E no PermissionsSeeder — o MapaPermissoesTest cobra os
+       três e cobra que todo enableDrawing() do blade e todo case do MapDataController
+       tenham entidade.
+    2. No trait: criar com authorize(criar); opções com authorize(mapa)+disabledForm+
+       modalSubmitAction; rodapé com visible(editar/excluir); listener de geometria com
+       autorizarNoMapa(editar). Nunca confiar só no blade.
+    3. Camada nova só é pública se o mapa do cidadão a usa (`publica => true`).

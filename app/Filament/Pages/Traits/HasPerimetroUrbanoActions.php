@@ -21,6 +21,7 @@ trait HasPerimetroUrbanoActions
     public function criarPerimetroUrbanoAction(): Action
     {
         return Action::make('criarPerimetroUrbano')
+            ->authorize(fn () => $this->podeNoMapa('perimetros_urbanos', 'criar')) // R83
             ->modalHeading('Cadastrar Novo Distrito / Limite')
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Distrito')
@@ -54,6 +55,8 @@ trait HasPerimetroUrbanoActions
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('perimetro'),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('perimetros_urbanos', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo']       = $this->geometriaRascunho;
                 $data['code']      = (string) Str::uuid();
@@ -85,6 +88,10 @@ trait HasPerimetroUrbanoActions
     {
         return Action::make('opcoesPerimetroUrbano')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('perimetros_urbanos', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('perimetros_urbanos', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('perimetros_urbanos', 'editar') ? $action : false)
             ->modalHeading(fn() => 'Editar Distrito: ' . PerimetroUrbano::find($this->perimetroUrbanoAtivoId)?->name)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Alterações')
@@ -119,6 +126,8 @@ trait HasPerimetroUrbanoActions
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('perimetro'),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('perimetros_urbanos', 'editar'); // R83
+
                 $reg = PerimetroUrbano::find($this->perimetroUrbanoAtivoId);
                 if ($reg) {
                     $reg->update($data);
@@ -131,7 +140,9 @@ trait HasPerimetroUrbanoActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('perimetros_urbanos', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('perimetros_urbanos', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-perimetro_urbano', id: $this->perimetroUrbanoAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -140,7 +151,9 @@ trait HasPerimetroUrbanoActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('perimetros_urbanos', 'excluir')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('perimetros_urbanos', 'excluir');
                         PerimetroUrbano::find($this->perimetroUrbanoAtivoId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-perimetro-urbano-mapa', ['id' => $this->perimetroUrbanoAtivoId]);

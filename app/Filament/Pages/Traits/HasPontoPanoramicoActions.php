@@ -17,6 +17,7 @@ trait HasPontoPanoramicoActions
     public function criarPontoPanoramicoAction(): Action
     {
         return Action::make('criarPontoPanoramico')
+            ->authorize(fn () => $this->podeNoMapa('pontos_panoramicos', 'criar')) // R83
             ->modalHeading('Registrar Ponto 360º no Mapa')
             ->modalWidth('lg') // 👈 Aumentei de 'md' para 'lg' para caber a caixa de upload bonita
             ->modalSubmitActionLabel('Salvar Localização')
@@ -39,6 +40,8 @@ trait HasPontoPanoramicoActions
                     ->columnSpanFull(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('pontos_panoramicos', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 // O code já é gerado pelo Model graças à nossa última correção!
@@ -81,6 +84,7 @@ trait HasPontoPanoramicoActions
     {
         return Action::make('opcoesPontoPanoramico')
             ->hiddenLabel()
+            ->authorize(fn () => $this->podeNoMapa('pontos_panoramicos', 'mapa')) // R83: ver = abre o visualizador 360; a modal já é só leitura (modalSubmitAction(false))
             ->modalHeading(fn () => 'Opções do Ponto 360º')
             ->modalWidth('4xl')
             ->modalSubmitAction(false)
@@ -90,7 +94,9 @@ trait HasPontoPanoramicoActions
                     ->label('Mover Ponto')
                     ->color('warning')
                     ->icon('heroicon-o-arrows-pointing-out')
+                    ->visible(fn () => $this->podeNoMapa('pontos_panoramicos', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('pontos_panoramicos', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-ponto_panoramico', id: $this->pontoPanoramicoAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -99,7 +105,9 @@ trait HasPontoPanoramicoActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('pontos_panoramicos', 'excluir')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('pontos_panoramicos', 'excluir');
                         PontoPanoramico::find($this->pontoPanoramicoAtivoId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-ponto_panoramico-mapa', ['id' => $this->pontoPanoramicoAtivoId]);

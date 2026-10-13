@@ -23,6 +23,7 @@ trait HasLoteActions
     public function criarLoteAction(): Action
     {
         return Action::make('criarLote')
+            ->authorize(fn () => $this->podeNoMapa('lotes', 'criar')) // R83
             ->modalHeading('Cadastrar Novo Lote')
             ->modalDescription('Preencha os dados básicos. A quadra e a zona já foram detectadas pelo satélite.')
             ->modalSubmitActionLabel('Salvar Lote e Unidade')
@@ -71,6 +72,7 @@ trait HasLoteActions
                     ->maxLength(255),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('lotes', 'criar'); // R83
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['zona_id'] = $this->zonaRascunhoId;
@@ -136,6 +138,7 @@ trait HasLoteActions
     public function editarDadosLoteAction(): Action
     {
         return Action::make('editarDadosLote')
+            ->authorize(fn () => $this->podeNoMapa('lotes', 'editar')) // R83
             ->modalHeading('Editar Dados do Lote')
             ->modalSubmitActionLabel('Salvar Alterações')
             ->modalWidth('xl')
@@ -239,6 +242,7 @@ trait HasLoteActions
                     ->columnSpanFull(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('lotes', 'editar'); // R83
                 $lote = Lote::query()->find($this->loteAtivoId);
                 if ($lote) {
                     // Observação/inconformidade pertencem à coleta, não ao lote.
@@ -272,6 +276,7 @@ trait HasLoteActions
     public function verUnidadesAction(): Action
     {
         return Action::make('verUnidades')
+            ->authorize(fn () => $this->podeNoMapa('lotes', 'mapa')) // R83
             ->hiddenLabel()
             ->modalHeading(fn () => 'Unidades Imobiliárias - Lote #'.$this->loteAtivoNome)
             ->modalSubmitAction(false)
@@ -394,6 +399,7 @@ trait HasLoteActions
     public function criarUnidadeAction(): Action
     {
         return Action::make('criarUnidadeAction')
+            ->authorize(fn () => $this->podeNoMapa('unidade', 'criar')) // R83: unidade = conteúdo do lote (editar lotes)
             ->modalHeading('Cadastrar Nova Unidade Imobiliária')
             ->modalSubmitActionLabel('Salvar Unidade')
             ->modalWidth('3xl')
@@ -496,6 +502,7 @@ trait HasLoteActions
                     ]),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('unidade', 'criar'); // R83
                 // Recupera o JSON bruto (textarea disabled) como array
                 $json = $data['dados_tributarios'] ?? null;
                 if (is_string($json)) {
@@ -539,6 +546,7 @@ trait HasLoteActions
     public function replicarUnidadeAction(): Action
     {
         return Action::make('replicarUnidadeAction')
+            ->authorize(fn () => $this->podeNoMapa('unidade', 'criar')) // R83
             ->modalHeading('Replicar Unidade Imobiliária')
             ->modalDescription('Informe quantas cópias deseja criar. Cada cópia terá inscrição e código tributário em branco para preenchimento.')
             ->modalSubmitActionLabel('Replicar')
@@ -556,6 +564,7 @@ trait HasLoteActions
                     ->required(),
             ])
             ->action(function (array $data, array $arguments) {
+                $this->exigirNoMapa('unidade', 'criar'); // R83
                 $unidade = UnidadeImobiliaria::query()->find($arguments['unidadeId']);
                 if (! $unidade) {
                     return;
@@ -600,6 +609,7 @@ trait HasLoteActions
     public function editarUnidadeAction(): Action
     {
         return Action::make('editarUnidadeAction')
+            ->authorize(fn () => $this->podeNoMapa('unidade', 'editar')) // R83
             ->modalHeading('Editar Unidade Imobiliária')
             ->modalSubmitActionLabel('Salvar Alterações')
             ->modalWidth('3xl')
@@ -738,6 +748,7 @@ trait HasLoteActions
                 ];
             })
             ->action(function (array $data, array $arguments) {
+                $this->exigirNoMapa('unidade', 'editar'); // R83
                 $unidade = UnidadeImobiliaria::query()->find($arguments['unidadeId']);
                 if ($unidade) {
                     // Recupera o JSON bruto (textarea disabled) como array
@@ -768,11 +779,13 @@ trait HasLoteActions
 
                 return [
                     Action::make('excluir_unidade')
+                        ->visible(fn () => $this->podeNoMapa('unidade', 'excluir')) // R83
                         ->label('Excluir Unidade')
                         ->color('danger')
                         ->icon('heroicon-o-trash')
                         ->requiresConfirmation()
                         ->action(function () use ($unidadeId) {
+                            $this->exigirNoMapa('unidade', 'excluir'); // R83
                             if ($unidadeId) {
                                 $unidade = UnidadeImobiliaria::query()->find($unidadeId);
                                 if ($unidade) {
@@ -796,6 +809,10 @@ trait HasLoteActions
      */
     public function sincronizarUnidade($id)
     {
+        if (! $this->autorizarNoMapa('unidade', 'editar')) { // R83
+            return;
+        }
+
         $unidade = UnidadeImobiliaria::query()->find($id);
 
         if (! $unidade || ! $unidade->codigo_imovel_tributario) {
@@ -834,6 +851,10 @@ trait HasLoteActions
      */
     public function sincronizarTodasUnidades()
     {
+        if (! $this->autorizarNoMapa('unidade', 'editar')) { // R83
+            return;
+        }
+
         $unidades = UnidadeImobiliaria::query()->where('lote_id', $this->loteAtivoId)
             ->whereNotNull('codigo_imovel_tributario')
             ->get();
@@ -1497,6 +1518,9 @@ trait HasLoteActions
     public function gerenciarFotosLoteAction(): Action
     {
         return Action::make('gerenciarFotosLote')
+            ->authorize(fn () => $this->podeNoMapa('lotes', 'mapa')) // R83: ver abre; sem editar = só leitura
+            ->disabledForm(fn () => ! $this->podeNoMapa('fotos_lote', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('fotos_lote', 'editar') ? $action : false)
             ->label('Fotos do Lote')
             ->icon('heroicon-o-camera')
             ->color('gray')
@@ -1541,6 +1565,7 @@ trait HasLoteActions
                 ]),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('fotos_lote', 'editar'); // R83
                 $lote = \App\Models\Lote::query()->find($this->loteAtivoId);
                 if ($lote) {
                     $lote->update([
@@ -1597,6 +1622,7 @@ trait HasLoteActions
     public function abrirStreetViewAction(): \Filament\Actions\Action
     {
         return \Filament\Actions\Action::make('abrirStreetViewAction')
+            ->authorize(fn () => $this->podeFerramenta('street_view')) // R83
             ->modalHeading(fn () => 'Google Street View - Frente do Lote')
             ->modalWidth('5xl') // Modal bem larga para imersão
             ->modalSubmitAction(false)

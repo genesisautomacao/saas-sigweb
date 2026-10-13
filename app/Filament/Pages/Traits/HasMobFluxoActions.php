@@ -24,6 +24,7 @@ trait HasMobFluxoActions
     {
         return Action::make('opcoesMobFluxo')
             ->hiddenLabel()
+            ->authorize(fn () => $this->podeNoMapa('mob_fluxos', 'mapa')) // R83: ficha só leitura no mapa — ver abre a ficha
             ->modalHeading(function () {
                 $f = MobFluxo::withoutGlobalScopes()->find($this->mobFluxoAtivoId);
 

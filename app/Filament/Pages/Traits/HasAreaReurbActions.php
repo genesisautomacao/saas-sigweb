@@ -14,12 +14,15 @@ trait HasAreaReurbActions
     public function criarAreaReurbAction(): Action
     {
         return Action::make('criarAreaReurb')
+            ->authorize(fn () => $this->podeNoMapa('areas_reurb', 'criar')) // R83
             ->model(AreaReurb::class)
             ->modalHeading('Cadastrar Área de Regularização (REURB)')
             ->modalSubmitActionLabel('Salvar Área')
             ->modalWidth('3xl')
             ->form($this->getAreaReurbFormSchema())
             ->action(function (array $data) {
+                $this->exigirNoMapa('areas_reurb', 'criar'); // R83
+
                 $area = AreaReurb::create([
                     'tenant_id' => $this->tenantId,
                     'nome'      => $data['nome'],
@@ -52,6 +55,7 @@ trait HasAreaReurbActions
     {
         return Action::make('opcoesAreaReurb')
             ->hiddenLabel()
+            ->authorize(fn () => $this->podeNoMapa('areas_reurb', 'mapa')) // R83: ver = abre o menu (modal já é só leitura)
             ->modalHeading(function () {
                 $area = AreaReurb::find($this->areaReurbAtivaId);
                 return 'Área REURB' . ($area ? ' — ' . $area->nome : '');
@@ -75,7 +79,9 @@ trait HasAreaReurbActions
                             ->label('Alterar Geometria (Editar Polígono)')
                             ->icon('heroicon-o-map')
                             ->color('warning')
+                            ->visible(fn () => $this->podeNoMapa('areas_reurb', 'editar')) // R83
                             ->action(function () {
+                                $this->exigirNoMapa('areas_reurb', 'editar');
                                 $this->dispatch('iniciar-edicao-geometria-area-reurb', id: $this->areaReurbAtivaId);
                                 $this->dispatch('fechar-modal-filament');
                             }),
@@ -87,7 +93,9 @@ trait HasAreaReurbActions
                             ->icon('heroicon-o-trash')
                             ->color('danger')
                             ->requiresConfirmation()
+                            ->visible(fn () => $this->podeNoMapa('areas_reurb', 'excluir')) // R83
                             ->action(function () {
+                                $this->exigirNoMapa('areas_reurb', 'excluir');
                                 AreaReurb::find($this->areaReurbAtivaId)?->delete();
                                 Notification::make()->title('Área REURB Excluída!')->success()->send();
                                 $this->dispatch('remover-area_reurb-mapa', ['id' => $this->areaReurbAtivaId]);
@@ -103,6 +111,10 @@ trait HasAreaReurbActions
         return Action::make('editarAreaReurb')
             ->model(AreaReurb::class)
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('areas_reurb', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('areas_reurb', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('areas_reurb', 'editar') ? $action : false)
             ->modalHeading(function () {
                 $area = AreaReurb::find($this->areaReurbAtivaId);
                 return 'Editar Área REURB' . ($area ? ' — ' . $area->nome : '');
@@ -122,6 +134,8 @@ trait HasAreaReurbActions
             })
             ->form($this->getAreaReurbFormSchema())
             ->action(function (array $data) {
+                $this->exigirNoMapa('areas_reurb', 'editar'); // R83
+
                 $area = AreaReurb::find($this->areaReurbAtivaId);
                 if ($area) {
                     $area->update([

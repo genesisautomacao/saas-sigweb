@@ -71,6 +71,7 @@ trait HasTestadaActions
     public function criarTestadaAction(): Action
     {
         return Action::make('criarTestada')
+            ->authorize(fn () => $this->podeNoMapa('testada', 'criar')) // R83: testada = conteúdo do lote (editar lotes)
             ->modalHeading('Cadastrar Nova Testada')
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Testada')
@@ -130,6 +131,7 @@ trait HasTestadaActions
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('lote_testada'),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('testada', 'criar'); // R83
                 // Usa comprimento manual se informado, senão o calculado pela linha
                 if (empty($data['comprimento'])) {
                     $data['comprimento'] = $this->testadaExtensaoCalculada;
@@ -188,6 +190,9 @@ trait HasTestadaActions
     public function opcoesTestadaAction(): Action
     {
         return Action::make('opcoesTestada')
+            ->authorize(fn () => $this->podeNoMapa('testadas', 'mapa')) // R83: ver = abre a ficha; sem editar = só leitura e sem Salvar
+            ->disabledForm(fn () => ! $this->podeNoMapa('testada', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('testada', 'editar') ? $action : false)
             ->hiddenLabel()
             ->modalHeading(fn() => 'Testada #' . $this->testadaAtivaId)
             ->modalWidth('xl')
@@ -251,6 +256,7 @@ trait HasTestadaActions
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('lote_testada'),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('testada', 'editar'); // R83
                 $testada = LoteTestada::find($this->testadaAtivaId);
                 if (!$testada) {
                     return;
@@ -286,20 +292,24 @@ trait HasTestadaActions
             })
             ->extraModalFooterActions([
                 Action::make('editar_geometria_testada')
+                    ->visible(fn () => $this->podeNoMapa('testada', 'editar')) // R83
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
                     ->action(function () {
+                        $this->exigirNoMapa('testada', 'editar'); // R83
                         $this->dispatch('iniciar-edicao-geometria-testada', id: $this->testadaAtivaId);
                         $this->dispatch('fechar-modal-filament');
                     }),
 
                 Action::make('excluir_testada')
+                    ->visible(fn () => $this->podeNoMapa('testada', 'excluir')) // R83
                     ->label('Excluir')
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function () {
+                        $this->exigirNoMapa('testada', 'excluir'); // R83
                         $t = LoteTestada::find($this->testadaAtivaId);
                         $wasPrincipal = $t?->tipo === 'principal';
                         $loteId = $t?->lote_id ?? $this->loteAtivoId;

@@ -90,6 +90,7 @@ trait HasMobTrechoActions
     public function criarMobTrechoAction(): Action
     {
         return Action::make('criarMobTrecho')
+            ->authorize(fn () => $this->podeNoMapa('mob_trechos', 'criar')) // R83
             ->modalHeading('Cadastrar Novo Trecho Viário')
             ->modalWidth('3xl')
             ->modalSubmitActionLabel('Salvar')
@@ -104,6 +105,8 @@ trait HasMobTrechoActions
                 ...$this->mobTrechoFormulario(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_trechos', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
 
@@ -126,6 +129,10 @@ trait HasMobTrechoActions
     {
         return Action::make('opcoesMobTrecho')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('mob_trechos', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('mob_trechos', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('mob_trechos', 'editar') ? $action : false)
             ->modalHeading(function () {
                 $t = MobTrecho::withoutGlobalScopes()->find($this->mobTrechoAtivoId);
 
@@ -164,6 +171,8 @@ trait HasMobTrechoActions
                 ...$this->mobTrechoFormulario(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_trechos', 'editar'); // R83
+
                 $t = MobTrecho::withoutGlobalScopes()->find($this->mobTrechoAtivoId);
                 if (! $t) {
                     return;
@@ -179,7 +188,9 @@ trait HasMobTrechoActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('mob_trechos', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('mob_trechos', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-mob_trecho', id: $this->mobTrechoAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -188,7 +199,9 @@ trait HasMobTrechoActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('mob_trechos', 'excluir')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('mob_trechos', 'excluir');
                         MobTrecho::withoutGlobalScopes()->find($this->mobTrechoAtivoId)?->delete();
                         Notification::make()->title('Trecho excluído!')->success()->send();
                         $this->dispatch('remover-mob_trechos-mapa', ['id' => $this->mobTrechoAtivoId]);
@@ -207,6 +220,13 @@ trait HasMobTrechoActions
     #[On('salvarNovaGeometriaMobTrecho')]
     public function salvarNovaGeometriaMobTrecho($id, $geoJson): void
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('mob_trechos', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $t = MobTrecho::withoutGlobalScopes()->where('tenant_id', $this->tenantId)->find($id);
         if (! $t) {
             return;

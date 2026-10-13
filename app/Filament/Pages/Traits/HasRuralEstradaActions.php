@@ -18,6 +18,7 @@ trait HasRuralEstradaActions
     public function criarRuralEstradaAction(): Action
     {
         return Action::make('criarRuralEstrada')
+            ->authorize(fn () => $this->podeNoMapa('rural_estradas', 'criar')) // R83
             ->modalHeading('Cadastrar Estrada / Vicinal')
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Estrada')
@@ -43,6 +44,8 @@ trait HasRuralEstradaActions
                     ->required(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('rural_estradas', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['code'] = (string) Str::uuid();
@@ -67,6 +70,10 @@ trait HasRuralEstradaActions
     {
         return Action::make('opcoesRuralEstrada')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('rural_estradas', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('rural_estradas', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('rural_estradas', 'editar') ? $action : false)
             ->modalHeading(fn () => 'Editar Estrada: ' . RuralEstrada::find($this->ruralEstradaAtivaId)?->nome)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Dados')
@@ -92,6 +99,8 @@ trait HasRuralEstradaActions
                 Select::make('condicao_trafego')->label('Condição de Tráfego')->options(['Boa' => 'Boa', 'Regular' => 'Regular', 'Ruim' => 'Ruim', 'Intransitável' => 'Intransitável'])->required(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('rural_estradas', 'editar'); // R83
+
                 $reg = RuralEstrada::find($this->ruralEstradaAtivaId);
                 if ($reg) {
                     $reg->update($data);
@@ -104,7 +113,9 @@ trait HasRuralEstradaActions
                     ->label('Traçado')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('rural_estradas', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('rural_estradas', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-rural_estrada', id: $this->ruralEstradaAtivaId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -113,7 +124,9 @@ trait HasRuralEstradaActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('rural_estradas', 'excluir')) // R83
                     ->action(function() {
+                        $this->exigirNoMapa('rural_estradas', 'excluir');
                         RuralEstrada::find($this->ruralEstradaAtivaId)?->delete();
                         Notification::make()->title('Excluída!')->success()->send();
                         $this->dispatch('remover-rural_estrada-mapa', ['id' => $this->ruralEstradaAtivaId]);

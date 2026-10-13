@@ -27,6 +27,21 @@ use Illuminate\Support\Facades\DB;
 
 class MapDataController extends Controller
 {
+    /**
+     * R83 — o usuário da sessão (se houver) pode receber os dados desta camada?
+     * Pública = qualquer um; demais = equipe vinculada com permissão de ver (ou bypass).
+     */
+    private function podeVerCamadaR83(string $layer, int $tenantId, \App\Models\Tenant $tenant): bool
+    {
+        $usuario = auth()->user();
+        $usuario = $usuario instanceof \App\Models\User ? $usuario : null;
+        if ($usuario) {
+            \App\Support\MapaPermissoes::vincularEquipe($usuario, $tenantId);
+        }
+
+        return \App\Support\MapaPermissoes::podeVerCamada($layer, $usuario, $tenant);
+    }
+
     public function getMapData(Request $request)
     {
         $tenantId = $request->input('tenant_id');
@@ -41,6 +56,14 @@ class MapDataController extends Controller
         $tenantModulos = \App\Models\Tenant::find($tenantId);
         if ($tenantModulos && ! \App\Support\Modulos::camadaDisponivel($layer, $tenantModulos)) {
             return response()->json(['error' => 'Camada indisponível para esta prefeitura (módulo não contratado)'], 403);
+        }
+
+        // R83 (2026-10-12): camada PÚBLICA (as do mapa do cidadão) segue aberta; as demais
+        // (coleta, processos, chamados, câmeras, REURB, seções…) exigem equipe da prefeitura
+        // com `ver_camada_X` ou bypass Master/Manager. Fora do Filament o team id do Spatie
+        // não está setado — vincularEquipe() resolve.
+        if ($tenantModulos && ! $this->podeVerCamadaR83((string) $layer, (int) $tenantId, $tenantModulos)) {
+            return response()->json(['error' => 'Sem permissão para esta camada'], 403);
         }
 
         $buildFeatureCollection = function ($items, $layerName) {
@@ -952,6 +975,14 @@ class MapDataController extends Controller
         // e também não permitir busca por esses campos sensíveis.
         $publico = $request->boolean('publico');
 
+        // R83: quem não é equipe vinculada à prefeitura (anônimo, cidadão) só busca no modo
+        // público — antes bastava omitir ?publico=1 para receber nome/CPF do proprietário.
+        $usuarioBusca = auth()->user();
+        if (! $publico && ! ($usuarioBusca instanceof \App\Models\User && $tenantId
+            && \App\Support\MapaPermissoes::vincularEquipe($usuarioBusca, (int) $tenantId))) {
+            $publico = true;
+        }
+
         if (!$tenantId || strlen($termo) < 1) {
             return response()->json([]);
         }
@@ -1234,6 +1265,18 @@ class MapDataController extends Controller
 
         if (!$tenantId) {
             return response()->json(['error' => 'Parâmetros incompletos (Tenant ID não fornecido)'], 400);
+        }
+
+        // R83: toda camada referenciada pela consulta precisa poder ser vista pelo usuário
+        // (pública = qualquer um; demais = equipe com ver_camada_X ou bypass).
+        $tenantR83 = \App\Models\Tenant::find($tenantId);
+        if ($tenantR83) {
+            foreach (['layer', 'draw_target_layer', 'spatial_target_layer', 'spatial_reference_layer'] as $paramCamada) {
+                $camadaR83 = $request->input($paramCamada);
+                if ($camadaR83 && ! $this->podeVerCamadaR83((string) $camadaR83, (int) $tenantId, $tenantR83)) {
+                    return response()->json(['error' => 'Sem permissão para a camada '.$camadaR83], 403);
+                }
+            }
         }
 
         // Segurança: Lista branca de tabelas estendida para incluir as novas camadas do cruzamento espacial
@@ -1702,6 +1745,16 @@ class MapDataController extends Controller
             $areaId     = $request->input('area_id');     // id da área (ou 'all')
             $targetLayer= $request->input('target_layer'); // lotes | edificacoes | logradouros
             $groupField = $request->input('group_field'); // campo para agrupar
+
+            // R83: as camadas da estatística precisam poder ser vistas pelo usuário
+            $tenantR83 = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+            if ($tenantR83) {
+                foreach ([$areaType, $targetLayer] as $camadaR83) {
+                    if ($camadaR83 && ! $this->podeVerCamadaR83((string) $camadaR83, (int) $tenantId, $tenantR83)) {
+                        return response()->json(['error' => 'Sem permissão para a camada '.$camadaR83], 403);
+                    }
+                }
+            }
  
             // ----------------------------------------------------------------
             // 1. Mapa de configuração por camada

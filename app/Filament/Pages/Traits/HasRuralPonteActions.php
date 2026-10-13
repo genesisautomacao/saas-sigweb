@@ -19,6 +19,7 @@ trait HasRuralPonteActions
     public function criarRuralPonteAction(): Action
     {
         return Action::make('criarRuralPonte')
+            ->authorize(fn () => $this->podeNoMapa('rural_pontes', 'criar')) // R83
             ->modalHeading('Cadastrar Ponte Rural')
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Ponte')
@@ -49,6 +50,8 @@ trait HasRuralPonteActions
                     ->required(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('rural_pontes', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['code'] = (string) Str::uuid();
@@ -70,6 +73,10 @@ trait HasRuralPonteActions
     {
         return Action::make('opcoesRuralPonte')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('rural_pontes', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('rural_pontes', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('rural_pontes', 'editar') ? $action : false)
             ->modalHeading(fn () => 'Editar Ponte: ' . RuralPonte::find($this->ruralPonteAtivaId)?->nome_referencia)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Dados')
@@ -93,6 +100,8 @@ trait HasRuralPonteActions
                 Select::make('estado_conservacao')->label('Estado')->options(['Bom' => 'Bom', 'Regular' => 'Regular', 'Ruim' => 'Ruim', 'Interditada' => 'Interditada'])->required(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('rural_pontes', 'editar'); // R83
+
                 $reg = RuralPonte::find($this->ruralPonteAtivaId);
                 if ($reg) {
                     $reg->update($data);
@@ -105,7 +114,9 @@ trait HasRuralPonteActions
                     ->label('Mover Ponte')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('rural_pontes', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('rural_pontes', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-rural_ponte', id: $this->ruralPonteAtivaId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -114,7 +125,9 @@ trait HasRuralPonteActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('rural_pontes', 'excluir')) // R83
                     ->action(function() {
+                        $this->exigirNoMapa('rural_pontes', 'excluir');
                         RuralPonte::find($this->ruralPonteAtivaId)?->delete();
                         Notification::make()->title('Excluída!')->success()->send();
                         $this->dispatch('remover-rural_ponte-mapa', ['id' => $this->ruralPonteAtivaId]);

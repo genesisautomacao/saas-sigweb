@@ -31,6 +31,7 @@ trait HasQuadraActions
     public function criarQuadraAction(): Action
     {
         return Action::make('criarQuadra')
+            ->authorize(fn () => $this->podeNoMapa('quadras', 'criar')) // R83
             ->modalHeading('Cadastrar Nova Quadra')
             ->modalWidth('4xl')
             ->modalSubmitActionLabel('Salvar Quadra')
@@ -67,6 +68,8 @@ trait HasQuadraActions
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('quadra'),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('quadras', 'criar'); // R83
+
                 // 🛑 VALIDAÇÃO ANTIFRAUDE: O usuário mudou o Select manualmente?
                 $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($this->geometriaRascunho)."'), 4326)";
                 $bairroId = $data['bairro_id'] ?? null;
@@ -128,7 +131,11 @@ trait HasQuadraActions
     {
         return Action::make('opcoesQuadra')
             ->hiddenLabel()
-            ->modalHeading(fn () => 'Editar Quadra: '.Quadra::find($this->quadraAtivaId)?->name)
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('quadras', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('quadras', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('quadras', 'editar') ? $action : false)
+            ->modalHeading(fn () => ($this->podeNoMapa('quadras', 'editar') ? 'Editar Quadra: ' : 'Quadra: ').Quadra::find($this->quadraAtivaId)?->name)
             ->modalWidth('4xl')
             ->modalSubmitActionLabel('Salvar Alterações')
             ->fillForm(function (): array {
@@ -230,6 +237,8 @@ trait HasQuadraActions
                     ]),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('quadras', 'editar'); // R83
+
                 $reg = Quadra::find($this->quadraAtivaId);
                 if ($reg) {
                     $bairroId = $data['bairro_id'] ?? null;
@@ -255,8 +264,9 @@ trait HasQuadraActions
                     ->color('info')
                     ->icon('heroicon-o-view-columns')
                     ->visible(fn () => \App\Support\Modulos::ativo('pgv')
-                        && (auth()->user()?->can('gerenciar_face_quadras') ?? false))
+                        && $this->podeNoMapa('face_quadras', 'criar')) // R83 (era gerenciar_face_quadras)
                     ->action(function () {
+                        $this->exigirNoMapa('face_quadras', 'criar');
                         $this->dispatch('iniciar-desenho-face-quadra', quadraId: $this->quadraAtivaId);
                         $this->dispatch('fechar-modal-filament');
 
@@ -271,7 +281,9 @@ trait HasQuadraActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('quadras', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('quadras', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-quadra', id: $this->quadraAtivaId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -290,7 +302,9 @@ trait HasQuadraActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('quadras', 'excluir')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('quadras', 'excluir');
                         Quadra::find($this->quadraAtivaId)?->delete();
                         Notification::make()->title('Excluída!')->success()->send();
                         $this->dispatch('remover-quadra-mapa', ['id' => $this->quadraAtivaId]);

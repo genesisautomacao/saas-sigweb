@@ -7,6 +7,35 @@
 document.addEventListener("DOMContentLoaded", function () {
     // 1. CARREGA AS CONFIGURAÇÕES INJETADAS PELO PHP
     const config = window.mapConfig || {};
+
+    // R83: `config.permissoes` chega SÍNCRONO do blade (MapaPermissoes::resumo) —
+    // {entidades, camadas, artefatos, ferramentas, bypass}. É reforço visual; o
+    // servidor checa de novo em cada ação. Sem o objeto (blade antigo) = libera.
+    // ⚠️ Definidos AQUI, antes de qualquer uso (injetarPickersCamadas roda no init):
+    // um ReferenceError no init aborta o engine inteiro (camadas, ortofoto, tudo).
+    window.podeCriarArtefato = function (entityType) {
+        const p = config.permissoes;
+        if (!p || !p.artefatos) return true;
+        return p.artefatos[entityType] !== false;
+    };
+    window.podeFerramentaMapa = function (id) {
+        const p = config.permissoes;
+        if (!p || !p.ferramentas) return true;
+        return p.ferramentas[id] !== false;
+    };
+    window.avisarSemPermissao = function (msg) {
+        const el = document.createElement("div");
+        el.textContent = msg || "Seu papel não permite esta ação no mapa.";
+        el.style.cssText =
+            "position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;" +
+            "background:#b91c1c;color:#fff;padding:10px 18px;border-radius:9999px;" +
+            "font:600 13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3);";
+        document.body.appendChild(el);
+        setTimeout(function () {
+            el.remove();
+        }, 3500);
+    };
+
     let zonasAtivas = [];
     // Fluxos de processo ativos na camada "Processos Digitais" (strings dos ids). Mesmo mecanismo do zonasAtivas.
     let processosFluxosAtivos = [];
@@ -1997,6 +2026,8 @@ document.addEventListener("DOMContentLoaded", function () {
     // após cada commit do Livewire (hook abaixo).
     const pickersCamada = {};
     function injetarPickersCamadas() {
+        // R83: personalizar cores é uma ferramenta com permissão própria
+        if (!window.podeFerramentaMapa("cores")) return;
         Object.keys(CAMADAS_PERSONALIZAVEIS).forEach(function (layerName) {
             const chk = document.querySelector(
                 'input.layer-toggle[data-layer="' + layerName + '"]',
@@ -2100,6 +2131,8 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
     // ── PERMISSÕES DE CAMADAS E TOOLBAR ────────────────────────────
+    // (R83: os helpers podeCriarArtefato/podeFerramentaMapa/avisarSemPermissao
+    // ficam no TOPO do engine — são usados antes deste ponto, no injetarPickersCamadas.)
     if (config.permissionsUrl) {
         fetch(config.permissionsUrl, { credentials: "same-origin" })
             .then(function (r) {
@@ -4883,6 +4916,13 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     window.enableDrawing = function (entityType) {
+        // R83: reforço visual — o servidor (interceptarDesenho) recusa de novo. Sem a
+        // permissão de CRIAR a entidade nem começa o desenho.
+        if (!window.podeCriarArtefato(entityType)) {
+            window.avisarSemPermissao("Seu papel não pode criar este tipo de artefato no mapa.");
+            return;
+        }
+
         // 1. Limpa qualquer régua ou mãozinha ativa
         if (typeof window.resetToPan === "function") window.resetToPan();
 
@@ -5827,6 +5867,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 };
 
                 const entityToCreate = mapSingular[featureCloneOriginalLayer];
+
+                // R83: sem permissão de criar a entidade escolhida, o rascunho fica na mesa
+                if (entityToCreate && !window.podeCriarArtefato(entityToCreate)) {
+                    window.avisarSemPermissao("Seu papel não pode criar este tipo de artefato no mapa.");
+                    return;
+                }
 
                 if (entityToCreate) {
                     Livewire.dispatch("abrirModalCriacao", {

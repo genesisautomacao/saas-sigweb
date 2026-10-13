@@ -62,6 +62,7 @@ use Livewire\Attributes\On;
 class MapaFullscreen extends Page
 {
     use \App\Filament\Concerns\MontaOpcoesFiltroMapa;
+    use \App\Filament\Pages\Concerns\ChecaPermissoesMapa; // R83: guards de permissão do mapa
     use HasAreaReurbActions;
     use HasArvoreActions;
     use HasBairroActions;
@@ -406,6 +407,11 @@ class MapaFullscreen extends Page
     #[On('abrirFichaImovel')]
     public function carregarFicha($loteId, $loteNome = 'S/N')
     {
+        // R83: a ficha é a "visualização" do lote — exige ver a camada de lotes
+        if (! $this->autorizarNoMapa('lotes', 'mapa')) {
+            return;
+        }
+
         if ($this->loteAtivoId !== null && $this->loteAtivoId != $loteId) {
             $this->mostrarEdificacoesLoteAtivo = false;
             $this->edificacoesVisiveis = [];
@@ -468,6 +474,14 @@ class MapaFullscreen extends Page
     #[On('abrirModalCriacao')]
     public function interceptarDesenho($entityType, $geoJson)
     {
+        // R83: porta única da CRIAÇÃO pelo desenho (Criar Artefatos, CAD, Azimutes, XY,
+        // ficha do lote). Entidade desconhecida ou sem permissão = nada abre.
+        if (! $this->autorizarNoMapa((string) $entityType, 'criar')) {
+            $this->dispatch('limpar-rascunho-mapa');
+
+            return;
+        }
+
         if (is_array($geoJson) && isset($geoJson['type']) && $geoJson['type'] === 'Polygon') {
             if (! empty($geoJson['coordinates'][0])) {
                 $primeiroPonto = $geoJson['coordinates'][0][0];
@@ -945,6 +959,9 @@ class MapaFullscreen extends Page
 
     public function habilitarEdicaoGeometria()
     {
+        if (! $this->autorizarNoMapa('lotes', 'editar')) { // R83
+            return;
+        }
         $this->dispatch('iniciar-edicao-geometria', ['id' => $this->loteAtivoId]);
         $this->fecharFicha();
     }
@@ -952,6 +969,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometria')]
     public function salvarNovaGeometria($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('lotes', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $lote = Lote::query()->where('id', $id)->where('tenant_id', $this->tenantId)->first();
         if ($lote) {
             $polyWKT = "ST_GeomFromGeoJSON('".json_encode($geoJson)."')";
@@ -996,6 +1020,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaEdificacao')]
     public function salvarNovaGeometriaEdificacao($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('edificacao', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         // R78-1: regra do centróide (pode ultrapassar a divisa) — HasEdificacaoActions.
         $this->salvarGeometriaEdificacao((int) $id, (array) $geoJson);
     }
@@ -1003,8 +1034,10 @@ class MapaFullscreen extends Page
     public function deletarArtefatoAction(): \Filament\Actions\Action
     {
         return \Filament\Actions\Action::make('deletarArtefato')
+            ->authorize(fn () => $this->podeNoMapa('lotes', 'excluir')) // R83
             ->requiresConfirmation()
             ->action(function () {
+                $this->exigirNoMapa('lotes', 'excluir'); // R83
                 if ($this->loteAtivoId) {
                     $lote = Lote::query()->where('id', $this->loteAtivoId)->where('tenant_id', $this->tenantId)->first();
                     if ($lote) {
@@ -1038,6 +1071,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaLogradouro')]
     public function salvarNovaGeometriaLogradouro($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('logradouros', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $logradouro = \App\Models\Logradouro::query()->find($id);
         if ($logradouro) {
             $logradouro->update(['geo' => $geoJson]);
@@ -1055,6 +1095,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaPoste')]
     public function salvarNovaGeometriaPoste($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('postes', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $poste = Poste::query()->find($id);
         if ($poste) {
             $poste->update(['geo' => $geoJson]);
@@ -1083,6 +1130,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaPatrimonioPublico')]
     public function salvarNovaGeometriaPatrimonioPublico($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('patrimonio_publicos', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $p = PatrimonioPublico::query()->find($id);
         if ($p) {
             $p->update(['geo' => $geoJson]);
@@ -1100,6 +1154,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaAreaReurb')]
     public function salvarNovaGeometriaAreaReurb($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('areas_reurb', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $area = AreaReurb::query()->find($id);
         if ($area) {
             $area->update(['geo' => $geoJson]);
@@ -1117,6 +1178,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaArvore')]
     public function salvarNovaGeometriaArvore($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('arvores', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $arvore = Arvore::query()->find($id);
         if ($arvore) {
             $arvore->update(['geo' => $geoJson]);
@@ -1144,6 +1212,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaCemiterio')]
     public function salvarNovaGeometriaCemiterio($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('cemiterios', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $cemiterio = Cemiterio::query()->find($id);
         if ($cemiterio) {
             $cemiterio->update(['geo' => $geoJson]);
@@ -1166,6 +1241,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaQuadraCemiterio')]
     public function salvarNovaGeometriaQuadraCemiterio($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('quadras_cemiterio', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $quadra = QuadraCemiterio::query()->find($id);
         if ($quadra) {
             $polyWKT = "ST_GeomFromGeoJSON('".json_encode($geoJson)."')";
@@ -1203,6 +1285,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaLogradouroCemiterio')]
     public function salvarNovaGeometriaLogradouroCemiterio($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('logradouros_cemiterio', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $logradouro = LogradouroCemiterio::query()->find($id);
         if ($logradouro) {
             $polyWKT = "ST_GeomFromGeoJSON('".json_encode($geoJson)."')";
@@ -1233,6 +1322,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaJazigo')]
     public function salvarNovaGeometriaJazigo($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('jazigos', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $jazigo = Jazigo::query()->find($id);
         if ($jazigo) {
             $polyWKT = "ST_GeomFromGeoJSON('".json_encode($geoJson)."')";
@@ -1259,6 +1355,9 @@ class MapaFullscreen extends Page
     #[On('abrirModalNumeracao')]
     public function abrirModalNumeracao($logradouro_id, $logradouro_nome, $drawn_line)
     {
+        if (! $this->autorizarFerramenta('numeracao')) { // R83 (a ferramenta exige editar lotes)
+            return;
+        }
         $this->numLogradouroId = $logradouro_id;
         $this->numLogradouroNome = $logradouro_nome;
         $this->numDrawnLine = json_encode($drawn_line); // Guarda como texto pra query
@@ -1269,6 +1368,7 @@ class MapaFullscreen extends Page
     public function configurarNumeracaoAction(): \Filament\Actions\Action
     {
         return \Filament\Actions\Action::make('configurarNumeracaoAction')
+            ->authorize(fn () => $this->podeFerramenta('numeracao')) // R83
             ->hiddenLabel()
             ->modalHeading('Gerador de Numeração Predial')
             ->modalDescription(fn () => 'Configurando a métrica para: '.$this->numLogradouroNome
@@ -1417,6 +1517,9 @@ class MapaFullscreen extends Page
      */
     public function inverterLadosNumeracao(): void
     {
+        if (! $this->autorizarFerramenta('numeracao')) { // R83
+            return;
+        }
         $this->numLadoPar = $this->numLadoPar === 'right' ? 'left' : 'right';
 
         foreach ($this->resultadosNumeracao as $i => $res) {
@@ -1437,6 +1540,9 @@ class MapaFullscreen extends Page
     #[On('toggleParcelaNumeracao')]
     public function toggleParcelaNumeracao($loteId): void
     {
+        if (! $this->autorizarFerramenta('numeracao')) { // R83
+            return;
+        }
         foreach ($this->resultadosNumeracao as $i => $res) {
             if ($res['lote_id'] === $loteId) {
                 $this->resultadosNumeracao[$i]['excluido'] = ! ($res['excluido'] ?? false);
@@ -1453,6 +1559,7 @@ class MapaFullscreen extends Page
     public function revisarNumeracaoAction(): \Filament\Actions\Action
     {
         return \Filament\Actions\Action::make('revisarNumeracaoAction')
+            ->authorize(fn () => $this->podeFerramenta('numeracao')) // R83
             ->hiddenLabel()
             ->modalHeading('Revisão por Parcela')
             ->modalDescription('Ajuste manualmente o número de qualquer parcela. A faixa sugerida mostra os números disponíveis conforme a distância no trajeto.')
@@ -1521,6 +1628,9 @@ class MapaFullscreen extends Page
      */
     public function confirmarNumeracaoAction(): void
     {
+        if (! $this->autorizarFerramenta('numeracao')) { // R83: grava lotes.numero_logradouro
+            return;
+        }
         $count = 0;
         foreach ($this->resultadosNumeracao as $res) {
             if ($res['excluido'] ?? false) {
@@ -1766,6 +1876,9 @@ class MapaFullscreen extends Page
     #[On('processarDesmembramentoLote')]
     public function processarDesmembramentoLote($loteId, $linhaCorte)
     {
+        if (! $this->autorizarFerramenta('desmembrar')) { // R83 (exige editar lotes)
+            return;
+        }
         $this->loteParaDesmembrarId = $loteId;
         $this->linhaDeCorteGeoJson = json_encode($linhaCorte);
 
@@ -1842,6 +1955,7 @@ class MapaFullscreen extends Page
     {
         // 🛑 CORREÇÃO: O nome da Action agora bate exatamente com a chamada do mountAction!
         return \Filament\Actions\Action::make('confirmarDesmembramentoAction')
+            ->authorize(fn () => $this->podeFerramenta('desmembrar')) // R83
             ->modalHeading('Confirmar Desmembramento de Lote')
             ->modalDescription(fn () => new \Illuminate\Support\HtmlString(
                 'O sistema fatiou a geometria perfeitamente.<br><br>'.
@@ -1924,6 +2038,9 @@ class MapaFullscreen extends Page
     #[On('processarUnificacaoLotes')]
     public function processarUnificacaoLotes($lotePrincipalId, $loteSecundarioId)
     {
+        if (! $this->autorizarFerramenta('unificar')) { // R83 (exige editar lotes)
+            return;
+        }
         $this->lotePrincipalToUnifyId = $lotePrincipalId;
         $this->loteSecundarioToUnifyId = $loteSecundarioId;
 
@@ -1968,6 +2085,7 @@ class MapaFullscreen extends Page
     public function confirmarUnificacaoAction(): \Filament\Actions\Action
     {
         return \Filament\Actions\Action::make('confirmarUnificacaoAction')
+            ->authorize(fn () => $this->podeFerramenta('unificar')) // R83
             ->modalHeading('Confirmar Unificação de Lotes')
             ->modalDescription(function () {
                 $lote1 = \App\Models\Lote::query()->find($this->lotePrincipalToUnifyId);
@@ -2048,6 +2166,11 @@ class MapaFullscreen extends Page
     #[On('excluirArtefatosUnir')]
     public function excluirArtefatosUnir($plural, $ids)
     {
+        // R83: o Unir do CAD apaga as origens — exige a ferramenta CAD e EXCLUIR a entidade
+        if (! $this->autorizarFerramenta('cad') || ! $this->autorizarNoMapa((string) $plural, 'excluir')) {
+            return;
+        }
+
         $modelMap = [
             'quadras' => \App\Models\Quadra::class,
             'bairros' => \App\Models\Bairro::class,
@@ -2094,6 +2217,7 @@ class MapaFullscreen extends Page
     public function abrirNuvemPontosAction(): \Filament\Actions\Action
     {
         return \Filament\Actions\Action::make('abrirNuvemPontosAction')
+            ->authorize(fn () => $this->podeFerramenta('lidar')) // R83
             ->modalHeading('Visualizador 3D - Nuvem de Pontos (LiDAR)')
             ->modalWidth('5xl')
             ->modalSubmitAction(false)
@@ -2155,6 +2279,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaSetorFiscal')]
     public function salvarNovaGeometriaSetorFiscal($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('setores_fiscais', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $setor = \App\Models\SetorFiscal::query()->find($id);
         if ($setor) {
             $polyWKT = "ST_GeomFromGeoJSON('".json_encode($geoJson)."')";
@@ -2190,6 +2321,7 @@ class MapaFullscreen extends Page
     public function configurarPgvAction(): \Filament\Actions\Action
     {
         return \Filament\Actions\Action::make('configurarPgvAction')
+            ->authorize(fn () => $this->podeFerramenta('pgv_simulador')) // R83
             ->hiddenLabel()
             ->modalHeading('Simulador - Planta Genérica de Valores')
             ->modalDescription('Defina os parâmetros para simular o IPTU/Valor Venal. O sistema cruzará os Lotes com os Setores Fiscais desenhados no mapa.')
@@ -2309,6 +2441,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaRuralLocalidade')] // Crie este novo Listener
     public function salvarNovaGeometriaRuralLocalidade($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('rural_localidades', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $reg = \App\Models\RuralLocalidade::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
@@ -2327,6 +2466,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaRuralPropriedade')]
     public function salvarNovaGeometriaRuralPropriedade($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('rural_propriedades', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $reg = \App\Models\RuralPropriedade::query()->find($id);
         if ($reg) {
             $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
@@ -2366,6 +2512,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaRuralEstrada')]
     public function salvarNovaGeometriaRuralEstrada($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('rural_estradas', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $reg = \App\Models\RuralEstrada::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
@@ -2385,6 +2538,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaRuralHidrografia')]
     public function salvarNovaGeometriaRuralHidrografia($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('rural_hidrografias', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $reg = \App\Models\RuralHidrografia::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
@@ -2402,6 +2562,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaRuralPonte')]
     public function salvarNovaGeometriaRuralPonte($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('rural_pontes', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $reg = \App\Models\RuralPonte::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
@@ -2419,6 +2586,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaRuralPontoInteresse')]
     public function salvarNovaGeometriaRuralPontoInteresse($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('rural_pontos_interesse', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $reg = \App\Models\RuralPontoInteresse::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
@@ -2437,6 +2611,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaBairro')]
     public function salvarNovaGeometriaBairro($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('bairros', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $reg = \App\Models\Bairro::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
@@ -2462,6 +2643,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaPerimetroUrbano')]
     public function salvarNovaGeometriaPerimetroUrbano($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('perimetros_urbanos', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $reg = \App\Models\PerimetroUrbano::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
@@ -2487,6 +2675,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaMeioFio')]
     public function salvarNovaGeometriaMeioFio($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('meio_fios', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $reg = \App\Models\MeioFio::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
@@ -2512,6 +2707,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaSecaoLogradouro')]
     public function salvarNovaGeometriaSecaoLogradouro($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('secoes_logradouro', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $reg = \App\Models\SecaoLogradouro::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
@@ -2537,6 +2739,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaTestada')]
     public function salvarNovaGeometriaTestada(int $id, array $geoJson): void
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('testada', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $testada = \App\Models\LoteTestada::find($id);
         if ($testada) {
             $testada->update(['geo' => $geoJson]);
@@ -2574,6 +2783,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaLoteamento')]
     public function salvarNovaGeometriaLoteamento($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('loteamentos', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $reg = \App\Models\Loteamento::query()->find($id);
         if ($reg) {
             $reg->update(['geo' => $geoJson]);
@@ -2599,6 +2815,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaQuadra')]
     public function salvarNovaGeometriaQuadra($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('quadras', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $reg = \App\Models\Quadra::query()->find($id);
         if ($reg) {
             $polyWKT = "ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326))";
@@ -2666,6 +2889,10 @@ class MapaFullscreen extends Page
     #[On('processarCorteGenerico')]
     public function processarCorteGenerico($polygonGeoJson, $lineGeoJson, $layerOrigem)
     {
+        if (! $this->autorizarFerramenta('cad')) { // R83
+            return;
+        }
+
         // A MÁGICA DO CORTE: Extrai o polígono puro e fatia usando a Linha (ST_Split)
         $fatias = DB::select('
             WITH linha AS (
@@ -2713,6 +2940,7 @@ class MapaFullscreen extends Page
     public function filtroAvancadoAction(): Action
     {
         return Action::make('filtroAvancado')
+            ->authorize(fn () => $this->podeFerramenta('filtros')) // R83
             ->label('Filtro Avançado')
             ->icon('heroicon-o-funnel')
             ->modalHeading('Construtor de Consultas GIS')
@@ -3191,6 +3419,9 @@ class MapaFullscreen extends Page
 
     public function excluirDocumento(int $id): void
     {
+        if (! $this->autorizarNoMapa('lotes', 'editar')) { // R83: documento é conteúdo da unidade/lote
+            return;
+        }
         $doc = \App\Models\Documento::query()->find($id);
         if ($doc && $doc->tenant_id === $this->tenantId) {
             \Illuminate\Support\Facades\Storage::delete($doc->path);
@@ -3205,6 +3436,7 @@ class MapaFullscreen extends Page
     public function estatisticasAction(): \Filament\Actions\Action
     {
         return \Filament\Actions\Action::make('estatisticasAction')
+            ->authorize(fn () => $this->podeFerramenta('estatisticas')) // R83
             ->label('Estatísticas')
             ->icon('heroicon-o-chart-bar')
             ->modalHeading('Estatísticas por Área de Interesse')
@@ -3342,6 +3574,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaZona')]
     public function salvarNovaGeometriaZona($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('zonas', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $zona = \App\Models\Zona::query()->find($id);
         if ($zona) {
             $zona->update(['geo' => $geoJson]);
@@ -3365,6 +3604,13 @@ class MapaFullscreen extends Page
     #[On('salvarNovaGeometriaPontoPanoramico')]
     public function salvarNovaGeometriaPontoPanoramico($id, $geoJson)
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('pontos_panoramicos', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $ponto = \App\Models\PontoPanoramico::query()->find($id);
         if ($ponto) {
             $ponto->update(['geo' => $geoJson]);
@@ -3374,6 +3620,10 @@ class MapaFullscreen extends Page
 
     public function salvarEnquadramento(float $lat, float $lon, int $zoom): void
     {
+        // R83: pela permissão ferramenta_enquadramento (Master/Manager = bypass), não pelo nome do papel
+        if (! $this->autorizarFerramenta('enquadramento')) {
+            return;
+        }
         $tenant = Filament::getTenant();
         if (! $tenant) {
             return;

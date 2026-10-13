@@ -17,6 +17,7 @@ trait HasRuralLocalidadeActions
     public function criarRuralLocalidadeAction(): Action
     {
         return Action::make('criarRuralLocalidade')
+            ->authorize(fn () => $this->podeNoMapa('rural_localidades', 'criar')) // R83
             ->modalHeading('Cadastrar Nova Localidade / Distrito')
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Localidade')
@@ -34,6 +35,8 @@ trait HasRuralLocalidadeActions
                     ])->required(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('rural_localidades', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho; 
                 $data['code'] = (string) Str::uuid();
@@ -58,6 +61,10 @@ trait HasRuralLocalidadeActions
     {
         return Action::make('opcoesRuralLocalidade')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('rural_localidades', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('rural_localidades', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('rural_localidades', 'editar') ? $action : false)
             ->modalHeading(fn () => 'Editar Localidade: ' . RuralLocalidade::find($this->ruralLocalidadeAtivaId)?->nome)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Dados')
@@ -78,6 +85,8 @@ trait HasRuralLocalidadeActions
                 ])->required(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('rural_localidades', 'editar'); // R83
+
                 $reg = RuralLocalidade::find($this->ruralLocalidadeAtivaId);
                 if ($reg) {
                     $reg->update($data);
@@ -90,7 +99,9 @@ trait HasRuralLocalidadeActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('rural_localidades', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('rural_localidades', 'editar');
                         // Este evento será capturado pelo JS no próximo passo!
                         $this->dispatch('iniciar-edicao-geometria-rural_localidade', id: $this->ruralLocalidadeAtivaId);
                         $this->dispatch('fechar-modal-filament');
@@ -100,7 +111,9 @@ trait HasRuralLocalidadeActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('rural_localidades', 'excluir')) // R83
                     ->action(function() {
+                        $this->exigirNoMapa('rural_localidades', 'excluir');
                         RuralLocalidade::find($this->ruralLocalidadeAtivaId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-rural_localidade-mapa', ['id' => $this->ruralLocalidadeAtivaId]);

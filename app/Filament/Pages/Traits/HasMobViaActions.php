@@ -63,6 +63,7 @@ trait HasMobViaActions
     public function criarMobViaAction(): Action
     {
         return Action::make('criarMobVia')
+            ->authorize(fn () => $this->podeNoMapa('mob_vias', 'criar')) // R83
             ->modalHeading('Cadastrar Nova Via Urbana')
             ->modalWidth('3xl')
             ->modalSubmitActionLabel('Salvar')
@@ -77,6 +78,7 @@ trait HasMobViaActions
                 ...$this->mobViaFormulario(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_vias', 'criar'); // R83
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
 
@@ -98,6 +100,9 @@ trait HasMobViaActions
     public function opcoesMobViaAction(): Action
     {
         return Action::make('opcoesMobVia')
+            ->authorize(fn () => $this->podeNoMapa('mob_vias', 'mapa')) // R83: ver = abre a ficha; sem editar = só leitura e sem Salvar
+            ->disabledForm(fn () => ! $this->podeNoMapa('mob_vias', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('mob_vias', 'editar') ? $action : false)
             ->hiddenLabel()
             ->modalHeading(function () {
                 $v = MobVia::withoutGlobalScopes()->find($this->mobViaAtivoId);
@@ -132,6 +137,7 @@ trait HasMobViaActions
                 ...$this->mobViaFormulario(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_vias', 'editar'); // R83
                 $v = MobVia::withoutGlobalScopes()->find($this->mobViaAtivoId);
                 if (! $v) {
                     return;
@@ -144,10 +150,12 @@ trait HasMobViaActions
             })
             ->extraModalFooterActions([
                 Action::make('inverter_sentido_mob_via')
+                    ->visible(fn () => $this->podeNoMapa('mob_vias', 'editar')) // R83
                     ->label('Inverter Sentido')
                     ->color('info')
                     ->icon('heroicon-o-arrows-right-left')
                     ->action(function () {
+                        $this->exigirNoMapa('mob_vias', 'editar'); // R83
                         $v = MobVia::withoutGlobalScopes()->find($this->mobViaAtivoId);
                         if (! $v) {
                             return;
@@ -167,20 +175,24 @@ trait HasMobViaActions
                         $this->dispatch('fechar-modal-filament');
                     }),
                 Action::make('editar_geo_mob_via')
+                    ->visible(fn () => $this->podeNoMapa('mob_vias', 'editar')) // R83
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
                     ->action(function () {
+                        $this->exigirNoMapa('mob_vias', 'editar'); // R83
                         $this->dispatch('iniciar-edicao-geometria-mob_via', id: $this->mobViaAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
                 Action::make('excluir_mob_via')
+                    ->visible(fn () => $this->podeNoMapa('mob_vias', 'excluir')) // R83
                     ->label('Excluir')
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->modalDescription('Os trechos de levantamento vinculados continuam existindo (só perdem o vínculo).')
                     ->action(function () {
+                        $this->exigirNoMapa('mob_vias', 'excluir'); // R83
                         MobVia::withoutGlobalScopes()->find($this->mobViaAtivoId)?->delete();
                         Notification::make()->title('Via excluída!')->success()->send();
                         $this->dispatch('remover-mob_vias-mapa', ['id' => $this->mobViaAtivoId]);
@@ -204,6 +216,10 @@ trait HasMobViaActions
     #[On('aplicarSentidoVia')]
     public function aplicarSentidoVia($id, $acao): void
     {
+        if (! $this->autorizarFerramenta('sentidos')) { // R83: a caneta exige editar vias
+            return;
+        }
+
         $v = MobVia::withoutGlobalScopes()->where('tenant_id', $this->tenantId)->find($id);
         if (! $v) {
             return;
@@ -235,6 +251,13 @@ trait HasMobViaActions
     #[On('salvarNovaGeometriaMobVia')]
     public function salvarNovaGeometriaMobVia($id, $geoJson): void
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('mob_vias', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $v = MobVia::withoutGlobalScopes()->where('tenant_id', $this->tenantId)->find($id);
         if (! $v) {
             return;

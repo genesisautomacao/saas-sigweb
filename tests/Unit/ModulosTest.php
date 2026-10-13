@@ -45,10 +45,14 @@ class ModulosTest extends TestCase
         $this->assertSame('chamados', Modulos::daPermissao('gerenciar_chamados')); // D8: módulo próprio
         $this->assertSame('chamados', Modulos::daPermissao('ver_camada_chamados'));
         $this->assertSame('coleta_cadastral', Modulos::daPermissao('view_produtividade'));
-        $this->assertSame('base_cartografica', Modulos::daPermissao('gerenciar_secoes_logradouro')); // D8: a seção segue o logradouro
+        $this->assertSame('base_cartografica', Modulos::daPermissao('view_secoes_logradouro')); // D8: a seção segue o logradouro; R83: quarteto
         $this->assertSame('base_cartografica', Modulos::daPermissao('ver_camada_secoes_logradouro'));
         $this->assertSame('imageamento', Modulos::daPermissao('ver_camada_pontos_panoramicos'));
-        $this->assertSame('mob_infra', Modulos::daPermissao('gerenciar_mob_vias'));
+        $this->assertSame('mob_infra', Modulos::daPermissao('edit_mob_vias')); // R83: quarteto (era gerenciar_mob_vias)
+        $this->assertSame('mob_infra', Modulos::daPermissao('ferramenta_sentidos')); // R83: uma permissão por ferramenta
+        $this->assertSame('nucleo', Modulos::daPermissao('ferramenta_medir'));
+        $this->assertSame('imobiliario', Modulos::daPermissao('ferramenta_numeracao'));
+        $this->assertNull(Modulos::daPermissao('toolbar_ferramentas')); // R83: toolbar_* deixou de existir
         $this->assertNull(Modulos::daPermissao('permissao_que_nao_existe'));
     }
 
@@ -66,11 +70,11 @@ class ModulosTest extends TestCase
         $opcoes = Modulos::filtrarOpcoes([
             'view_lotes' => 'Lotes',
             'view_bairros' => 'Bairros',
-            'gerenciar_mob_trechos' => 'Trechos',
+            'create_mob_trechos' => 'Trechos',
             'view_auditoria' => 'Auditoria',
         ], $t);
 
-        $this->assertSame(['view_bairros', 'gerenciar_mob_trechos', 'view_auditoria'], array_keys($opcoes));
+        $this->assertSame(['view_bairros', 'create_mob_trechos', 'view_auditoria'], array_keys($opcoes));
     }
 
     public function test_permissoes_inativas_cobrem_modulos_desligados(): void
@@ -79,7 +83,7 @@ class ModulosTest extends TestCase
         $this->assertContains('view_lotes', $inativas);
         $this->assertContains('gerenciar_chamados', $inativas);
         $this->assertNotContains('view_bairros', $inativas);
-        $this->assertNotContains('gerenciar_mob_vias', $inativas);
+        $this->assertNotContains('edit_mob_vias', $inativas);
         $this->assertNotContains('view_users', $inativas);
     }
 
@@ -132,9 +136,11 @@ class ModulosTest extends TestCase
         // ela aparece em qualquer prefeitura sem ninguém decidir isso.
         $arquivo = file_get_contents(base_path('database/seeders/PermissionsSeeder.php'));
         preg_match_all("/'([a-z_]+)'/", $arquivo, $m);
+        // R83: as ferramenta_* entram no seeder por array_map sobre config/mapa.php
+        $nomes = array_merge($m[1], array_map(fn ($id) => 'ferramenta_'.$id, array_keys((array) config('mapa.ferramentas'))));
         $semDono = [];
-        foreach (array_unique($m[1]) as $perm) {
-            if (preg_match('/^(view|create|edit|delete|gerenciar|ver_camada|toolbar)_/', $perm) && Modulos::daPermissao($perm) === null) {
+        foreach (array_unique($nomes) as $perm) {
+            if (preg_match('/^(view|create|edit|delete|gerenciar|ver_camada|toolbar|ferramenta)_[a-z]/', $perm) && Modulos::daPermissao($perm) === null) {
                 $semDono[] = $perm;
             }
         }

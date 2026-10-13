@@ -109,11 +109,14 @@ trait HasMobZonaActions
     public function criarMobZonaAction(): Action
     {
         return Action::make('criarMobZona')
+            ->authorize(fn () => $this->podeNoMapa('mob_zonas', 'criar')) // R83
             ->modalHeading('Cadastrar Nova Zona de Estudo')
             ->modalWidth('3xl')
             ->modalSubmitActionLabel('Salvar')
             ->form($this->mobZonaFormulario())
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_zonas', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
 
@@ -134,6 +137,10 @@ trait HasMobZonaActions
     {
         return Action::make('opcoesMobZona')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('mob_zonas', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('mob_zonas', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('mob_zonas', 'editar') ? $action : false)
             ->modalHeading(function () {
                 $z = MobZona::withoutGlobalScopes()->find($this->mobZonaAtivoId);
 
@@ -158,6 +165,8 @@ trait HasMobZonaActions
             })
             ->form($this->mobZonaFormulario())
             ->action(function (array $data) {
+                $this->exigirNoMapa('mob_zonas', 'editar'); // R83
+
                 $z = MobZona::withoutGlobalScopes()->find($this->mobZonaAtivoId);
                 if (! $z) {
                     return;
@@ -173,7 +182,9 @@ trait HasMobZonaActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('mob_zonas', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('mob_zonas', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-mob_zona', id: $this->mobZonaAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -182,7 +193,9 @@ trait HasMobZonaActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('mob_zonas', 'excluir')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('mob_zonas', 'excluir');
                         MobZona::withoutGlobalScopes()->find($this->mobZonaAtivoId)?->delete();
                         Notification::make()->title('Zona excluída!')->success()->send();
                         $this->dispatch('remover-mob_zonas-mapa', ['id' => $this->mobZonaAtivoId]);
@@ -201,6 +214,13 @@ trait HasMobZonaActions
     #[On('salvarNovaGeometriaMobZona')]
     public function salvarNovaGeometriaMobZona($id, $geoJson): void
     {
+        // R83: geometria só grava com permissão de EDITAR a entidade
+        if (! $this->autorizarNoMapa('mob_zonas', 'editar')) {
+            $this->dispatch('desfazer-edicao-geometria');
+
+            return;
+        }
+
         $z = MobZona::withoutGlobalScopes()->where('tenant_id', $this->tenantId)->find($id);
         if (! $z) {
             return;

@@ -24,6 +24,7 @@ trait HasMeioFioActions
     public function criarMeioFioAction(): Action
     {
         return Action::make('criarMeioFio')
+            ->authorize(fn () => $this->podeNoMapa('meio_fios', 'criar')) // R83
             ->modalHeading('Cadastrar Novo Meio-fio / Calçada')
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar')
@@ -52,6 +53,8 @@ trait HasMeioFioActions
                 Textarea::make('observacoes')->label('Observações')->rows(2),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('meio_fios', 'criar'); // R83
+
                 $data['tenant_id']    = $this->tenantId;
                 $data['geo']          = $this->geometriaRascunho;
                 $data['code']         = (string) Str::uuid();
@@ -85,6 +88,10 @@ trait HasMeioFioActions
     {
         return Action::make('opcoesMeioFio')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('meio_fios', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('meio_fios', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('meio_fios', 'editar') ? $action : false)
             ->modalHeading(fn () => 'Editar Meio-fio #' . MeioFio::find($this->meioFioAtivoId)?->sequential_id)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Alterações')
@@ -118,6 +125,8 @@ trait HasMeioFioActions
                 Textarea::make('observacoes')->label('Observações')->rows(2),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('meio_fios', 'editar'); // R83
+
                 $reg = MeioFio::find($this->meioFioAtivoId);
                 if ($reg) {
                     $reg->update($data);
@@ -129,7 +138,9 @@ trait HasMeioFioActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('meio_fios', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('meio_fios', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-meio_fio', id: $this->meioFioAtivoId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -138,7 +149,9 @@ trait HasMeioFioActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('meio_fios', 'excluir')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('meio_fios', 'excluir');
                         MeioFio::find($this->meioFioAtivoId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-meio_fio-mapa', ['id' => $this->meioFioAtivoId]);

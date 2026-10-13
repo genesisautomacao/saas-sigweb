@@ -1,3 +1,15 @@
+@php
+    // R83 — permissões do usuário no mapa (fonte: config/mapa.php via MapaPermissoes).
+    // O SERVIDOR manda (traits/listeners checam de novo); aqui só decidimos o que renderizar.
+    $permMapa = $this->permissoesMapa();
+    $criaAlgo = in_array(true, $permMapa['artefatos'] ?? [], true);
+    $temMenuFerramentas = (bool) array_filter(array_intersect_key($permMapa['ferramentas'] ?? [], array_flip([
+        'numeracao', 'altimetria', 'unificar', 'azimute', 'coordxy', 'sentidos', 'lidar', 'wms',
+        'pgv_simulador', 'pgv_motor', 'pgv_amostra', 'pgv_polo', 'medir', 'capturar',
+    ])));
+    $podeEditarLote = (bool) ($permMapa['entidades']['lotes']['editar'] ?? false);
+    $podeCriarCamada = fn (string $camada): bool => (bool) ($permMapa['entidades'][\App\Support\MapaPermissoes::entidadeDaCamada($camada) ?? '']['criar'] ?? false);
+@endphp
 <div class="relative w-screen h-screen overflow-hidden bg-gray-100 dark:bg-gray-900 font-sans text-gray-800">
 
     {{-- 🛡️ ÁREA PROTEGIDA DO LIVEWIRE 🛡️ --}}
@@ -27,6 +39,7 @@
                 mobSetorTemas: @json(\App\Models\MobZona::TEMAS_SETOR),
                 modulos: @json(\App\Support\Modulos::ativos()),
                 camadasModulo: @json(\App\Support\Modulos::mapaCamadas()),
+                permissoes: @json($permMapa),
                 permissionsUrl: '/gis/{{ $tenantSlug }}/map-permissions'
             };
         </script>
@@ -295,17 +308,19 @@
                 {{-- FERRAENTAS SOLTAS NA BARRA PRINCIPAL --}}
                 <div class="flex items-center gap-1 px-1">
 
-                    {{-- BOTÃO FILTRO AVANÇADO + ESTATÍSTICAS — gated por toolbar_filtros
+                    {{-- BOTÃO FILTRO AVANÇADO + ESTATÍSTICAS — R83: gated por ferramenta_filtros / ferramenta_estatisticas
                          (item 86: perfil sem a permissão não vê nem usa; Master/Manager
                          passam pelo Gate::before) --}}
-                    @if (\App\Support\Modulos::ferramentaDisponivel('filtros') && auth()->user()?->temPermissao('toolbar_filtros'))
+                    @if ($permMapa['ferramentas']['filtros'] ?? false)
                         <button type="button" x-data="{ ativo: @entangle('filtroAvancadoAtivo') }"
                             x-on:click="$wire.mountAction('filtroAvancadoAction')"
                             class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                             title="Filtro Avançado / Tematização">
                             <x-heroicon-o-funnel class="w-5 h-5" />
                         </button>
+                    @endif
 
+                    @if ($permMapa['ferramentas']['estatisticas'] ?? false)
                         <button type="button" x-on:click="$wire.mountAction('estatisticasAction')"
                             class="relative rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                             title="Estatísticas por Área">
@@ -334,9 +349,7 @@
                     </button>
 
                     {{-- B4: SALVAR ENQUADRAMENTO PADRÃO --}}
-                    @if (filament()->getTenant() &&
-                            auth()->user()
-                                ?->hasAnyRole(['Master', 'Manager']))
+                    @if ($permMapa['ferramentas']['enquadramento'] ?? false)
                         <button
                             onclick="(function(){ const e = window.getEnquadramentoAtual?.(); if(e) { @this.call('salvarEnquadramento', e.lat, e.lon, e.zoom); } })()"
                             title="Salvar enquadramento atual como padrão"
@@ -396,10 +409,10 @@
 
                     <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
 
-                    {{-- DROPDOWN DE CRIAÇÃO (COM SANFONA) — gated por toolbar_criar_artefatos
+                    {{-- DROPDOWN DE CRIAÇÃO (COM SANFONA) — R83: aparece se o papel pode CRIAR alguma entidade (create_X)
                          (item 87: o gatilho só aparece com a permissão do perfil) --}}
                     <div id="toolbar-criar-artefatos" x-data="{ openDraw: false, activeTabDraw: 'base' }" class="relative">
-                        @if (auth()->user()?->temPermissao('toolbar_criar_artefatos'))
+                        @if ($criaAlgo)
                         <button type="button" @click="openDraw = !openDraw" @click.outside="openDraw = false"
                             title="Desenhar no Mapa"
                             class="p-2 hover:bg-primary-100 dark:hover:bg-primary-900/20 rounded-xl text-gray-600 dark:text-gray-400 transition-colors focus:outline-none flex items-center gap-1">
@@ -441,21 +454,21 @@
                                             x-bind:class="activeTabDraw === 'base' ? 'rotate-180' : ''" />
                                     </button>
                                     <div x-show="activeTabDraw === 'base'" x-collapse class="py-1">
-                                        @if (\App\Support\Modulos::artefatoDisponivel('perimetro_urbano'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('perimetro_urbano') && ($permMapa['artefatos']['perimetro_urbano'] ?? false))
                                         <button type="button" onclick="enableDrawing('perimetro_urbano')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-globe-americas class="w-4 h-4 text-red-500" /> Distrito / Limite
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('bairro'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('bairro') && ($permMapa['artefatos']['bairro'] ?? false))
                                         <button type="button" onclick="enableDrawing('bairro')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Bairro
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('logradouro'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('logradouro') && ($permMapa['artefatos']['logradouro'] ?? false))
                                         <button type="button" onclick="enableDrawing('logradouro')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-slate-100 hover:text-slate-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-minus class="w-4 h-4 text-slate-500" /> Logradouro
@@ -480,35 +493,35 @@
                                             x-bind:class="activeTabDraw === 'imobiliario' ? 'rotate-180' : ''" />
                                     </button>
                                     <div x-show="activeTabDraw === 'imobiliario'" x-collapse class="py-1">
-                                        @if (\App\Support\Modulos::artefatoDisponivel('loteamento'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('loteamento') && ($permMapa['artefatos']['loteamento'] ?? false))
                                         <button type="button" onclick="enableDrawing('loteamento')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Loteamento
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('quadra'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('quadra') && ($permMapa['artefatos']['quadra'] ?? false))
                                         <button type="button" onclick="enableDrawing('quadra')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-squares-2x2 class="w-4 h-4 text-orange-500" /> Quadra
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('lote'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('lote') && ($permMapa['artefatos']['lote'] ?? false))
                                         <button type="button" onclick="enableDrawing('lote')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-stop class="w-4 h-4 text-emerald-500" /> Lote
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('edificacao'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('edificacao') && ($permMapa['artefatos']['edificacao'] ?? false))
                                         <button type="button" onclick="enableDrawing('edificacao')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-home class="w-4 h-4 text-amber-600" /> Edificação
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('meio_fio'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('meio_fio') && ($permMapa['artefatos']['meio_fio'] ?? false))
                                         <button type="button" onclick="enableDrawing('meio_fio')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-minus class="w-4 h-4 text-amber-700" /> Meio-fio / Calçada
@@ -532,7 +545,7 @@
                                             x-bind:class="activeTabDraw === 'zonas' ? 'rotate-180' : ''" />
                                     </button>
                                     <div x-show="activeTabDraw === 'zonas'" x-collapse class="py-1">
-                                        @if (\App\Support\Modulos::artefatoDisponivel('zona'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('zona') && ($permMapa['artefatos']['zona'] ?? false))
                                         <button type="button" onclick="enableDrawing('zona')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-purple-50 hover:text-purple-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-stop class="w-4 h-4 text-purple-500" /> Zona de Uso
@@ -556,7 +569,7 @@
                                             x-bind:class="activeTabDraw === 'imageamento' ? 'rotate-180' : ''" />
                                     </button>
                                     <div x-show="activeTabDraw === 'imageamento'" x-collapse class="py-1">
-                                        @if (\App\Support\Modulos::artefatoDisponivel('ponto_panoramico'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('ponto_panoramico') && ($permMapa['artefatos']['ponto_panoramico'] ?? false))
                                         <button type="button" onclick="enableDrawing('ponto_panoramico')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-camera class="w-4 h-4 text-blue-500" /> Ponto Panorâmico 360º
@@ -580,49 +593,49 @@
                                             x-bind:class="activeTabDraw === 'mobilidade' ? 'rotate-180' : ''" />
                                     </button>
                                     <div x-show="activeTabDraw === 'mobilidade'" x-collapse class="py-1">
-                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_trecho'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_trecho') && ($permMapa['artefatos']['mob_trecho'] ?? false))
                                         <button type="button" onclick="enableDrawing('mob_trecho')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-sky-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-arrow-long-right class="w-4 h-4 text-sky-500" /> Trecho Viário (desenho = direção do levantamento)
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_via'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_via') && ($permMapa['artefatos']['mob_via'] ?? false))
                                         <button type="button" onclick="enableDrawing('mob_via')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-sky-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-arrows-right-left class="w-4 h-4 text-blue-600" /> Via Urbana (desenho = sentido do fluxo)
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_eixo'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_eixo') && ($permMapa['artefatos']['mob_eixo'] ?? false))
                                         <button type="button" onclick="enableDrawing('mob_eixo')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-green-50 hover:text-green-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-arrow-trending-up class="w-4 h-4 text-green-600" /> Eixo (Ciclovia / Rota / Rodovia)
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_zona'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_zona') && ($permMapa['artefatos']['mob_zona'] ?? false))
                                         <button type="button" onclick="enableDrawing('mob_zona')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-stop class="w-4 h-4 text-blue-500" /> Zona de Estudo
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_sinalizacao'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_sinalizacao') && ($permMapa['artefatos']['mob_sinalizacao'] ?? false))
                                         <button type="button" onclick="enableDrawing('mob_sinalizacao')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-map-pin class="w-4 h-4 text-red-500" /> Sinalização Viária
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_ponto_interesse'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_ponto_interesse') && ($permMapa['artefatos']['mob_ponto_interesse'] ?? false))
                                         <button type="button" onclick="enableDrawing('mob_ponto_interesse')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-map-pin class="w-4 h-4 text-amber-500" /> Ponto de Interesse
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_camera'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('mob_camera') && ($permMapa['artefatos']['mob_camera'] ?? false))
                                         <button type="button" onclick="enableDrawing('mob_camera')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-video-camera class="w-4 h-4 text-red-500" /> Câmera de Monitoramento
@@ -647,35 +660,35 @@
                                             x-bind:class="activeTabDraw === 'infra' ? 'rotate-180' : ''" />
                                     </button>
                                     <div x-show="activeTabDraw === 'infra'" x-collapse class="py-1">
-                                        @if (\App\Support\Modulos::artefatoDisponivel('setor_fiscal'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('setor_fiscal') && ($permMapa['artefatos']['setor_fiscal'] ?? false))
                                         <button type="button" onclick="enableDrawing('setor_fiscal')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-currency-dollar class="w-4 h-4 text-amber-500" /> Setor Fiscal
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('area_reurb'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('area_reurb') && ($permMapa['artefatos']['area_reurb'] ?? false))
                                         <button type="button" onclick="enableDrawing('area_reurb')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-home-modern class="w-4 h-4 text-amber-500" /> Área de Regularização (REURB)
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('patrimonio_publico'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('patrimonio_publico') && ($permMapa['artefatos']['patrimonio_publico'] ?? false))
                                         <button type="button" onclick="enableDrawing('patrimonio_publico')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-building-library class="w-4 h-4 text-indigo-500" /> Patrimônio Público
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('poste'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('poste') && ($permMapa['artefatos']['poste'] ?? false))
                                         <button type="button" onclick="enableDrawing('poste')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-yellow-50 hover:text-yellow-600 flex items-center gap-3 transition-colors">
                                             <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg> Poste / Ponto de Luz
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('arvore'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('arvore') && ($permMapa['artefatos']['arvore'] ?? false))
                                         <button type="button" onclick="enableDrawing('arvore')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-sparkles class="w-4 h-4 text-emerald-500" /> Árvore
@@ -699,28 +712,28 @@
                                             x-bind:class="activeTabDraw === 'cemiterio' ? 'rotate-180' : ''" />
                                     </button>
                                     <div x-show="activeTabDraw === 'cemiterio'" x-collapse class="py-1">
-                                        @if (\App\Support\Modulos::artefatoDisponivel('cemiterio'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('cemiterio') && ($permMapa['artefatos']['cemiterio'] ?? false))
                                         <button type="button" onclick="enableDrawing('cemiterio')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-purple-50 hover:text-purple-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-stop class="w-4 h-4 text-purple-600" /> Cemitério
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('quadra_cemiterio'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('quadra_cemiterio') && ($permMapa['artefatos']['quadra_cemiterio'] ?? false))
                                         <button type="button" onclick="enableDrawing('quadra_cemiterio')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-squares-2x2 class="w-4 h-4 text-indigo-500" /> Quadra de Cemitério
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('logradouro_cemiterio'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('logradouro_cemiterio') && ($permMapa['artefatos']['logradouro_cemiterio'] ?? false))
                                         <button type="button" onclick="enableDrawing('logradouro_cemiterio')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-slate-100 hover:text-slate-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-arrows-right-left class="w-4 h-4 text-slate-500" /> Rua Interna
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('jazigo'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('jazigo') && ($permMapa['artefatos']['jazigo'] ?? false))
                                         <button type="button" onclick="enableDrawing('jazigo')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-archive-box class="w-4 h-4 text-stone-600" /> Jazigo / Túmulo
@@ -744,56 +757,56 @@
                                             x-bind:class="activeTabDraw === 'rural' ? 'rotate-180' : ''" />
                                     </button>
                                     <div x-show="activeTabDraw === 'rural'" x-collapse class="py-1">
-                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_localidade'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_localidade') && ($permMapa['artefatos']['rural_localidade'] ?? false))
                                         <button type="button" onclick="enableDrawing('rural_localidade')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-map class="w-4 h-4 text-stone-600" /> Localidade / Distrito
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_propriedade'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_propriedade') && ($permMapa['artefatos']['rural_propriedade'] ?? false))
                                         <button type="button" onclick="enableDrawing('rural_propriedade')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-home-modern class="w-4 h-4 text-stone-600" /> Propriedade (CAR)
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_hidro_poligono'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_hidro_poligono') && ($permMapa['artefatos']['rural_hidro_poligono'] ?? false))
                                         <button type="button" onclick="enableDrawing('rural_hidro_poligono')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-stop class="w-4 h-4 text-cyan-500" /> Lago / Represa
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_estrada'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_estrada') && ($permMapa['artefatos']['rural_estrada'] ?? false))
                                         <button type="button" onclick="enableDrawing('rural_estrada')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-stone-100 hover:text-stone-800 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-lifebuoy class="w-4 h-4 text-stone-600" /> Estrada / Vicinal
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_hidro_linha'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_hidro_linha') && ($permMapa['artefatos']['rural_hidro_linha'] ?? false))
                                         <button type="button" onclick="enableDrawing('rural_hidro_linha')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-minus class="w-4 h-4 text-cyan-500" /> Rio / Córrego
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Linha</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_ponte'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_ponte') && ($permMapa['artefatos']['rural_ponte'] ?? false))
                                         <button type="button" onclick="enableDrawing('rural_ponte')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-bars-2 class="w-4 h-4 text-amber-600" /> Ponte
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_hidro_ponto'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_hidro_ponto') && ($permMapa['artefatos']['rural_hidro_ponto'] ?? false))
                                         <button type="button" onclick="enableDrawing('rural_hidro_ponto')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-cyan-50 hover:text-cyan-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-sparkles class="w-4 h-4 text-cyan-500" /> Nascente
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_ponto_interesse'))
+                                        @if (\App\Support\Modulos::artefatoDisponivel('rural_ponto_interesse') && ($permMapa['artefatos']['rural_ponto_interesse'] ?? false))
                                         <button type="button" onclick="enableDrawing('rural_ponto_interesse')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-teal-50 hover:text-teal-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-star class="w-4 h-4 text-teal-500" /> Ponto de Interesse
@@ -816,23 +829,25 @@
                                             x-bind:class="activeTabDraw === 'anotacoes' ? 'rotate-180' : ''" />
                                     </button>
                                     <div x-show="activeTabDraw === 'anotacoes'" x-collapse class="py-1">
+                                        @if ($permMapa['artefatos']['toponimia'] ?? false)
                                         <button type="button" @click="openDraw = false; window.ativarFerramentaToponimiia(true)"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-violet-50 hover:text-violet-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-chat-bubble-bottom-center-text class="w-4 h-4 text-violet-500" /> Texto / Toponímia
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Ponto</span>
                                         </button>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {{-- GRUPO FERRAMENTAS (permissão toolbar_ferramentas) --}}
+                    {{-- GRUPO FERRAMENTAS (R83: uma permissão ferramenta_<id> por item) --}}
                     <div id="toolbar-ferramentas" class="flex items-center gap-0.5">
 
-                        {{-- 🛠️ DROPDOWN DE FERRAMENTAS 🛠️ — gated por toolbar_ferramentas (item 87) --}}
+                        {{-- 🛠️ DROPDOWN DE FERRAMENTAS 🛠️ — R83: o menu aparece se o papel tem ≥1 ferramenta_* do grupo (item 87) --}}
                         <div x-data="{ openTools: false }" class="relative">
-                            @if (auth()->user()?->temPermissao('toolbar_ferramentas'))
+                            @if ($temMenuFerramentas)
                             <button @click="openTools = !openTools" @click.outside="openTools = false"
                                 title="Ferramentas Avançadas"
                                 class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-gray-600 dark:text-gray-300 transition-colors focus:outline-none flex items-center gap-1">
@@ -850,44 +865,50 @@
                                 </div>
                                 <div class="py-1 flex flex-col">
 
-                                    @if (\App\Support\Modulos::ferramentaDisponivel('numeracao'))
+                                    @if ($permMapa['ferramentas']['numeracao'] ?? false)
                                     <button id="btn-tool-numeracao" @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-hashtag class="w-4 h-4 text-blue-500" /> Numeração Predial
                                     </button>
                                     @endif
 
+                                    @if ($permMapa['ferramentas']['altimetria'] ?? false)
                                     <button id="btn-tool-altimetria" @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-chart-bar class="w-4 h-4 text-emerald-500" /> Perfil de Terreno
                                         (Altimetria)
                                     </button>
+                                    @endif
 
-                                    @if (\App\Support\Modulos::ferramentaDisponivel('unificar'))
+                                    @if ($permMapa['ferramentas']['unificar'] ?? false)
                                     <button id="btn-tool-unificar" @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-purple-50 dark:hover:bg-gray-700 hover:text-purple-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-link class="w-4 h-4 text-purple-500" /> Unificar Lotes (Solda)
                                     </button>
                                     @endif
 
+                                    @if ($permMapa['ferramentas']['azimute'] ?? false)
                                     <button id="btn-tool-azimute" @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-arrow-trending-up class="w-4 h-4 text-blue-500" /> Criar por Azimutes
                                     </button>
+                                    @endif
 
+                                    @if ($permMapa['ferramentas']['coordxy'] ?? false)
                                     <button id="btn-tool-coordxy" @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-map-pin class="w-4 h-4 text-blue-500" /> Criar por Coordenada XY
                                     </button>
+                                    @endif
 
-                                    @if ($temMobilidade)
+                                    @if ($permMapa['ferramentas']['sentidos'] ?? false)
                                     <button @click="openTools = false; window.dispatchEvent(new Event('abrir-mob-sentido-panel'))"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-arrows-right-left class="w-4 h-4 text-blue-500" /> Classificar Sentidos (Vias Urbanas)
                                     </button>
                                     @endif
 
-                                    @if (\App\Support\Modulos::ferramentaDisponivel('lidar'))
+                                    @if ($permMapa['ferramentas']['lidar'] ?? false)
                                     <button wire:click="mountAction('abrirNuvemPontosAction')"
                                         @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 flex items-center gap-2 font-bold transition-colors">
@@ -895,12 +916,14 @@
                                     </button>
                                     @endif
 
+                                    @if ($permMapa['ferramentas']['wms'] ?? false)
                                     <button @click="openTools = false; window.dispatchEvent(new Event('abrir-wms-sidebar'))"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-globe-alt class="w-4 h-4 text-emerald-500" /> Camadas WMS
                                     </button>
+                                    @endif
 
-                                    @if (\App\Support\Modulos::ferramentaDisponivel('pgv_simulador'))
+                                    @if ($permMapa['ferramentas']['pgv_simulador'] ?? false)
                                     <button wire:click="mountAction('configurarPgvAction')" @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-banknotes class="w-4 h-4 text-emerald-500" /> Simulador de
@@ -909,7 +932,7 @@
                                     </button>
                                     @endif
 
-                                    @if (\App\Support\Modulos::ferramentaDisponivel('pgv_motor'))
+                                    @if ($permMapa['ferramentas']['pgv_motor'] ?? false)
                                     <button @click="openTools = false; window.dispatchEvent(new Event('abrir-motor-pgv'))"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 font-bold transition-colors">
                                         <x-heroicon-o-calculator class="w-4 h-4 text-emerald-600" /> Motor da PGV
@@ -917,14 +940,14 @@
                                     </button>
                                     @endif
 
-                                    @if (\App\Support\Modulos::ferramentaDisponivel('pgv_amostra'))
+                                    @if ($permMapa['ferramentas']['pgv_amostra'] ?? false)
                                     <button @click="openTools = false; window.pgvIniciarClique('amostra')"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 transition-colors">
                                         <x-heroicon-o-map-pin class="w-4 h-4 text-emerald-500" /> Nova Amostra (clique)
                                     </button>
                                     @endif
 
-                                    @if (\App\Support\Modulos::ferramentaDisponivel('pgv_polo'))
+                                    @if ($permMapa['ferramentas']['pgv_polo'] ?? false)
                                     <button @click="openTools = false; window.pgvIniciarClique('polo')"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-600 flex items-center gap-2 transition-colors">
                                         <x-heroicon-o-star class="w-4 h-4 text-amber-500" /> Novo Pólo Valorizante (clique)
@@ -936,26 +959,33 @@
 
                                     <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
 
+                                    @if ($permMapa['ferramentas']['medir'] ?? false)
                                     <button id="btn-measure-line" @click="openTools = false"
                                         class="px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
                                         <x-heroicon-o-arrows-right-left class="w-4 h-4 text-gray-500" /> Medir
                                         Distância
                                     </button>
+                                    @endif
 
+                                    @if ($permMapa['ferramentas']['medir'] ?? false)
                                     <button id="btn-measure-area" @click="openTools = false"
                                         class="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
                                         <x-heroicon-o-view-columns class="w-4 h-4 text-gray-500" /> Medir Área
                                     </button>
+                                    @endif
 
                                     {{-- PoC AC item 12 — clique único captura lat/lon com botão copiar --}}
+                                    @if ($permMapa['ferramentas']['capturar'] ?? false)
                                     <button id="btn-tool-capturar-coord" @click="openTools = false"
                                         class="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
                                         <x-heroicon-o-map-pin class="w-4 h-4 text-gray-500" /> Capturar Coordenadas
                                     </button>
+                                    @endif
                                 </div>
                             </div>
                         </div>
 
+                        @if (($permMapa['ferramentas']['imprimir'] ?? false) || ($permMapa['ferramentas']['exportar_shp'] ?? false))
                         {{-- DROPDOWN IMPRESSÃO E EXPORTAÇÃO --}}
                         <div class="relative" x-data="{ open: false }" @click.away="open = false">
                             <button @click="open = !open" title="Impressão e Exportação"
@@ -974,6 +1004,7 @@
                                 class="absolute right-0 mt-2 w-72 dark:bg-gray-800 rounded-xl shadow-2xl z-[1001] overflow-hidden">
 
                                 <div class="p-2">
+                                    @if ($permMapa['ferramentas']['imprimir'] ?? false)
                                     <div
                                         class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                                         Formatos de Impressão (PDF)</div>
@@ -995,7 +1026,9 @@
                                     @endforeach
 
                                     <div style="margin: 8px 0; border-top: 1px solid #f3f4f6;"></div>
+                                    @endif
 
+                                    @if ($permMapa['ferramentas']['exportar_shp'] ?? false)
                                     <div
                                         class="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                                         Exportar Camadas (SHP)</div>
@@ -1020,6 +1053,8 @@
                                             'rural_localidades' => 'Localidades Rurais',
                                             'rural_hidrografias' => 'Hidrografias',
                                         ];
+                                        // R83: só as camadas que o papel vê no mapa
+                                        $camadasShp = array_filter($camadasShp, fn ($k) => $permMapa['camadas'][$k] ?? false, ARRAY_FILTER_USE_KEY);
                                     @endphp
 
                                     {{-- Recorte por desenho (pedido do usuário, 2026-08-06): com o
@@ -1041,9 +1076,11 @@
                                             </button>
                                         @endforeach
                                     </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
+                        @endif
                     </div>{{-- /toolbar-ferramentas --}}
 
 
@@ -1156,14 +1193,16 @@
                         <span class="hidden md:inline">Camadas</span>
                     </button>
 
-                    {{-- BOTÃO TOGGLE CAD AVANÇADO (permissão toolbar_ferramentas) --}}
-                    <button type="button" data-permission-group="toolbar:ferramentas"
+                    {{-- BOTÃO TOGGLE CAD AVANÇADO (R83: ferramenta_cad) --}}
+                    @if ($permMapa['ferramentas']['cad'] ?? false)
+                    <button type="button"
                         @click="$dispatch('toggle-cad-avancado')"
                         class="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl text-primary-600 dark:text-primary-400 font-bold text-sm flex items-center gap-2"
                         title="Módulo CAD Avançado">
                         <x-heroicon-o-cpu-chip class="w-5 h-5" />
                         <span class="hidden md:inline text-sm">CAD</span>
                     </button>
+                    @endif
 
                 </div>
             </div>
@@ -1486,31 +1525,31 @@
                 <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Salvar como</label>
                 <select x-model="entidade"
                     class="w-full text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900">
-                    @if (\App\Support\Modulos::camadaDisponivel('lotes'))
+                    @if (\App\Support\Modulos::camadaDisponivel('lotes') && $podeCriarCamada('lotes'))
                     <option value="lotes">Lote</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('quadras'))
+                    @if (\App\Support\Modulos::camadaDisponivel('quadras') && $podeCriarCamada('quadras'))
                     <option value="quadras">Quadra</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('bairros'))
+                    @if (\App\Support\Modulos::camadaDisponivel('bairros') && $podeCriarCamada('bairros'))
                     <option value="bairros">Bairro</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('loteamentos'))
+                    @if (\App\Support\Modulos::camadaDisponivel('loteamentos') && $podeCriarCamada('loteamentos'))
                     <option value="loteamentos">Loteamento</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('perimetros'))
+                    @if (\App\Support\Modulos::camadaDisponivel('perimetros') && $podeCriarCamada('perimetros'))
                     <option value="perimetros">Perímetro Urbano</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('zonas'))
+                    @if (\App\Support\Modulos::camadaDisponivel('zonas') && $podeCriarCamada('zonas'))
                     <option value="zonas">Zona</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais'))
+                    @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais') && $podeCriarCamada('setores_fiscais'))
                     <option value="setores_fiscais">Setor Fiscal</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('areas_reurb'))
+                    @if (\App\Support\Modulos::camadaDisponivel('areas_reurb') && $podeCriarCamada('areas_reurb'))
                     <option value="areas_reurb">Área REURB</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('patrimonio_publicos'))
+                    @if (\App\Support\Modulos::camadaDisponivel('patrimonio_publicos') && $podeCriarCamada('patrimonio_publicos'))
                     <option value="patrimonio_publicos">Patrimônio Público</option>
                     @endif
                 </select>
@@ -1624,31 +1663,31 @@
                 <label class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Salvar como</label>
                 <select x-model="entidade"
                     class="w-full text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900">
-                    @if (\App\Support\Modulos::camadaDisponivel('lotes'))
+                    @if (\App\Support\Modulos::camadaDisponivel('lotes') && $podeCriarCamada('lotes'))
                     <option value="lotes">Lote</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('quadras'))
+                    @if (\App\Support\Modulos::camadaDisponivel('quadras') && $podeCriarCamada('quadras'))
                     <option value="quadras">Quadra</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('bairros'))
+                    @if (\App\Support\Modulos::camadaDisponivel('bairros') && $podeCriarCamada('bairros'))
                     <option value="bairros">Bairro</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('loteamentos'))
+                    @if (\App\Support\Modulos::camadaDisponivel('loteamentos') && $podeCriarCamada('loteamentos'))
                     <option value="loteamentos">Loteamento</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('perimetros'))
+                    @if (\App\Support\Modulos::camadaDisponivel('perimetros') && $podeCriarCamada('perimetros'))
                     <option value="perimetros">Perímetro Urbano</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('zonas'))
+                    @if (\App\Support\Modulos::camadaDisponivel('zonas') && $podeCriarCamada('zonas'))
                     <option value="zonas">Zona</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais'))
+                    @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais') && $podeCriarCamada('setores_fiscais'))
                     <option value="setores_fiscais">Setor Fiscal</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('areas_reurb'))
+                    @if (\App\Support\Modulos::camadaDisponivel('areas_reurb') && $podeCriarCamada('areas_reurb'))
                     <option value="areas_reurb">Área REURB</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('patrimonio_publicos'))
+                    @if (\App\Support\Modulos::camadaDisponivel('patrimonio_publicos') && $podeCriarCamada('patrimonio_publicos'))
                     <option value="patrimonio_publicos">Patrimônio Público</option>
                     @endif
                 </select>
@@ -1877,11 +1916,13 @@
 
                         {{-- PoC AC item 7 — as cores das camadas estruturais são personalizáveis
                              (seletor de cor em cada linha, salvo no navegador do usuário). --}}
+                        @if ($permMapa['ferramentas']['cores'] ?? false)
                         <div class="flex justify-end -mb-1 mt-1">
                             <button type="button" id="btn-restaurar-cores"
                                 class="text-[11px] text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                                 title="Voltar às cores padrão do sistema">↺ restaurar cores padrão</button>
                         </div>
+                        @endif
 
                         @if (\App\Support\Modulos::camadaDisponivel('perimetros'))
                         <div class="flex items-center justify-between w-full mt-2">
@@ -3412,7 +3453,7 @@
                                     @endif
                                 </button>
                             @endif
-                            @if (\App\Support\Modulos::artefatoDisponivel('edificacao'))
+                            @if (\App\Support\Modulos::artefatoDisponivel('edificacao') && ($permMapa['artefatos']['edificacao'] ?? false))
                                 <button type="button" onclick="enableDrawing('edificacao')" title="Desenhar Nova Edificação"
                                     class="flex items-center justify-center rounded-lg text-gray-500 hover:text-emerald-600"
                                     style="width: 34px; height: 34px;">
@@ -3454,20 +3495,24 @@
                                             class="flex items-center justify-center rounded-lg text-gray-500 hover:text-primary-600" style="width: 28px; height: 28px;">
                                             <x-heroicon-o-pencil-square class="w-4 h-4" />
                                         </button>
-                                        @if ($edifItem['tem_geo'])
+                                        @if ($edifItem['tem_geo'] && $podeEditarLote)
                                             <button type="button" wire:click="editarGeometriaEdificacao({{ $edifItem['id'] }})" title="Editar geometria"
                                                 class="flex items-center justify-center rounded-lg text-gray-500 hover:text-warning-600" style="width: 28px; height: 28px;">
                                                 <x-heroicon-o-map class="w-4 h-4" />
                                             </button>
                                         @endif
+                                        @if ($podeEditarLote)
                                         <button type="button" wire:click="iniciarVinculoEdificacao({{ $edifItem['id'] }})" title="Vincular a outro lote"
                                             class="flex items-center justify-center rounded-lg text-gray-500 hover:text-primary-600" style="width: 28px; height: 28px;">
                                             <x-heroicon-o-link class="w-4 h-4" />
                                         </button>
+                                        @endif
+                                        @if ($podeEditarLote)
                                         <button type="button" wire:click="mountAction('excluirEdificacao', { id: {{ $edifItem['id'] }} })" title="Excluir"
                                             class="flex items-center justify-center rounded-lg text-gray-500 hover:text-danger-600" style="width: 28px; height: 28px;">
                                             <x-heroicon-o-trash class="w-4 h-4" />
                                         </button>
+                                        @endif
                                     </div>
                                 </div>
                             @empty
@@ -3497,7 +3542,7 @@
                                 </div>
                             </div>
                         </button>
-                        @if (\App\Support\Modulos::artefatoDisponivel('testada'))
+                        @if (\App\Support\Modulos::artefatoDisponivel('testada') && ($permMapa['artefatos']['testada'] ?? false))
                         <button onclick="enableDrawing('testada')" title="Desenhar Nova Testada"
                             class="flex-shrink-0 flex items-center justify-center w-[50px] h-[50px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-green-50 hover:border-green-600 hover:text-green-700 transition-all">
                             <x-heroicon-o-plus class="w-5 h-5" />
@@ -3585,32 +3630,42 @@
                 class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex flex-row gap-2">
 
                 {{-- DESMEMBRAR LOTE --}}
+                @if ($permMapa['ferramentas']['desmembrar'] ?? false)
                 <button onclick="ativarFerramentaCorteLote({{ $loteAtivoId }})" title="Desmembrar / Cortar Lote"
                     class="flex-1 flex justify-center py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold border border-blue-100 transition-colors">
                     <x-heroicon-o-scissors class="w-5 h-5" />
                 </button>
+                @endif
 
                 {{-- STREET VIEW LOTE --}}
+                @if ($permMapa['ferramentas']['street_view'] ?? false)
                 <button wire:click="mountAction('abrirStreetViewAction')" title="Explorar Street View"
                     class="flex-1 flex justify-center py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold border border-blue-100 transition-colors">
                     <x-heroicon-o-globe-americas class="w-5 h-5" />
                 </button>
+                @endif
 
                 {{-- EDITAR LOTE --}}
+                @if ($podeEditarLote)
                 <button wire:click="mountAction('editarDadosLote')" title="Editar Dados"
                     class="flex-1 flex justify-center py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold border border-blue-100"><x-heroicon-o-document-text
                         class="w-5 h-5" />
                 </button>
+                @endif
                 {{-- GEOMETRIA LOTE --}}
+                @if ($podeEditarLote)
                 <button wire:click="habilitarEdicaoGeometria" title="Editar Geometria"
                     class="flex-1 flex justify-center py-2.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl font-bold border border-emerald-100"><x-heroicon-o-map
                         class="w-5 h-5" />
                 </button>
+                @endif
                 {{-- EXCLUIR LOTE --}}
+                @if ($permMapa['entidades']['lotes']['excluir'] ?? false)
                 <button wire:click="mountAction('deletarArtefato')" title="Excluir Lote"
                     class="flex-1 flex justify-center py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-bold border border-red-100"><x-heroicon-o-trash
                         class="w-5 h-5" />
                 </button>
+                @endif
             </div>
         @endif
     </div>

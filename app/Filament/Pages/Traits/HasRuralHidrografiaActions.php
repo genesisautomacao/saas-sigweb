@@ -17,6 +17,7 @@ trait HasRuralHidrografiaActions
     public function criarRuralHidrografiaAction(): Action
     {
         return Action::make('criarRuralHidrografia')
+            ->authorize(fn () => $this->podeNoMapa('rural_hidrografias', 'criar')) // R83
             ->modalHeading('Cadastrar Recurso Hídrico')
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar')
@@ -34,6 +35,8 @@ trait HasRuralHidrografiaActions
                     ->required(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('rural_hidrografias', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['code'] = (string) Str::uuid();
@@ -55,6 +58,10 @@ trait HasRuralHidrografiaActions
     {
         return Action::make('opcoesRuralHidrografia')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('rural_hidrografias', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('rural_hidrografias', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('rural_hidrografias', 'editar') ? $action : false)
             ->modalHeading(fn () => 'Editar Hidrografia: ' . (RuralHidrografia::find($this->ruralHidrografiaAtivaId)?->nome ?? 'Sem Nome'))
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Dados')
@@ -72,6 +79,8 @@ trait HasRuralHidrografiaActions
                 Select::make('rural_localidade_id')->label('Localidade / Distrito Base')->options(RuralLocalidade::where('tenant_id', $this->tenantId)->pluck('nome', 'id'))->searchable()->required(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('rural_hidrografias', 'editar'); // R83
+
                 $reg = RuralHidrografia::find($this->ruralHidrografiaAtivaId);
                 if ($reg) {
                     $reg->update($data);
@@ -84,7 +93,9 @@ trait HasRuralHidrografiaActions
                     ->label('Editar Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('rural_hidrografias', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('rural_hidrografias', 'editar');
                         $this->dispatch('iniciar-edicao-geometria-rural_hidrografia', id: $this->ruralHidrografiaAtivaId);
                         $this->dispatch('fechar-modal-filament');
                     }),
@@ -93,7 +104,9 @@ trait HasRuralHidrografiaActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('rural_hidrografias', 'excluir')) // R83
                     ->action(function() {
+                        $this->exigirNoMapa('rural_hidrografias', 'excluir');
                         RuralHidrografia::find($this->ruralHidrografiaAtivaId)?->delete();
                         Notification::make()->title('Excluída!')->success()->send();
                         $this->dispatch('remover-rural_hidrografia-mapa', ['id' => $this->ruralHidrografiaAtivaId]);

@@ -188,6 +188,7 @@ trait HasEdificacaoActions
     public function criarEdificacaoAction(): Action
     {
         return Action::make('criarEdificacao')
+            ->authorize(fn () => $this->podeNoMapa('edificacao', 'criar')) // R83: edificação = conteúdo do lote (editar lotes)
             ->modalHeading('Cadastrar Nova Edificação')
             ->modalSubmitActionLabel('Salvar Edificação')
             ->modalWidth('md')
@@ -200,6 +201,7 @@ trait HasEdificacaoActions
                     ->columns(2),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('edificacao', 'criar'); // R83
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['lote_id'] = $this->edificacaoRascunhoLoteId ?? $this->loteAtivoId;
@@ -229,6 +231,9 @@ trait HasEdificacaoActions
     public function opcoesEdificacaoAction(): Action
     {
         return Action::make('opcoesEdificacao')
+            ->authorize(fn () => $this->podeNoMapa('edificacoes', 'mapa')) // R83: ver = abre a ficha; sem editar = só leitura e sem Salvar
+            ->disabledForm(fn () => ! $this->podeNoMapa('edificacao', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('edificacao', 'editar') ? $action : false)
             ->hiddenLabel()
             ->modalHeading(function () {
                 $edif = Edificacao::query()->with('lote')->find($this->edificacaoAtivaId);
@@ -257,6 +262,7 @@ trait HasEdificacaoActions
                     ->columnSpanFull(),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('edificacao', 'editar'); // R83
                 $edif = Edificacao::find($this->edificacaoAtivaId);
                 if ($edif) {
                     // area_geo é calculada pela geometria — nunca vem do form.
@@ -268,15 +274,18 @@ trait HasEdificacaoActions
             })
             ->extraModalFooterActions([
                 Action::make('editar_geometria')
+                    ->visible(fn () => $this->podeNoMapa('edificacao', 'editar')) // R83
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
                     ->action(function () {
+                        $this->exigirNoMapa('edificacao', 'editar'); // R83
                         $this->editarGeometriaEdificacao($this->edificacaoAtivaId);
                         $this->dispatch('fechar-modal-filament');
                     }),
 
                 Action::make('vincular_lote')
+                    ->visible(fn () => $this->podeNoMapa('edificacao', 'editar')) // R83
                     ->label('Vincular a outro lote')
                     ->color('gray')
                     ->icon('heroicon-o-link')
@@ -285,6 +294,7 @@ trait HasEdificacaoActions
                     ->action(fn () => $this->dispatch('abrirVinculoEdificacao', id: $this->edificacaoAtivaId)),
 
                 Action::make('excluir_edif')
+                    ->visible(fn () => $this->podeNoMapa('edificacao', 'excluir')) // R83
                     ->label('Excluir')
                     ->color('danger')
                     ->icon('heroicon-o-trash')
@@ -298,6 +308,7 @@ trait HasEdificacaoActions
     public function excluirEdificacaoAction(): Action
     {
         return Action::make('excluirEdificacao')
+            ->authorize(fn () => $this->podeNoMapa('edificacao', 'excluir')) // R83
             ->requiresConfirmation()
             ->modalHeading('Excluir edificação?')
             ->modalDescription('A edificação vai para a lixeira (recuperável).')
@@ -307,6 +318,10 @@ trait HasEdificacaoActions
 
     private function excluirEdificacao(?int $id): void
     {
+        if (! $this->autorizarNoMapa('edificacao', 'excluir')) { // R83
+            return;
+        }
+
         $edif = $id ? Edificacao::find($id) : null;
         if (! $edif) {
             return;
@@ -328,6 +343,10 @@ trait HasEdificacaoActions
      */
     public function editarGeometriaEdificacao(?int $id): void
     {
+        if (! $this->autorizarNoMapa('edificacao', 'editar')) { // R83
+            return;
+        }
+
         if (! $id || ! Edificacao::query()->whereKey($id)->exists()) {
             return;
         }
@@ -385,6 +404,10 @@ trait HasEdificacaoActions
     #[On('abrirVinculoEdificacao')]
     public function iniciarVinculoEdificacao(?int $id): void
     {
+        if (! $this->autorizarNoMapa('edificacao', 'editar')) { // R83
+            return;
+        }
+
         $edif = $id ? Edificacao::query()->find($id) : null;
         if (! $edif) {
             return;
@@ -399,6 +422,10 @@ trait HasEdificacaoActions
     #[On('escolherLoteVinculoEdificacao')]
     public function escolherLoteVinculoEdificacao($id, $lon, $lat): void
     {
+        if (! $this->autorizarNoMapa('edificacao', 'editar')) { // R83
+            return;
+        }
+
         $this->edificacaoAtivaId = (int) $id;
 
         $loteId = Lote::query()
@@ -422,6 +449,7 @@ trait HasEdificacaoActions
     public function vincularEdificacaoAction(): Action
     {
         return Action::make('vincularEdificacao')
+            ->authorize(fn () => $this->podeNoMapa('edificacao', 'editar')) // R83
             ->modalHeading('Vincular edificação a outro lote')
             ->modalIcon('heroicon-o-link')
             ->modalWidth('md')
@@ -476,6 +504,7 @@ trait HasEdificacaoActions
                     }),
             ])
             ->action(function () {
+                $this->exigirNoMapa('edificacao', 'editar'); // R83
                 $edif = Edificacao::query()->find($this->edificacaoAtivaId);
                 $destino = $this->vinculoLoteDestinoId ? Lote::query()->find($this->vinculoLoteDestinoId) : null;
                 if (! $edif || ! $destino || $destino->tenant_id != $this->tenantId) {

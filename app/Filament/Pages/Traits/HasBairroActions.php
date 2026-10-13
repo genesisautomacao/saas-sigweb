@@ -21,6 +21,7 @@ trait HasBairroActions
     public function criarBairroAction(): Action
     {
         return Action::make('criarBairro')
+            ->authorize(fn () => $this->podeNoMapa('bairros', 'criar')) // R83
             ->modalHeading('Cadastrar Novo Bairro')
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Bairro')
@@ -46,6 +47,8 @@ trait HasBairroActions
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('bairro'),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('bairros', 'criar'); // R83
+
                 $data['tenant_id'] = $this->tenantId;
                 $data['geo'] = $this->geometriaRascunho;
                 $data['code'] = (string) Str::uuid();
@@ -78,6 +81,10 @@ trait HasBairroActions
     {
         return Action::make('opcoesBairro')
             ->hiddenLabel()
+            // R83: ver = abre a ficha; sem "editar" o formulário fica só leitura e sem Salvar
+            ->authorize(fn () => $this->podeNoMapa('bairros', 'mapa'))
+            ->disabledForm(fn () => ! $this->podeNoMapa('bairros', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('bairros', 'editar') ? $action : false)
             ->modalHeading(fn () => 'Editar Bairro: ' . Bairro::find($this->bairroAtivoId)?->name)
             ->modalWidth('xl')
             ->modalSubmitActionLabel('Salvar Alterações')
@@ -108,6 +115,8 @@ trait HasBairroActions
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('bairro'),
             ])
             ->action(function (array $data) {
+                $this->exigirNoMapa('bairros', 'editar'); // R83
+
                 $reg = Bairro::find($this->bairroAtivoId);
                 if ($reg) {
                     $reg->update($data);
@@ -120,7 +129,9 @@ trait HasBairroActions
                     ->label('Geometria')
                     ->color('warning')
                     ->icon('heroicon-o-map')
+                    ->visible(fn () => $this->podeNoMapa('bairros', 'editar')) // R83
                     ->action(function () {
+                        $this->exigirNoMapa('bairros', 'editar');
                         // O Gatilho para o Javascript habilitar os nós do polígono!
                         $this->dispatch('iniciar-edicao-geometria-bairro', id: $this->bairroAtivoId);
                         $this->dispatch('fechar-modal-filament');
@@ -130,7 +141,9 @@ trait HasBairroActions
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
+                    ->visible(fn () => $this->podeNoMapa('bairros', 'excluir')) // R83
                     ->action(function() {
+                        $this->exigirNoMapa('bairros', 'excluir');
                         Bairro::find($this->bairroAtivoId)?->delete();
                         Notification::make()->title('Excluído!')->success()->send();
                         $this->dispatch('remover-bairro-mapa', ['id' => $this->bairroAtivoId]);

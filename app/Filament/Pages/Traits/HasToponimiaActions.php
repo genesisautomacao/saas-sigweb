@@ -19,6 +19,10 @@ trait HasToponimiaActions
     #[On('abrirModalToponimia')]
     public function abrirModalToponimia(float $lat, float $lon): void
     {
+        if (! $this->autorizarNoMapa('toponimias', 'criar')) { // R83
+            return;
+        }
+
         $this->mountAction('criarToponimiaAction', ['lat' => $lat, 'lon' => $lon]);
     }
 
@@ -28,6 +32,7 @@ trait HasToponimiaActions
     public function criarToponimiaAction(): Action
     {
         return Action::make('criarToponimiaAction')
+            ->authorize(fn () => $this->podeNoMapa('toponimias', 'criar')) // R83
             ->modalHeading('Adicionar Texto no Mapa')
             ->modalWidth('md')
             ->modalSubmitActionLabel('Salvar')
@@ -60,6 +65,7 @@ trait HasToponimiaActions
                     ->default('#1f2937'),
             ])
             ->action(function (array $data, array $arguments): void {
+                $this->exigirNoMapa('toponimias', 'criar'); // R83
                 $tenant = \Filament\Facades\Filament::getTenant();
                 if (! $tenant) return;
 
@@ -112,6 +118,9 @@ trait HasToponimiaActions
     public function opcoesToponimiiaAction(): Action
     {
         return Action::make('opcoesToponimiiaAction')
+            ->authorize(fn () => $this->podeNoMapa('toponimias', 'mapa')) // R83: ver = abre; sem editar = só leitura e sem Salvar
+            ->disabledForm(fn () => ! $this->podeNoMapa('toponimias', 'editar'))
+            ->modalSubmitAction(fn ($action) => $this->podeNoMapa('toponimias', 'editar') ? $action : false)
             ->modalHeading('Opções da Toponímia')
             ->modalWidth('md')
             ->modalSubmitActionLabel('Salvar')
@@ -147,20 +156,24 @@ trait HasToponimiaActions
                 // PoC AC item 9 — o modal fecha e o JS entra no modo "clique no
                 // novo local" (Esc cancela); o clique devolve moverToponimia().
                 Action::make('reposicionarToponimia')
+                    ->visible(fn () => $this->podeNoMapa('toponimias', 'editar')) // R83
                     ->label('Reposicionar no mapa')
                     ->color('info')
                     ->icon('heroicon-o-arrows-pointing-out')
                     ->action(function (): void {
+                        $this->exigirNoMapa('toponimias', 'editar'); // R83
                         $this->dispatch('iniciar-mover-toponimia', ['id' => $this->toponimiaAtivaId]);
                         $this->dispatch('fechar-modal-filament');
                     }),
 
                 Action::make('excluirToponimia')
+                    ->visible(fn () => $this->podeNoMapa('toponimias', 'excluir')) // R83
                     ->label('Excluir')
                     ->color('danger')
                     ->icon('heroicon-o-trash')
                     ->requiresConfirmation()
                     ->action(function (): void {
+                        $this->exigirNoMapa('toponimias', 'excluir'); // R83
                         $idParaRemover = $this->toponimiaAtivaId;
                         Toponimia::find($idParaRemover)?->delete();
                         $this->toponimiaAtivaId = null;
@@ -170,6 +183,7 @@ trait HasToponimiaActions
                     }),
             ])
             ->action(function (array $data): void {
+                $this->exigirNoMapa('toponimias', 'editar'); // R83
                 $top = Toponimia::find($this->toponimiaAtivaId);
                 if (! $top) return;
 
@@ -196,6 +210,10 @@ trait HasToponimiaActions
     #[On('moverToponimia')]
     public function moverToponimia(string $id, float $lat, float $lon): void
     {
+        if (! $this->autorizarNoMapa('toponimias', 'editar')) { // R83
+            return;
+        }
+
         $top = Toponimia::find($id);
         if (! $top) {
             return;
