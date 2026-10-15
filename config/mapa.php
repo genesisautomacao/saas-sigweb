@@ -244,6 +244,6 @@ return [
         'pgv_polo' => ['label' => 'Novo pólo valorizante pelo clique', 'grupo' => 'PGV', 'exige' => ['pgv_polos' => 'criar']],
         // Impressão e exportação
         'imprimir' => ['label' => 'Imprimir mapa em PDF (A4 a A0)', 'grupo' => 'Impressão e exportação'],
-        'exportar_shp' => ['label' => 'Exportar camada em SHP (só as camadas que o papel vê)', 'grupo' => 'Impressão e exportação'],
+        'exportar_shp' => ['label' => 'Exportar dados: camada em SHP + resultado do filtro em GeoPackage, JSON ou Excel (só as camadas que o papel vê)', 'grupo' => 'Impressão e exportação'],
     ],
 ];

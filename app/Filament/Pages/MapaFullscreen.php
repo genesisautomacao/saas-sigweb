@@ -3618,6 +3618,61 @@ class MapaFullscreen extends Page
         }
     }
 
+    /**
+     * R84-7 — "Exportar resultado" do painel de filtros: exporta as feições do filtro
+     * (ids da camada alvo; lotes levam junto edificações, unidades e testadas) em
+     * GeoPackage, JSON ou Excel, pela fila. Mesma ferramenta da exportação SHP; o
+     * servidor confere a camada e que os ids são desta prefeitura.
+     */
+    #[On('exportar-resultado-filtro')]
+    public function exportarResultadoFiltro(string $camada, array $ids, string $formato): void
+    {
+        if (! $this->autorizarFerramenta('exportar_shp')) {
+            return;
+        }
+
+        $tenant = Filament::getTenant();
+        $alvo = \App\Services\Exports\ExportadorDadosService::CAMADAS_DO_MAPA[$camada] ?? null;
+
+        if (! $tenant || ! $alvo || ! array_key_exists($formato, \App\Services\Exports\ExportadorDadosService::FORMATOS)) {
+            Notification::make()->warning()->title('Esta camada não pode ser exportada por aqui.')->send();
+
+            return;
+        }
+        if (! \App\Support\MapaPermissoes::podeVerCamada($camada, auth()->user(), $tenant)) {
+            $this->negarNoMapa('Seu papel não vê esta camada.');
+
+            return;
+        }
+
+        $ids = DB::table($alvo)->where('tenant_id', $tenant->id)->whereNull('deleted_at')
+            ->whereIn('id', array_slice(array_map('intval', $ids), 0, 200000))->pluck('id')->all();
+
+        if (! $ids) {
+            Notification::make()->warning()->title('Nenhuma feição do filtro para exportar.')->send();
+
+            return;
+        }
+
+        $camadas = $alvo === 'lotes' ? ['lotes', 'lote_testadas', 'edificacoes', 'unidade_imobiliarias'] : [$alvo];
+        $rotulo = \App\Services\Exports\ExportadorDadosService::CAMADAS[$alvo]['label'];
+
+        $arquivo = \App\Services\ArquivosGerados\ArquivosGeradosService::registrar(
+            'exportacao_dados',
+            'Exportação do filtro — '.explode(' (', $rotulo)[0].' ('.count($ids).')',
+            ['camadas' => $camadas, 'formato' => $formato, 'recorte' => ['tipo' => 'ids', 'camada' => $alvo, 'ids' => $ids]],
+            auth()->user(),
+            $tenant,
+        );
+        \App\Jobs\GerarExportacaoDadosJob::dispatch($arquivo->id);
+
+        Notification::make()
+            ->success()
+            ->title('Exportação em processamento')
+            ->body(count($ids).' feição(ões)'.($alvo === 'lotes' ? ' + edificações, unidades e testadas' : '').'. Você será avisado no sininho; o arquivo fica em Configurações → Arquivos Gerados.')
+            ->send();
+    }
+
     public function salvarEnquadramento(float $lat, float $lon, int $zoom): void
     {
         // R83: pela permissão ferramenta_enquadramento (Master/Manager = bypass), não pelo nome do papel

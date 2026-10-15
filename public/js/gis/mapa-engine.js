@@ -8356,7 +8356,15 @@ document.addEventListener("DOMContentLoaded", function () {
                     if (dados.tipo_filtro === "atributo") {
                         descricao = `${dados.layer}: ${dados.field} ${dados.operator} "${dados.value}"`;
                     } else if (dados.tipo_filtro === "espacial") {
-                        descricao = `${dados.spatial_target_layer} dentro de ${dados.spatial_reference_layer}`;
+                        // R84: nomes das referências (ex.: os bairros) — o servidor manda no
+                        // "info" de cada feição; sem isso dois filtros saíam com o mesmo título
+                        const nomesRef = [...new Set(features
+                            .map((ft) => String(ft.get("info") || "").split(": ").slice(1).join(": "))
+                            .flatMap((s) => s.split(", "))
+                            .filter((s) => s && s !== "N/A"))];
+                        descricao = nomesRef.length
+                            ? `${dados.spatial_target_layer} em ${nomesRef.slice(0, 3).join(", ")}${nomesRef.length > 3 ? ` +${nomesRef.length - 3}` : ""}`
+                            : `${dados.spatial_target_layer} dentro de ${dados.spatial_reference_layer}`;
                     } else if (dados.tipo_filtro === "desenho") {
                         descricao = `${dados.draw_target_layer} por área desenhada`;
                     }
@@ -8787,25 +8795,102 @@ document.addEventListener("DOMContentLoaded", function () {
     // =========================================================================
     window.filtrosAtivos = [];
 
+    // R84-7 — camadas do mapa que o "Exportar resultado" aceita (mesma lista do
+    // ExportadorDadosService::CAMADAS_DO_MAPA; o servidor confere de novo).
+    const CAMADAS_EXPORTAVEIS_FILTRO = [
+        "perimetros", "perimetros_urbanos", "zonas", "bairros", "loteamentos", "quadras",
+        "logradouros", "secoes_logradouro", "lotes", "edificacoes", "face_quadras",
+    ];
+
+    function camadaDoFiltro(filtroId) {
+        const f = querySource.getFeatures().find((x) => x.get("filtro_id") === filtroId);
+        return f ? f.get("layer") : null;
+    }
+
+    window.exportarResultadoFiltro = function (filtroId, formato) {
+        if (!window.podeFerramentaMapa("exportar_shp")) {
+            window.avisarSemPermissao("Seu papel não tem a exportação de dados liberada.");
+            return;
+        }
+        const feicoes = querySource.getFeatures().filter((x) => x.get("filtro_id") === filtroId);
+        const camada = feicoes.length ? feicoes[0].get("layer") : null;
+        const ids = [...new Set(feicoes.map((x) => x.get("id")).filter((v) => v !== undefined && v !== null))];
+        if (!camada || !ids.length || !window.Livewire) return;
+        Livewire.dispatch("exportar-resultado-filtro", { camada, ids, formato });
+    };
+
+    // Estado do painel (sobrevive às re-renderizações do engine): painel recolhido? e
+    // qual filtro está aberto no acordeon (o mais recente abre sozinho).
+    window._painelFiltrosRecolhido = false;
+    window._filtroAberto = null;
+    let _ultimoFiltroVisto = null;
+
+    window.alternarPainelFiltros = function () {
+        window._painelFiltrosRecolhido = !window._painelFiltrosRecolhido;
+        window.atualizarPainelFiltros();
+    };
+
+    window.alternarFiltroAberto = function (filtroId) {
+        window._filtroAberto = window._filtroAberto === filtroId ? null : filtroId;
+        window.atualizarPainelFiltros();
+    };
+
     window.atualizarPainelFiltros = function () {
         const painel = document.getElementById("painel-filtros-ativos");
         if (!painel) return;
         if (!window.filtrosAtivos.length) {
             painel.style.display = "none";
+            _ultimoFiltroVisto = null;
             return;
         }
         painel.style.display = "block";
+
+        // Filtro novo entra aberto e reabre o painel
+        const ultimo = window.filtrosAtivos[window.filtrosAtivos.length - 1].id;
+        if (ultimo !== _ultimoFiltroVisto) {
+            _ultimoFiltroVisto = ultimo;
+            window._filtroAberto = ultimo;
+            window._painelFiltrosRecolhido = false;
+        }
+
+        const contador = document.getElementById("painel-filtros-contador");
+        if (contador) contador.textContent = `(${window.filtrosAtivos.length})`;
+        const seta = document.getElementById("painel-filtros-seta");
+        if (seta) seta.textContent = window._painelFiltrosRecolhido ? "▸" : "▾";
+
         const lista = document.getElementById("lista-filtros-ativos");
+        lista.style.display = window._painelFiltrosRecolhido ? "none" : "flex";
+
+        const podeExportar = window.podeFerramentaMapa("exportar_shp");
+        const btn = "background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:#e5e7eb;border-radius:6px;padding:2px 8px;font-size:10px;cursor:pointer;";
         lista.innerHTML = window.filtrosAtivos
-            .map(
-                (f) => `
-            <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.08);font-size:11px;color:#e5e7eb;">
-                <span style="display:inline-block;width:24px;height:12px;border-radius:3px;flex-shrink:0;${f.gradiente ? `background:linear-gradient(to right,${f.cores.join(",")})` : `background:${f.cor}`};"></span>
-                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${f.descricao}">${f.descricao} <span style="opacity:0.6">(${f.total})</span></span>
-                <button onclick="window.removerFiltro('${f.id}')" style="background:none;border:none;cursor:pointer;padding:0;color:#f87171;font-size:14px;line-height:1;">✕</button>
+            .map((f) => {
+                const aberto = window._filtroAberto === f.id;
+                const exportavel = podeExportar && CAMADAS_EXPORTAVEIS_FILTRO.includes(camadaDoFiltro(f.id));
+                return `
+            <div style="padding:6px 8px;border-radius:8px;background:rgba(255,255,255,${aberto ? "0.12" : "0.06"});font-size:11px;color:#e5e7eb;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <button onclick="window.alternarFiltroAberto('${f.id}')" title="Abrir/fechar" style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;background:none;border:none;cursor:pointer;padding:0;color:inherit;text-align:left;">
+                        <span style="color:#9ca3af;width:10px;flex-shrink:0;">${aberto ? "▾" : "▸"}</span>
+                        <span style="display:inline-block;width:24px;height:12px;border-radius:3px;flex-shrink:0;${f.gradiente ? `background:linear-gradient(to right,${f.cores.join(",")})` : `background:${f.cor}`};"></span>
+                        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${f.descricao}">${f.descricao} <span style="opacity:0.6">(${f.total})</span></span>
+                    </button>
+                    <button onclick="window.removerFiltro('${f.id}')" title="Remover este filtro" style="background:none;border:none;cursor:pointer;padding:0;color:#f87171;font-size:14px;line-height:1;">✕</button>
+                </div>
+                ${aberto ? `
+                <div style="margin-top:6px;padding-left:18px;">
+                    <div style="opacity:0.75;white-space:normal;">${f.descricao} — ${f.total} resultado(s)</div>
+                    ${exportavel ? `
+                    <div style="display:flex;align-items:center;gap:4px;margin-top:6px;flex-wrap:wrap;">
+                        <span style="opacity:0.7;">Exportar:</span>
+                        <button title="GeoPackage — abre direto no QGIS" onclick="window.exportarResultadoFiltro('${f.id}','gpkg')" style="${btn}">GPKG</button>
+                        <button title="GeoJSON (reimportável)" onclick="window.exportarResultadoFiltro('${f.id}','json')" style="${btn}">JSON</button>
+                        <button title="Planilha Excel" onclick="window.exportarResultadoFiltro('${f.id}','xlsx')" style="${btn}">Excel</button>
+                    </div>` : ""}
+                </div>` : ""}
             </div>
-        `,
-            )
+        `;
+            })
             .join("");
     };
 

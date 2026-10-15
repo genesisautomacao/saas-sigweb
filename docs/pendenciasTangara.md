@@ -850,6 +850,61 @@ Decisões do usuário (2026-10-08):
 
 ---
 
+## ~~Release 84 — Exportação de dados coletados, importação de camadas, fila e ajustes da coleta (2026-10-15)~~
+
+**Origem:** pedido do usuário (implantação Cajazeiras/Jucurutu) + estudo do vai-e-volta com o QGIS (2026-10-14). Decisões tomadas em conversa em 2026-10-15.
+
+#### ~~R84-1 — Jucurutu: bairros × quadras e lotes × edificações~~
+**Status:** ✅ Concluído **Concluído em:** 2026-10-15
+Script temporário por SSH (prévia em Excel aprovada → execução do plano via Eloquent, entra na Auditoria): 141 quadras trocaram de bairro (pelo maior % de área; #397, fora dos bairros e do perímetro, foi para o PEDRA DO NAVIO vigente pelo nome) e 61 edificações sem lote ganharam lote pelo centróide; 438 seguem órfãs (sem lote desenhado), 21 com lote e centro em outro lote, 67 com lote e centro fora — só relatório. Causa das 141: reimportação "Substituir" de 23/09 com numeração nova — a reconexão automática por `sequential_id` ligou quadras ao bairro de mesmo NÚMERO (outro nome) e 35 ficaram apontando para bairros na lixeira. Relatórios + plano executado (com o bairro antigo, para desfazer) em `C:\laragon\www\docs\webgis\jucurutu\relatórios`.
+
+#### ~~R84-2 — Segurança: `/api/ogc/{slug}` sem login~~
+**Status:** ✅ Concluído (código + testes locais; deploy na VPS pendente) **Concluído em:** 2026-10-15
+O WFS entregava lotes/quadras/ruas/bairros de qualquer prefeitura a qualquer visitante. Fechar com o critério da R83: sem login só camadas `publica` do `config/mapa.php`, sem dado pessoal; tenant inativo = 404.
+
+#### ~~R84-3 — Filtro avançado do mapa sem limite~~
+**Status:** ✅ Concluído (código + testes locais; deploy na VPS pendente) **Concluído em:** 2026-10-15
+LIMIT 2500/2000/5000 (Release 30) cortava em silêncio (bairro grande saía incompleto). Remover nas rotas espacial/desenho/atributo/valores únicos/intervalo, buscando só o necessário (id, rótulo, geometria com 6 casas) e sem duplicar o alvo que cruza 2+ referências (lote na divisa de dois bairros saía duas vezes).
+
+#### ~~R84-4 — Fila de processamento + "Arquivos Gerados"~~
+**Status:** ✅ Concluído (código + testes locais; deploy na VPS pendente) **Concluído em:** 2026-10-15
+Medição na VPS (Cajazeiras, 2.498 lotes da semana): o PDF detalhado de Coletas levaria ~9 min baixando 7.200 fotos uma a uma + ~4 min montando, ~400 MB e ~5 GB de memória (limite do pool = 1 GB), e voltava ao navegador base64 dentro do Livewire (499 no log). As fotos já chegam comprimidas pelo app (1280 px) — miniatura não resolve. Entregar: processador de filas na VPS (serviço systemd `sigweb-fila`, QUEUE_CONNECTION=database já configurado) + agendador; model/tabela `arquivos_gerados` (tipo, quem pediu, prefeitura, situação na fila/processando/pronto/erro, tamanho, caminho no bucket privado `midia` em `{slug}/arquivos-gerados/`, validade 7 dias); tela "Arquivos Gerados" no grupo Configurações do /app (cada um vê os seus; Manager vê todos) e em Configurações Globais do /admin; aviso no sininho com link temporário; limpeza diária do que venceu. Deploy passa a exigir `php artisan queue:restart`.
+
+#### ~~R84-5 — PDF detalhado de Coletas em segundo plano~~
+**Status:** ✅ Concluído (código + testes locais; deploy na VPS pendente) **Concluído em:** 2026-10-15
+Job na fila: ZIP com PDFs de até 250 lotes; agrupamento escolhido pelo usuário — por coletor (1 PDF por coletor, partes acima de 250), por quadra (ordem de quadra, sem cortar quadra) ou por data crescente; fotos baixadas em paralelo.
+
+#### ~~R84-6 — Importação GIS: Testadas, Seções de Logradouro e Faces de Quadra~~
+**Status:** ✅ Concluído (código + testes locais; deploy na VPS pendente) **Concluído em:** 2026-10-15
+`lote_testadas` ganha `sequential_id` (+ `code`, índice único parcial, backfill) para os 3 modos; importador resolve `logradouro_id`, `secao_logradouro_id`, `setor_fiscal_id`; campos `lado`/`tipo`/`codigo`; seções repetidas (logradouro+código+lado) apontadas antes de gravar; extensão/comprimento recalculados. Formato = o mesmo que a exportação (R84-7) gera.
+
+#### ~~R84-7 — "Exportar dados" (motor único: /admin e mapa da prefeitura)~~
+**Status:** ✅ Concluído (código + testes locais; deploy na VPS pendente) **Concluído em:** 2026-10-15
+/admin → Prefeitura → "Exportar dados" (capacidade `admin_exportar_dados`): camadas do cadastro base e imobiliário, formato JSON (GeoJSON por camada, ZIP) / Excel (aba por camada, centro lat/lon + área) / GeoPackage (ogr2ogr; VPS tem GDAL 3.12 com GPKG), recorte opcional por bairro(s). Arquivo REIMPORTÁVEL (`id` = número da prefeitura, vínculos pelo número do pai), campos customizados em colunas, dados da coleta + link das fotos, proprietário e CPF/CNPJ. Mapa da prefeitura (/app, nunca o público): "Exportar resultado" do filtro nos mesmos formatos (o mapa envia os ids do resultado — completo desde a R84-3 — e o servidor revalida na prefeitura e na permissão de ver a camada); ferramenta "Exportar SHP" vira "Exportar dados". Processado pela fila (R84-4).
+
+#### ~~R84-8 — App de Coletas: destaque do lote selecionado~~
+**Status:** ✅ Concluído (código; falta gerar o APK 1.1.5 no EAS e validar com o gestor de Cajazeiras) **Concluído em:** 2026-10-15
+Polígono extra por cima do lote tocado, no tom escuro da cor do status, enquanto a ficha rápida estiver aberta. APK 1.1.5 (validação primeiro com o gestor de Cajazeiras).
+
+#### R84-9 — (backlog, não nesta release) Importação "Substituir" avisar renumeração
+Quando o mesmo `sequential_id` troca de nome entre o registro antigo e o novo, a reconexão automática liga os filhos à entidade errada (caso Jucurutu). Prévia/aviso antes de reconectar.
+
+#### R84-11 — (backlog) 21 coletas de Santa Cecília com `coletavel_type` de barra dobrada
+`App\\Models\\Lote` (criadas de uma vez em 04/08, tenant de teste) — o `coletaVigente` não as enxerga. Prefeituras reais conferidas na VPS em 2026-10-15: todas no formato certo. Corrigir com um UPDATE quando convier.
+
+#### ~~R84-12 — (decisão) Agendador ligado = `sigweb:sync-esus` volta a rodar às 02:00~~
+**Status:** ✅ Decidido: e-SUS diário DESLIGADO (linha comentada em `routes/console.php`; sync segue sob demanda). **Concluído em:** 2026-10-15
+A VPS nova não tinha cron: nada do `routes/console.php` rodava. Ao ativar o `sigweb-agendador.timer` (R84-4), o sync do e-SUS diário volta junto. Confirmar com o usuário antes de ativar (ou tirar a linha do schedule).
+
+#### ~~R84-13 — Painel de filtros do mapa persistente + moldes de importação~~
+**Status:** ✅ Concluído **Concluído em:** 2026-10-15
+Pedido do usuário no teste: o painel sumia ao clicar em Exportar (faltava `wire:ignore` — a resposta do Livewire redesenhava o painel). Agora fica embaixo e centralizado, recolhível, com acordeon por filtro e o nome dos bairros no título. Moldes GeoJSON + LEIAME em `docs/modelos-importacao/` (validados importando numa transação desfeita); o teste achou testada/seção SEM geometria quebrando a importação (`ST_GeomFromGeoJSON('null')`) — setters corrigidos.
+
+#### R84-10 — (backlog, não nesta release) Impressão do mapa A0 no servidor
+Hoje é jsPDF no navegador; levar para a fila exige renderizar o mapa no servidor (Chrome headless na VPS).
+
+---
+
 ## Pontos fortes a destacar na demonstração
 
 1. Estatísticas com **gráficos plotados no mapa** (centroide de cada bairro) — item 2.6-41;

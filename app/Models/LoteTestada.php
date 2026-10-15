@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
+use App\Traits\HasTenantSequentialId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +13,8 @@ use App\Traits\LogsGeometryChanges;
 
 class LoteTestada extends Model
 {
-    use SoftDeletes, BelongsToTenant, LogsActivity, LogsGeometryChanges;
+    // R84-6: número da prefeitura (Importação GIS Atualizar/Substituir + exportação reimportável)
+    use SoftDeletes, BelongsToTenant, HasTenantSequentialId, LogsActivity, LogsGeometryChanges;
 
     /** Croqui Antes/Depois na Auditoria (PoC AC 2026-08-23). */
     public function geometryLogLabel(): string
@@ -33,7 +35,7 @@ class LoteTestada extends Model
     protected $table = 'lote_testadas';
 
     protected $fillable = [
-        'tenant_id', 'lote_id', 'logradouro_id', 'secao_logradouro_id',
+        'tenant_id', 'sequential_id', 'code', 'lote_id', 'logradouro_id', 'secao_logradouro_id',
         'tipo', 'comprimento', 'dados_customizados', 'geo',
     ];
 
@@ -59,7 +61,8 @@ class LoteTestada extends Model
 
     public function setGeoAttribute($value)
     {
-        $this->attributes['geo'] = DB::raw("ST_Multi(ST_GeomFromGeoJSON('" . json_encode($value) . "'))");
+        // R84-6: feição sem geometria (ex.: testada só com o comprimento) grava NULL
+        $this->attributes['geo'] = empty($value) ? null : DB::raw("ST_Multi(ST_GeomFromGeoJSON('" . json_encode($value) . "'))");
     }
 
     public function lote()

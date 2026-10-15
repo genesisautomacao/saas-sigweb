@@ -4,6 +4,7 @@ namespace App\Services\Gis;
 
 use App\Models\CampoCustomizado;
 use App\Models\Tenant;
+use App\Services\Coleta\CampoDominioService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -33,6 +34,8 @@ class ImportadorGisService
         'Quadra' => 'quadra',
         'Bairro' => 'bairro',
         'Logradouro' => 'logradouro',
+        'SecaoLogradouro' => 'secao_logradouro', // R84-6
+        'LoteTestada' => 'lote_testada',          // R84-6
         'Loteamento' => 'loteamento',
         'Zona' => 'zona',
         'PerimetroUrbano' => 'perimetro',
@@ -128,6 +131,14 @@ class ImportadorGisService
                 ->get()
             : collect();
 
+        $colunasTabela = array_flip(Schema::getColumnListing((new $modelClass)->getTable()));
+
+        // R84-6 — seção repetida no arquivo (mesmo logradouro + código + lado) derrubaria
+        // a transação inteira no índice único: aponta as linhas antes de gravar qualquer coisa.
+        if ($camada === 'SecaoLogradouro') {
+            self::validarSecoesRepetidas($agrupados);
+        }
+
         DB::beginTransaction();
         try {
             // MODO SUBSTITUIR — soft-delete em massa ANTES de importar. O marcador
@@ -175,7 +186,7 @@ class ImportadorGisService
                 } else {
 
                 // A REGRA DO NOME (Necessária para Perímetros, Zonas, Logradouros, etc)
-                $camadasComNome = ['PerimetroUrbano', 'Zona', 'Bairro', 'Loteamento', 'Quadra', 'Logradouro'];
+                $camadasComNome = ['PerimetroUrbano', 'Zona', 'Bairro', 'Loteamento', 'Quadra', 'Logradouro', 'SecaoLogradouro', 'FaceQuadra'];
                 if (in_array($camada, $camadasComNome)) {
                     $fillData['name'] = $props->name ?? $props->numero_lote ?? 'Sem Nome';
                 }
@@ -215,6 +226,16 @@ class ImportadorGisService
                 if (isset($props->lote_id)) {
                     $fillData['lote_id'] = $resolveRelacionamento(\App\Models\Lote::class, $props->lote_id);
                 }
+                // R84-6 — seções, testadas e faces apontam para a rua, a seção e o setor fiscal
+                if (isset($props->logradouro_id)) {
+                    $fillData['logradouro_id'] = $resolveRelacionamento(\App\Models\Logradouro::class, $props->logradouro_id);
+                }
+                if (isset($props->secao_logradouro_id)) {
+                    $fillData['secao_logradouro_id'] = $resolveRelacionamento(\App\Models\SecaoLogradouro::class, $props->secao_logradouro_id);
+                }
+                if (isset($props->setor_fiscal_id)) {
+                    $fillData['setor_fiscal_id'] = $resolveRelacionamento(\App\Models\SetorFiscal::class, $props->setor_fiscal_id);
+                }
 
                 // Demais propriedades
                 if (isset($props->numero_lote) || isset($props->numero_lot) || isset($props->numero)) {
@@ -243,6 +264,20 @@ class ImportadorGisService
                 }
                 if (isset($props->inscricao_imobiliaria)) {
                     $fillData['inscricao_imobiliaria'] = $props->inscricao_imobiliaria;
+                }
+
+                // R84-6 — vocabulários governados pelo sistema: aceita a chave ou o
+                // rótulo do município ("Ímpar" → impar); testada sem tipo = principal (NOT NULL).
+                if ($camada === 'SecaoLogradouro' && isset($props->lado) && $props->lado !== '') {
+                    $fillData['lado'] = CampoDominioService::normalizarValor('secao_logradouro', 'lado', (string) $props->lado, $tenant->id);
+                }
+                if ($camada === 'LoteTestada') {
+                    $fillData['tipo'] = isset($props->tipo) && $props->tipo !== ''
+                        ? CampoDominioService::normalizarValor('lote_testada', 'tipo', (string) $props->tipo, $tenant->id)
+                        : 'principal';
+                    if (isset($props->comprimento) && is_numeric($props->comprimento)) {
+                        $fillData['comprimento'] = (float) $props->comprimento; // sem geometria, vale o informado
+                    }
                 }
 
                 } // fim do bloco legado (camadas não-Mob)
@@ -285,6 +320,11 @@ class ImportadorGisService
                 if (is_numeric($originalId)) {
                     $fillData['sequential_id'] = $originalId;
                 }
+
+                // R84-6 — só colunas que a tabela tem: um arquivo vindo do QGIS (ou da
+                // exportação, com área/extensão/rótulos de leitura) não derruba a importação
+                // com "column does not exist" por uma property que não se aplica à camada.
+                $fillData = array_intersect_key($fillData, $colunasTabela);
 
                 // MODO ATUALIZAR — o registro vivo de mesmo sequential_id é ATUALIZADO
                 // (mesma PK ⇒ unidades, processos e coletas seguem apontando para ele).
@@ -345,6 +385,7 @@ class ImportadorGisService
         // Recalcula a camada inteira do tenant (612 linhas = ms), assim a
         // importação já sai com os metadados sem depender do "Recalcular Áreas".
         self::recalcularMetadataMob($camada, $tenant->id);
+        self::recalcularMetadataLinhas($camada, $tenant->id);
 
         return [
             'total' => count($agrupados),
@@ -387,6 +428,60 @@ class ImportadorGisService
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("ImportadorGis: metadados de {$camada} não recalculados — ".$e->getMessage());
+        }
+    }
+
+    /**
+     * R84-6 — extensão das seções/faces e comprimento das testadas saem da geometria
+     * (mesma fórmula do gis:recalcular-metadata). Testada sem geometria mantém o
+     * comprimento informado no arquivo. Tolerante a falha.
+     */
+    protected static function recalcularMetadataLinhas(string $camada, int $tenantId): void
+    {
+        $sql = match ($camada) {
+            'SecaoLogradouro' => 'UPDATE secoes_logradouro SET extensao_geo = ST_Length(geo::geography) WHERE tenant_id = ? AND geo IS NOT NULL',
+            'FaceQuadra' => 'UPDATE face_quadras SET extensao_geo = ST_Length(geo::geography) WHERE tenant_id = ? AND geo IS NOT NULL',
+            'LoteTestada' => 'UPDATE lote_testadas SET comprimento = ROUND(ST_Length(geo::geography)::numeric, 2) WHERE tenant_id = ? AND geo IS NOT NULL',
+            default => null,
+        };
+
+        if ($sql === null) {
+            return;
+        }
+
+        try {
+            DB::update($sql, [$tenantId]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("ImportadorGis: metadados de {$camada} não recalculados — ".$e->getMessage());
+        }
+    }
+
+    /**
+     * R84-6 — a combinação logradouro + código + lado é única por prefeitura
+     * (secoes_logradouro_codigo_lado_unique). Repetição dentro do arquivo vira uma
+     * mensagem com os ids, em vez do erro cru do banco.
+     */
+    protected static function validarSecoesRepetidas(array $agrupados): void
+    {
+        $vistos = [];
+        $repetidas = [];
+
+        foreach ($agrupados as $id => $item) {
+            $p = $item['props'];
+            if (! isset($p->codigo) || $p->codigo === '' || $p->codigo === null) {
+                continue;
+            }
+            $chave = ($p->logradouro_id ?? '').'|'.mb_strtolower(trim((string) $p->codigo)).'|'.mb_strtolower(trim((string) ($p->lado ?? '')));
+            if (isset($vistos[$chave])) {
+                $repetidas[] = "id {$id} repete o id {$vistos[$chave]} (logradouro {$p->logradouro_id}, código {$p->codigo}, lado ".($p->lado ?? '—').')';
+            } else {
+                $vistos[$chave] = $id;
+            }
+        }
+
+        if ($repetidas) {
+            throw new \RuntimeException('Seções repetidas no arquivo (mesmo logradouro + código + lado) — nada foi importado: '
+                .implode('; ', array_slice($repetidas, 0, 10)).(count($repetidas) > 10 ? ' … e mais '.(count($repetidas) - 10) : ''));
         }
     }
 

@@ -633,9 +633,13 @@ class TenantResource extends Resource
                                     'Loteamento' => '4. Loteamentos',
                                     'Quadra' => '5. Quadras',
                                     'Logradouro' => '6. Logradouros (Ruas)',
+                                    // R84-6 — dependem de logradouro (seção), de lote+seção (testada) e de quadra+logradouro (face)
+                                    'SecaoLogradouro' => '6.1 Seções de Logradouro (depois dos logradouros)',
                                     'Lote' => '7. Lotes',
+                                    'LoteTestada' => '7.1 Testadas de Lote (depois dos lotes e das seções)',
                                     'Edificacao' => '8. Edificações',
                                     'UnidadeImobiliaria' => '9. Unidades Imobiliárias',
+                                    'FaceQuadra' => '10. Faces de Quadra (PGV — depois das quadras e logradouros)',
                                     // Mobilidade Urbana (docs/piuma.txt) — JSONs preparados
                                     // pelo comando mob:normalizar-levantamento
                                     'MobVia' => 'Mobilidade — Vias Urbanas (importar ANTES dos trechos)',
@@ -780,6 +784,62 @@ class TenantResource extends Resource
                             $resumo['nao_resolvidos'] === []
                                 ? $notificacao->success()->send()
                                 : $notificacao->warning()->persistent()->send();
+                        }),
+
+                    // --- R84-7: EXPORTAR DADOS (camadas do cadastro base + imobiliário) ---
+                    // Gera na fila; o arquivo sai reimportável pelo "Importar Mapa (GIS)"
+                    // (modo Atualizar) e fica em Configurações Globais → Arquivos Gerados.
+                    Tables\Actions\Action::make('exportar_dados')
+                        ->label('Exportar dados')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('success')
+                        ->visible(fn () => static::pode('admin_exportar_dados'))
+                        ->modalHeading(fn (Tenant $record) => 'Exportar dados — '.$record->name)
+                        ->modalDescription('O arquivo é gerado em segundo plano: você recebe o aviso no sininho e ele fica 7 dias em Configurações Globais → Arquivos Gerados. Leva proprietário e CPF/CNPJ das unidades.')
+                        ->modalSubmitActionLabel('Gerar arquivo')
+                        ->form(fn (Tenant $record) => [
+                            Forms\Components\CheckboxList::make('camadas')
+                                ->label('Camadas')
+                                ->options(collect(\App\Services\Exports\ExportadorDadosService::CAMADAS)->map(fn ($c) => $c['label'])->all())
+                                ->default(['bairros', 'quadras', 'logradouros', 'lotes', 'edificacoes', 'unidade_imobiliarias'])
+                                ->columns(2)
+                                ->bulkToggleable()
+                                ->required(),
+                            Forms\Components\Radio::make('formato')
+                                ->label('Formato')
+                                ->options(\App\Services\Exports\ExportadorDadosService::FORMATOS)
+                                ->default('gpkg')
+                                ->required(),
+                            Forms\Components\Select::make('bairro_ids')
+                                ->label('Recortar por bairro (opcional)')
+                                ->helperText('Vazio = a prefeitura inteira. Lotes, quadras e edificações entram pelo ponto interno (nunca em dois bairros); ruas e seções entram se cruzarem o bairro.')
+                                ->multiple()
+                                ->searchable()
+                                ->options(fn () => \App\Models\Bairro::withoutGlobalScopes()
+                                    ->where('tenant_id', $record->id)->whereNull('deleted_at')->whereNotNull('geo')
+                                    ->orderBy('name')->pluck('name', 'id')->all()),
+                        ])
+                        ->action(function (Tenant $record, array $data) {
+                            $bairros = array_values(array_filter((array) ($data['bairro_ids'] ?? [])));
+                            $arquivo = \App\Services\ArquivosGerados\ArquivosGeradosService::registrar(
+                                'exportacao_dados',
+                                'Exportação de dados — '.$record->name,
+                                [
+                                    'camadas' => $data['camadas'],
+                                    'formato' => $data['formato'],
+                                    'recorte' => $bairros ? ['tipo' => 'bairros', 'bairro_ids' => $bairros] : ['tipo' => 'nenhum'],
+                                ],
+                                \Filament\Facades\Filament::auth()->user(),
+                                $record,
+                                'admin',
+                            );
+                            \App\Jobs\GerarExportacaoDadosJob::dispatch($arquivo->id);
+
+                            \Filament\Notifications\Notification::make()
+                                ->title('Exportação em processamento')
+                                ->body('Você será avisado no sininho quando o arquivo estiver pronto.')
+                                ->success()
+                                ->send();
                         }),
 
                     // --- AÇÃO: IMPORTAR PANORÂMICAS 360 (GeoJSON de imageamento) ---

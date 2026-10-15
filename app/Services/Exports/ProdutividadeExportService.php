@@ -69,35 +69,41 @@ class ProdutividadeExportService
         return response()->download($filePath)->deleteFileAfterSend(true);
     }
 
+    /**
+     * Acima disto o PDF vai para a fila (R84-5): medido na VPS (Cajazeiras), cada lote
+     * soma ~0,16 MB ao PDF e ~2 MB de memória ao montar — 250 lotes ≈ 40 MB / ~1 min.
+     */
+    public const LOTES_POR_PDF = 250;
+
     public function exportToPdf(Collection $lotes)
     {
-        $dataHora = now()->format('d/m/Y H:i:s');
-        $tenant = Filament::getTenant();
         $fileName = 'coletas-produtividade-'.now()->format('YmdHis').'.pdf';
+        $conteudo = $this->pdfBinario($lotes, Filament::getTenant());
 
-        // Pré-processa as 3 fotos para base64 (DomPDF não acessa Storage URL em produção)
-        $lotes->each(function ($lote) {
-            $lote->_fotos_b64 = [
-                'frontal' => $this->fotoToBase64($lote->foto_frontal),
-                'lateral_esq' => $this->fotoToBase64($lote->foto_lateral_esq),
-                'lateral_dir' => $this->fotoToBase64($lote->foto_lateral_dir),
-            ];
-        });
-
-        $pdf = Pdf::loadView('pdf.produtividade-detalhado', compact('lotes', 'tenant', 'dataHora'));
-        $pdf->setPaper('a4', 'portrait');
-
-        return response()->streamDownload(function () use ($pdf) {
-            echo $pdf->output();
-        }, $fileName);
+        return response()->streamDownload(fn () => print ($conteudo), $fileName, ['Content-Type' => 'application/pdf']);
     }
 
     /**
-     * Converte um caminho de foto do disco 'public' em data URI base64.
-     * Retorna null se o caminho for vazio ou arquivo inexistente.
+     * Bytes do PDF detalhado (tela e fila). As fotos são baixadas em paralelo e
+     * embutidas em base64 (o DomPDF não lê URL do bucket em produção).
      */
-    private function fotoToBase64(?string $path): ?string
+    public function pdfBinario(Collection $lotes, $tenant, ?string $subtitulo = null): string
     {
-        return \App\Support\FotosLote::dataUri($path); // R79-1: bucket ou disco local
+        $caminhos = $lotes->flatMap(fn ($l) => [$l->foto_frontal, $l->foto_lateral_esq, $l->foto_lateral_dir])->all();
+        $fotos = \App\Support\FotosLote::dataUrisEmLote($caminhos);
+
+        $lotes->each(function ($lote) use ($fotos) {
+            $lote->_fotos_b64 = [
+                'frontal' => $fotos[$lote->foto_frontal] ?? null,
+                'lateral_esq' => $fotos[$lote->foto_lateral_esq] ?? null,
+                'lateral_dir' => $fotos[$lote->foto_lateral_dir] ?? null,
+            ];
+        });
+
+        $dataHora = now()->format('d/m/Y H:i:s');
+
+        return Pdf::loadView('pdf.produtividade-detalhado', compact('lotes', 'tenant', 'dataHora', 'subtitulo'))
+            ->setPaper('a4', 'portrait')
+            ->output();
     }
 }

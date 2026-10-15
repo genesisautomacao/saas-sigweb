@@ -1435,11 +1435,14 @@ class MapDataController extends Controller
                     $attrBindings
                 );
 
+                // R84-3 (2026-10-15): sem LIMIT (o 2500 cortava bairro grande em silêncio).
+                // Em troca a consulta traz só o que o mapa usa (id + geometria com 6 casas)
+                // e agrupa pelo alvo — com 2+ referências o lote da divisa saía duplicado.
                 $query = "
                     SELECT
-                        target.*,
-                        ST_AsGeoJSON(target.geo) as geo_json,
-                        ref.name as searched_value
+                        target.id,
+                        ST_AsGeoJSON(target.geo, 6) as geo_json,
+                        STRING_AGG(DISTINCT ref.name::text, ', ') as searched_value
                     FROM {$targetLayer} target
                     INNER JOIN {$refLayer} ref
                         ON {$operator}(target.geo::geometry, {$refGeomExpr})
@@ -1448,7 +1451,7 @@ class MapDataController extends Controller
                     AND target.geo IS NOT NULL
                     AND ref.id IN ($placeholders)
                     " . ($attrSql ? $attrSql . ' ' : '') . "
-                    LIMIT 2500
+                    GROUP BY target.id
                 ";
 
                 $results = \Illuminate\Support\Facades\DB::select($query, $params);
@@ -1486,8 +1489,8 @@ class MapDataController extends Controller
                 // MÁGICA POSTGIS: Cruza a tabela alvo com a string GeoJSON e o operador dinâmico
                 $query = "
                     SELECT
-                        target.*,
-                        ST_AsGeoJSON(target.geo) as geo_json,
+                        target.id,
+                        ST_AsGeoJSON(target.geo, 6) as geo_json,
                         'Área Desenhada (Mouse)' as searched_value
                     FROM {$targetLayer} target
                     WHERE target.tenant_id = ?
@@ -1498,7 +1501,6 @@ class MapDataController extends Controller
                         ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326))
                     )
                     " . ($attrSql ? $attrSql . ' ' : '') . "
-                    LIMIT 2000
                 ";
 
                 $results = \Illuminate\Support\Facades\DB::select($query, array_merge([$tenantId, $drawnGeometry], $attrBindings));
@@ -1543,10 +1545,10 @@ class MapDataController extends Controller
                 }
 
                 $results = $queryBuilder->selectRaw('
-                    *,
-                    ST_AsGeoJSON(geo) as geo_json,
+                    id,
+                    ST_AsGeoJSON(geo, 6) as geo_json,
                     ' . $info['expr'] . ' as searched_value
-                ')->limit(2000)->get();
+                ')->get();
 
                 $infoLabel = "Atributo ({$info['label']})";
 
@@ -1581,9 +1583,8 @@ class MapDataController extends Controller
                     ->selectRaw('
                         id,
                         COALESCE(' . $info['expr'] . '::text, \'Não informado\') as searched_value,
-                        ST_AsGeoJSON(geo) as geo_json
+                        ST_AsGeoJSON(geo, 6) as geo_json
                     ')
-                    ->limit(5000)
                     ->get();
 
                 $resumoValores = collect($results)
@@ -1681,9 +1682,8 @@ class MapDataController extends Controller
                         id,
                         ' . $labelCol . ' as label_visual,
                         ' . $infoAttr['expr'] . ' as searched_value,
-                        ST_AsGeoJSON(geo) as geo_json
+                        ST_AsGeoJSON(geo, 6) as geo_json
                     ')
-                    ->limit(5000)
                     ->get();
 
                 $infoLabel = "Valor do Atributo";

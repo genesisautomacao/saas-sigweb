@@ -40,6 +40,9 @@
     <div class="doc-title">
         Relatório de Coletas — {{ $tenant?->name ?? 'Município' }}
         <span style="font-weight: normal; color:#6b7280;">· {{ $lotes->count() }} lote(s) · Gerado em {{ $dataHora }}</span>
+        @if (! empty($subtitulo))
+            <div style="font-weight: normal; color:#374151; font-size: 10px; margin-top: 2px;">{{ $subtitulo }}</div>
+        @endif
     </div>
 
     @foreach($lotes as $lote)

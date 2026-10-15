@@ -1,0 +1,22 @@
+# R84-4 — processador da fila do SIGWEB (PDF detalhado de coletas, exportações de dados).
+# Instalar: cp deploy/systemd/sigweb-fila.service /etc/systemd/system/ && systemctl daemon-reload
+#           && systemctl enable --now sigweb-fila
+# Após cada deploy: php artisan queue:restart (o worker guarda o código na memória).
+[Unit]
+Description=SIGWEB - processador da fila (relatorios e exportacoes)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=webgis
+Group=webgis
+WorkingDirectory=/srv/webgis/saas-sigweb
+ExecStart=/usr/bin/php -d memory_limit=2048M artisan queue:work database --sleep=3 --tries=1 --timeout=3600 --memory=1900 --max-time=21600
+Restart=always
+RestartSec=5
+Nice=5
+StandardOutput=append:/srv/webgis/saas-sigweb/storage/logs/fila.log
+StandardError=append:/srv/webgis/saas-sigweb/storage/logs/fila.log
+
+[Install]
+WantedBy=multi-user.target

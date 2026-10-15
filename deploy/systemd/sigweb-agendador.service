@@ -1,0 +1,10 @@
+# R84-4 — agendador do Laravel (schedule:run). Disparado a cada minuto pelo .timer.
+[Unit]
+Description=SIGWEB - agendador (schedule:run)
+
+[Service]
+Type=oneshot
+User=webgis
+Group=webgis
+WorkingDirectory=/srv/webgis/saas-sigweb
+ExecStart=/usr/bin/php artisan schedule:run

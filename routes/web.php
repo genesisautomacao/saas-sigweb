@@ -80,6 +80,20 @@ Route::get('/chamados-mapa/{chamadoMapa}/foto', function (\App\Models\ChamadoMap
     return \Illuminate\Support\Facades\Storage::disk('local')->response($chamadoMapa->foto);
 })->name('chamados-mapa.foto');
 
+// R84-4 — download de arquivo gerado pela fila (PDF detalhado, exportações). Link estável
+// do sininho e da lista "Arquivos Gerados": confere quem pede a cada clique e assina um
+// link novo do bucket. Fora do grupo 'auth' pelo mesmo motivo da rota acima.
+Route::get('/arquivos-gerados/{arquivo}/baixar', function (\App\Models\ArquivoGerado $arquivo) {
+    $user = auth()->user();
+    if (! $user) {
+        return redirect($arquivo->painel === 'admin' ? '/admin/login' : '/app/login');
+    }
+    abort_unless($arquivo->visivelPara($user), 403);
+    abort_unless($arquivo->pronto(), 410, 'Arquivo expirado ou ainda não está pronto.');
+
+    return \App\Services\ArquivosGerados\ArquivosGeradosService::respostaDownload($arquivo);
+})->middleware('web')->name('arquivos-gerados.baixar');
+
 // PT-1 — Portal de links do município: landing pública que a prefeitura usa como
 // destino no site oficial (login cidadão, cadastro, mapa anônimo, vídeo tutorial).
 Route::get('/portal/{tenant_slug}', [\App\Http\Controllers\PortalMunicipioController::class, 'show'])->name('portal.municipio');

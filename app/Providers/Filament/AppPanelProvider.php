@@ -86,6 +86,9 @@ class AppPanelProvider extends PanelProvider
             // 1. SIDEBAR RETRÁTIL (Cria o ícone do menu hamburger e encolhe a barra)
             ->sidebarCollapsibleOnDesktop()
 
+            // R84 (2026-10-15): busca global desligada — só achava protocolo de Chamado pelo
+            // Mapa (recordTitleAttribute do ChamadoMapaResource) e parecia buscar tudo.
+            ->globalSearch(false)
             // 2. ATIVA O SININHO DE NOTIFICAÇÕES NA NAVBAR
             ->databaseNotifications()
 

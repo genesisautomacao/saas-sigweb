@@ -88,7 +88,8 @@ class SecaoLogradouro extends Model
     public function setGeoAttribute($value)
     {
         // Aceita LineString único e promove para MultiLineString (coluna é MULTILINESTRING)
-        $this->attributes['geo'] = DB::raw("ST_Multi(ST_GeomFromGeoJSON('" . json_encode($value) . "'))");
+        // R84-6: feição sem geometria (ex.: testada só com o comprimento) grava NULL
+        $this->attributes['geo'] = empty($value) ? null : DB::raw("ST_Multi(ST_GeomFromGeoJSON('" . json_encode($value) . "'))");
     }
 
     public function logradouro()

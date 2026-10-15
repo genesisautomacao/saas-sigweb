@@ -102,6 +102,47 @@ final class FotosLote
         return 'data:'.$mime.';base64,'.base64_encode($conteudo);
     }
 
+    /**
+     * R84-5 — dataUri() de muitas fotos de uma vez: as do bucket público são baixadas
+     * em PARALELO pela URL pública (uma a uma eram ~0,2 s cada — 7 mil fotos = 9 min);
+     * as legadas da VPS são lidas do disco. Devolve [caminho => dataUri|null].
+     *
+     * @param  array<int, string|null>  $caminhos
+     * @return array<string, string|null>
+     */
+    public static function dataUrisEmLote(array $caminhos, int $simultaneas = 24): array
+    {
+        $caminhos = array_values(array_unique(array_filter($caminhos, 'filled')));
+        $resultado = [];
+        $doBucket = [];
+
+        foreach ($caminhos as $c) {
+            if (self::noBucket($c) && filled(config('filesystems.disks.fotos.url'))) {
+                $doBucket[] = $c;
+            } else {
+                $resultado[$c] = self::dataUri($c);
+            }
+        }
+
+        foreach (array_chunk($doBucket, max(1, $simultaneas)) as $bloco) {
+            $respostas = \Illuminate\Support\Facades\Http::pool(fn ($pool) => array_map(
+                fn ($c) => $pool->as($c)->timeout(30)->get(self::url($c)),
+                $bloco
+            ));
+
+            foreach ($bloco as $c) {
+                $r = $respostas[$c] ?? null;
+                $ok = $r instanceof \Illuminate\Http\Client\Response && $r->successful() && $r->body() !== '';
+                // Falhou pela URL pública (CDN fora, 404 de borda) ⇒ tenta pelo S3 antes de desistir
+                $conteudo = $ok ? $r->body() : self::conteudo($c);
+                $resultado[$c] = $conteudo === null ? null
+                    : 'data:'.((new \finfo(FILEINFO_MIME_TYPE))->buffer($conteudo) ?: 'image/jpeg').';base64,'.base64_encode($conteudo);
+            }
+        }
+
+        return $resultado;
+    }
+
     /** Slug da prefeitura para o prefixo do bucket (tenant explícito > tenant do painel). */
     public static function slug(Tenant|int|null $tenant = null): ?string
     {

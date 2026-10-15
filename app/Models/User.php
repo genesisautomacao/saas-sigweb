@@ -82,6 +82,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants
         'admin_tributario_sincronizar' => 'Sincronizar tributário (todos)',
         'admin_sincronizar_esus' => 'Sincronizar e-SUS',
         'admin_delegar_manager' => 'Delegar Manager da prefeitura',
+        'admin_exportar_dados' => 'Exportar dados da prefeitura (JSON, Excel, GeoPackage)', // R84-7
     ];
 
     /** Cache do papel global resolvido (evita repetir a consulta a cada checagem na tela). */

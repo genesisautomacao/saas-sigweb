@@ -40,7 +40,9 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
+            // R84-4: MAIOR que o timeout dos jobs de arquivo (GerarArquivoJob::$timeout = 3600 s).
+            // Com 90 s, um PDF de 10 min era dado como abandonado e reprocessado/marcado erro.
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 3700),
             'after_commit' => false,
         ],
 

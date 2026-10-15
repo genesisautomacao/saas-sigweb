@@ -4319,28 +4319,39 @@
         <div id="stat-tabela" style="margin-top:12px;"></div>
     </div>
 
-    {{-- PAINEL DE FILTROS ATIVOS --}}
-    <div id="painel-filtros-ativos"
+    {{-- PAINEL DE FILTROS ATIVOS — R84 (2026-10-15): embaixo e centralizado, recolhível, um
+         acordeon por filtro (descrição + exportar). wire:ignore é OBRIGATÓRIO: o conteúdo é
+         todo do engine (atualizarPainelFiltros) e, sem ele, qualquer resposta do Livewire
+         (ex.: o clique em Exportar) redesenhava o painel escondido e vazio. --}}
+    {{-- Some enquanto houver modal aberta (o botão "Iniciar Consulta" do filtro ficava por baixo).
+         visibility, não display: o display é do engine (atualizarPainelFiltros). --}}
+    <style>
+        body:has(.fi-modal.fi-modal-open) #painel-filtros-ativos { visibility: hidden; }
+    </style>
+    <div id="painel-filtros-ativos" wire:ignore
         style="
         display: none;
         position: absolute;
-        bottom: 40px;
-        left: 16px;
+        bottom: 28px;
+        left: 50%;
+        transform: translateX(-50%);
         z-index: 1000;
-        background: rgba(17, 24, 39, 0.92);
+        width: min(560px, calc(100vw - 32px));
+        background: rgba(17, 24, 39, 0.94);
         backdrop-filter: blur(8px);
         border: 1px solid rgba(255,255,255,0.1);
         border-radius: 12px;
-        padding: 10px;
-        min-width: 260px;
-        max-width: 320px;
+        padding: 8px 10px;
         box-shadow: 0 4px 24px rgba(0,0,0,0.4);
     ">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-            <span
-                style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.05em;">
-                🎨 Tematizações Ativas
-            </span>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <button type="button" onclick="window.alternarPainelFiltros()"
+                style="flex:1; display:flex; align-items:center; gap:6px; background:none; border:none; cursor:pointer; padding:2px 0; text-align:left;">
+                <span id="painel-filtros-seta" style="color:#9ca3af; font-size:11px; width:12px;">▾</span>
+                <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.05em;">
+                    🎨 Filtros e tematizações <span id="painel-filtros-contador" style="opacity:0.7;"></span>
+                </span>
+            </button>
             <button onclick="$wire.limparFiltroAvancado()"
                 style="
                 font-size:10px; padding:3px 8px; border-radius:6px;
@@ -4349,6 +4360,6 @@
             ">Limpar
                 Todos</button>
         </div>
-        <div id="lista-filtros-ativos" style="display:flex; flex-direction:column; gap:4px;"></div>
+        <div id="lista-filtros-ativos" style="display:flex; flex-direction:column; gap:4px; margin-top:8px; max-height:38vh; overflow-y:auto;"></div>
     </div>
 </div>

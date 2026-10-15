@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Tenant;
+use App\Support\MapaPermissoes;
+use App\Support\Modulos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -17,13 +20,16 @@ class OgcController extends Controller
      */
     public function handle(Request $request, $tenant_slug)
     {
-        // 1. Busca o ID do Tenant real baseado na Slug da URL
-        // (Assumindo que sua tabela de tenants se chama 'tenants'. Ajuste se for diferente, ex: 'prefeituras')
-        $tenantId = DB::table('tenants')->where('slug', $tenant_slug)->value('id');
+        // R84-2: rota sem login — mesma régua do mapa público (prefeitura ativa, só
+        // camadas públicas de módulo contratado). Antes servia qualquer slug, inclusive
+        // de prefeitura desativada e com o módulo desligado.
+        $tenant = \App\Models\Tenant::where('slug', $tenant_slug)->where('is_active', true)->first();
 
-        if (!$tenantId) {
+        if (! $tenant) {
             return response()->json(['error' => 'Prefeitura/Tenant não encontrada.'], 404);
         }
+
+        $tenantId = $tenant->id;
 
         $service = strtoupper($request->query('service', 'WFS'));
         $requestType = strtoupper($request->query('request', ''));
@@ -31,10 +37,10 @@ class OgcController extends Controller
         // Atende às requisições do protocolo WFS (Web Feature Service)
         if ($service === 'WFS') {
             if ($requestType === 'GETCAPABILITIES') {
-                return $this->wfsGetCapabilities($tenant_slug);
+                return $this->wfsGetCapabilities($tenant);
             }
             if ($requestType === 'GETFEATURE') {
-                return $this->wfsGetFeature($request, $tenantId);
+                return $this->wfsGetFeature($request, $tenant);
             }
         }
 
@@ -44,22 +50,40 @@ class OgcController extends Controller
     /**
      * Responde com o XML descritivo dos serviços disponíveis (Padrão OGC OBRIGATÓRIO)
      */
-    private function wfsGetCapabilities($tenant_slug)
+    /** Camadas do WFS: tabela, coluna de rótulo e título. */
+    private const CAMADAS = [
+        'lotes' => ['table' => 'lotes', 'label_col' => 'numero_lote', 'titulo' => 'Lotes Urbanos'],
+        'quadras' => ['table' => 'quadras', 'label_col' => 'name', 'titulo' => 'Quadras Urbanas'],
+        'logradouros' => ['table' => 'logradouros', 'label_col' => 'name', 'titulo' => 'Sistema Viário'],
+        'bairros' => ['table' => 'bairros', 'label_col' => 'name', 'titulo' => 'Bairros e Distritos'],
+    ];
+
+    /**
+     * R84-2 — a camada pode sair por esta rota anônima? Só se for pública (a do mapa do
+     * cidadão, `config/mapa.php`) e de módulo contratado pela prefeitura.
+     */
+    private function camadaLiberada(string $camada, Tenant $tenant): bool
     {
-        // O XML agora é dinâmico e pode no futuro refletir apenas as camadas que aquela prefeitura tem acesso
+        return MapaPermissoes::camadaPublica($camada) && Modulos::camadaDisponivel($camada, $tenant);
+    }
+
+    private function wfsGetCapabilities(Tenant $tenant)
+    {
+        $tipos = '';
+        foreach (self::CAMADAS as $nome => $cfg) {
+            if ($this->camadaLiberada($nome, $tenant)) {
+                $tipos .= "<FeatureType><Name>{$nome}</Name><Title>{$cfg['titulo']}</Title></FeatureType>";
+            }
+        }
+
         $xml = '<?xml version="1.0" encoding="UTF-8"?>
         <WFS_Capabilities version="1.0.0" xmlns="http://www.opengis.net/wfs">
             <Service>
-                <Name>SIGWEB WFS - ' . strtoupper($tenant_slug) . '</Name>
+                <Name>SIGWEB WFS - ' . e(strtoupper($tenant->slug)) . '</Name>
                 <Title>Serviço de Feições OGC SIGWEB</Title>
                 <Abstract>Fornecimento interoperável de dados espaciais via WFS (GeoJSON)</Abstract>
             </Service>
-            <FeatureTypeList>
-                <FeatureType><Name>lotes</Name><Title>Lotes Urbanos</Title></FeatureType>
-                <FeatureType><Name>quadras</Name><Title>Quadras Urbanas</Title></FeatureType>
-                <FeatureType><Name>logradouros</Name><Title>Sistema Viário</Title></FeatureType>
-                <FeatureType><Name>bairros</Name><Title>Bairros e Distritos</Title></FeatureType>
-            </FeatureTypeList>
+            <FeatureTypeList>' . $tipos . '</FeatureTypeList>
         </WFS_Capabilities>';
 
         return response($xml, 200)->header('Content-Type', 'text/xml');
@@ -68,24 +92,18 @@ class OgcController extends Controller
     /**
      * Motor principal que busca a geometria no PostGIS e devolve no padrão WFS (GeoJSON)
      */
-    private function wfsGetFeature(Request $request, $tenantId)
+    private function wfsGetFeature(Request $request, Tenant $tenant)
     {
+        $tenantId = $tenant->id;
+
         // No padrão OGC, a camada é solicitada via parâmetro typeName
         $typeName = strtolower($request->query('typeName', $request->query('typename', '')));
 
-        // 🛑 DICIONÁRIO DE MAPEAMENTO (Tabela Real e Coluna de Rótulo/Nome)
-        $allowedLayers = [
-            'lotes'       => ['table' => 'lotes',       'label_col' => 'numero_lote'],
-            'quadras'     => ['table' => 'quadras',     'label_col' => 'name'],
-            'logradouros' => ['table' => 'logradouros', 'label_col' => 'name'],
-            'bairros'     => ['table' => 'bairros',     'label_col' => 'name'],
-        ];
-
-        if (!array_key_exists($typeName, $allowedLayers)) {
+        if (! array_key_exists($typeName, self::CAMADAS) || ! $this->camadaLiberada($typeName, $tenant)) {
             return response()->json(['error' => "Layer '{$typeName}' não encontrada ou não configurada para exportação OGC WFS."], 404);
         }
 
-        $config = $allowedLayers[$typeName];
+        $config = self::CAMADAS[$typeName];
         $tableName = $config['table'];
         $labelCol = $config['label_col'];
 
@@ -94,6 +112,7 @@ class OgcController extends Controller
         $query = DB::table($tableName)
             ->select('id', "{$labelCol} as feature_name", DB::raw('ST_AsGeoJSON(geo::geometry) as geo_json'))
             ->whereNotNull('geo')
+            ->whereNull('deleted_at')
             ->where('tenant_id', $tenantId);
 
         // Suporte ao filtro espacial BBOX (Bounding Box) do padrão OGC para exportações parciais (QGIS usa muito isso)

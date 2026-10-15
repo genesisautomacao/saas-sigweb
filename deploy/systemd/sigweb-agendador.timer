@@ -1,0 +1,13 @@
+# R84-4 — roda o agendador do SIGWEB a cada minuto.
+# Instalar: cp deploy/systemd/sigweb-agendador.* /etc/systemd/system/ && systemctl daemon-reload
+#           && systemctl enable --now sigweb-agendador.timer
+[Unit]
+Description=SIGWEB - agendador a cada minuto
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
+Persistent=false
+
+[Install]
+WantedBy=timers.target
