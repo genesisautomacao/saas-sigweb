@@ -1,0 +1,324 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SIGWEB Release 84</title>
+<meta name="sigweb-release" content="84">
+<meta name="sigweb-data" content="2026-10-15">
+<meta name="description" content="Exportação de dados, fila de processamento e importação de novas camadas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,600;125,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: uma "folha de carta" — carimbo no topo, legenda de camadas em grade, régua de escala e coordenadas no rodapé */
+:root {
+  --papel: #f2f4ee;
+  --folha: #fbfcf8;
+  --tinta: #1c2726;
+  --tinta-suave: #55625f;
+  --linha: #cdd5cc;
+  --acento: #156a8e;
+  --acento-suave: #dcedf4;
+  --alerta: #b45309;
+  --alerta-suave: #fbefdf;
+  /* paleta real dos status da coleta (app + mapa web) */
+  --nao-visitado: #faff00;
+  --coletado: #00ffff;
+  --pendente: #ff751f;
+  --inconformidade: #ff3131;
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --corpo: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --papel: #121918; --folha: #182120; --tinta: #e6ece9; --tinta-suave: #9fb0ab;
+    --linha: #2c3a37; --acento: #5cc4e2; --acento-suave: #14303c; --alerta: #f0a35a; --alerta-suave: #33261a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --papel: #121918; --folha: #182120; --tinta: #e6ece9; --tinta-suave: #9fb0ab;
+  --linha: #2c3a37; --acento: #5cc4e2; --acento-suave: #14303c; --alerta: #f0a35a; --alerta-suave: #33261a;
+  color-scheme: dark;
+}
+
+.logo { display: block; height: 64px; width: auto; max-width: 100%; margin-bottom: 18px; }
+.logo-escura { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .logo-clara { display: none; } :root:not([data-theme="light"]) .logo-escura { display: block; } }
+:root[data-theme="dark"] .logo-clara { display: none; }
+:root[data-theme="dark"] .logo-escura { display: block; }
+
+* { box-sizing: border-box; }
+html { background: var(--papel); }
+body {
+  margin: 0; background: var(--papel); color: var(--tinta);
+  font: 16px/1.6 var(--corpo);
+  padding-inline: 16px; padding-block: 32px 48px;
+}
+.folha {
+  max-width: 1040px; margin: 0 auto; background: var(--folha);
+  border: 1px solid var(--linha); border-radius: 4px;
+  /* moldura dupla de carta topográfica */
+  box-shadow: 0 0 0 6px var(--folha), 0 0 0 7px var(--linha);
+}
+
+/* ── Carimbo ───────────────────────────── */
+.carimbo {
+  display: grid; grid-template-columns: 1fr auto; gap: 24px;
+  padding: 28px 32px 24px; border-bottom: 1px solid var(--linha);
+}
+.carimbo .eyebrow {
+  font: 500 12px/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--acento);
+}
+.carimbo h1 {
+  font: 800 clamp(30px, 5.2vw, 52px)/1.02 var(--display); font-stretch: 125%;
+  margin: 8px 0 12px; letter-spacing: -.01em; text-wrap: balance;
+}
+.carimbo .tese { margin: 0; max-width: 58ch; color: var(--tinta-suave); font-size: 18px; }
+.ficha {
+  font: 400 12px/1.7 var(--mono); color: var(--tinta-suave);
+  border-left: 1px solid var(--linha); padding-left: 20px; align-self: start;
+  display: grid; grid-template-columns: auto auto; column-gap: 14px;
+}
+.ficha dt { color: var(--tinta-suave); }
+.ficha dd { margin: 0; color: var(--tinta); font-variant-numeric: tabular-nums; }
+
+/* ── Rota ida-e-volta ─────────────────── */
+.rota { padding: 8px 32px 0; }
+.rota svg { width: 100%; height: auto; display: block; max-width: 100%; }
+.rota .cap { font: 400 13px/1.5 var(--mono); color: var(--tinta-suave); margin: 4px 0 0; }
+
+/* ── Legenda (as entregas) ────────────── */
+.legenda-titulo {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 28px 32px 8px;
+}
+.legenda-titulo h2 { font: 600 13px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; margin: 0; color: var(--tinta-suave); }
+.legenda-titulo span { font: 400 12px/1 var(--mono); color: var(--tinta-suave); }
+.camadas {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--linha); margin: 0 32px;
+}
+.camada {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 14px;
+  padding: 22px 20px 22px 0; border-bottom: 1px solid var(--linha);
+}
+.camada:nth-child(odd) { border-right: 1px solid var(--linha); }
+.camada:nth-child(even) { padding-left: 20px; }
+.simbolo { width: 34px; height: 24px; margin-top: 4px; }
+.camada h3 {
+  font: 600 20px/1.2 var(--display); font-stretch: 112%; margin: 0 0 6px; text-wrap: balance;
+}
+.camada p { margin: 0 0 8px; color: var(--tinta-suave); }
+.camada p:last-child { margin-bottom: 0; }
+.camada strong { color: var(--tinta); font-weight: 600; }
+.numero {
+  font: 500 13px/1.4 var(--mono); color: var(--acento); font-variant-numeric: tabular-nums;
+  background: var(--acento-suave); padding: 2px 8px; border-radius: 3px; display: inline-block;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.chip { font: 500 12px/1 var(--mono); border: 1px solid var(--linha); border-radius: 3px; padding: 5px 8px; color: var(--tinta); }
+
+/* ordem de importação = sequência real */
+.ordem { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 4px 0; font: 500 13px/1.6 var(--mono); }
+.ordem li { display: flex; align-items: center; }
+.ordem li + li::before { content: "→"; color: var(--tinta-suave); margin: 0 8px; }
+.ordem .novo { color: var(--acento); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+
+/* status da coleta */
+.status { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font: 400 12px/1.4 var(--mono); color: var(--tinta-suave); }
+.status span { display: inline-flex; align-items: center; gap: 6px; }
+.status i { width: 14px; height: 10px; border: 2px solid; border-radius: 2px; display: inline-block; }
+
+/* ── Jucurutu ─────────────────────────── */
+.campo { padding: 28px 32px 8px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 28px; }
+.campo h2 { font: 800 26px/1.1 var(--display); font-stretch: 125%; margin: 0 0 8px; }
+.campo p { margin: 0 0 10px; color: var(--tinta-suave); max-width: 52ch; }
+.placar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border: 1px solid var(--linha); align-self: start; }
+.placar div { padding: 14px 16px; }
+.placar div + div { border-left: 1px solid var(--linha); }
+.placar b { display: block; font: 800 34px/1 var(--display); font-stretch: 112%; font-variant-numeric: tabular-nums; }
+.placar small { display: block; margin-top: 6px; font: 400 12px/1.4 var(--mono); color: var(--tinta-suave); }
+.licao {
+  grid-column: 1 / -1; background: var(--alerta-suave); border: 1px solid color-mix(in srgb, var(--alerta) 35%, transparent);
+  border-radius: 4px; padding: 14px 18px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start;
+}
+.licao span { font: 600 12px/1.6 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--alerta); white-space: nowrap; }
+.licao p { margin: 0; color: var(--tinta); max-width: none; }
+
+/* ── Rodapé: escala + coordenadas ─────── */
+.rodape {
+  margin-top: 24px; padding: 18px 32px 22px; border-top: 1px solid var(--linha);
+  display: flex; justify-content: space-between; align-items: end; gap: 18px; flex-wrap: wrap;
+  font: 400 12px/1.5 var(--mono); color: var(--tinta-suave);
+}
+.escala { display: grid; gap: 4px; }
+.escala .barra { display: flex; height: 8px; width: 220px; max-width: 100%; border: 1px solid var(--tinta); }
+.escala .barra i { flex: 1; }
+.escala .barra i:nth-child(odd) { background: var(--tinta); }
+.escala .marcas { display: flex; justify-content: space-between; width: 220px; max-width: 100%; }
+.rodape .assina { text-align: right; }
+
+a { color: var(--acento); }
+:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+@media (max-width: 760px) {
+  body { padding-block: 16px 32px; }
+  .carimbo { grid-template-columns: 1fr; padding: 22px 20px; }
+  .ficha { border-left: 0; padding-left: 0; border-top: 1px solid var(--linha); padding-top: 12px; }
+  .rota, .legenda-titulo, .campo, .rodape { padding-inline: 20px; }
+  .camadas { grid-template-columns: 1fr; margin: 0 20px; }
+  .camada, .camada:nth-child(even) { padding: 18px 0; border-right: 0; }
+  .campo { grid-template-columns: 1fr; }
+  .placar b { font-size: 28px; }
+  .licao { grid-template-columns: 1fr; gap: 4px; }
+  .rodape .assina { text-align: left; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rota .trajeto { stroke-dasharray: 6 7; animation: andar 2.4s linear infinite; }
+  @keyframes andar { to { stroke-dashoffset: -26; } }
+}
+</style>
+
+<main class="folha">
+
+  <header class="carimbo">
+    <div>
+      <img class="logo logo-clara" src="img/logo-lider.png" alt="Líder Engenharia e Gestão de Cidades" width="206" height="64">
+      <img class="logo logo-escura" src="img/logo-lider-br.png" alt="Líder Engenharia e Gestão de Cidades" width="206" height="64">
+      <div class="eyebrow">SIGWEB · Folha R84 · Equipe GEO</div>
+      <h1>O dado sai, passeia no QGIS e volta pra casa</h1>
+      <p class="tese">Release 84: exportação de dados, fila de processamento e importação de novas camadas. O que muda no dia a dia de quem edita a base cartográfica.</p>
+    </div>
+    <dl class="ficha">
+      <dt>Release</dt><dd>84</dd>
+      <dt>No ar desde</dt><dd>15/10/2026 18:48</dd>
+      <dt>Datum</dt><dd>WGS 84 · EPSG:4326</dd>
+      <dt>App coleta</dt><dd>1.1.5</dd>
+    </dl>
+  </header>
+
+  <!-- Rota ida-e-volta: SIGWEB → QGIS → SIGWEB -->
+  <section class="rota" aria-label="Caminho do dado">
+    <svg viewBox="0 0 960 180" role="img" aria-label="O arquivo sai do SIGWEB, é editado no QGIS e volta pelo modo Atualizar">
+      <defs>
+        <pattern id="curvas" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M0 20 Q10 12 20 20 T40 20" fill="none" stroke="var(--linha)" stroke-width="1"/>
+        </pattern>
+      </defs>
+      <rect x="0" y="0" width="960" height="180" fill="url(#curvas)" opacity=".7"/>
+      <path class="trajeto" d="M120 98 C 300 40, 640 40, 840 84" fill="none" stroke="var(--acento)" stroke-width="2.5"/>
+      <path class="trajeto" d="M840 100 C 640 150, 300 150, 120 110" fill="none" stroke="var(--alerta)" stroke-width="2.5"/>
+      <!-- pinos -->
+      <g fill="var(--folha)" stroke="var(--tinta)" stroke-width="2">
+        <circle cx="120" cy="104" r="15"/><circle cx="840" cy="92" r="15"/>
+      </g>
+      <circle cx="120" cy="104" r="5" fill="var(--acento)"/><circle cx="840" cy="92" r="5" fill="var(--alerta)"/>
+      <g font-family="IBM Plex Mono, monospace" font-size="14" fill="var(--tinta)">
+        <text x="96" y="109" text-anchor="end" font-weight="500">SIGWEB</text>
+        <text x="864" y="97" text-anchor="start" font-weight="500">QGIS</text>
+      </g>
+      <g font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--tinta-suave)">
+        <text x="480" y="26" text-anchor="middle">ida: Exportar dados · GeoPackage / JSON / Excel</text>
+        <text x="480" y="170" text-anchor="middle">volta: Importar Mapa (GIS) · modo Atualizar</text>
+      </g>
+    </svg>
+    <p class="cap">Ida e volta testada com 1.105 lotes do bairro Centro: zero diferença em geometria, quadra, zona e campos.</p>
+  </section>
+
+  <div class="legenda-titulo">
+    <h2>Legenda · o que entrou</h2>
+    <span>6 entregas nesta folha</span>
+  </div>
+
+  <section class="camadas">
+
+    <article class="camada">
+      <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><rect x="2" y="2" width="30" height="20" fill="var(--acento-suave)" stroke="var(--acento)" stroke-width="2"/><path d="M17 6v9m-4-4 4 4 4-4" stroke="var(--acento)" stroke-width="2" fill="none"/></svg>
+      <div>
+        <h3>Exportar dados</h3>
+        <p>No <strong>/admin → Prefeitura → Exportar dados</strong>: escolham as camadas, o formato e, se quiserem, um ou mais bairros de recorte.</p>
+        <div class="chips"><span class="chip">GeoPackage · abre no QGIS</span><span class="chip">JSON · o formato da importação</span><span class="chip">Excel · uma aba por camada</span></div>
+        <p>Vai junto: dados da coleta, link das fotos, campos customizados e proprietário. <strong>Não mexam na coluna <code>id</code></strong>: é ela que leva cada registro de volta pra casa.</p>
+      </div>
+    </article>
+
+    <article class="camada">
+      <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><circle cx="13" cy="11" r="7" fill="none" stroke="var(--acento)" stroke-width="2"/><path d="M18 16l8 6" stroke="var(--acento)" stroke-width="2.5"/></svg>
+      <div>
+        <h3>Filtro do mapa sem limite</h3>
+        <p>Antes parava em 2.000 resultados sem avisar. Agora traz tudo: <span class="numero">6.980 lotes de Jucurutu em 0,38 s</span></p>
+        <p>A janelinha dos filtros mora embaixo, no centro: acumula os filtros num acordeon, mostra o nome do bairro e exporta só o resultado.</p>
+      </div>
+    </article>
+
+    <article class="camada">
+      <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><path d="M2 20 L12 6 L22 14 L32 4" fill="none" stroke="var(--acento)" stroke-width="2.5"/><circle cx="12" cy="6" r="2.5" fill="var(--acento)"/><circle cx="22" cy="14" r="2.5" fill="var(--acento)"/></svg>
+      <div>
+        <h3>Três camadas novas na importação</h3>
+        <p>Seções de Logradouro, Testadas de Lote e Faces de Quadra, com moldes prontos (é só pedir). A ordem importa, porque o pai precisa existir antes:</p>
+        <ol class="ordem">
+          <li>ruas</li><li class="novo">seções</li><li>lotes</li><li class="novo">testadas</li><li>…</li><li class="novo">faces</li>
+        </ol>
+      </div>
+    </article>
+
+    <article class="camada">
+      <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><path d="M17 3a6 6 0 0 1 6 6v5l3 4H8l3-4V9a6 6 0 0 1 6-6z" fill="none" stroke="var(--acento)" stroke-width="2"/><circle cx="17" cy="21" r="2" fill="var(--acento)"/></svg>
+      <div>
+        <h3>Arquivos Gerados e o sininho</h3>
+        <p>Relatório pesado não trava mais a tela: o sistema gera por trás e avisa no sininho. O arquivo fica <span class="numero">7 dias</span> em <strong>Configurações → Arquivos Gerados</strong>, depois sai sozinho.</p>
+      </div>
+    </article>
+
+    <article class="camada">
+      <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><rect x="4" y="2" width="12" height="16" fill="var(--folha)" stroke="var(--acento)" stroke-width="2"/><rect x="11" y="5" width="12" height="16" fill="var(--folha)" stroke="var(--acento)" stroke-width="2"/><rect x="18" y="8" width="12" height="14" fill="var(--acento-suave)" stroke="var(--acento)" stroke-width="2"/></svg>
+      <div>
+        <h3>PDF detalhado de coletas em partes</h3>
+        <p>A semana de Cajazeiras (<span class="numero">2.498 lotes</span>) travava num PDF só. Agora sai num ZIP com PDFs de até 250 lotes, divididos por coletor, por quadra ou por data.</p>
+      </div>
+    </article>
+
+    <article class="camada">
+      <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><rect x="2" y="2" width="14" height="20" fill="#faff00" fill-opacity=".25" stroke="#c9b400" stroke-width="1.5"/><rect x="18" y="2" width="14" height="20" fill="#c9b400" fill-opacity=".6" stroke="#8a7a00" stroke-width="3"/></svg>
+      <div>
+        <h3>App de Coleta 1.1.5</h3>
+        <p>O lote tocado fica destacado no tom escuro da cor dele, e o cadastrador sabe exatamente qual está preenchendo. O gestor de Cajazeiras testa primeiro.</p>
+        <div class="status" aria-label="Cores de status da coleta">
+          <span><i style="border-color:var(--nao-visitado); background:color-mix(in srgb, var(--nao-visitado) 25%, transparent)"></i>não visitado</span>
+          <span><i style="border-color:var(--coletado); background:color-mix(in srgb, var(--coletado) 25%, transparent)"></i>coletado</span>
+          <span><i style="border-color:var(--pendente); background:color-mix(in srgb, var(--pendente) 25%, transparent)"></i>pendente</span>
+          <span><i style="border-color:var(--inconformidade); background:color-mix(in srgb, var(--inconformidade) 25%, transparent)"></i>inconformidade</span>
+        </div>
+      </div>
+    </article>
+
+  </section>
+
+  <section class="campo">
+    <div>
+      <div class="eyebrow" style="font:500 12px/1.4 var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--acento); margin-bottom:6px;">Trabalho de campo · −6,03° −37,02°</div>
+      <h2>Faxina em Jucurutu</h2>
+      <p>Os bairros novos assumiram as quadras de dentro e os lotes desenhados viraram "pai" das edificações sem lote. Tudo com prévia aprovada e registrado na Auditoria.</p>
+      <p>As órfãs esperam o lote ser desenhado. O relatório traz a coordenada de cada uma e o lote mais próximo.</p>
+    </div>
+    <div class="placar" role="list">
+      <div role="listitem"><b>141</b><small>quadras no bairro certo</small></div>
+      <div role="listitem"><b>61</b><small>edificações ganharam lote</small></div>
+      <div role="listitem"><b>438</b><small>edificações ainda órfãs</small></div>
+    </div>
+    <div class="licao">
+      <span>Lição do dia</span>
+      <p>Reimportar no modo <strong>Substituir</strong> com numeração nova liga os filhos ao registro errado: foi o que embaralhou as quadras de Jucurutu. Na dúvida, chamem antes.</p>
+    </div>
+  </section>
+
+  <footer class="rodape">
+    <div class="escala" aria-hidden="true">
+      <div class="barra"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="marcas"><span>0</span><span>Escala: 1 release</span><span>84</span></div>
+    </div>
+    <div class="assina">SIGWEB · Líder Engenharia<br>Bom proveito, time.</div>
+  </footer>
+
+</main>

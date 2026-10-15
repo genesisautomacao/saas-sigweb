@@ -4,6 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Manutenção:** Sempre que uma nova feature for implementada ou um release for criado, atualize este arquivo refletindo mudanças relevantes na arquitetura, novos módulos, novos endpoints ou convenções introduzidas.
 
+## Página de Novidades de cada release (OBRIGATÓRIO)
+
+**Toda release gera a sua página de novidades** em `public/novidades/release-{N}.html` (decisão do usuário, 2026-10-15). É um HTML estático (sem Laravel), servido em `https://webgis.liderengenharia.eng.br/novidades/release-{N}.html` e listado sozinho no **/admin → Novidades** ([Novidades](app/Filament/Admin/Pages/Novidades.php) + [App\Support\Novidades](app/Support/Novidades.php), da mais nova para a mais antiga, botão "Visualizar"). O `<head>` declara `<meta name="sigweb-release" content="N">`, `<meta name="sigweb-data" content="AAAA-MM-DD">` e `<meta name="description" content="resumo de uma linha">` — sem eles a página não aparece certa na lista. Público-alvo: a equipe de GEO da Líder; tom leve, linguagem de quem usa o sistema (sem nomes de classe). Modelo visual: [release-84.html](public/novidades/release-84.html) (folha de carta topográfica, logo da Líder no topo — `public/novidades/img/logo-lider.png` no tema claro e `logo-lider-br.png` no escuro —, temas claro/escuro). Gerar junto do commit da release; validar no navegador (claro, escuro e celular) antes de publicar.
+
 ## Backlog de Pendências
 
 O arquivo [docs/pendenciasTangara.md](docs/pendenciasTangara.md) é a fonte de verdade para todas as implementações futuras deste projeto (backlog da **PoC de Tangará/SC** — análise de conformidade item-a-item em [docs/PocTangara_plano.md](docs/PocTangara_plano.md)). **Todo agente deve:**
