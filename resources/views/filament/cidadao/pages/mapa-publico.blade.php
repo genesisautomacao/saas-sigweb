@@ -386,13 +386,13 @@
                                 <span class="layer-text truncate">Distritos / Limites</span>
                             </span></label>
 
-                        {{-- B9 — Setores Fiscais (inscrição): agrupam os bairros --}}
+                        {{-- B9 — Setores Cadastrais (inscrição): agrupam os bairros --}}
                         <label class="flex items-center space-x-3 cursor-pointer w-full"><input type="checkbox"
-                                data-layer="setores_fiscais"
+                                data-layer="setores_cadastrais"
                                 class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#0d9488;"><span
                                 class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-3 rounded-full opacity-60 shadow-sm flex-shrink-0" style="background:#0d9488;"></div>
-                                <span class="layer-text truncate">Setores Fiscais</span>
+                                <span class="layer-text truncate">Setores Cadastrais</span>
                             </span></label>
 
                         <label class="flex items-center space-x-3 cursor-pointer w-full"><input type="checkbox"

@@ -7,8 +7,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Spatie\SimpleExcel\SimpleExcelWriter;
 
-/** B9 — Setores Fiscais (inscrição): Excel/PDF/CSV/XML com os bairros de cada setor. */
-class SetorFiscalExportService
+/** B9 — Setores Cadastrais (inscrição): Excel/PDF/CSV/XML com os bairros de cada setor. */
+class SetorCadastralExportService
 {
     private function linha($r): array
     {
@@ -27,14 +27,14 @@ class SetorFiscalExportService
             File::makeDirectory($path, 0755, true, true);
         }
 
-        return $path.'setores-fiscais-'.now()->format('Y-m-d-His').'.'.$ext;
+        return $path.'setores-cadastrais-'.now()->format('Y-m-d-His').'.'.$ext;
     }
 
     public function exportToExcel(Collection $records)
     {
         $arquivo = $this->caminho('xlsx');
         $data = $records->map(fn ($r) => $this->linha($r));
-        SimpleExcelWriter::create($arquivo)->addHeader(array_keys($data->first() ?? $this->linha(new \App\Models\SetorFiscal)))->addRows($data->toArray());
+        SimpleExcelWriter::create($arquivo)->addHeader(array_keys($data->first() ?? $this->linha(new \App\Models\SetorCadastral)))->addRows($data->toArray());
 
         return response()->download($arquivo)->deleteFileAfterSend(true);
     }
@@ -43,7 +43,7 @@ class SetorFiscalExportService
     {
         $arquivo = $this->caminho('csv');
         $data = $records->map(fn ($r) => $this->linha($r));
-        SimpleExcelWriter::create($arquivo, 'csv')->addHeader(array_keys($data->first() ?? $this->linha(new \App\Models\SetorFiscal)))->addRows($data->toArray());
+        SimpleExcelWriter::create($arquivo, 'csv')->addHeader(array_keys($data->first() ?? $this->linha(new \App\Models\SetorCadastral)))->addRows($data->toArray());
 
         return response()->download($arquivo)->deleteFileAfterSend(true);
     }
@@ -54,18 +54,18 @@ class SetorFiscalExportService
         $pdf = Pdf::loadView('pdf.default-report', [
             'data' => $data,
             'headings' => ['ID', 'Setor', 'Bairros', 'Área (m²)'],
-            'title' => 'Relatório de Setores Fiscais',
+            'title' => 'Relatório de Setores Cadastrais',
         ])->setPaper('a4', 'portrait');
 
-        return response()->streamDownload(fn () => print ($pdf->output()), 'setores-fiscais-'.now()->format('Y-m-d-His').'.pdf');
+        return response()->streamDownload(fn () => print ($pdf->output()), 'setores-cadastrais-'.now()->format('Y-m-d-His').'.pdf');
     }
 
     public function exportToXml(Collection $records)
     {
-        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><setores_fiscais/>');
+        $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><setores_cadastrais/>');
 
         foreach ($records as $r) {
-            $item = $xml->addChild('setor_fiscal');
+            $item = $xml->addChild('setor_cadastral');
             $item->addAttribute('id', (string) $r->sequential_id);
             $item->addChild('setor', htmlspecialchars($r->name ?? ''));
             $item->addChild('area_m2', (string) ($r->area_geo ?? ''));
@@ -76,6 +76,6 @@ class SetorFiscalExportService
         }
 
         return response()->streamDownload(fn () => print $xml->asXML(),
-            'setores-fiscais-'.now()->format('Y-m-d-His').'.xml', ['Content-Type' => 'application/xml']);
+            'setores-cadastrais-'.now()->format('Y-m-d-His').'.xml', ['Content-Type' => 'application/xml']);
     }
 }

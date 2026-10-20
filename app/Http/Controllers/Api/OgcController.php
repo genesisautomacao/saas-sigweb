@@ -56,7 +56,7 @@ class OgcController extends Controller
         'quadras' => ['table' => 'quadras', 'label_col' => 'name', 'titulo' => 'Quadras Urbanas'],
         'logradouros' => ['table' => 'logradouros', 'label_col' => 'name', 'titulo' => 'Sistema Viário'],
         'bairros' => ['table' => 'bairros', 'label_col' => 'name', 'titulo' => 'Bairros e Distritos'],
-        'setores_fiscais' => ['table' => 'setores_fiscais', 'label_col' => 'name', 'titulo' => 'Setores Fiscais'], // B9
+        'setores_cadastrais' => ['table' => 'setores_cadastrais', 'label_col' => 'name', 'titulo' => 'Setores Cadastrais'], // B9
     ];
 
     /**

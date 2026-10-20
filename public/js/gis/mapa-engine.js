@@ -633,8 +633,8 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
-        // B9 — Setor Fiscal da inscrição (agrupa bairros): por baixo dos bairros
-        setores_fiscais: {
+        // B9 — Setor Cadastral da inscrição (agrupa bairros): por baixo dos bairros
+        setores_cadastrais: {
             z: 28,
             minZoom: 0,
             style: function (feature, resolution) {
@@ -1942,7 +1942,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const CAMADAS_PERSONALIZAVEIS = {
         perimetros: "#ef4444",
         setores_pgv: "#f59e0b",
-        setores_fiscais: "#0d9488",
+        setores_cadastrais: "#0d9488",
         bairros: "#3b82f6",
         loteamentos: "#2563eb",
         quadras: "#f97316",
@@ -2683,7 +2683,7 @@ document.addEventListener("DOMContentLoaded", function () {
             "mob_fluxos",
             "zonas",
             "mob_cameras",
-            "setores_fiscais",
+            "setores_cadastrais",
             "bairros",
             "loteamentos",
             "quadras",
@@ -3046,16 +3046,16 @@ document.addEventListener("DOMContentLoaded", function () {
                                     : null,
                         }),
                     );
-                } else if (layer === "setores_fiscais") {
+                } else if (layer === "setores_cadastrais") {
                     // B9 — mesmo "acender" dos bairros, na cor do setor
                     feature.setStyle(
                         new ol.style.Style({
                             stroke: new ol.style.Stroke({
-                                color: corHoverCamada("setores_fiscais", "#0d9488"),
+                                color: corHoverCamada("setores_cadastrais", "#0d9488"),
                                 width: 4,
                             }),
                             fill: new ol.style.Fill({
-                                color: fillHoverCamada("setores_fiscais", "rgba(13, 148, 136, 0.35)", 0.5),
+                                color: fillHoverCamada("setores_cadastrais", "rgba(13, 148, 136, 0.35)", 0.5),
                             }),
                             text:
                                 zoom >= 12
@@ -4534,7 +4534,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "areas_reurb",
                 "mob_zonas",
                 "bairros",
-                "setores_fiscais", // B9 — abraça os bairros: perde para eles
+                "setores_cadastrais", // B9 — abraça os bairros: perde para eles
                 "loteamentos",
                 "rural-localidades",
                 "perimetros", // Distritos / Limites — polígonos gigantes (menor prioridade)
@@ -4672,8 +4672,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     case "bairros":
                         Livewire.dispatch("abrirOpcoesBairro", { id: id });
                         break;
-                    case "setores_fiscais":
-                        Livewire.dispatch("abrirOpcoesSetorFiscal", { id: id });
+                    case "setores_cadastrais":
+                        Livewire.dispatch("abrirOpcoesSetorCadastral", { id: id });
                         break;
                     case "perimetros":
                         Livewire.dispatch("abrirOpcoesPerimetroUrbano", { id: id });
@@ -5675,8 +5675,8 @@ document.addEventListener("DOMContentLoaded", function () {
             cor: "#3b82f6",
         },
         {
-            evento: "iniciar-edicao-geometria-setor_fiscal",
-            layer: "setores_fiscais",
+            evento: "iniciar-edicao-geometria-setor_cadastral",
+            layer: "setores_cadastrais",
             cor: "#0d9488",
         },
         {
@@ -5894,7 +5894,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     lotes: "lote",
                     quadras: "quadra",
                     bairros: "bairro",
-                    setores_fiscais: "setor_fiscal",
+                    setores_cadastrais: "setor_cadastral",
                     perimetros: "perimetro_urbano",
                     meio_fios: "meio_fio",
                     secoes_logradouro: "secao_logradouro",
@@ -6009,8 +6009,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     id: id,
                     geoJson: geoJson,
                 });
-            else if (layerName === "setores_fiscais")
-                Livewire.dispatch("salvarNovaGeometriaSetorFiscal", {
+            else if (layerName === "setores_cadastrais")
+                Livewire.dispatch("salvarNovaGeometriaSetorCadastral", {
                     id: id,
                     geoJson: geoJson,
                 });
@@ -6788,7 +6788,7 @@ document.addEventListener("DOMContentLoaded", function () {
         { layer: "arvores", singular: "arvore" },
 
         { layer: "bairros", singular: "bairro" },
-        { layer: "setores_fiscais", singular: "setor_fiscal" },
+        { layer: "setores_cadastrais", singular: "setor_cadastral" },
         { layer: "loteamentos", singular: "loteamento" },
         { layer: "quadras_cemiterio", singular: "quadra_cemiterio" },
         { layer: "logradouros_cemiterio", singular: "logradouro_cemiterio" },
@@ -7040,7 +7040,7 @@ document.addEventListener("DOMContentLoaded", function () {
             },
             zonas: { label: "da nova Zona de Uso", func: "zona" },
             bairros: { label: "do novo Bairro", func: "bairro" },
-            setores_fiscais: { label: "do novo Setor Fiscal", func: "setor_fiscal" },
+            setores_cadastrais: { label: "do novo Setor Cadastral", func: "setor_cadastral" },
             perimetros: { label: "do novo Distrito / Limite", func: "perimetro_urbano" },
             meio_fios: { label: "do novo Meio-fio / Calçada", func: "meio_fio" },
             secoes_logradouro: { label: "da nova Seção de Logradouro", func: "secao_logradouro" },
@@ -8867,7 +8867,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // R84-7 — camadas do mapa que o "Exportar resultado" aceita (mesma lista do
     // ExportadorDadosService::CAMADAS_DO_MAPA; o servidor confere de novo).
     const CAMADAS_EXPORTAVEIS_FILTRO = [
-        "perimetros", "perimetros_urbanos", "setores_fiscais", "zonas", "bairros", "loteamentos", "quadras",
+        "perimetros", "perimetros_urbanos", "setores_cadastrais", "zonas", "bairros", "loteamentos", "quadras",
         "logradouros", "secoes_logradouro", "lotes", "edificacoes", "face_quadras",
     ];
 

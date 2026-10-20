@@ -105,7 +105,7 @@ Os parâmetros (alíquota, %venal, limite) são digitados no modal do mapa em te
 
 ### 2. Setores da PGV — 🔵 `SetorPgv`
 
-> Até a Release 85 (2026-10-19) se chamava "Setor Fiscal" (`SetorFiscal`, tabela `setores_fiscais`). O nome passou ao setor da **inscrição imobiliária** (Base Cartográfica), que não participa do cálculo da PGV.
+> Até a Release 85 (2026-10-19) se chamava "Setor Fiscal" (`SetorFiscal`, tabela `setores_fiscais`). O setor da **inscrição imobiliária** é outra camada, o Setor Cadastral (`setores_cadastrais`, Base Cartográfica), que não participa do cálculo da PGV.
 **O que é:** polígonos que dividem a cidade em zonas de cálculo, cada um apontando para **um** Parâmetro Base (`pgv_parametro_id`).
 
 **Onde entra:** é a **cola espacial**. Quando o motor precisa do parâmetro de um lote ou face, pergunta "em qual setor esse ponto cai?" via `ST_Intersects`. No cálculo de face, o setor é gravado na própria face (`setor_pgv_id`). Sem setor, o fallback de parâmetro não é encontrado.

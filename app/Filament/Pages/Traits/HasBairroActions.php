@@ -14,12 +14,12 @@ use Illuminate\Support\Str;
 
 trait HasBairroActions
 {
-    /** B9 — setor fiscal (inscrição) do bairro; sugere o setor que contém o bairro desenhado. */
+    /** B9 — setor cadastral (inscrição) do bairro; sugere o setor que contém o bairro desenhado. */
     protected function campoSetorDoBairro(): Select
     {
-        return Select::make('setor_fiscal_id')
-            ->label('Setor Fiscal')
-            ->options(fn () => \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'))
+        return Select::make('setor_cadastral_id')
+            ->label('Setor Cadastral')
+            ->options(fn () => \App\Models\SetorCadastral::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'))
             ->searchable()
             ->placeholder('Sem setor');
     }
@@ -61,7 +61,7 @@ trait HasBairroActions
                         }
                         $wkt = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($this->geometriaRascunho)."'), 4326)";
 
-                        return \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)
+                        return \App\Models\SetorCadastral::query()->where('tenant_id', $this->tenantId)
                             ->whereRaw("ST_Contains(geo, ST_PointOnSurface($wkt))")
                             ->value('id');
                     }),
@@ -115,7 +115,7 @@ trait HasBairroActions
                 return [
                     'name'   => $reg?->name,
                     'codigo' => $reg?->codigo,
-                    'setor_fiscal_id' => $reg?->setor_fiscal_id,
+                    'setor_cadastral_id' => $reg?->setor_cadastral_id,
                     'dados_customizados' => $reg?->dados_customizados ?? [],
                 ];
             })

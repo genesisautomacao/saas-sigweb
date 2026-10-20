@@ -137,7 +137,7 @@ class PermissionsSeeder extends Seeder
             'create_logradouros',
             'edit_logradouros',
             'delete_logradouros',
-            'view_setores_fiscais', 'create_setores_fiscais', 'edit_setores_fiscais', 'delete_setores_fiscais', // B9
+            'view_setores_cadastrais', 'create_setores_cadastrais', 'edit_setores_cadastrais', 'delete_setores_cadastrais', // B9
             'view_bairros',
             'create_bairros',
             'edit_bairros',
@@ -278,7 +278,7 @@ class PermissionsSeeder extends Seeder
             /* Permissões de visibilidade de camadas GIS */
             'ver_camada_perimetros',
             'ver_camada_setores_pgv',
-            'ver_camada_setores_fiscais', // B9 — setor da inscrição (base cartográfica)
+            'ver_camada_setores_cadastrais', // B9 — setor da inscrição (base cartográfica)
             'ver_camada_bairros',
             'ver_camada_loteamentos',
             'ver_camada_quadras',

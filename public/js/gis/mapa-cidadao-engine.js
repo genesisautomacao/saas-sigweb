@@ -326,8 +326,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             },
         },
-        // B9 — Setor Fiscal (inscrição): mesmo visual da intranet, por baixo dos bairros
-        setores_fiscais: {
+        // B9 — Setor Cadastral (inscrição): mesmo visual da intranet, por baixo dos bairros
+        setores_cadastrais: {
             z: 28,
             minZoom: 0,
             style: function (feature, resolution) {

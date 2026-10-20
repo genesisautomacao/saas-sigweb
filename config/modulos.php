@@ -43,15 +43,15 @@ return [
 
     'base_cartografica' => [
         'label' => 'GIS - Base Cartográfica',
-        'descricao' => 'Perímetro/distritos, setores fiscais, bairros, logradouros e suas seções. Pré-requisito do imobiliário; base de qualquer módulo GIS.',
+        'descricao' => 'Perímetro/distritos, setores cadastrais, bairros, logradouros e suas seções. Pré-requisito do imobiliário; base de qualquer módulo GIS.',
         'requer' => [],
         'permissoes' => [
-            ...$quarteto('perimetros_urbanos'), ...$quarteto('setores_fiscais'), ...$quarteto('bairros'), ...$quarteto('logradouros'),
+            ...$quarteto('perimetros_urbanos'), ...$quarteto('setores_cadastrais'), ...$quarteto('bairros'), ...$quarteto('logradouros'),
             ...$quarteto('secoes_logradouro'), // D8: a seção segue o logradouro; R83: quarteto (era gerenciar_)
-            'ver_camada_perimetros', 'ver_camada_setores_fiscais', 'ver_camada_bairros', 'ver_camada_logradouros', 'ver_camada_secoes_logradouro',
+            'ver_camada_perimetros', 'ver_camada_setores_cadastrais', 'ver_camada_bairros', 'ver_camada_logradouros', 'ver_camada_secoes_logradouro',
         ],
-        'camadas' => ['perimetros', 'setores_fiscais', 'bairros', 'logradouros', 'secoes_logradouro'],
-        'artefatos' => ['perimetro_urbano', 'setor_fiscal', 'bairro', 'logradouro'],
+        'camadas' => ['perimetros', 'setores_cadastrais', 'bairros', 'logradouros', 'secoes_logradouro'],
+        'artefatos' => ['perimetro_urbano', 'setor_cadastral', 'bairro', 'logradouro'],
         'ferramentas' => [],
     ],
 

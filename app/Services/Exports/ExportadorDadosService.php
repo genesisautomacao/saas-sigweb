@@ -38,7 +38,7 @@ class ExportadorDadosService
     public const CAMADAS = [
         'perimetros_urbanos' => ['label' => 'Distritos / Limites', 'importar' => 'PerimetroUrbano', 'entidade' => 'perimetro', 'recorte' => 'intersecta'],
         'zonas' => ['label' => 'Zoneamento', 'importar' => 'Zona', 'entidade' => 'zona', 'recorte' => 'intersecta'],
-        'setores_fiscais' => ['label' => 'Setores Fiscais', 'importar' => 'SetorFiscal', 'entidade' => 'setor_fiscal', 'recorte' => 'intersecta'], // B9 — antes dos bairros
+        'setores_cadastrais' => ['label' => 'Setores Cadastrais', 'importar' => 'SetorCadastral', 'entidade' => 'setor_cadastral', 'recorte' => 'intersecta'], // B9 — antes dos bairros
         'bairros' => ['label' => 'Bairros', 'importar' => 'Bairro', 'entidade' => 'bairro', 'recorte' => 'bairro'],
         'loteamentos' => ['label' => 'Loteamentos', 'importar' => 'Loteamento', 'entidade' => 'loteamento', 'recorte' => 'intersecta'],
         'quadras' => ['label' => 'Quadras', 'importar' => 'Quadra', 'entidade' => 'quadra', 'recorte' => 'ponto'],
@@ -54,7 +54,7 @@ class ExportadorDadosService
     /** Camadas do mapa (data-layer) → camada exportável. */
     public const CAMADAS_DO_MAPA = [
         'perimetros' => 'perimetros_urbanos', 'perimetros_urbanos' => 'perimetros_urbanos',
-        'zonas' => 'zonas', 'setores_fiscais' => 'setores_fiscais', 'bairros' => 'bairros', 'loteamentos' => 'loteamentos', 'quadras' => 'quadras',
+        'zonas' => 'zonas', 'setores_cadastrais' => 'setores_cadastrais', 'bairros' => 'bairros', 'loteamentos' => 'loteamentos', 'quadras' => 'quadras',
         'logradouros' => 'logradouros', 'secoes_logradouro' => 'secoes_logradouro', 'lotes' => 'lotes',
         'edificacoes' => 'edificacoes', 'face_quadras' => 'face_quadras',
     ];
@@ -70,7 +70,7 @@ class ExportadorDadosService
         'perimetro_id' => 'perimetros_urbanos', 'bairro_id' => 'bairros', 'loteamento_id' => 'loteamentos',
         'quadra_id' => 'quadras', 'zona_id' => 'zonas', 'lote_id' => 'lotes', 'logradouro_id' => 'logradouros',
         'secao_logradouro_id' => 'secoes_logradouro', 'setor_pgv_id' => 'setores_pgv', 'pgv_polo_id' => 'pgv_polos',
-        'setor_fiscal_id' => 'setores_fiscais',
+        'setor_cadastral_id' => 'setores_cadastrais',
     ];
 
     /** Colunas internas que não saem (ou saem transformadas). */

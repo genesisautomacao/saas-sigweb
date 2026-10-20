@@ -461,10 +461,10 @@
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
-                                        @if (\App\Support\Modulos::artefatoDisponivel('setor_fiscal') && ($permMapa['artefatos']['setor_fiscal'] ?? false))
-                                        <button type="button" onclick="enableDrawing('setor_fiscal')" @click="openDraw = false"
+                                        @if (\App\Support\Modulos::artefatoDisponivel('setor_cadastral') && ($permMapa['artefatos']['setor_cadastral'] ?? false))
+                                        <button type="button" onclick="enableDrawing('setor_cadastral')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-squares-2x2 class="w-4 h-4" style="color:#0d9488;" /> Setor Fiscal
+                                            <x-heroicon-o-squares-2x2 class="w-4 h-4" style="color:#0d9488;" /> Setor Cadastral
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
@@ -1050,7 +1050,7 @@
                                             'loteamentos' => 'Loteamentos',
                                             'zonas' => 'Zonas',
                                             'perimetros_urbanos' => 'Distritos / Limites',
-                                            'setores_fiscais' => 'Setores Fiscais',
+                                            'setores_cadastrais' => 'Setores Cadastrais',
                                             'setores_pgv' => 'Setores da PGV',
                                             'arvores' => 'Árvores',
                                             'postes' => 'Postes',
@@ -1539,8 +1539,8 @@
                     @if (\App\Support\Modulos::camadaDisponivel('quadras') && $podeCriarCamada('quadras'))
                     <option value="quadras">Quadra</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais') && $podeCriarCamada('setores_fiscais'))
-                    <option value="setores_fiscais">Setor Fiscal</option>
+                    @if (\App\Support\Modulos::camadaDisponivel('setores_cadastrais') && $podeCriarCamada('setores_cadastrais'))
+                    <option value="setores_cadastrais">Setor Cadastral</option>
                     @endif
                     @if (\App\Support\Modulos::camadaDisponivel('bairros') && $podeCriarCamada('bairros'))
                     <option value="bairros">Bairro</option>
@@ -1680,8 +1680,8 @@
                     @if (\App\Support\Modulos::camadaDisponivel('quadras') && $podeCriarCamada('quadras'))
                     <option value="quadras">Quadra</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais') && $podeCriarCamada('setores_fiscais'))
-                    <option value="setores_fiscais">Setor Fiscal</option>
+                    @if (\App\Support\Modulos::camadaDisponivel('setores_cadastrais') && $podeCriarCamada('setores_cadastrais'))
+                    <option value="setores_cadastrais">Setor Cadastral</option>
                     @endif
                     @if (\App\Support\Modulos::camadaDisponivel('bairros') && $podeCriarCamada('bairros'))
                     <option value="bairros">Bairro</option>
@@ -1971,29 +1971,29 @@
                         </div>
                         @endif
 
-                        {{-- B9 — Setor Fiscal da inscrição (agrupa bairros) --}}
-                        @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais'))
+                        {{-- B9 — Setor Cadastral da inscrição (agrupa bairros) --}}
+                        @if (\App\Support\Modulos::camadaDisponivel('setores_cadastrais'))
                         <div class="flex items-center justify-between w-full mt-2">
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
-                                <input type="checkbox" data-layer="setores_fiscais"
+                                <input type="checkbox" data-layer="setores_cadastrais"
                                     class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#0d9488;">
                                 <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                     <div class="w-3 h-3 rounded-full opacity-60 shadow-sm flex-shrink-0" style="background:#0d9488;">
                                     </div>
-                                    <span class="layer-text truncate">Setores Fiscais</span>
+                                    <span class="layer-text truncate">Setores Cadastrais</span>
                                 </span>
                             </label>
                             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
                                 <label
                                     class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
                                     title="Exibir rótulos">
-                                    <input type="checkbox" id="setores_fiscais-label-toggle" checked
-                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_fiscais',enabled:this.checked,field:document.getElementById('setores_fiscais-label-field').value}}))"
+                                    <input type="checkbox" id="setores_cadastrais-label-toggle" checked
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_cadastrais',enabled:this.checked,field:document.getElementById('setores_cadastrais-label-field').value}}))"
                                         class="rounded border-gray-300 w-3 h-3">
                                     <span>Rót.</span>
                                 </label>
-                                <select id="setores_fiscais-label-field"
-                                    onchange="if(document.getElementById('setores_fiscais-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_fiscais',enabled:true,field:this.value}}))"
+                                <select id="setores_cadastrais-label-field"
+                                    onchange="if(document.getElementById('setores_cadastrais-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_cadastrais',enabled:true,field:this.value}}))"
                                     class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                                     style="font-size:10px;max-width:80px;padding:1px 2px;">
                                     <option value="__default__">Padrão</option>

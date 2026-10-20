@@ -629,7 +629,7 @@ class TenantResource extends Resource
                                 ->options([
                                     'PerimetroUrbano' => '1. Distritos / Limites',
                                     'Zona' => '2. Zoneamento',
-                                    'SetorFiscal' => '2.1 Setores Fiscais (antes dos bairros)', // B9
+                                    'SetorCadastral' => '2.1 Setores Cadastrais (antes dos bairros)', // B9
                                     'Bairro' => '3. Bairros',
                                     'Loteamento' => '4. Loteamentos',
                                     'Quadra' => '5. Quadras',
@@ -1128,7 +1128,7 @@ class TenantResource extends Resource
                                 ->helperText('Deixe em branco para recalcular todas.')
                                 ->options([
                                     'perimetros_urbanos' => 'Perímetros Urbanos',
-                                    'setores_fiscais' => 'Setores Fiscais',
+                                    'setores_cadastrais' => 'Setores Cadastrais',
                                     'zonas' => 'Zonas',
                                     'bairros' => 'Bairros',
                                     'loteamentos' => 'Loteamentos',

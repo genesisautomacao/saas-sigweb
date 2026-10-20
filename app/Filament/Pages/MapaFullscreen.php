@@ -35,7 +35,7 @@ use App\Filament\Pages\Traits\HasRuralPonteActions;
 use App\Filament\Pages\Traits\HasRuralPontoInteresseActions;
 use App\Filament\Pages\Traits\HasRuralPropriedadeActions;
 use App\Filament\Pages\Traits\HasSecaoLogradouroActions;
-use App\Filament\Pages\Traits\HasSetorFiscalActions;
+use App\Filament\Pages\Traits\HasSetorCadastralActions;
 use App\Filament\Pages\Traits\HasSetorPgvActions;
 use App\Filament\Pages\Traits\HasTestadaActions;
 use App\Filament\Pages\Traits\HasToponimiaActions;
@@ -100,7 +100,7 @@ class MapaFullscreen extends Page
     use HasRuralPropriedadeActions;
     use HasSecaoLogradouroActions;
     use HasSetorPgvActions;
-    use HasSetorFiscalActions; // B9 — setor da inscrição (base cartográfica)
+    use HasSetorCadastralActions; // B9 — setor da inscrição (base cartográfica)
     use HasTestadaActions;
     use HasToponimiaActions;
     use HasZonaActions;
@@ -787,8 +787,8 @@ class MapaFullscreen extends Page
 
             $this->ruralLocalidadePreSelecionadaId = $localidade->id;
             $this->mountAction('criarRuralPontoInteresse');
-        } elseif ($entityType === 'setor_fiscal') {
-            $this->interceptarDesenhoSetorFiscal($polyWKT);
+        } elseif ($entityType === 'setor_cadastral') {
+            $this->interceptarDesenhoSetorCadastral($polyWKT);
         } elseif ($entityType === 'bairro') {
 
             // Pré-calcula a área do polígono para o Placeholder do modal de criação
@@ -2182,7 +2182,7 @@ class MapaFullscreen extends Page
             'loteamentos' => \App\Models\Loteamento::class,
             'perimetros' => \App\Models\PerimetroUrbano::class,
             'setores_pgv' => \App\Models\SetorPgv::class,
-            'setores_fiscais' => \App\Models\SetorFiscal::class,
+            'setores_cadastrais' => \App\Models\SetorCadastral::class,
             'areas_reurb' => \App\Models\AreaReurb::class,
             'patrimonio_publicos' => \App\Models\PatrimonioPublico::class,
             'lotes' => \App\Models\Lote::class,
@@ -3045,7 +3045,7 @@ class MapaFullscreen extends Page
                             'logradouros' => 'Logradouros',
                             'quadras' => 'Quadras',
                             'bairros' => 'Bairros',
-                            'setores_fiscais' => 'Setores Fiscais',
+                            'setores_cadastrais' => 'Setores Cadastrais',
                             'loteamentos' => 'Loteamentos',
                             'zonas' => 'Zonas Urbanas',
                             'perimetros_urbanos' => 'Distritos / Limites',
@@ -3161,7 +3161,7 @@ class MapaFullscreen extends Page
                         ->options([
                             'quadras' => 'Quadras',
                             'bairros' => 'Bairros',
-                            'setores_fiscais' => 'Setores Fiscais',
+                            'setores_cadastrais' => 'Setores Cadastrais',
                             'loteamentos' => 'Loteamentos',
                             'zonas' => 'Zonas Urbanas',
                             'perimetros_urbanos' => 'Distritos / Limites',
@@ -3196,7 +3196,7 @@ class MapaFullscreen extends Page
                             return match ($refLayer) {
                                 'quadras' => \App\Models\Quadra::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'bairros' => \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
-                                'setores_fiscais' => \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id')->toArray(),
+                                'setores_cadastrais' => \App\Models\SetorCadastral::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id')->toArray(),
                                 'loteamentos' => \App\Models\Loteamento::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'zonas' => \App\Models\Zona::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'perimetros_urbanos' => \App\Models\PerimetroUrbano::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
@@ -3455,7 +3455,7 @@ class MapaFullscreen extends Page
                         ->label('Tipo de Área')
                         ->options([
                             'bairros' => 'Bairro',
-                            'setores_fiscais' => 'Setor Fiscal',
+                            'setores_cadastrais' => 'Setor Cadastral',
                             'setores_pgv' => 'Setor da PGV',
                             'perimetros_urbanos' => 'Distrito',
                         ])
@@ -3473,7 +3473,7 @@ class MapaFullscreen extends Page
                             $opts = ['all' => '— Todas —'];
                             $rows = match ($tipo) {
                                 'bairros' => \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
-                                'setores_fiscais' => \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
+                                'setores_cadastrais' => \App\Models\SetorCadastral::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
                                 'setores_pgv' => \App\Models\SetorPgv::query()->where('tenant_id', $this->tenantId)->orderBy('nome')->pluck('nome', 'id'),
                                 'perimetros_urbanos' => \App\Models\PerimetroUrbano::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
                                 default => collect([]),

@@ -40,9 +40,9 @@ return [
             'camadas' => ['perimetros', 'perimetros_urbanos'], 'artefatos' => ['perimetro_urbano'],
             'mapa' => 'ver_camada_perimetros', 'publica' => true] + $q('perimetros_urbanos'),
         // B9 — setor da inscrição imobiliária (agrupa 1+ bairros); o da PGV é `setores_pgv`
-        'setores_fiscais' => ['label' => 'Setores Fiscais', 'modulo' => 'base_cartografica', 'grupo' => 'Base Cartográfica',
-            'camadas' => ['setores_fiscais'], 'artefatos' => ['setor_fiscal'],
-            'mapa' => 'ver_camada_setores_fiscais', 'publica' => true] + $q('setores_fiscais'),
+        'setores_cadastrais' => ['label' => 'Setores Cadastrais', 'modulo' => 'base_cartografica', 'grupo' => 'Base Cartográfica',
+            'camadas' => ['setores_cadastrais'], 'artefatos' => ['setor_cadastral'],
+            'mapa' => 'ver_camada_setores_cadastrais', 'publica' => true] + $q('setores_cadastrais'),
         'bairros' => ['label' => 'Bairros', 'modulo' => 'base_cartografica', 'grupo' => 'Base Cartográfica',
             'camadas' => ['bairros'], 'artefatos' => ['bairro'],
             'mapa' => 'ver_camada_bairros', 'publica' => true] + $q('bairros'),

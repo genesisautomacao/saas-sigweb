@@ -39,7 +39,7 @@ class ImportadorGisService
         'Loteamento' => 'loteamento',
         'Zona' => 'zona',
         'PerimetroUrbano' => 'perimetro',
-        'SetorFiscal' => 'setor_fiscal', // B9
+        'SetorCadastral' => 'setor_cadastral', // B9
         // Mobilidade Urbana (docs/modulos/piuma.txt, Onda 1)
         'MobTrecho' => 'mob_trecho',
         'MobEixo' => 'mob_eixo',
@@ -191,9 +191,9 @@ class ImportadorGisService
                 if (in_array($camada, $camadasComNome)) {
                     $fillData['name'] = $props->name ?? $props->numero_lote ?? 'Sem Nome';
                 }
-                // B9 — o "nome" do setor fiscal é o NÚMERO que entra na inscrição (texto:
+                // B9 — o "nome" do setor cadastral é o NÚMERO que entra na inscrição (texto:
                 // "01" não vira 1). Sem número no arquivo, usa o id da feature.
-                if ($camada === 'SetorFiscal') {
+                if ($camada === 'SetorCadastral') {
                     $numero = $props->name ?? $props->setor ?? $props->numero ?? $props->codigo ?? $originalId;
                     $fillData['name'] = is_float($numero) ? (string) (int) $numero : trim((string) $numero);
                 }
@@ -218,9 +218,9 @@ class ImportadorGisService
                 if (isset($props->perimetro_id)) {
                     $fillData['perimetro_id'] = $resolveRelacionamento(\App\Models\PerimetroUrbano::class, $props->perimetro_id);
                 }
-                // B9 — bairro aponta para o setor fiscal pelo id do setor no arquivo de setores
-                if (isset($props->setor_fiscal_id) && $props->setor_fiscal_id !== '') {
-                    $fillData['setor_fiscal_id'] = $resolveRelacionamento(\App\Models\SetorFiscal::class, $props->setor_fiscal_id);
+                // B9 — bairro aponta para o setor cadastral pelo id do setor no arquivo de setores
+                if (isset($props->setor_cadastral_id) && $props->setor_cadastral_id !== '') {
+                    $fillData['setor_cadastral_id'] = $resolveRelacionamento(\App\Models\SetorCadastral::class, $props->setor_cadastral_id);
                 }
                 if (isset($props->bairro_id)) {
                     $fillData['bairro_id'] = $resolveRelacionamento(\App\Models\Bairro::class, $props->bairro_id);
@@ -450,7 +450,7 @@ class ImportadorGisService
     protected static function recalcularMetadataLinhas(string $camada, int $tenantId): void
     {
         $sql = match ($camada) {
-            'SetorFiscal' => 'UPDATE setores_fiscais SET area_geo = ST_Area(geo::geography) WHERE tenant_id = ? AND geo IS NOT NULL', // B9
+            'SetorCadastral' => 'UPDATE setores_cadastrais SET area_geo = ST_Area(geo::geography) WHERE tenant_id = ? AND geo IS NOT NULL', // B9
             'SecaoLogradouro' => 'UPDATE secoes_logradouro SET extensao_geo = ST_Length(geo::geography) WHERE tenant_id = ? AND geo IS NOT NULL',
             'FaceQuadra' => 'UPDATE face_quadras SET extensao_geo = ST_Length(geo::geography) WHERE tenant_id = ? AND geo IS NOT NULL',
             'LoteTestada' => 'UPDATE lote_testadas SET comprimento = ROUND(ST_Length(geo::geography)::numeric, 2) WHERE tenant_id = ? AND geo IS NOT NULL',

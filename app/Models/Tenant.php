@@ -216,12 +216,12 @@ class Tenant extends Model implements HasAvatar
     }
 
     /** B9 — setor da inscrição imobiliária (base cartográfica). */
-    public function setoresFiscais(): HasMany
+    public function setoresCadastrais(): HasMany
     {
-        return $this->hasMany(SetorFiscal::class);
+        return $this->hasMany(SetorCadastral::class);
     }
 
-    /** Setor da PGV (zona de valor) — era `setores_fiscais` até 2026-10-19. */
+    /** Setor da PGV (zona de valor) — era `setores_fiscais` até a Release 85. */
     public function setoresPgv(): HasMany
     {
         return $this->hasMany(SetorPgv::class);

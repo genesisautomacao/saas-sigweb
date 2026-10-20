@@ -160,7 +160,7 @@ papéis só com as caixas de mobilidade (+ núcleo).
     Cadastro Base (sem gate de grupo)
       perimetros            ver_camada_perimetros          imobiliario
       setores_pgv           ver_camada_setores_pgv         pgv
-      setores_fiscais       ver_camada_setores_fiscais     base_cartografica (R85)
+      setores_cadastrais    ver_camada_setores_cadastrais  base_cartografica (R85–86)
       bairros               ver_camada_bairros             imobiliario
       loteamentos           ver_camada_loteamentos         imobiliario
       quadras               ver_camada_quadras             imobiliario
@@ -196,7 +196,7 @@ papéis só com as caixas de mobilidade (+ núcleo).
     Barra lateral WMS (Ferramentas → Camadas WMS)          núcleo ou `wms` (Q4)
 
 2.5 Criar Artefatos (dropdown; gate: toolbar_criar_artefatos)
-    Grupo "urbano": perimetro_urbano, setor_fiscal (base_cartografica, R85), setor_pgv (pgv), zona, bairro, loteamento,
+    Grupo "urbano": perimetro_urbano, setor_cadastral (base_cartografica, R85–86), setor_pgv (pgv), zona, bairro, loteamento,
                     quadra, lote, edificacao, logradouro, meio_fio      → imobiliario
     Grupo "infra":  patrimonio_publico (patrimonios), poste (iluminacao),
                     area_reurb (imobiliario), arvore (arborizacao),
@@ -208,7 +208,7 @@ papéis só com as caixas de mobilidade (+ núcleo).
                    rural_ponte, rural_ponto_interesse
     Ficha do lote: enableDrawing('edificacao'|'testada')              → imobiliario
     "Salvar como" (Azimutes e Coordenada XY): lotes, quadras, bairros, loteamentos,
-                   perimetros, zonas, setores_pgv, setores_fiscais, areas_reurb, patrimonio_publicos
+                   perimetros, zonas, setores_pgv, setores_cadastrais, areas_reurb, patrimonio_publicos
 
 2.6 Ferramentas (dropdown; gate: toolbar_ferramentas) e outros botões
     Numeração Predial ................. imobiliario
@@ -709,3 +709,7 @@ Fiscal da INSCRIÇÃO imobiliária — módulo base_cartografica, grupo D8 "Base
 Cartográfica" (menu, acordeon e Criar Artefatos entre Distritos e Bairros),
 quarteto view/create/edit/delete_setores_fiscais + ver_camada_setores_fiscais,
 camada pública. Ver CLAUDE.md, seção "Setor Fiscal da inscrição × Setor da PGV".
+
+2026-10-20 — a pedido da engenharia da Líder, o setor da inscrição passou de
+`setores_fiscais` a `setores_cadastrais` (SetorCadastral, *_setores_cadastrais,
+camada/artefato setores_cadastrais/setor_cadastral, bairros.setor_cadastral_id).

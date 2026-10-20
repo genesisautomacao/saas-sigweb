@@ -4,7 +4,7 @@
 <title>SIGWEB Release 85</title>
 <meta name="sigweb-release" content="85">
 <meta name="sigweb-data" content="2026-10-19">
-<meta name="description" content="Setores Fiscais da inscrição imobiliária e Setores da PGV">
+<meta name="description" content="Setores Cadastrais da inscrição imobiliária e Setores da PGV">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,600;125,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -211,8 +211,8 @@ a { color: var(--acento); }
     </dl>
   </header>
 
-  <!-- Croqui: um setor fiscal abraçando dois bairros; o setor da PGV é outra régua -->
-  <section class="rota" aria-label="Setor fiscal agrupa bairros">
+  <!-- Croqui: um setor cadastral abraçando dois bairros; o setor da PGV é outra régua -->
+  <section class="rota" aria-label="Setor cadastral agrupa bairros">
     <svg viewBox="0 0 960 220" role="img" aria-label="O Setor 01 contém dois bairros; o Setor da PGV é uma camada separada, de valor">
       <defs>
         <pattern id="curvas" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -235,7 +235,7 @@ a { color: var(--acento); }
       </g>
     </svg>
     <div class="legenda-mapa" aria-hidden="true">
-      <span><i style="border-color:var(--setor); background:var(--setor-suave)"></i>Setor Fiscal (inscrição) · Base Cartográfica</span>
+      <span><i style="border-color:var(--setor); background:var(--setor-suave)"></i>Setor Cadastral (inscrição) · Base Cartográfica</span>
       <span><i style="border-color:var(--bairro)"></i>Bairro · aponta para o seu setor</span>
       <span><i style="border-color:var(--pgv); border-style:dashed"></i>Setor da PGV · Infraestrutura</span>
     </div>
@@ -251,8 +251,8 @@ a { color: var(--acento); }
     <article class="camada">
       <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><rect x="2" y="2" width="30" height="20" fill="var(--setor-suave)" stroke="var(--setor)" stroke-width="2.5"/><text x="17" y="16.5" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="var(--setor)">01</text></svg>
       <div>
-        <h3>Setores Fiscais, a camada nova</h3>
-        <p>Em <strong>Base Cartográfica → Setores Fiscais</strong>, entre Distritos e Bairros. O "nome" do setor é o <strong>número que entra na inscrição</strong>, e o zero à esquerda fica guardado:</p>
+        <h3>Setores Cadastrais, a camada nova</h3>
+        <p>Em <strong>Base Cartográfica → Setores Cadastrais</strong>, entre Distritos e Bairros. O "nome" do setor é o <strong>número que entra na inscrição</strong>, e o zero à esquerda fica guardado:</p>
         <div class="inscricao" aria-label="Exemplo de inscrição">
           <span>01</span><em>.</em><span class="setor">03</span><em>.</em><span>012</span><em>.</em><span>0187</span><em>.</em><span>001</span>
         </div>
@@ -264,7 +264,7 @@ a { color: var(--acento); }
       <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><rect x="2" y="2" width="30" height="20" fill="none" stroke="var(--setor)" stroke-width="2"/><rect x="6" y="6" width="10" height="12" fill="var(--bairro)" fill-opacity=".2" stroke="var(--bairro)" stroke-width="1.5"/><rect x="18" y="6" width="10" height="12" fill="var(--bairro)" fill-opacity=".2" stroke="var(--bairro)" stroke-width="1.5"/></svg>
       <div>
         <h3>O bairro sabe o seu setor</h3>
-        <p>Um setor pode ser um bairro só ou abraçar vários. O bairro ganhou o campo <strong>Setor Fiscal</strong>, e quadra e lote chegam ao setor pelo bairro.</p>
+        <p>Um setor pode ser um bairro só ou abraçar vários. O bairro ganhou o campo <strong>Setor Cadastral</strong>, e quadra e lote chegam ao setor pelo bairro.</p>
         <p>Atalho: <strong>Vincular bairros</strong>, num setor ou em todos de uma vez. Cada bairro vai para o setor que contém o meio dele, e quem já tem setor só muda se vocês pedirem. Na lista de bairros, o filtro <strong>"sem setor"</strong> mostra o que ficou para trás.</p>
       </div>
     </article>
@@ -291,7 +291,7 @@ a { color: var(--acento); }
       <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><path d="M2 20 L12 6 L22 14 L32 4" fill="none" stroke="var(--acento)" stroke-width="2.5"/><circle cx="12" cy="6" r="2.5" fill="var(--acento)"/><circle cx="22" cy="14" r="2.5" fill="var(--acento)"/></svg>
       <div>
         <h3>Importação com o setor no meio</h3>
-        <p>Nova camada <strong>2.1 Setores Fiscais</strong> no Importar Mapa (GIS). O número vai na coluna <code>name</code>. Bairro que trouxer <code>setor_fiscal_id</code> (o id do setor no arquivo de setores) já entra vinculado.</p>
+        <p>Nova camada <strong>2.1 Setores Cadastrais</strong> no Importar Mapa (GIS). O número vai na coluna <code>name</code>. Bairro que trouxer <code>setor_cadastral_id</code> (o id do setor no arquivo de setores) já entra vinculado.</p>
         <ol class="ordem">
           <li>distritos</li><li class="novo">setores</li><li>bairros</li><li>quadras</li><li>…</li>
         </ol>
@@ -302,7 +302,7 @@ a { color: var(--acento); }
       <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><rect x="2" y="3" width="30" height="18" fill="none" stroke="var(--acento)" stroke-width="2"/><path d="M2 9h30M2 15h30M12 3v18M22 3v18" stroke="var(--acento)" stroke-width="1.2"/><path d="M14 11l3 3 5-6" stroke="var(--setor)" stroke-width="2" fill="none"/></svg>
       <div>
         <h3>Permissão própria</h3>
-        <p>Em Papéis, a matriz da Base Cartográfica ganhou a linha <strong>Setores Fiscais</strong>: Menu, Mapa, Criar, Editar e Excluir. Quem só vê abre a ficha em modo leitura.</p>
+        <p>Em Papéis, a matriz da Base Cartográfica ganhou a linha <strong>Setores Cadastrais</strong>: Menu, Mapa, Criar, Editar e Excluir. Quem só vê abre a ficha em modo leitura.</p>
         <p>Também entra no Exportar dados, no SHP, nas Estatísticas e no Recalcular Áreas.</p>
       </div>
     </article>

@@ -20,7 +20,7 @@ class RecalcularGeoMetadata extends Command
      */
     private const ENTIDADES = [
         'perimetros_urbanos' => ['area_geo',     'ST_Area'],
-        'setores_fiscais' => ['area_geo',     'ST_Area'], // B9
+        'setores_cadastrais' => ['area_geo',     'ST_Area'], // B9
         'setores_pgv' => ['area_geo',     'ST_Area'],
         'zonas' => ['area_geo',     'ST_Area'],
         'bairros' => ['area_geo',     'ST_Area'],

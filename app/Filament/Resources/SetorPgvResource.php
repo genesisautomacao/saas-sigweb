@@ -18,8 +18,8 @@ class SetorPgvResource extends Resource
 
     protected static ?string $model = SetorPgv::class;
 
-    // B9: até 2026-10-19 era o "SetorFiscal" (tabela setores_fiscais) — o nome ficou
-    // com o setor da inscrição imobiliária (SetorFiscalResource, Base Cartográfica).
+    // B9: até a R85 era o "SetorFiscal" (tabela setores_fiscais). O setor da inscrição
+    // imobiliária é o SetorCadastralResource (Base Cartográfica).
     protected static ?string $slug = 'setores-pgv';
     protected static ?string $tenantRelationshipName = 'setoresPgv';
 

@@ -18,7 +18,7 @@ Ação "Recodificar" (no mapa e na tela) para Lote — a inscrição nova propag
 #### B9 — Parametrizador da inscrição imobiliária
 **Status:** 📋 A especificar com o usuário
 
-Montar a inscrição (ex.: distrito.setor.quadra.lote.unidade) a partir das entidades. A base já existe desde a Release 85: **Setor Fiscal** da inscrição (`setores_fiscais`, `name` = número do setor) com `bairros.setor_fiscal_id` — quadra e lote chegam ao setor pelo bairro. Falta definir: segmentos e máscara por prefeitura, preenchimento com zeros, de onde sai cada segmento (código municipal × sequencial), geração em massa com prévia e relação com a Recodificação (B1).
+Montar a inscrição (ex.: distrito.setor.quadra.lote.unidade) a partir das entidades. A base já existe desde a Release 85: **Setor Cadastral** da inscrição (`setores_cadastrais`, `name` = número do setor) com `bairros.setor_cadastral_id` — quadra e lote chegam ao setor pelo bairro. Falta definir: segmentos e máscara por prefeitura, preenchimento com zeros, de onde sai cada segmento (código municipal × sequencial), geração em massa com prévia e relação com a Recodificação (B1).
 
 #### B2 — WMS de verdade no endpoint OGC + WFS que o QGIS aceite *(ex-T3.1)*
 **Status:** ⏳ · **Esforço:** 16–24 h

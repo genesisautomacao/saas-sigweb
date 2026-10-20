@@ -17,7 +17,7 @@ class BairroExportService
             File::makeDirectory($path, 0755, true, true);
         }
 
-        $data = $records->map(fn ($r) => ['ID' => $r->sequential_id, 'Código' => $r->codigo ?? '-', 'Nome' => $r->name, 'Setor' => $r->setorFiscal?->name ?? '-']);
+        $data = $records->map(fn ($r) => ['ID' => $r->sequential_id, 'Código' => $r->codigo ?? '-', 'Nome' => $r->name, 'Setor' => $r->setorCadastral?->name ?? '-']);
 
         SimpleExcelWriter::create($path.$fileName)->addHeader(array_keys($data->first() ?? []))->addRows($data->toArray());
 
@@ -27,7 +27,7 @@ class BairroExportService
     public function exportToPdf(Collection $records)
     {
         $fileName = 'bairros-'.now()->format('Y-m-d-His').'.pdf';
-        $data = $records->map(fn ($r) => [$r->sequential_id, $r->codigo ?? '-', $r->name, $r->setorFiscal?->name ?? '-']);
+        $data = $records->map(fn ($r) => [$r->sequential_id, $r->codigo ?? '-', $r->name, $r->setorCadastral?->name ?? '-']);
         $headings = ['ID', 'Código', 'Nome', 'Setor'];
 
         $pdf = Pdf::loadView('pdf.default-report', ['data' => $data, 'headings' => $headings, 'title' => 'Relatório de Bairros'])->setPaper('a4', 'portrait');
@@ -46,7 +46,7 @@ class BairroExportService
             $item->addChild('codigo', htmlspecialchars($r->code ?? ''));
             $item->addChild('nome', htmlspecialchars($r->name ?? ''));
             $item->addChild('codigo', htmlspecialchars($r->codigo ?? ''));
-            $item->addChild('setor_fiscal', htmlspecialchars($r->setorFiscal?->name ?? ''));
+            $item->addChild('setor_cadastral', htmlspecialchars($r->setorCadastral?->name ?? ''));
         }
 
         return response()->streamDownload(function () use ($xml) {
@@ -63,7 +63,7 @@ class BairroExportService
         }
         $filePath = $path.$fileName;
 
-        $data = $records->map(fn ($r) => ['ID' => $r->sequential_id, 'Codigo' => $r->codigo ?? '-', 'Nome' => $r->name, 'Setor' => $r->setorFiscal?->name ?? '-']);
+        $data = $records->map(fn ($r) => ['ID' => $r->sequential_id, 'Codigo' => $r->codigo ?? '-', 'Nome' => $r->name, 'Setor' => $r->setorCadastral?->name ?? '-']);
         SimpleExcelWriter::create($filePath, 'csv')
             ->addHeader(array_keys($data->first() ?? []))
             ->addRows($data->toArray());

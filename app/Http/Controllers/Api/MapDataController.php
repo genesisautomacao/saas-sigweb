@@ -153,8 +153,8 @@ class MapDataController extends Controller
                 $data = $buildFeatureCollection(Bairro::where('tenant_id', $tenantId)->get(), 'bairros');
                 break;
 
-            case 'setores_fiscais': // B9 — setor da inscrição imobiliária
-                $data = $buildFeatureCollection(\App\Models\SetorFiscal::where('tenant_id', $tenantId)->get(), 'setores_fiscais');
+            case 'setores_cadastrais': // B9 — setor da inscrição imobiliária
+                $data = $buildFeatureCollection(\App\Models\SetorCadastral::where('tenant_id', $tenantId)->get(), 'setores_cadastrais');
                 break;
 
             case 'patrimonio_publicos':
@@ -1144,10 +1144,10 @@ class MapDataController extends Controller
                 ];
             }
 
-            // --- 3.1 BUSCA DE SETORES FISCAIS (B9) — pelo número ("03" ou "setor 03") ---
+            // --- 3.1 BUSCA DE SETORES CADASTRAIS (B9) — pelo número ("03" ou "setor 03") ---
             $termoSetor = trim(preg_replace('/^setor\s*/iu', '', $termo));
             if ($termoSetor !== '') {
-                $setoresFiscais = \Illuminate\Support\Facades\DB::table('setores_fiscais')
+                $setoresCadastrais = \Illuminate\Support\Facades\DB::table('setores_cadastrais')
                     ->where('tenant_id', $tenantId)
                     ->whereNull('deleted_at')
                     ->whereNotNull('geo')
@@ -1156,14 +1156,14 @@ class MapDataController extends Controller
                     ->limit(5)
                     ->get();
 
-                foreach ($setoresFiscais as $setor) {
+                foreach ($setoresCadastrais as $setor) {
                     $coords = json_decode($setor->centroide)->coordinates ?? null;
                     if (! $coords) continue;
                     $results[] = [
                         'id' => $setor->id,
                         'tipo' => 'setor',
                         'titulo' => 'Setor ' . $setor->name,
-                        'subtitulo' => 'Setor Fiscal',
+                        'subtitulo' => 'Setor Cadastral',
                         'coords' => $coords,
                     ];
                 }
@@ -1315,7 +1315,7 @@ class MapDataController extends Controller
             'logradouros',
             'quadras',
             'bairros',
-            'setores_fiscais', // B9
+            'setores_cadastrais', // B9
             'loteamentos',
             'rural_propriedades',
             'rural_estradas',
@@ -1688,7 +1688,7 @@ class MapDataController extends Controller
                     'rural_estradas'     => 'nome',
                     'postes'             => 'sequential_id',
                     'arvores'            => 'sequential_id',
-                    'setores_fiscais'    => 'name',
+                    'setores_cadastrais'    => 'name',
                     'setores_pgv'        => 'nome',
                     'perimetro_urbanos'  => 'code',
                 ];
@@ -1772,7 +1772,7 @@ class MapDataController extends Controller
     {
         try {
             $tenantId   = $request->input('tenant_id');
-            $areaType   = $request->input('area_type');   // bairros | setores_fiscais | setores_pgv | perimetros_urbanos
+            $areaType   = $request->input('area_type');   // bairros | setores_cadastrais | setores_pgv | perimetros_urbanos
             $areaId     = $request->input('area_id');     // id da área (ou 'all')
             $targetLayer= $request->input('target_layer'); // lotes | edificacoes | logradouros
             $groupField = $request->input('group_field'); // campo para agrupar
@@ -1909,7 +1909,7 @@ class MapDataController extends Controller
             $areaTableMap = [
                 'bairros'             => ['table' => 'bairros',            'label' => 'name'],
                 'setores_pgv'     => ['table' => 'setores_pgv',    'label' => 'nome'],
-                'setores_fiscais' => ['table' => 'setores_fiscais', 'label' => 'name'], // B9
+                'setores_cadastrais' => ['table' => 'setores_cadastrais', 'label' => 'name'], // B9
                 'perimetros_urbanos'  => ['table' => 'perimetros_urbanos', 'label' => 'name'],
             ];
  
