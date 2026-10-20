@@ -14,9 +14,10 @@ use Livewire\Attributes\On;
 
 /**
  * B9 (2026-10-19) — Setor Cadastral da inscrição imobiliária no mapa (camada
- * `setores_cadastrais`, artefato `setor_cadastral`). Setores não se sobrepõem
- * (tolerância de 5 m² para o ímã colar as bordas). O setor da PGV é o
- * HasSetorPgvActions.
+ * `setores_cadastrais`, artefato `setor_cadastral`). Setores não se sobrepõem:
+ * desde o B10 (2026-10-20) o desenho que invade o vizinho é RECORTADO na divisa
+ * (SetorCadastral::recortarPelosVizinhos) em vez de recusado — a trava de 5 m²
+ * barrava quem contorna a divisa à mão. O setor da PGV é o HasSetorPgvActions.
  */
 trait HasSetorCadastralActions
 {
@@ -25,32 +26,25 @@ trait HasSetorCadastralActions
     // Pré-cálculo de área exibido no modal de criação (preenchido em interceptarDesenho)
     public ?float $setorCadastralAreaCalculada = null;
 
-    /** Invade outro setor vivo da prefeitura além da tolerância? */
-    protected function setorCadastralSobrepoe(string $polyWKT, ?int $ignorarId = null): bool
+    /** Chamado pelo interceptarDesenho do MapaFullscreen (o rascunho já está em $geometriaRascunho). */
+    protected function interceptarDesenhoSetorCadastral(): void
     {
-        return SetorCadastral::query()->where('tenant_id', $this->tenantId)
-            ->when($ignorarId, fn ($q) => $q->where('id', '!=', $ignorarId))
-            ->whereRaw("ST_Intersects(geo, $polyWKT)")
-            ->whereRaw("ST_Area(ST_Intersection(geo::geometry, $polyWKT)::geography) > 5.0")
-            ->exists();
-    }
+        $recorte = SetorCadastral::recortarPelosVizinhos((array) $this->geometriaRascunho, (int) $this->tenantId);
 
-    /** Chamado pelo interceptarDesenho do MapaFullscreen. */
-    protected function interceptarDesenhoSetorCadastral(string $polyWKT): void
-    {
-        if ($this->setorCadastralSobrepoe($polyWKT)) {
-            Notification::make()
-                ->title('Sobreposição detectada')
-                ->body('Um Setor Cadastral não pode invadir a área de outro setor. Use o ímã para colar as bordas sem cruzar para dentro.')
-                ->danger()
-                ->send();
+        if ($recorte['erro']) {
+            Notification::make()->title('Desenho recusado')->body($recorte['erro'])->danger()->send();
             $this->dispatch('limpar-rascunho-mapa');
 
             return;
         }
 
-        $area = DB::selectOne("SELECT ST_Area($polyWKT::geography) AS metros");
-        $this->setorCadastralAreaCalculada = $area?->metros ? round((float) $area->metros, 2) : null;
+        // O setor nasce com a geometria já recortada na divisa dos vizinhos
+        $this->geometriaRascunho = $recorte['geo'];
+        $this->setorCadastralAreaCalculada = $recorte['area'];
+
+        if ($aviso = SetorCadastral::avisoRecorte($recorte)) {
+            Notification::make()->title('Divisa ajustada')->body($aviso)->info()->send();
+        }
 
         $this->mountAction('criarSetorCadastral');
     }
@@ -242,20 +236,22 @@ trait HasSetorCadastralActions
             return;
         }
 
-        $polyWKT = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($geoJson)."'), 4326)";
-        if ($this->setorCadastralSobrepoe($polyWKT, $setor->id)) {
-            Notification::make()
-                ->title('Edição cancelada')
-                ->body('O polígono editado invade outro Setor Cadastral. A edição foi revertida.')
-                ->danger()
-                ->send();
+        $recorte = SetorCadastral::recortarPelosVizinhos((array) $geoJson, (int) $this->tenantId, $setor->id);
+        if ($recorte['erro']) {
+            Notification::make()->title('Edição cancelada')->body($recorte['erro'].' A edição foi revertida.')->danger()->send();
             $this->dispatch('desfazer-edicao-geometria');
 
             return;
         }
 
-        $setor->update(['geo' => $geoJson]);
+        $setor->update(['geo' => $recorte['geo']]);
         DB::statement('UPDATE setores_cadastrais SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$setor->id]);
-        Notification::make()->title('Limites do setor atualizados!')->success()->send();
+
+        $aviso = SetorCadastral::avisoRecorte($recorte);
+        Notification::make()->title('Limites do setor atualizados!')->body($aviso)->success()->send();
+        if ($aviso) {
+            // o mapa ainda mostra o desenho sem recorte — busca de novo a camada
+            $this->dispatch('recarregarCamada', layer: 'setores_cadastrais');
+        }
     }
 }

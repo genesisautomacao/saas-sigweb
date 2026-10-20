@@ -788,7 +788,7 @@ class MapaFullscreen extends Page
             $this->ruralLocalidadePreSelecionadaId = $localidade->id;
             $this->mountAction('criarRuralPontoInteresse');
         } elseif ($entityType === 'setor_cadastral') {
-            $this->interceptarDesenhoSetorCadastral($polyWKT);
+            $this->interceptarDesenhoSetorCadastral();
         } elseif ($entityType === 'bairro') {
 
             // Pré-calcula a área do polígono para o Placeholder do modal de criação

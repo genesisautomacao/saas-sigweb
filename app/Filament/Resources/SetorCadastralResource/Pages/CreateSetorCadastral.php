@@ -4,6 +4,9 @@ namespace App\Filament\Resources\SetorCadastralResource\Pages;
 
 use App\Filament\Resources\Concerns\GeometriaPorTexto;
 use App\Filament\Resources\SetorCadastralResource;
+use App\Models\SetorCadastral;
+use Filament\Facades\Filament;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\DB;
 
@@ -15,7 +18,28 @@ class CreateSetorCadastral extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        return $this->geometriaDoTexto($data);
+        return $this->recortarNaDivisa($this->geometriaDoTexto($data));
+    }
+
+    /** B10 — a divisa invadida é recortada; desenho que engole/cai dentro de vizinho é recusado. */
+    private function recortarNaDivisa(array $data): array
+    {
+        if (empty($data['geo'])) {
+            return $data;
+        }
+
+        $recorte = SetorCadastral::recortarPelosVizinhos($data['geo'], (int) Filament::getTenant()->id);
+        if ($recorte['erro']) {
+            Notification::make()->title('Geometria recusada')->body($recorte['erro'])->danger()->persistent()->send();
+            $this->halt();
+        }
+
+        if ($aviso = SetorCadastral::avisoRecorte($recorte)) {
+            Notification::make()->title('Divisa ajustada')->body($aviso)->info()->send();
+        }
+        $data['geo'] = $recorte['geo'];
+
+        return $data;
     }
 
     protected function afterCreate(): void

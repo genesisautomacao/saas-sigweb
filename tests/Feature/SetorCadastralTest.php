@@ -122,10 +122,10 @@ class SetorCadastralTest extends TestCase
         $geo = $this->geoEnvolvendoBairro();
         SetorCadastral::create(['tenant_id' => $this->tenant->id, 'name' => 'T02', 'geo' => $geo]);
 
-        // mesma área = sobreposição → nem abre o modal
+        // mesma área = desenho todo dentro do vizinho → recusado, nem abre o modal (B10)
         Livewire::actingAs($this->manager())->test(MapaFullscreen::class)
             ->call('interceptarDesenho', 'setor_cadastral', $geo)
-            ->assertNotified('Sobreposição detectada')
+            ->assertNotified('Desenho recusado')
             ->assertActionNotMounted('criarSetorCadastral');
 
         // área livre (longe), mas o número já existe → erro de validação
@@ -138,6 +138,52 @@ class SetorCadastralTest extends TestCase
             ->setActionData(['name' => 'T02'])
             ->callMountedAction()
             ->assertHasActionErrors(['name' => 'unique']);
+    }
+
+    /** Quadrado em metros (UTM aproximado via geography) a partir do centro do bairro de teste. */
+    private function quadrado(float $dxIni, float $dxFim, float $lado = 400): array
+    {
+        $c = DB::selectOne('SELECT ST_X(ST_PointOnSurface(geo)) x, ST_Y(ST_PointOnSurface(geo)) y FROM bairros WHERE id = ?', [$this->bairro->id]);
+        $m = 1 / 111320; // grau por metro (aprox.; só para montar o teste)
+        $x0 = $c->x + $dxIni * $m;
+        $x1 = $c->x + $dxFim * $m;
+        $y0 = $c->y;
+        $y1 = $c->y + $lado * $m;
+
+        return ['type' => 'Polygon', 'coordinates' => [[[$x0, $y0], [$x1, $y0], [$x1, $y1], [$x0, $y1], [$x0, $y0]]]];
+    }
+
+    public function test_desenho_que_invade_o_vizinho_e_recortado_na_divisa(): void
+    {
+        // vizinho: faixa de 0 a 400 m; novo: de 300 a 700 m → invade 100 m × 400 m
+        $vizinho = SetorCadastral::create(['tenant_id' => $this->tenant->id, 'name' => 'T10', 'geo' => $this->quadrado(0, 400)]);
+
+        Livewire::actingAs($this->manager())->test(MapaFullscreen::class)
+            ->call('interceptarDesenho', 'setor_cadastral', $this->quadrado(300, 700))
+            ->assertNotified('Divisa ajustada')
+            ->assertActionMounted('criarSetorCadastral')
+            ->setActionData(['name' => 'T11', 'vincular_bairros' => false])
+            ->callMountedAction()
+            ->assertHasNoActionErrors();
+
+        $novo = SetorCadastral::where('name', 'T11')->firstOrFail();
+        $sobra = (float) DB::selectOne('SELECT ST_Area(ST_Intersection(a.geo, b.geo)::geography) m2 FROM setores_cadastrais a, setores_cadastrais b WHERE a.id = ? AND b.id = ?', [$novo->id, $vizinho->id])->m2;
+        $this->assertLessThan(1, $sobra, 'depois do recorte os setores não se sobrepõem');
+        $this->assertTrue((bool) DB::selectOne('SELECT ST_Touches(a.geo, b.geo) OR ST_Intersects(a.geo, b.geo) t FROM setores_cadastrais a, setores_cadastrais b WHERE a.id = ? AND b.id = ?', [$novo->id, $vizinho->id])->t, 'a divisa fica colada');
+
+        // edição da geometria do novo invadindo de novo → recortada, não revertida
+        Livewire::actingAs($this->manager())->test(MapaFullscreen::class)
+            ->call('salvarNovaGeometriaSetorCadastral', $novo->id, $this->quadrado(200, 700))
+            ->assertNotified('Limites do setor atualizados!')
+            ->assertDispatched('recarregarCamada');
+        $sobra = (float) DB::selectOne('SELECT ST_Area(ST_Intersection(a.geo, b.geo)::geography) m2 FROM setores_cadastrais a, setores_cadastrais b WHERE a.id = ? AND b.id = ?', [$novo->id, $vizinho->id])->m2;
+        $this->assertLessThan(1, $sobra);
+
+        // engolir o vizinho inteiro = engano → recusado
+        Livewire::actingAs($this->manager())->test(MapaFullscreen::class)
+            ->call('interceptarDesenho', 'setor_cadastral', $this->quadrado(-100, 1200, 600))
+            ->assertNotified('Desenho recusado')
+            ->assertActionNotMounted('criarSetorCadastral');
     }
 
     public function test_papel_sem_permissao_nao_cria_e_camada_e_publica(): void
