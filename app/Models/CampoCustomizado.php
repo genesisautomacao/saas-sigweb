@@ -51,7 +51,8 @@ class CampoCustomizado extends Model
         'loteamento' => 'Loteamento',
         'zona' => 'Zoneamento',
         'perimetro' => 'Distrito / Perímetro',
-        'setor_fiscal' => 'Setor Fiscal',
+        'setor_fiscal' => 'Setor Fiscal (inscrição)', // B9
+        'setor_pgv' => 'Setor da PGV',
         'meio_fio' => 'Meio-fio / Calçada',
         'mob_trecho' => 'Trecho Viário (Mobilidade)',
         'mob_eixo' => 'Eixo de Mobilidade',

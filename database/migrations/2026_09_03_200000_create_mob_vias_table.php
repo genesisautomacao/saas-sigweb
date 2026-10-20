@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Vias Urbanas (Mobilidade Urbana, docs/piuma.txt Onda 6).
+ * Vias Urbanas (Mobilidade Urbana, docs/modulos/piuma.txt Onda 6).
  *
  * Reunião com a equipe da mobilidade (2026-09-03): o TRECHO é o segmento do
  * levantamento — a ordem dos vértices é a direção em que o coletor andou e

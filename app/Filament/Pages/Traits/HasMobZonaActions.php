@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\On;
 
 /**
- * Zona de estudo da mobilidade no mapa (docs/piuma.txt §2.6, Onda 2):
+ * Zona de estudo da mobilidade no mapa (docs/modulos/piuma.txt §2.6, Onda 2):
  * zonas O/D (% origens/destinos), quadrantes, polo industrial, setores IBGE.
  */
 trait HasMobZonaActions

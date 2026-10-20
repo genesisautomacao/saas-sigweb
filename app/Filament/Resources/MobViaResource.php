@@ -14,7 +14,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Vias urbanas (Mobilidade Urbana — docs/piuma.txt, Onda 6): a entidade do
+ * Vias urbanas (Mobilidade Urbana — docs/modulos/piuma.txt, Onda 6): a entidade do
  * FLUXO (sentido mão única/dupla + direção = ordem dos vértices). CRUD modal
  * dos dados tabulares; geometria, inverter e caneta de sentidos ficam no MAPA.
  */

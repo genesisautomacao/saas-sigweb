@@ -83,7 +83,8 @@ class PocInventario extends Command
         $add('6 / I-4', 'Loteamentos', $conta('loteamentos'));
         $add('7 / I-5', 'Quadras', $conta('quadras'));
         $add('8 / I-6', 'Distritos (perímetros urbanos)', $conta('perimetros_urbanos'));
-        $add('9 / I-7', 'Setores fiscais', $conta('setores_fiscais'));
+        $add('9 / I-7', 'Setores fiscais (inscrição)', $conta('setores_fiscais'));
+        $add('9 / I-7', 'Setores da PGV', $conta('setores_pgv'));
         $add('10 / I-8', 'Bairros', $conta('bairros'));
         $add('11a', 'Pessoas com CPF', $conta('pessoas', "cpf IS NOT NULL AND cpf <> ''"));
         $add('11b', 'Pessoas com CNPJ (busca por CNPJ)', $conta('pessoas', "cnpj IS NOT NULL AND cnpj <> ''"));
@@ -112,7 +113,8 @@ class PocInventario extends Command
         $add('44', 'Logradouros com CÓDIGO', $conta('logradouros', "codigo IS NOT NULL AND codigo <> ''"));
         $add('45', 'Quadras com CÓDIGO', $conta('quadras', "codigo IS NOT NULL AND codigo <> ''"));
         $add('46', 'Distritos com CÓDIGO', $conta('perimetros_urbanos', "codigo IS NOT NULL AND codigo <> ''"));
-        $add('47', 'Setores com CÓDIGO', $conta('setores_fiscais', "codigo IS NOT NULL AND codigo <> ''"));
+        // B9/R85: no setor da inscrição o número (name) É o código
+        $add('47', 'Setores com CÓDIGO', $conta('setores_fiscais', "name IS NOT NULL AND name <> ''"));
         $add('48', 'Bairros com CÓDIGO', $conta('bairros', "codigo IS NOT NULL AND codigo <> ''"));
         $add('49', 'Zonas com CÓDIGO', $conta('zonas', "codigo IS NOT NULL AND codigo <> ''"));
         $add('57', 'Meio-fios', $conta('meio_fios'));

@@ -44,8 +44,8 @@ class LoteValorHistoricoResource extends Resource
                             ->default(now()->year)
                             ->required(),
 
-                        Forms\Components\Select::make('setor_fiscal_id')
-                            ->label('Setor Fiscal Aplicado')
+                        Forms\Components\Select::make('setor_pgv_id')
+                            ->label('Setor da PGV Aplicado')
                             ->relationship('setor', 'nome')
                             ->searchable()
                             ->preload(),
@@ -117,7 +117,7 @@ class LoteValorHistoricoResource extends Resource
                     }),
 
                 Tables\Columns\TextColumn::make('setor.nome')
-                    ->label('Setor Fiscal')
+                    ->label('Setor da PGV')
                     ->searchable()
                     ->sortable()
                     ->default('-'),
@@ -156,8 +156,8 @@ class LoteValorHistoricoResource extends Resource
                             ->toArray();
                     }),
 
-                Tables\Filters\SelectFilter::make('setor_fiscal_id')
-                    ->label('Filtrar por Setor Fiscal')
+                Tables\Filters\SelectFilter::make('setor_pgv_id')
+                    ->label('Filtrar por Setor da PGV')
                     ->relationship('setor', 'nome')
                     ->multiple()
                     ->preload(),

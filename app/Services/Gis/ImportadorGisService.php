@@ -39,7 +39,8 @@ class ImportadorGisService
         'Loteamento' => 'loteamento',
         'Zona' => 'zona',
         'PerimetroUrbano' => 'perimetro',
-        // Mobilidade Urbana (docs/piuma.txt, Onda 1)
+        'SetorFiscal' => 'setor_fiscal', // B9
+        // Mobilidade Urbana (docs/modulos/piuma.txt, Onda 1)
         'MobTrecho' => 'mob_trecho',
         'MobEixo' => 'mob_eixo',
     ];
@@ -172,7 +173,7 @@ class ImportadorGisService
                     $fillData['geo'] = null;
                 }
 
-                // MOBILIDADE URBANA (docs/piuma.txt, Onda 1): mapeamento próprio —
+                // MOBILIDADE URBANA (docs/modulos/piuma.txt, Onda 1): mapeamento próprio —
                 // as regras legadas abaixo assumem colunas do imobiliário (code,
                 // name, numero_lote, codigo, tipo...) que as tabelas mob_* não têm.
                 if (str_starts_with($camada, 'Mob')) {
@@ -189,6 +190,12 @@ class ImportadorGisService
                 $camadasComNome = ['PerimetroUrbano', 'Zona', 'Bairro', 'Loteamento', 'Quadra', 'Logradouro', 'SecaoLogradouro', 'FaceQuadra'];
                 if (in_array($camada, $camadasComNome)) {
                     $fillData['name'] = $props->name ?? $props->numero_lote ?? 'Sem Nome';
+                }
+                // B9 — o "nome" do setor fiscal é o NÚMERO que entra na inscrição (texto:
+                // "01" não vira 1). Sem número no arquivo, usa o id da feature.
+                if ($camada === 'SetorFiscal') {
+                    $numero = $props->name ?? $props->setor ?? $props->numero ?? $props->codigo ?? $originalId;
+                    $fillData['name'] = is_float($numero) ? (string) (int) $numero : trim((string) $numero);
                 }
 
                 // 3. MAPEAMENTO DINÂMICO
@@ -211,6 +218,10 @@ class ImportadorGisService
                 if (isset($props->perimetro_id)) {
                     $fillData['perimetro_id'] = $resolveRelacionamento(\App\Models\PerimetroUrbano::class, $props->perimetro_id);
                 }
+                // B9 — bairro aponta para o setor fiscal pelo id do setor no arquivo de setores
+                if (isset($props->setor_fiscal_id) && $props->setor_fiscal_id !== '') {
+                    $fillData['setor_fiscal_id'] = $resolveRelacionamento(\App\Models\SetorFiscal::class, $props->setor_fiscal_id);
+                }
                 if (isset($props->bairro_id)) {
                     $fillData['bairro_id'] = $resolveRelacionamento(\App\Models\Bairro::class, $props->bairro_id);
                 }
@@ -226,15 +237,15 @@ class ImportadorGisService
                 if (isset($props->lote_id)) {
                     $fillData['lote_id'] = $resolveRelacionamento(\App\Models\Lote::class, $props->lote_id);
                 }
-                // R84-6 — seções, testadas e faces apontam para a rua, a seção e o setor fiscal
+                // R84-6 — seções, testadas e faces apontam para a rua, a seção e o setor da PGV
                 if (isset($props->logradouro_id)) {
                     $fillData['logradouro_id'] = $resolveRelacionamento(\App\Models\Logradouro::class, $props->logradouro_id);
                 }
                 if (isset($props->secao_logradouro_id)) {
                     $fillData['secao_logradouro_id'] = $resolveRelacionamento(\App\Models\SecaoLogradouro::class, $props->secao_logradouro_id);
                 }
-                if (isset($props->setor_fiscal_id)) {
-                    $fillData['setor_fiscal_id'] = $resolveRelacionamento(\App\Models\SetorFiscal::class, $props->setor_fiscal_id);
+                if (isset($props->setor_pgv_id)) {
+                    $fillData['setor_pgv_id'] = $resolveRelacionamento(\App\Models\SetorPgv::class, $props->setor_pgv_id);
                 }
 
                 // Demais propriedades
@@ -398,7 +409,7 @@ class ImportadorGisService
     }
 
     /**
-     * Metadados geométricos das camadas mob_* após importar (docs/piuma.txt):
+     * Metadados geométricos das camadas mob_* após importar (docs/modulos/piuma.txt):
      * extensão (linhas) / área (zonas) e, em trechos e vias, o azimute do 1º ao
      * último vértice — mesma fórmula do gis:recalcular-metadata. Sobrescreve
      * (modo atualizar pode ter trocado a geometria). Tolerante a falha.
@@ -439,6 +450,7 @@ class ImportadorGisService
     protected static function recalcularMetadataLinhas(string $camada, int $tenantId): void
     {
         $sql = match ($camada) {
+            'SetorFiscal' => 'UPDATE setores_fiscais SET area_geo = ST_Area(geo::geography) WHERE tenant_id = ? AND geo IS NOT NULL', // B9
             'SecaoLogradouro' => 'UPDATE secoes_logradouro SET extensao_geo = ST_Length(geo::geography) WHERE tenant_id = ? AND geo IS NOT NULL',
             'FaceQuadra' => 'UPDATE face_quadras SET extensao_geo = ST_Length(geo::geography) WHERE tenant_id = ? AND geo IS NOT NULL',
             'LoteTestada' => 'UPDATE lote_testadas SET comprimento = ROUND(ST_Length(geo::geography)::numeric, 2) WHERE tenant_id = ? AND geo IS NOT NULL',
@@ -560,7 +572,7 @@ class ImportadorGisService
     }
 
     /**
-     * Mobilidade Urbana — colunas por camada (docs/piuma.txt §2). Só propriedades
+     * Mobilidade Urbana — colunas por camada (docs/modulos/piuma.txt §2). Só propriedades
      * presentes e não-vazias entram (o modo "atualizar" preserva o resto).
      */
     protected static function mapearCamposMob(string $camada, object $props, int $tenantId): array

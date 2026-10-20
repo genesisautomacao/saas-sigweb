@@ -127,7 +127,7 @@ papéis só com as caixas de mobilidade (+ núcleo).
     imobiliario (15): Bairro, Loteamento, Logradouro, Lote, MeioFio, PerimetroUrbano,
                       Quadra, SecaoLogradouro, Zona, AreaReurb, CampoCustomizado,
                       ColetaAtribuicao, Cnae, ZoneamentoRegra, ParametroUrbano
-    pgv (9): PgvParametro, SetorFiscal, LoteValorHistorico, PgvAmostra, PgvPolo, PgvCub,
+    pgv (9): PgvParametro, SetorPgv, LoteValorHistorico, PgvAmostra, PgvPolo, PgvCub,
              PgvDepreciacao, FaceQuadra, ViabilidadeEmissao (⚠ as outras 3 telas de
              Viabilidade são `imobiliario`; esta ficou `pgv` — inconsistente)
     arborizacao (1): Arvore
@@ -159,7 +159,8 @@ papéis só com as caixas de mobilidade (+ núcleo).
 2.4 Camadas do mapa — acordeon → camada (data-layer) → permissão ver_camada_ → módulo
     Cadastro Base (sem gate de grupo)
       perimetros            ver_camada_perimetros          imobiliario
-      setores_fiscais       ver_camada_setores_fiscais     pgv
+      setores_pgv           ver_camada_setores_pgv         pgv
+      setores_fiscais       ver_camada_setores_fiscais     base_cartografica (R85)
       bairros               ver_camada_bairros             imobiliario
       loteamentos           ver_camada_loteamentos         imobiliario
       quadras               ver_camada_quadras             imobiliario
@@ -195,7 +196,7 @@ papéis só com as caixas de mobilidade (+ núcleo).
     Barra lateral WMS (Ferramentas → Camadas WMS)          núcleo ou `wms` (Q4)
 
 2.5 Criar Artefatos (dropdown; gate: toolbar_criar_artefatos)
-    Grupo "urbano": perimetro_urbano, setor_fiscal (pgv), zona, bairro, loteamento,
+    Grupo "urbano": perimetro_urbano, setor_fiscal (base_cartografica, R85), setor_pgv (pgv), zona, bairro, loteamento,
                     quadra, lote, edificacao, logradouro, meio_fio      → imobiliario
     Grupo "infra":  patrimonio_publico (patrimonios), poste (iluminacao),
                     area_reurb (imobiliario), arvore (arborizacao),
@@ -207,7 +208,7 @@ papéis só com as caixas de mobilidade (+ núcleo).
                    rural_ponte, rural_ponto_interesse
     Ficha do lote: enableDrawing('edificacao'|'testada')              → imobiliario
     "Salvar como" (Azimutes e Coordenada XY): lotes, quadras, bairros, loteamentos,
-                   perimetros, zonas, setores_fiscais, areas_reurb, patrimonio_publicos
+                   perimetros, zonas, setores_pgv, setores_fiscais, areas_reurb, patrimonio_publicos
 
 2.6 Ferramentas (dropdown; gate: toolbar_ferramentas) e outros botões
     Numeração Predial ................. imobiliario
@@ -273,9 +274,9 @@ papéis só com as caixas de mobilidade (+ núcleo).
             view_mensagens, *_cnaes, *_regras_zoneamento, *_parametros_urbanos,
             ver_camada_{perimetros,bairros,loteamentos,quadras,lotes,logradouros,
             meio_fios,secoes_logradouro,zonas}
-    pgv: *_pgv_parametros, *_setores_fiscais, *_lote_valor_historicos,
+    pgv: *_pgv_parametros, *_setores_pgv, *_lote_valor_historicos,
             gerenciar_pgv_amostras/polos/cubs/depreciacoes, gerenciar_face_quadras,
-            view_viabilidade_emissoes(?), ver_camada_setores_fiscais
+            view_viabilidade_emissoes(?), ver_camada_setores_pgv
     iluminacao: *_tipos_poste, *_postes, ver_camada_postes
     arborizacao: *_arvores, ver_camada_arvores
     estoque: *_locais_estoque, *_marcas, *_produtos, view_estoques, *_movimentacoes,
@@ -409,7 +410,7 @@ Dados:
             Filtros avançados
           coleta_cadastral: coleta (acordeon Coleta de Dados), chamados
           imageamento: pontos_panoramicos, artefato ponto_panoramico, Visualizador 3D
-          pgv: setores_fiscais, artefato setor_fiscal, Simulador/Motor/Amostra/Pólo
+          pgv: setores_pgv, artefato setor_pgv, Simulador/Motor/Amostra/Pólo
           demais: como na tabela 2.4
       (d) MapDataController: camada de módulo inativo responde 403 (defesa em
           profundidade; hoje responde vazio);
@@ -556,7 +557,7 @@ Dados:
     loteamentos, quadras, lotes, edificações, meio-fios) · Zoneamento Urbano · Coleta
     de Dados · Processos Digitais · Imageamento (NOVO: pontos 360, sai de
     Infraestrutura) · Mobilidade Urbana · Cadastro Social (ex-"Inteligência Social") ·
-    Infraestrutura (setores fiscais — vindo do Cadastro Base —, áreas REURB,
+    Infraestrutura (setores da PGV — vindo do Cadastro Base —, áreas REURB,
     patrimônios, postes, árvores, chamados) · Gestão de Cemitérios · Cadastro Rural ·
     Anotações.
   Catálogo (config/modulos.php):
@@ -700,3 +701,11 @@ Dados:
        modalSubmitAction; rodapé com visible(editar/excluir); listener de geometria com
        autorizarNoMapa(editar). Nunca confiar só no blade.
     3. Camada nova só é pública se o mapa do cidadão a usa (`publica => true`).
+
+
+R85 (2026-10-19) — B9: o setor da PGV virou `setores_pgv` (SetorPgv, *_setores_pgv,
+camada/artefato setores_pgv/setor_pgv). O nome `setores_fiscais` passou ao Setor
+Fiscal da INSCRIÇÃO imobiliária — módulo base_cartografica, grupo D8 "Base
+Cartográfica" (menu, acordeon e Criar Artefatos entre Distritos e Bairros),
+quarteto view/create/edit/delete_setores_fiscais + ver_camada_setores_fiscais,
+camada pública. Ver CLAUDE.md, seção "Setor Fiscal da inscrição × Setor da PGV".

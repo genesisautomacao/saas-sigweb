@@ -12,7 +12,7 @@
 |   - /api/gis-data, consulta avançada, estatísticas e export SHP (camadas);
 |   - RoleResource (matriz Menu · Mapa · Criar · Editar · Excluir por módulo).
 |
-| Vocabulário (decisão do usuário, 2026-10-12 — docs/pendenciasTangara.md R83):
+| Vocabulário (decisão do usuário, 2026-10-12 — docs/arquivo/pendenciasTangara.md, R83):
 |   menu    = ver a TELA do menu (view_X ou gerenciar_X)        — não é do mapa
 |   mapa    = ver a CAMADA no mapa (ver_camada_X)
 |   criar / editar / excluir = as MESMAS permissões das Policies das telas
@@ -39,6 +39,10 @@ return [
         'perimetros_urbanos' => ['label' => 'Distritos / Limites', 'modulo' => 'base_cartografica', 'grupo' => 'Base Cartográfica',
             'camadas' => ['perimetros', 'perimetros_urbanos'], 'artefatos' => ['perimetro_urbano'],
             'mapa' => 'ver_camada_perimetros', 'publica' => true] + $q('perimetros_urbanos'),
+        // B9 — setor da inscrição imobiliária (agrupa 1+ bairros); o da PGV é `setores_pgv`
+        'setores_fiscais' => ['label' => 'Setores Fiscais', 'modulo' => 'base_cartografica', 'grupo' => 'Base Cartográfica',
+            'camadas' => ['setores_fiscais'], 'artefatos' => ['setor_fiscal'],
+            'mapa' => 'ver_camada_setores_fiscais', 'publica' => true] + $q('setores_fiscais'),
         'bairros' => ['label' => 'Bairros', 'modulo' => 'base_cartografica', 'grupo' => 'Base Cartográfica',
             'camadas' => ['bairros'], 'artefatos' => ['bairro'],
             'mapa' => 'ver_camada_bairros', 'publica' => true] + $q('bairros'),
@@ -116,9 +120,9 @@ return [
             'menu' => 'gerenciar_mob_tipos_sinalizacao', 'mapa' => null, 'criar' => null, 'editar' => null, 'excluir' => null, 'publica' => false],
 
         // ── Infraestrutura ──────────────────────────────────────────────
-        'setores_fiscais' => ['label' => 'Setores Fiscais', 'modulo' => 'pgv', 'grupo' => 'Infraestrutura',
-            'camadas' => ['setores_fiscais'], 'artefatos' => ['setor_fiscal'],
-            'mapa' => 'ver_camada_setores_fiscais', 'publica' => true] + $q('setores_fiscais'),
+        'setores_pgv' => ['label' => 'Setores da PGV', 'modulo' => 'pgv', 'grupo' => 'Infraestrutura',
+            'camadas' => ['setores_pgv'], 'artefatos' => ['setor_pgv'],
+            'mapa' => 'ver_camada_setores_pgv', 'publica' => true] + $q('setores_pgv'),
         'patrimonio_publicos' => ['label' => 'Patrimônios Públicos', 'modulo' => 'patrimonios', 'grupo' => 'Infraestrutura',
             'camadas' => ['patrimonio_publicos', 'patrimonio_publico'], 'artefatos' => ['patrimonio_publico'],
             'mapa' => 'ver_camada_patrimonio_publico', 'publica' => false] + $q('patrimonio_publicos'),

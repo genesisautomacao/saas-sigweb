@@ -20,6 +20,8 @@ class RecalcularGeoMetadata extends Command
      */
     private const ENTIDADES = [
         'perimetros_urbanos' => ['area_geo',     'ST_Area'],
+        'setores_fiscais' => ['area_geo',     'ST_Area'], // B9
+        'setores_pgv' => ['area_geo',     'ST_Area'],
         'zonas' => ['area_geo',     'ST_Area'],
         'bairros' => ['area_geo',     'ST_Area'],
         'loteamentos' => ['area_geo',     'ST_Area'],
@@ -28,7 +30,7 @@ class RecalcularGeoMetadata extends Command
         'logradouros' => ['extensao_geo', 'ST_Length'],
         'secoes_logradouro' => ['extensao_geo', 'ST_Length'],
         'meio_fios' => ['extensao_geo', 'ST_Length'],
-        // Módulo Mobilidade Urbana (docs/piuma.txt)
+        // Módulo Mobilidade Urbana (docs/modulos/piuma.txt)
         'mob_trechos' => ['extensao_geo', 'ST_Length'],
         'mob_vias' => ['extensao_geo', 'ST_Length'],
         'mob_eixos' => ['extensao_geo', 'ST_Length'],
@@ -106,7 +108,7 @@ class RecalcularGeoMetadata extends Command
         }
 
         // Mobilidade: azimute (0–360°, 1º→último vértice) anda junto com a
-        // extensão — mesma política NULL-only / --force (docs/piuma.txt §3.c).
+        // extensão — mesma política NULL-only / --force (docs/modulos/piuma.txt §3.c).
         // Trecho = direção do mapeamento; via = direção do fluxo (Onda 6).
         foreach (['mob_trechos', 'mob_vias'] as $tabelaMob) {
             if (! isset($alvos[$tabelaMob])) {

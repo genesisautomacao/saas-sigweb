@@ -19,7 +19,7 @@ use Filament\Tables\Table;
  * CreateRole/EditRole. Caixa cujas permissões pertencem a módulo INATIVO na
  * prefeitura não aparece (config/modulos.php via Modulos::filtrarOpcoes); as
  * permissões já gravadas nesses módulos são PRESERVADAS no save (decisão D3 de
- * docs/Modulos_Permissoes.txt). Papel de sistema (Manager) é identificado pela
+ * docs/modulos/Modulos_Permissoes.txt). Papel de sistema (Manager) é identificado pela
  * flag roles.papel_sistema (D7): pode ser renomeado, não excluído.
  *
  * R83 (2026-10-12): as caixas dos módulos GIS viraram MATRIZES por entidade

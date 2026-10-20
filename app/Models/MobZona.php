@@ -12,7 +12,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Zona de estudo da mobilidade (docs/piuma.txt §2.6): zonas O/D (com % de
+ * Zona de estudo da mobilidade (docs/modulos/piuma.txt §2.6): zonas O/D (com % de
  * origens/destinos), quadrantes de estudo, polo industrial e setores
  * censitários IBGE (codigo). area_geo recalculada via PostGIS (decisão 6.6).
  */

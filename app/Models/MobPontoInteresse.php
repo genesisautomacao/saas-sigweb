@@ -12,7 +12,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Ponto de interesse da mobilidade urbana (docs/piuma.txt §2.3) — absorve os
+ * Ponto de interesse da mobilidade urbana (docs/modulos/piuma.txt §2.3) — absorve os
  * 7 JSONs de POI do levantamento (um toggle por categoria no mapa).
  */
 class MobPontoInteresse extends Model

@@ -326,6 +326,31 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             },
         },
+        // B9 — Setor Fiscal (inscrição): mesmo visual da intranet, por baixo dos bairros
+        setores_fiscais: {
+            z: 28,
+            minZoom: 0,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: "#0d9488", width: 3 }),
+                    fill: new ol.style.Fill({ color: "rgba(13, 148, 136, 0.08)" }),
+                });
+                if (zoom >= 12) {
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name") ? "Setor " + feature.get("name") : "",
+                            font: "bold 15px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: "#134e4a" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 4 }),
+                            offsetY: -18,
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
         bairros: {
             z: 30,
             minZoom: 0,
@@ -858,7 +883,7 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
-        setores_fiscais: {
+        setores_pgv: {
             z: 22,
             minZoom: 12,
             style: function (feature, resolution) {
@@ -878,7 +903,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         new ol.style.Text({
                             text: feature.get("name")
                                 ? feature.get("name").toString()
-                                : "Setor Fiscal",
+                                : "Setor da PGV",
                             font: "bold 15px Arial, sans-serif",
                             fill: new ol.style.Fill({ color: "#78350f" }),
                             stroke: new ol.style.Stroke({

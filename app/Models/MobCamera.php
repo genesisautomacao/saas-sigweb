@@ -12,7 +12,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Câmera de monitoramento em tempo real (docs/piuma.txt, Onda 5): ponto no
+ * Câmera de monitoramento em tempo real (docs/modulos/piuma.txt, Onda 5): ponto no
  * mapa + fonte do vídeo. O clique no ícone abre o player; nada é gravado.
  */
 class MobCamera extends Model

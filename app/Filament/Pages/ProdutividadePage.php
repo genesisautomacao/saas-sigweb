@@ -15,7 +15,7 @@ use Livewire\Attributes\Computed;
  * Resumo de Produtividade — acompanhamento das REGIÕES DESIGNADAS (R67-6).
  *
  * O recorte da tela é a atribuição do cadastrador (`coleta_atribuicoes`), não o
- * setor fiscal: filtra-se por período + cadastrador e lista-se cada quadra
+ * setor da PGV: filtra-se por período + cadastrador e lista-se cada quadra
  * designada com o percentual já cumprido.
  */
 class ProdutividadePage extends Page
@@ -34,7 +34,7 @@ class ProdutividadePage extends Page
 
     public static function canAccess(): bool
     {
-        // módulo Coleta Cadastral (D4 — docs/Modulos_Permissoes.txt) + permissão
+        // módulo Coleta Cadastral (D4 — docs/modulos/Modulos_Permissoes.txt) + permissão
         return \App\Support\Modulos::ativo('coleta_cadastral')
             && (auth()->user()?->temPermissao('view_produtividade') ?? false);
     }

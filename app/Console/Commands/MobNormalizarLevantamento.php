@@ -6,7 +6,7 @@ use Database\Seeders\MobilidadeSeeder;
 use Illuminate\Console\Command;
 
 /**
- * Mobilidade Urbana (docs/piuma.txt, Onda 1) — transforma os JSONs CRUS do
+ * Mobilidade Urbana (docs/modulos/piuma.txt, Onda 1) — transforma os JSONs CRUS do
  * levantamento de campo nos 6 GeoJSONs NORMALIZADOS que o "Importar Mapa (GIS)"
  * entende (camadas MobTrecho, MobSinalizacao, MobPontoInteresse, MobEixo,
  * MobZona, MobFluxo) + cópia de bairros.json (camada Bairro existente).

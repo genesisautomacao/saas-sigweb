@@ -34,7 +34,7 @@ class BoletimColetaPage extends Page implements HasForms
 {
     use HasTenantModule, InteractsWithForms;
 
-    protected static ?string $tenantModule = 'coleta_cadastral'; // D4 (docs/Modulos_Permissoes.txt)
+    protected static ?string $tenantModule = 'coleta_cadastral'; // D4 (docs/modulos/Modulos_Permissoes.txt)
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
 
@@ -55,7 +55,7 @@ class BoletimColetaPage extends Page implements HasForms
     public static function canAccess(): bool
     {
         // ⚠️ canAccess da classe sobrepõe o do trait HasTenantModule — o módulo tem de
-        // ser checado AQUI (A1 — docs/Modulos_Permissoes.txt)
+        // ser checado AQUI (A1 — docs/modulos/Modulos_Permissoes.txt)
         return \App\Support\Modulos::ativo(static::$tenantModule)
             && (auth()->user()?->temPermissao('gerenciar_campos_customizados') ?? false);
     }

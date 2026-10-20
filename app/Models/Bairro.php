@@ -37,6 +37,7 @@ class Bairro extends Model
     protected $fillable = [
         'tenant_id',
         'sequential_id',
+        'setor_fiscal_id', // B9 — setor da inscrição imobiliária
         'codigo',
         'code',
         'name',
@@ -72,6 +73,11 @@ class Bairro extends Model
     }
 
     // --- RELACIONAMENTOS ---
+    public function setorFiscal()
+    {
+        return $this->belongsTo(SetorFiscal::class, 'setor_fiscal_id');
+    }
+
     public function quadras()
     {
         return $this->hasMany(Quadra::class);

@@ -14,7 +14,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Eixos de mobilidade (docs/piuma.txt §2.5, Onda 3): ciclovias, eixos
+ * Eixos de mobilidade (docs/modulos/piuma.txt §2.5, Onda 3): ciclovias, eixos
  * comerciais, rotas de carga e rodovias. Extensão em METROS, exibida em km.
  */
 class MobEixoResource extends Resource

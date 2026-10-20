@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Papéis deixam de ser especiais pelo NOME (docs/Modulos_Permissoes.txt, D7):
+ * Papéis deixam de ser especiais pelo NOME (docs/modulos/Modulos_Permissoes.txt, D7):
  *  - papel_sistema: null | 'master' | 'manager' — o que hoje é decidido por
  *    roles.name = 'Master'/'Manager' (Gate::before, map-permissions, região do
  *    coletor, sync de módulos, Delegar Manager). Nome fica livre p/ renomear.

@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Backfill das chaves de módulo criadas em 2026-09-04 (docs/Modulos_Permissoes.txt):
+ * Backfill das chaves de módulo criadas em 2026-09-04 (docs/modulos/Modulos_Permissoes.txt):
  *  - base_cartografica: toda prefeitura com imobiliario (é pré-requisito dele);
  *  - coleta_cadastral: toda prefeitura com imobiliario (todas as atuais usam a
  *    coleta/chamados; desligar depois no /admin é uma decisão comercial);

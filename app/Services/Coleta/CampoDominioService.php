@@ -21,7 +21,7 @@ class CampoDominioService
      * Padrões do sistema (rótulo + lista de CHAVES imutáveis). Chave = entidade.campo.
      *
      * Depois da refatoração da PoC Tangará (lista aprovada em
-     * docs/campos_imobiliario_para_aprovacao.txt) só restam aqui os campos fixos COM
+     * docs/modulos/campos_imobiliario_para_aprovacao.txt) só restam aqui os campos fixos COM
      * lista de valores governada pelo sistema — todo o resto ou é texto/número/foto
      * (sem lista) ou virou campo customizado da prefeitura:
      *   - edificacao: TODOS os atributos viraram campos customizados (o vocabulário

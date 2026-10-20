@@ -28,6 +28,7 @@ trait MontaOpcoesFiltroMapa
             'perimetros_urbanos' => ['name' => 'Nome', 'distrito' => 'Distrito', 'codigo' => 'Código'],
             'quadras' => ['name' => 'Quadra', 'codigo' => 'Código', 'area_geo' => 'Área (m²)'],
             'bairros' => ['name' => 'Nome', 'codigo' => 'Código', 'area_geo' => 'Área (m²)'],
+            'setores_fiscais' => ['name' => 'Número do Setor', 'area_geo' => 'Área (m²)'],
             'logradouros' => ['name' => 'Nome', 'codigo' => 'Código', 'extensao_geo' => 'Extensão (m)'],
             'secoes_logradouro' => ['codigo' => 'Código', 'lado' => 'Lado', 'extensao_geo' => 'Extensão (m)'],
             'loteamentos' => ['name' => 'Nome'],

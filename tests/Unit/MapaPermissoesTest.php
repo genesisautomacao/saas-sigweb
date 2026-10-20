@@ -86,7 +86,7 @@ class MapaPermissoesTest extends TestCase
 
     public function test_camadas_publicas_sao_as_do_mapa_do_cidadao(): void
     {
-        foreach (['lotes', 'edificacoes', 'quadras', 'bairros', 'zonas', 'mob_vias', 'rural-pontes', 'pontos_panoramicos', 'jazigos', 'setores_fiscais'] as $c) {
+        foreach (['lotes', 'edificacoes', 'quadras', 'bairros', 'zonas', 'mob_vias', 'rural-pontes', 'pontos_panoramicos', 'jazigos', 'setores_pgv', 'setores_fiscais'] as $c) {
             $this->assertTrue(MapaPermissoes::camadaPublica($c), "{$c} deveria ser pública");
         }
         foreach (['coleta', 'processos', 'chamados', 'chamados_mapa', 'areas_reurb', 'secoes_logradouro', 'meio_fios', 'toponimias', 'patrimonio_publicos', 'desconhecida'] as $c) {

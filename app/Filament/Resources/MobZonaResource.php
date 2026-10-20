@@ -14,7 +14,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Zonas de estudo da mobilidade (docs/piuma.txt §2.6, Onda 3): zonas O/D,
+ * Zonas de estudo da mobilidade (docs/modulos/piuma.txt §2.6, Onda 3): zonas O/D,
  * quadrantes, polo industrial e setores censitários IBGE.
  */
 class MobZonaResource extends Resource

@@ -37,3 +37,6 @@ Releases.md
 *.tar.gz
 *.tgz
 *.zip
+
+# Claude Code — permissões pessoais
+.claude/settings.local.json

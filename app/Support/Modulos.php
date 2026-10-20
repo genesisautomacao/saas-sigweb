@@ -6,7 +6,7 @@ use App\Models\Tenant;
 use Filament\Facades\Filament;
 
 /**
- * Leitor do catálogo de módulos (config/modulos.php) — docs/Modulos_Permissoes.txt.
+ * Leitor do catálogo de módulos (config/modulos.php) — docs/modulos/Modulos_Permissoes.txt.
  *
  * Responde "isto pertence a que módulo?" e "este módulo está ativo nesta
  * prefeitura?" para menu, papéis, mapa e /admin. O tenant padrão é o da sessão

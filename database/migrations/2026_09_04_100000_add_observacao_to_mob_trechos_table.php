@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Observação livre no trecho viário (pedido da equipe da mobilidade de Piúma,
- * reunião de 2026-09-04 — docs/piuma.txt, ajustes pré-reunião de 08/09).
+ * reunião de 2026-09-04 — docs/modulos/piuma.txt, ajustes pré-reunião de 08/09).
  */
 return new class extends Migration
 {

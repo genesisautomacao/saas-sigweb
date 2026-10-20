@@ -14,7 +14,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
-/** Câmeras de monitoramento em tempo real (docs/piuma.txt, Onda 5). */
+/** Câmeras de monitoramento em tempo real (docs/modulos/piuma.txt, Onda 5). */
 class MobCameraResource extends Resource
 {
     use HasTenantModule;

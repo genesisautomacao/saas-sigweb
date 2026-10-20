@@ -13,7 +13,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Linha de desejo do estudo Origem/Destino (docs/piuma.txt §2.7).
+ * Linha de desejo do estudo Origem/Destino (docs/modulos/piuma.txt §2.7).
  *
  * ⚠️ Semântica confirmada em 2026-09-04: o campo `fluxo` do levantamento nomeia
  * a ponta COMPARTILHADA de cada grupo de linhas = a ORIGEM (`origem_regiao`).

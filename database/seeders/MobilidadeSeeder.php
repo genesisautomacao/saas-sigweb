@@ -8,7 +8,7 @@ use App\Models\Tenant;
 use Illuminate\Database\Seeder;
 
 /**
- * Módulo Mobilidade Urbana (docs/piuma.txt, Onda 0) — semeia por tenant com o
+ * Módulo Mobilidade Urbana (docs/modulos/piuma.txt, Onda 0) — semeia por tenant com o
  * módulo `mob_infra` ativo (ou o slug de MOB_SEED_TENANT):
  *
  *  1. CATÁLOGO de tipos de sinalização (decisão 6.1) — nome + vertical/horizontal

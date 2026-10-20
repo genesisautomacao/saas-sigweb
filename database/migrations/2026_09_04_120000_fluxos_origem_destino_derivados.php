@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Fluxos O/D — origem × destino (docs/piuma.txt, 2026-09-04).
+ * Fluxos O/D — origem × destino (docs/modulos/piuma.txt, 2026-09-04).
  *
  * O campo `fluxo` do levantamento (importado como `destino`) nomeia a ponta
  * COMPARTILHADA das linhas de cada grupo = a ORIGEM (confirmado por PostGIS e

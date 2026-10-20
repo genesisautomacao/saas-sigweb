@@ -28,7 +28,7 @@ class EditRole extends EditRecord
 
     /**
      * Junta o que foi marcado nas caixas visíveis e PRESERVA (decisão D3 de
-     * docs/Modulos_Permissoes.txt) as permissões de módulos inativos na prefeitura,
+     * docs/modulos/Modulos_Permissoes.txt) as permissões de módulos inativos na prefeitura,
      * cujas caixas não foram oferecidas — religar o módulo devolve a configuração.
      */
     protected function mutateFormDataBeforeSave(array $data): array

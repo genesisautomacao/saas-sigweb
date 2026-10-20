@@ -12,7 +12,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Trecho viário (Mobilidade Urbana — docs/piuma.txt §2.4/§3).
+ * Trecho viário (Mobilidade Urbana — docs/modulos/piuma.txt §2.4/§3).
  *
  * SEM name (decisão 6.3): trecho urbano não tem nome — a referência é o
  * sequential_id. DIREÇÃO = ordem dos vértices da linha (início → fim) = a

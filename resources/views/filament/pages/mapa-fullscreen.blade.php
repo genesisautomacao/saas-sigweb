@@ -436,7 +436,7 @@
                             <div
                                 class="overflow-y-auto max-h-[65vh] custom-scrollbar flex flex-col bg-white dark:bg-gray-800">
 
-                                {{-- D8 (2026-09-05, docs/Modulos_Permissoes.txt §9): os grupos ESPELHAM os acordeons da
+                                {{-- D8 (2026-09-05, docs/modulos/Modulos_Permissoes.txt §9): os grupos ESPELHAM os acordeons da
                                      janela "Camadas do Mapa" (mesmos nomes, mesma ordem, mesmo gate de módulo). Dentro de
                                      cada grupo os artefatos vão do MAIOR para o MENOR (hierarquia do território) e cada
                                      linha mostra o tipo de geometria à direita. Novo módulo/camada = mesmo nome nos três. --}}
@@ -458,6 +458,13 @@
                                         <button type="button" onclick="enableDrawing('perimetro_urbano')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-red-50 hover:text-red-600 flex items-center gap-3 transition-colors">
                                             <x-heroicon-o-globe-americas class="w-4 h-4 text-red-500" /> Distrito / Limite
+                                            <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
+                                        </button>
+                                        @endif
+                                        @if (\App\Support\Modulos::artefatoDisponivel('setor_fiscal') && ($permMapa['artefatos']['setor_fiscal'] ?? false))
+                                        <button type="button" onclick="enableDrawing('setor_fiscal')" @click="openDraw = false"
+                                            class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-50 flex items-center gap-3 transition-colors">
+                                            <x-heroicon-o-squares-2x2 class="w-4 h-4" style="color:#0d9488;" /> Setor Fiscal
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
@@ -660,10 +667,10 @@
                                             x-bind:class="activeTabDraw === 'infra' ? 'rotate-180' : ''" />
                                     </button>
                                     <div x-show="activeTabDraw === 'infra'" x-collapse class="py-1">
-                                        @if (\App\Support\Modulos::artefatoDisponivel('setor_fiscal') && ($permMapa['artefatos']['setor_fiscal'] ?? false))
-                                        <button type="button" onclick="enableDrawing('setor_fiscal')" @click="openDraw = false"
+                                        @if (\App\Support\Modulos::artefatoDisponivel('setor_pgv') && ($permMapa['artefatos']['setor_pgv'] ?? false))
+                                        <button type="button" onclick="enableDrawing('setor_pgv')" @click="openDraw = false"
                                             class="w-full px-6 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
-                                            <x-heroicon-o-currency-dollar class="w-4 h-4 text-amber-500" /> Setor Fiscal
+                                            <x-heroicon-o-currency-dollar class="w-4 h-4 text-amber-500" /> Setor da PGV
                                             <span style="margin-left:auto; font-size:10px; color:#9ca3af; white-space:nowrap;">Polígono</span>
                                         </button>
                                         @endif
@@ -1043,7 +1050,8 @@
                                             'loteamentos' => 'Loteamentos',
                                             'zonas' => 'Zonas',
                                             'perimetros_urbanos' => 'Distritos / Limites',
-                                            'setores_fiscais' => 'Setores',
+                                            'setores_fiscais' => 'Setores Fiscais',
+                                            'setores_pgv' => 'Setores da PGV',
                                             'arvores' => 'Árvores',
                                             'postes' => 'Postes',
                                             'cemiterios' => 'Cemitérios',
@@ -1531,6 +1539,9 @@
                     @if (\App\Support\Modulos::camadaDisponivel('quadras') && $podeCriarCamada('quadras'))
                     <option value="quadras">Quadra</option>
                     @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais') && $podeCriarCamada('setores_fiscais'))
+                    <option value="setores_fiscais">Setor Fiscal</option>
+                    @endif
                     @if (\App\Support\Modulos::camadaDisponivel('bairros') && $podeCriarCamada('bairros'))
                     <option value="bairros">Bairro</option>
                     @endif
@@ -1543,8 +1554,8 @@
                     @if (\App\Support\Modulos::camadaDisponivel('zonas') && $podeCriarCamada('zonas'))
                     <option value="zonas">Zona</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais') && $podeCriarCamada('setores_fiscais'))
-                    <option value="setores_fiscais">Setor Fiscal</option>
+                    @if (\App\Support\Modulos::camadaDisponivel('setores_pgv') && $podeCriarCamada('setores_pgv'))
+                    <option value="setores_pgv">Setor da PGV</option>
                     @endif
                     @if (\App\Support\Modulos::camadaDisponivel('areas_reurb') && $podeCriarCamada('areas_reurb'))
                     <option value="areas_reurb">Área REURB</option>
@@ -1669,6 +1680,9 @@
                     @if (\App\Support\Modulos::camadaDisponivel('quadras') && $podeCriarCamada('quadras'))
                     <option value="quadras">Quadra</option>
                     @endif
+                    @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais') && $podeCriarCamada('setores_fiscais'))
+                    <option value="setores_fiscais">Setor Fiscal</option>
+                    @endif
                     @if (\App\Support\Modulos::camadaDisponivel('bairros') && $podeCriarCamada('bairros'))
                     <option value="bairros">Bairro</option>
                     @endif
@@ -1681,8 +1695,8 @@
                     @if (\App\Support\Modulos::camadaDisponivel('zonas') && $podeCriarCamada('zonas'))
                     <option value="zonas">Zona</option>
                     @endif
-                    @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais') && $podeCriarCamada('setores_fiscais'))
-                    <option value="setores_fiscais">Setor Fiscal</option>
+                    @if (\App\Support\Modulos::camadaDisponivel('setores_pgv') && $podeCriarCamada('setores_pgv'))
+                    <option value="setores_pgv">Setor da PGV</option>
                     @endif
                     @if (\App\Support\Modulos::camadaDisponivel('areas_reurb') && $podeCriarCamada('areas_reurb'))
                     <option value="areas_reurb">Área REURB</option>
@@ -1899,7 +1913,7 @@
             </div>
             <div class="overflow-y-auto overflow-x-hidden max-h-[65vh] custom-scrollbar">
 
-                {{-- D8 (2026-09-05, docs/Modulos_Permissoes.txt §9): os acordeons ESPELHAM a sidebar e os grupos do
+                {{-- D8 (2026-09-05, docs/modulos/Modulos_Permissoes.txt §9): os acordeons ESPELHAM a sidebar e os grupos do
                      "Criar Artefatos" — mesmos nomes, mesma ordem, mesmo gate de módulo. activeTab inicial = base. --}}
 
                 @if (\App\Support\Modulos::ativo('base_cartografica'))
@@ -1957,8 +1971,40 @@
                         </div>
                         @endif
 
+                        {{-- B9 — Setor Fiscal da inscrição (agrupa bairros) --}}
+                        @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais'))
+                        <div class="flex items-center justify-between w-full mt-2">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" data-layer="setores_fiscais"
+                                    class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#0d9488;">
+                                <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                    <div class="w-3 h-3 rounded-full opacity-60 shadow-sm flex-shrink-0" style="background:#0d9488;">
+                                    </div>
+                                    <span class="layer-text truncate">Setores Fiscais</span>
+                                </span>
+                            </label>
+                            <div class="flex items-center gap-1 ml-2 flex-shrink-0">
+                                <label
+                                    class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
+                                    title="Exibir rótulos">
+                                    <input type="checkbox" id="setores_fiscais-label-toggle" checked
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_fiscais',enabled:this.checked,field:document.getElementById('setores_fiscais-label-field').value}}))"
+                                        class="rounded border-gray-300 w-3 h-3">
+                                    <span>Rót.</span>
+                                </label>
+                                <select id="setores_fiscais-label-field"
+                                    onchange="if(document.getElementById('setores_fiscais-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_fiscais',enabled:true,field:this.value}}))"
+                                    class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                    style="font-size:10px;max-width:80px;padding:1px 2px;">
+                                    <option value="__default__">Padrão</option>
+                                    <option value="name">Número</option>
+                                </select>
+                            </div>
+                        </div>
+                        @endif
+
                         @if (\App\Support\Modulos::camadaDisponivel('bairros'))
-                        <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center justify-between w-full mt-2">
                             @if (\App\Support\Modulos::camadaDisponivel('bairros'))
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
                                 <input type="checkbox" data-layer="bairros"
@@ -2374,7 +2420,7 @@
                 </div>
                 @endif
 
-                {{-- CAMADAS: MOBILIDADE URBANA (módulo mob_infra — docs/piuma.txt, Onda 2) --}}
+                {{-- CAMADAS: MOBILIDADE URBANA (módulo mob_infra — docs/modulos/piuma.txt, Onda 2) --}}
                 @if ($temMobilidade)
                     <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                         <button @click="activeTab = activeTab === 'mobilidade' ? '' : 'mobilidade'"
@@ -2685,7 +2731,7 @@
                 @endif
 
                 @if (\App\Support\Modulos::algumAtivo(['pgv', 'imobiliario', 'patrimonios', 'iluminacao', 'arborizacao', 'chamados', 'chamados_mapa']))
-                {{-- GRUPO: INFRAESTRUTURA (setores fiscais, REURB, patrimônios, postes, árvores, chamados do App e do mapa público — D8 + R80-1) --}}
+                {{-- GRUPO: INFRAESTRUTURA (setores da PGV, REURB, patrimônios, postes, árvores, chamados do App e do mapa público — D8 + R80-1) --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'infra' ? '' : 'infra'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
@@ -2696,11 +2742,11 @@
                     <div x-show="activeTab === 'infra'" x-collapse
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
 
-                        @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais'))
+                        @if (\App\Support\Modulos::camadaDisponivel('setores_pgv'))
                         <div class="flex items-center justify-between w-full mt-2">
-                            @if (\App\Support\Modulos::camadaDisponivel('setores_fiscais'))
+                            @if (\App\Support\Modulos::camadaDisponivel('setores_pgv'))
                             <label class="flex items-center space-x-3 cursor-pointer flex-1">
-                                <input type="checkbox" data-layer="setores_fiscais"
+                                <input type="checkbox" data-layer="setores_pgv"
                                     class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0">
                                 <span class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                     <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0">
@@ -2713,13 +2759,13 @@
                                 <label
                                     class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 cursor-pointer"
                                     title="Exibir rótulos">
-                                    <input type="checkbox" id="setores_fiscais-label-toggle" checked
-                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_fiscais',enabled:this.checked,field:document.getElementById('setores_fiscais-label-field').value}}))"
+                                    <input type="checkbox" id="setores_pgv-label-toggle" checked
+                                        onchange="window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_pgv',enabled:this.checked,field:document.getElementById('setores_pgv-label-field').value}}))"
                                         class="rounded border-gray-300 w-3 h-3">
                                     <span>Rót.</span>
                                 </label>
-                                <select id="setores_fiscais-label-field"
-                                    onchange="if(document.getElementById('setores_fiscais-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_fiscais',enabled:true,field:this.value}}))"
+                                <select id="setores_pgv-label-field"
+                                    onchange="if(document.getElementById('setores_pgv-label-toggle').checked) window.dispatchEvent(new CustomEvent('sigweb-toggle-labels',{detail:{layer:'setores_pgv',enabled:true,field:this.value}}))"
                                     class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                                     style="font-size:10px;max-width:80px;padding:1px 2px;">
                                     <option value="__default__">Padrão</option>

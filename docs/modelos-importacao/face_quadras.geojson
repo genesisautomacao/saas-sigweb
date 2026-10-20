@@ -15,7 +15,7 @@
                 "quadra_id": 93,
                 "logradouro_id": 178,
                 "zona_id": null,
-                "setor_fiscal_id": null,
+                "setor_pgv_id": null,
                 "name": "Face 1 da quadra"
             },
             "geometry": {

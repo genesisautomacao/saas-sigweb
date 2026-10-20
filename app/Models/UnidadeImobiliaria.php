@@ -53,7 +53,7 @@ class UnidadeImobiliaria extends Model
 
     /**
      * As 13 colunas fiscais promovidas em 2026-07-01 foram REMOVIDAS na refatoração da
-     * PoC Tangará (lista aprovada em docs/campos_imobiliario_para_aprovacao.txt):
+     * PoC Tangará (lista aprovada em docs/modulos/campos_imobiliario_para_aprovacao.txt):
      * nenhuma tinha consumidor no código além de exibição — busca e PGV sempre leram o
      * JSON. O dado segue íntegro em `dados_tributarios`; o que o município quiser VER
      * vira campo customizado alimentado pelo de/para da integração.

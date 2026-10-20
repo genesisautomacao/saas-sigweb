@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
- * Release 83 — vocabulário único de permissões do mapa (docs/pendenciasTangara.md).
+ * Release 83 — vocabulário único de permissões do mapa (docs/arquivo/pendenciasTangara.md).
  *
  * Planeja (e aplica, pela migration) a conversão dos papéis das prefeituras com a
  * regra decidida pelo usuário em 2026-10-12, "preservar quem já cria":

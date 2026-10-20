@@ -7,7 +7,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Gera as Vias Urbanas 1:1 a partir dos Trechos Viários (docs/piuma.txt, Onda 6).
+ * Gera as Vias Urbanas 1:1 a partir dos Trechos Viários (docs/modulos/piuma.txt, Onda 6).
  *
  * Caso Piúma: cada trecho do levantamento vira uma via com a MESMA geometria e o
  * MESMO sequential_id (o JSON do Pedro, por id, casa com as duas tabelas), e o

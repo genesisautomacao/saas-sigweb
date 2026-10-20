@@ -2,7 +2,7 @@
 
 > ⚠️ **Este documento é o *delta* da R67.** O contrato **completo e atual** da API do app (todos os
 > endpoints, payloads reais, fluxo de sincronização e armadilhas) está em
-> **[MensagensAppAssistente.md](MensagensAppAssistente.md)** — é esse o arquivo a enviar ao time do app.
+> **[MensagensAppAssistente.md](../../apps/MensagensAppAssistente.md)** — é esse o arquivo a enviar ao time do app.
 > Em caso de divergência, vale o outro.
 >
 > Mudança posterior a este texto (2026-07-30): o app teve o escopo reduzido ao cadastro imobiliário —

@@ -35,7 +35,7 @@ class EditTenant extends EditRecord
     }
 
     /**
-     * Módulos alterados (D7 — docs/Modulos_Permissoes.txt): os papéis que
+     * Módulos alterados (D7 — docs/modulos/Modulos_Permissoes.txt): os papéis que
      * "acompanham todos os módulos" já foram sincronizados pelo Tenant::updated;
      * os demais precisam receber as permissões do módulo novo na tela de Papéis —
      * avisa quem são, para ninguém descobrir pelo usuário reclamando.

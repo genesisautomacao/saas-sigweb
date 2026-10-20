@@ -360,7 +360,7 @@
             </div>
             <div class="overflow-y-auto overflow-x-hidden max-h-[65vh] custom-scrollbar">
 
-                {{-- D8 (2026-09-05, docs/Modulos_Permissoes.txt §9): os acordeons do mapa PÚBLICO seguem
+                {{-- D8 (2026-09-05, docs/modulos/Modulos_Permissoes.txt §9): os acordeons do mapa PÚBLICO seguem
                      a MESMA ordem e os MESMOS nomes da intranet, só com o que o cidadão já enxerga, e
                      cada um só aparece se o módulo estiver ativo na prefeitura ($modulos =
                      Modulos::ativos, calculado no mount). Mobilidade Urbana entra SÓ LEITURA. --}}
@@ -384,6 +384,15 @@
                                 class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 <div class="w-3 h-3 bg-red-500 rounded-full opacity-60 shadow-sm flex-shrink-0"></div>
                                 <span class="layer-text truncate">Distritos / Limites</span>
+                            </span></label>
+
+                        {{-- B9 — Setores Fiscais (inscrição): agrupam os bairros --}}
+                        <label class="flex items-center space-x-3 cursor-pointer w-full"><input type="checkbox"
+                                data-layer="setores_fiscais"
+                                class="layer-toggle rounded border-gray-300 w-4 h-4 flex-shrink-0" style="color:#0d9488;"><span
+                                class="layer-label flex items-center gap-2 flex-1 min-w-0">
+                                <div class="w-3 h-3 rounded-full opacity-60 shadow-sm flex-shrink-0" style="background:#0d9488;"></div>
+                                <span class="layer-text truncate">Setores Fiscais</span>
                             </span></label>
 
                         <label class="flex items-center space-x-3 cursor-pointer w-full"><input type="checkbox"
@@ -688,7 +697,7 @@
 
                 @php $temInfraPublica = array_intersect(['pgv', 'arborizacao', 'iluminacao'], $modulos) !== []; @endphp
                 @if ($temInfraPublica)
-                {{-- GRUPO: INFRAESTRUTURA (setores fiscais — vindo do antigo "Cadastro Base" —, árvores, postes) --}}
+                {{-- GRUPO: INFRAESTRUTURA (setores da PGV — vindo do antigo "Cadastro Base" —, árvores, postes) --}}
                 <div class="border-b border-gray-100/50 dark:border-gray-700/50">
                     <button @click="activeTab = activeTab === 'infra' ? '' : 'infra'"
                         class="w-full px-4 py-3 text-left font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 flex justify-between items-center">
@@ -700,13 +709,13 @@
                         class="px-4 pb-4 space-y-3 bg-transparent text-sm overflow-hidden">
                         @if (in_array('pgv', $modulos, true))
                         <label class="flex items-center space-x-3 cursor-pointer mt-2 w-full"><input type="checkbox"
-                                data-layer="setores_fiscais"
+                                data-layer="setores_pgv"
                                 class="layer-toggle rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 flex-shrink-0"><span
                                 class="layer-label flex items-center gap-2 flex-1 min-w-0">
                                 {{-- Mesmo marcador (sem cor inline) dos demais itens: no CSS do painel cidadão
                                      ele fica invisível e só garante o mesmo espaçamento --}}
                                 <div class="w-3 h-3 rounded-full flex-shrink-0"></div>
-                                <span class="layer-text truncate">Setores Fiscais</span>
+                                <span class="layer-text truncate">Setores da PGV</span>
                             </span></label>
                         @endif
                         @if (in_array('arborizacao', $modulos, true))

@@ -34,11 +34,11 @@ As 13 colunas fiscais foram promovidas do JSON em 2026-07-01 "para busca/ediçã
 
 | Dado | Consumidor real | O código lê de |
 |---|---|---|
-| `inscricao_imobiliaria` | busca — item 4 | **coluna** ([MapDataController:559](../app/Http/Controllers/Api/MapDataController.php#L559)) |
+| `inscricao_imobiliaria` | busca — item 4 | **coluna** ([MapDataController:559](../../app/Http/Controllers/Api/MapDataController.php#L559)) |
 | `codigo_imovel_tributario` | chave de ligação com o fornecedor (R67-10) | **coluna** |
-| proprietário (nome / CPF) | busca por contribuinte — item 11 | **JSON** ([MapDataController:575](../app/Http/Controllers/Api/MapDataController.php#L575)) |
-| `nome_edificio` | busca por edifício — itens 5 e 3-3 | **JSON** ([MapDataController:571](../app/Http/Controllers/Api/MapDataController.php#L571)) |
-| `valor_total_imposto` | PGV — limitador do IPTU simulado | **JSON** ([PgvSimulacaoIptuService:50](../app/Services/Pgv/PgvSimulacaoIptuService.php#L50)) |
+| proprietário (nome / CPF) | busca por contribuinte — item 11 | **JSON** ([MapDataController:575](../../app/Http/Controllers/Api/MapDataController.php#L575)) |
+| `nome_edificio` | busca por edifício — itens 5 e 3-3 | **JSON** ([MapDataController:571](../../app/Http/Controllers/Api/MapDataController.php#L571)) |
+| `valor_total_imposto` | PGV — limitador do IPTU simulado | **JSON** ([PgvSimulacaoIptuService:50](../../app/Services/Pgv/PgvSimulacaoIptuService.php#L50)) |
 | as outras **11 colunas fiscais** | BIC + modais de edição + exports | coluna |
 
 > **Conclusão:** das 13 colunas fiscais, apenas **2** (`inscricao_imobiliaria`, `codigo_imovel_tributario`) são lidas pelo código fora de exibição/edição. As outras 11 são **projeção de exibição — e o formato veio do export de Santa Cecília**, como você suspeitava.
@@ -85,7 +85,7 @@ O edital pede **Código** explícito nos itens 44 (Logradouro + Seção), 45 (Se
 Ver o estudo acima. Proposta: promover a coluna.
 
 ### L3 — Taxonomias hardcoded fora do `CampoDominio`
-`secoes_logradouro.tipo_pavimentacao` ([SecaoLogradouroResource:28](../app/Filament/Resources/SecaoLogradouroResource.php#L28)), `meio_fios.material` e `meio_fios.estado_conservacao` têm lista fixa no código. Devem entrar na categoria 2 (rótulos white-label).
+`secoes_logradouro.tipo_pavimentacao` ([SecaoLogradouroResource:28](../../app/Filament/Resources/SecaoLogradouroResource.php#L28)), `meio_fios.material` e `meio_fios.estado_conservacao` têm lista fixa no código. Devem entrar na categoria 2 (rótulos white-label).
 
 ### L4 — Campo da categoria 2 que alimenta cálculo
 `edificacoes.estado_conservacao` é dimensão da Depreciação do PGV (`PgvDepreciacao`). Com valores fixos (categoria 2) isso deixa de ser risco — mas o `PgvDepreciacaoResource` deve passar a listar as opções vindas do `CampoDominioService`, não texto livre.

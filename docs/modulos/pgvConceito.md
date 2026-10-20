@@ -62,8 +62,8 @@ As **faces de quadra** são os segmentos lineares das bordas das quadras (a fren
    ```
 
    Valores negativos são zerados.
-4. Descobre o **setor fiscal** da face pelo ponto médio dela.
-5. Grava na face: `valor_m2_calculado`, `distancia_polo`, `pgv_polo_id`, `setor_fiscal_id`.
+4. Descobre o **setor da PGV** da face pelo ponto médio dela.
+5. Grava na face: `valor_m2_calculado`, `distancia_polo`, `pgv_polo_id`, `setor_pgv_id`.
 
 É esse `valor_m2_calculado` que **colore as faces no mapa** por gradiente.
 
@@ -73,7 +73,7 @@ As **faces de quadra** são os segmentos lineares das bordas das quadras (a fren
 
 Traduz "valor/m²" em "quanto cada contribuinte pagaria". Para **cada lote:**
 
-1. **Valor/m² do terreno:** a **face calculada mais próxima** do lote; se não houver, cai para o **parâmetro do setor fiscal**.
+1. **Valor/m² do terreno:** a **face calculada mais próxima** do lote; se não houver, cai para o **parâmetro do setor da PGV**.
 2. **Valor venal** = (área terreno × valor/m² terreno) + (área edificada × valor/m² edificação).
 3. **IPTU simulado** = valor venal × **% do valor venal** (239) × **alíquota** (238).
 4. **Limitador (240):** se o simulado ultrapassa o IPTU atual + X% de teto, é **capado** (proteção contra aumentos abruptos).
@@ -103,15 +103,17 @@ Os parâmetros (alíquota, %venal, limite) são digitados no modal do mapa em te
 
 ---
 
-### 2. Setores Fiscais — 🔵 `SetorFiscal`
+### 2. Setores da PGV — 🔵 `SetorPgv`
+
+> Até a Release 85 (2026-10-19) se chamava "Setor Fiscal" (`SetorFiscal`, tabela `setores_fiscais`). O nome passou ao setor da **inscrição imobiliária** (Base Cartográfica), que não participa do cálculo da PGV.
 **O que é:** polígonos que dividem a cidade em zonas de cálculo, cada um apontando para **um** Parâmetro Base (`pgv_parametro_id`).
 
-**Onde entra:** é a **cola espacial**. Quando o motor precisa do parâmetro de um lote ou face, pergunta "em qual setor esse ponto cai?" via `ST_Intersects`. No cálculo de face, o setor é gravado na própria face (`setor_fiscal_id`). Sem setor, o fallback de parâmetro não é encontrado.
+**Onde entra:** é a **cola espacial**. Quando o motor precisa do parâmetro de um lote ou face, pergunta "em qual setor esse ponto cai?" via `ST_Intersects`. No cálculo de face, o setor é gravado na própria face (`setor_pgv_id`). Sem setor, o fallback de parâmetro não é encontrado.
 
 ---
 
 ### 3. Valores Venais (Histórico) — 🟡 `LoteValorHistorico`
-**O que é:** o registro de valor venal homologado **por lote e por ano** (`lote_id`, `ano_vigente`, `valor_terreno`, `valor_edificacao`, `valor_total`, `setor_fiscal_id`).
+**O que é:** o registro de valor venal homologado **por lote e por ano** (`lote_id`, `ano_vigente`, `valor_terreno`, `valor_edificacao`, `valor_total`, `setor_pgv_id`).
 
 **Onde entra:** **não é entrada** — é o **arquivo de saída**. Quando você homologa uma avaliação no mapa (`homologarPgvAction`), o valor calculado é gravado aqui. Serve de trilha histórica/oficial e base de comparação entre exercícios.
 
@@ -166,7 +168,7 @@ Os parâmetros (alíquota, %venal, limite) são digitados no modal do mapa em te
 | # | Item (menu) | Papel | Vira o quê no cálculo |
 |---|---|---|---|
 | 1 | Parâmetros Base | 🟢 | Valor/m² de fallback (terreno) e atual (edificação) |
-| 2 | Setores Fiscais | 🔵 | Diz qual parâmetro vale em cada ponto |
+| 2 | Setores da PGV | 🔵 | Diz qual parâmetro vale em cada ponto |
 | 3 | Valores Venais (Hist.) | 🟡 | Onde o resultado homologado é arquivado |
 | 4 | Amostras de Mercado | 🟢 | Os pontos `(distância, valor)` da regressão |
 | 5 | Pólos Valorizantes | 🟢 | A origem da "distância" (variável X) |

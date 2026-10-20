@@ -39,7 +39,7 @@ class AppPanelProvider extends PanelProvider
 
             // Ordem dos grupos da sidebar. No Filament, grupo NÃO listado vai para o fim
             // (sort = count(lista)), por isso todos são enumerados. 'WMS' fica logo acima de 'Configurações'.
-            // Ordem de exibição da sidebar (decisão D8, 2026-09-05 — docs/Modulos_Permissoes.txt).
+            // Ordem de exibição da sidebar (decisão D8, 2026-09-05 — docs/modulos/Modulos_Permissoes.txt).
             // A janela de camadas e o "Criar Artefatos" do mapa espelham esta mesma ordem.
             // Todos os grupos precisam estar listados: grupo fora da lista vai para o fim.
             ->navigationGroups([

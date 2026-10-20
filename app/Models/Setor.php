@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Setor/Departamento do motor de Processos Digitais (swimlanes — item 206).
- * Ver processosConceito.md §9.6. Distinto de SetorFiscal (PGV).
+ * Ver processosConceito.md §9.6. Distinto de SetorPgv (PGV).
  */
 class Setor extends Model
 {

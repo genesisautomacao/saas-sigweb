@@ -35,7 +35,7 @@ class PgvFaceCalculoService
             SELECT f.id AS face_id,
                    p.polo_id,
                    p.distancia,
-                   (SELECT s.id FROM setores_fiscais s
+                   (SELECT s.id FROM setores_pgv s
                      WHERE s.tenant_id = f.tenant_id AND s.deleted_at IS NULL
                        AND ST_Intersects(ST_LineInterpolatePoint(ST_LineMerge(f.geo), 0.5), s.geo)
                      LIMIT 1) AS setor_id
@@ -62,7 +62,7 @@ class PgvFaceCalculoService
             DB::table('face_quadras')->where('id', $r->face_id)->update([
                 'distancia_polo'     => round($dist, 2),
                 'pgv_polo_id'        => $r->polo_id,
-                'setor_fiscal_id'    => $r->setor_id,
+                'setor_pgv_id'    => $r->setor_id,
                 'valor_m2_calculado' => round($valor, 2),
                 'updated_at'         => now(),
             ]);

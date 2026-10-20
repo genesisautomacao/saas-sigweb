@@ -5,6 +5,7 @@ namespace App\Filament\Pages\Traits;
 use App\Models\Bairro;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,16 @@ use Illuminate\Support\Str;
 
 trait HasBairroActions
 {
+    /** B9 — setor fiscal (inscrição) do bairro; sugere o setor que contém o bairro desenhado. */
+    protected function campoSetorDoBairro(): Select
+    {
+        return Select::make('setor_fiscal_id')
+            ->label('Setor Fiscal')
+            ->options(fn () => \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'))
+            ->searchable()
+            ->placeholder('Sem setor');
+    }
+
     public ?int $bairroAtivoId = null;
 
     // Pré-cálculo de área exibido no modal de criação (preenchido em interceptarDesenho)
@@ -43,6 +54,17 @@ trait HasBairroActions
                     ->label('Nome do Bairro')
                     ->required()
                     ->maxLength(255),
+                $this->campoSetorDoBairro()
+                    ->default(function () {
+                        if (! $this->geometriaRascunho) {
+                            return null;
+                        }
+                        $wkt = "ST_SetSRID(ST_GeomFromGeoJSON('".json_encode($this->geometriaRascunho)."'), 4326)";
+
+                        return \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)
+                            ->whereRaw("ST_Contains(geo, ST_PointOnSurface($wkt))")
+                            ->value('id');
+                    }),
                 // Item 75 — campos customizados do município (bairro)
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('bairro'),
             ])
@@ -93,6 +115,7 @@ trait HasBairroActions
                 return [
                     'name'   => $reg?->name,
                     'codigo' => $reg?->codigo,
+                    'setor_fiscal_id' => $reg?->setor_fiscal_id,
                     'dados_customizados' => $reg?->dados_customizados ?? [],
                 ];
             })
@@ -111,6 +134,7 @@ trait HasBairroActions
 
                 TextInput::make('codigo')->label('Código do Bairro')->maxLength(50),
                 TextInput::make('name')->label('Nome do Bairro')->required()->maxLength(255),
+                $this->campoSetorDoBairro(),
                 // Item 75 — campos customizados do município (bairro)
                 ...\App\Services\Coleta\CampoCustomizadoService::componentes('bairro'),
             ])

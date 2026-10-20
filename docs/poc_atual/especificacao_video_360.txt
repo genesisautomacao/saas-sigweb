@@ -1,0 +1,55 @@
+ESPECIFICAÇÃO DO VÍDEO 360 GEORREFERENCIADO - PoC NOVA SANTA ROSA/PR
+(enviado à empresa de imageamento; itens 107 a 113 do edital - levantamento contínuo)
+
+Nome técnico: vídeo 360° georreferenciado (equirretangular), com trilha GPS em arquivo GPX.
+
+VÍDEO
+- 360° já costurado (stitched), projeção equirretangular, proporção 2:1.
+  Não precisamos dos arquivos brutos de cada lente (.insv, .360 etc.).
+- MP4, codec H.264, 3840 x 1920 (4K), 30 fps. Se gravar em resolução maior, mandar
+  também o original.
+- Estabilização e horizonte nivelado ligados; centro da imagem apontando para a frente
+  do veículo.
+- Metadados 360 preservados (abre como 360 no YouTube ou no VLC).
+
+TRILHA GPS
+- Um GPX por vídeo, com o mesmo nome (ex.: trecho01.mp4 + trecho01.gpx).
+- Pontos com data e hora (de preferência UTC), pelo menos 1 por segundo, cobrindo toda
+  a gravação.
+- Relógios da câmera e do GPS sincronizados (ou informar a diferença em segundos).
+
+CAPTAÇÃO
+- Câmera no teto do veículo; informar a altura em metros e o modelo da câmera.
+- Até 30 km/h.
+- Trecho urbano de 2 a 5 minutos, com fachadas e lotes, no município da base de
+  demonstração.
+
+ENTREGA
+- Primeiro uma amostra de 30 s para teste; aprovada, o trecho completo.
+- Por link (Google Drive / WeTransfer), nunca por WhatsApp, ou direto no nosso bucket.
+
+------------------------------------------------------------------------------------------
+HISTÓRICO
+------------------------------------------------------------------------------------------
+16/10/2026 - Recebido 20260921_Video.mp4 (C:\laragon\www\docs\webgis\nova santa rosa\video_demo).
+  Tipo certo: 360 equirretangular, frente do veículo no centro, MP4/H.264, 62 s.
+  Recusado para uso:
+  - arquivo corrompido (~170 erros de decodificação; imagem quebra em blocos);
+  - sem GPX e sem GPS embutido (não liga ao mapa; município da gravação desconhecido).
+  A melhorar: 1920 x 766 (pedir 3840 x 1920), céu e chão cortados, 5 fps (ideal 30).
+  Pedido de volta: original por link, GPX com o mesmo nome, município, 4K inteiro.
+
+19/10/2026 - Recebido 20260921.mp4 + 20260921.gpx (D:\Sistemas e Plataformas\WebGis\videos_360).
+  APROVADO para desenvolvimento.
+  Vídeo: MP4 H.264, 3840 x 1530, 5 fps, 62 s, 229 MB (~30 Mbps), 360 equirretangular,
+    frente do veículo no centro, decodifica limpo (o anterior estava corrompido).
+    Céu e chão cortados (1530 em vez de 1920 de altura, ~143° na vertical) - dá para exibir.
+  GPX: 310 pontos = 1 por quadro do vídeo, cada um com o número do quadro e o tempo no
+    vídeo ("Frame N - t s") e o nome da foto de origem (câmera ARX, "ARXConvert").
+    ATENÇÃO: o <time> do GPX é a hora real da captura (11 min); o vídeo é uma sequência de
+    fotos a 5 fps (62 s). A sincronia tem de ser pelo NÚMERO DO QUADRO, não pelo horário.
+  Trajeto: ~1 km, 1 quadro a cada ~3,3 m (atende a exportação a cada 5 m), 7 sequências de
+    captura emendadas (3 saltos de 32 a 65 m entre elas). Sem direção no GPX: derivar do
+    ponto seguinte.
+  Local: lat -7,84 / lon -35,75 (Pernambuco) - NÃO é Nova Santa Rosa/PR. Para a foto da
+    fachada no lote (item 110) a base de lotes precisa ser do mesmo lugar.

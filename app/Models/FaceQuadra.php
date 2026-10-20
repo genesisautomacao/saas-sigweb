@@ -17,7 +17,7 @@ class FaceQuadra extends Model
     protected $fillable = [
         'tenant_id', 'sequential_id', 'code', 'name',
         'quadra_id', 'zona_id', 'logradouro_id', 'extensao_geo',
-        'valor_m2_calculado', 'distancia_polo', 'pgv_polo_id', 'setor_fiscal_id',
+        'valor_m2_calculado', 'distancia_polo', 'pgv_polo_id', 'setor_pgv_id',
         'geo',
     ];
 
@@ -64,8 +64,8 @@ class FaceQuadra extends Model
         return $this->belongsTo(PgvPolo::class, 'pgv_polo_id');
     }
 
-    public function setorFiscal()
+    public function setorPgv()
     {
-        return $this->belongsTo(SetorFiscal::class);
+        return $this->belongsTo(SetorPgv::class);
     }
 }

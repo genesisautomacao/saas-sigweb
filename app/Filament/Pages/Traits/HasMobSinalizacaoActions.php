@@ -13,7 +13,7 @@ use Illuminate\Support\HtmlString;
 use Livewire\Attributes\On;
 
 /**
- * Sinalização viária no mapa (Mobilidade Urbana — docs/piuma.txt §2.2, Onda 2).
+ * Sinalização viária no mapa (Mobilidade Urbana — docs/modulos/piuma.txt §2.2, Onda 2).
  * A placa aponta para o CATÁLOGO (decisão 6.1) — cor/ícone/nome vêm de lá.
  */
 trait HasMobSinalizacaoActions

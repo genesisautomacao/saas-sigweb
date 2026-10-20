@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Permission\Models\Role as SpatieRole;
 
 /**
- * Papel (Spatie) com as flags de sistema (docs/Modulos_Permissoes.txt, D7):
+ * Papel (Spatie) com as flags de sistema (docs/modulos/Modulos_Permissoes.txt, D7):
  *  - papel_sistema: 'master' (global, /admin) | 'manager' (gestor da prefeitura,
  *    bypass total) | null (papel comum). Substitui a checagem por NOME.
  *  - todos_modulos: recebe automaticamente as permissões de todo módulo ligado

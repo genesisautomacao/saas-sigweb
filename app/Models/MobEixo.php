@@ -12,7 +12,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Eixo de mobilidade (docs/piuma.txt §2.5): ciclovias, eixos comerciais,
+ * Eixo de mobilidade (docs/modulos/piuma.txt §2.5): ciclovias, eixos comerciais,
  * rotas de transporte de cargas e rodovias (recortadas ao município).
  * `extensao_geo` em METROS (padrão do sistema); exibição formata em km.
  * Extras da rodovia DER-ES (sre, sigla, km...) → dados_customizados.

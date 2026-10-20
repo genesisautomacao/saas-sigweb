@@ -9,7 +9,7 @@ class ZonasDonutChart extends ChartWidget
 {
     protected static ?string $heading = 'Distribuição de lotes por Zona Urbana';
 
-    /** Widget do módulo imobiliário (docs/Modulos_Permissoes.txt) */
+    /** Widget do módulo imobiliário (docs/modulos/Modulos_Permissoes.txt) */
     public static function canView(): bool
     {
         return \App\Support\Modulos::ativo('imobiliario');

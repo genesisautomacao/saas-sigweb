@@ -35,7 +35,7 @@ class ValidacaoColetaPage extends Page
 
     public static function canAccess(): bool
     {
-        // módulo Coleta Cadastral (D4 — docs/Modulos_Permissoes.txt) + permissão
+        // módulo Coleta Cadastral (D4 — docs/modulos/Modulos_Permissoes.txt) + permissão
         return \App\Support\Modulos::ativo('coleta_cadastral')
             && (auth()->user()?->temPermissao('view_produtividade') ?? false);
     }

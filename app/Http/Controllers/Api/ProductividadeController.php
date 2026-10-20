@@ -34,7 +34,7 @@ class ProductividadeController extends Controller
 
         if ($setorId) {
             $base->whereRaw(
-                "ST_Intersects(ST_Centroid(geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
+                "ST_Intersects(ST_Centroid(geo::geometry), (SELECT geo::geometry FROM setores_pgv WHERE id = ?))",
                 [$setorId]
             );
         }
@@ -65,7 +65,7 @@ class ProductividadeController extends Controller
             ->whereIn('l.status_cadastro', ['coletado', 'pendente', 'inconformidade'])
             ->when($quadraId, fn ($q) => $q->where('l.quadra_id', $quadraId))
             ->when($setorId, fn ($q) => $q->whereRaw(
-                "ST_Intersects(ST_Centroid(l.geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
+                "ST_Intersects(ST_Centroid(l.geo::geometry), (SELECT geo::geometry FROM setores_pgv WHERE id = ?))",
                 [$setorId]
             ))
             ->selectRaw("
@@ -92,7 +92,7 @@ class ProductividadeController extends Controller
             ->whereNotNull('l.geo')
             ->when($quadraId, fn ($q) => $q->where('l.quadra_id', $quadraId))
             ->when($setorId, fn ($q) => $q->whereRaw(
-                "ST_Intersects(ST_Centroid(l.geo::geometry), (SELECT geo::geometry FROM setores_fiscais WHERE id = ?))",
+                "ST_Intersects(ST_Centroid(l.geo::geometry), (SELECT geo::geometry FROM setores_pgv WHERE id = ?))",
                 [$setorId]
             ))
             ->selectRaw("

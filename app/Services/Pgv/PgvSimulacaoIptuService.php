@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Simulação de IPTU com os novos valores da PGV (itens 237–243).
  * Usa o valor m² calculado da face de quadra mais próxima do lote (fallback:
- * parâmetro do setor fiscal). IPTU atual vem de dados_tributarios.valor_total_imposto.
+ * parâmetro do setor da PGV). IPTU atual vem de dados_tributarios.valor_total_imposto.
  */
 class PgvSimulacaoIptuService
 {
@@ -35,13 +35,13 @@ class PgvSimulacaoIptuService
                        WHERE fq.tenant_id = l.tenant_id AND fq.deleted_at IS NULL
                          AND fq.valor_m2_calculado IS NOT NULL AND fq.geo IS NOT NULL
                        ORDER BY fq.geo <-> ST_Centroid(l.geo) LIMIT 1),
-                    (SELECT p.valor_m2_terreno FROM setores_fiscais s
+                    (SELECT p.valor_m2_terreno FROM setores_pgv s
                         JOIN pgv_parametros p ON p.id = s.pgv_parametro_id
                        WHERE s.tenant_id = l.tenant_id AND ST_Intersects(ST_Centroid(l.geo), s.geo) LIMIT 1),
                     0
                 )::float AS valor_m2_terreno,
                 COALESCE(
-                    (SELECT p.valor_m2_edificacao FROM setores_fiscais s
+                    (SELECT p.valor_m2_edificacao FROM setores_pgv s
                         JOIN pgv_parametros p ON p.id = s.pgv_parametro_id
                        WHERE s.tenant_id = l.tenant_id AND ST_Intersects(ST_Centroid(l.geo), s.geo) LIMIT 1),
                     0

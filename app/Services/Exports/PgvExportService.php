@@ -11,7 +11,7 @@ class PgvExportService
 {
     public function exportSetoresToExcel(Collection $setores)
     {
-        $fileName = 'setores-fiscais-'.now()->format('Y-m-d-His').'.xlsx';
+        $fileName = 'setores-pgv-'.now()->format('Y-m-d-His').'.xlsx';
         $path = storage_path('app/exports/');
         if (! File::isDirectory($path)) {
             File::makeDirectory($path, 0755, true, true);
@@ -33,7 +33,7 @@ class PgvExportService
 
     public function exportSetoresToPdf(Collection $setores)
     {
-        $fileName = 'setores-fiscais-'.now()->format('Y-m-d-His').'.pdf';
+        $fileName = 'setores-pgv-'.now()->format('Y-m-d-His').'.pdf';
         $headings = ['ID', 'Nome do Setor', 'Regra Base', 'Valor m² Terreno'];
 
         $data = $setores->map(function ($setor) {
@@ -45,7 +45,7 @@ class PgvExportService
             ];
         });
 
-        $title = 'Relatório de Setores Fiscais (PGV)';
+        $title = 'Relatório de Setores da PGV';
         $pdf = Pdf::loadView('pdf.default-report', compact('data', 'headings', 'title'));
 
         return response()->streamDownload(fn () => print ($pdf->stream()), $fileName);
@@ -68,7 +68,7 @@ class PgvExportService
                 'Bairro' => $valor->lote->quadra->bairro->name ?? '-',
                 'Lote' => $valor->lote->numero_lote ?? '-',
                 'Unidades (Códigos)' => $unidades ?: '-',
-                'Setor Fiscal' => $valor->setor->nome ?? '-',
+                'Setor da PGV' => $valor->setor->nome ?? '-',
                 'Valor Terreno' => $valor->valor_terreno ? number_format($valor->valor_terreno, 2, ',', '') : '0,00',
                 'Valor Edificação' => $valor->valor_edificacao ? number_format($valor->valor_edificacao, 2, ',', '') : '0,00',
                 'Valor Total' => $valor->valor_total ? number_format($valor->valor_total, 2, ',', '') : '0,00',
@@ -83,7 +83,7 @@ class PgvExportService
     public function exportValoresToPdf(Collection $valores)
     {
         $fileName = 'historico-valores-'.now()->format('Y-m-d-His').'.pdf';
-        $headings = ['Ano', 'Bairro', 'Lote', 'Códigos Fiscais', 'Setor Fiscal', 'Total'];
+        $headings = ['Ano', 'Bairro', 'Lote', 'Códigos Fiscais', 'Setor da PGV', 'Total'];
 
         $data = $valores->map(function ($valor) {
             $unidades = $valor->lote ? $valor->lote->unidadesImobiliarias->pluck('codigo_imovel_tributario')->filter()->join("\n") : '-';

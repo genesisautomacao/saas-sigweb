@@ -14,13 +14,13 @@ class LoteValorHistorico extends Model
 
     protected $table = 'lote_valores_historicos';
 
-    protected $fillable = ['tenant_id', 'sequential_id', 'lote_id', 'ano_vigente', 'valor_terreno', 'valor_edificacao', 'valor_total', 'setor_fiscal_id'];
+    protected $fillable = ['tenant_id', 'sequential_id', 'lote_id', 'ano_vigente', 'valor_terreno', 'valor_edificacao', 'valor_total', 'setor_pgv_id'];
 
     public function lote() {
         return $this->belongsTo(Lote::class);
     }
     
     public function setor() {
-        return $this->belongsTo(SetorFiscal::class, 'setor_fiscal_id');
+        return $this->belongsTo(SetorPgv::class, 'setor_pgv_id');
     }
 }

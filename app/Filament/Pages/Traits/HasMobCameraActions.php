@@ -17,7 +17,7 @@ use Illuminate\Support\HtmlString;
 use Livewire\Attributes\On;
 
 /**
- * Câmeras de monitoramento em tempo real no mapa (docs/piuma.txt, Onda 5).
+ * Câmeras de monitoramento em tempo real no mapa (docs/modulos/piuma.txt, Onda 5).
  * Clique no ícone → modal com o PLAYER em cima (modalContent) e os dados da
  * câmera numa seção recolhida embaixo (o mesmo modal edita, reposiciona, exclui).
  */

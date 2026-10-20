@@ -128,7 +128,7 @@ Route::get('/gis/{tenantSlug}/map-permissions', function (\Illuminate\Http\Reque
     }
 
     // MÓDULOS da prefeitura valem para TODO MUNDO, Manager incluído (decisão D2 de
-    // docs/Modulos_Permissoes.txt): camadas de módulo inativo saem antes do bypass.
+    // docs/modulos/Modulos_Permissoes.txt): camadas de módulo inativo saem antes do bypass.
     $modulos = \App\Support\Modulos::ativos($tenant);
     $camadasIndisponiveis = \App\Support\Modulos::camadasIndisponiveis($tenant);
 

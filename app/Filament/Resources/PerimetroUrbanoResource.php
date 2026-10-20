@@ -15,7 +15,7 @@ class PerimetroUrbanoResource extends Resource
 {
     use HasTenantModule;
 
-    protected static ?string $tenantModule = 'base_cartografica'; // D1 (docs/Modulos_Permissoes.txt)
+    protected static ?string $tenantModule = 'base_cartografica'; // D1 (docs/modulos/Modulos_Permissoes.txt)
 
     protected static ?string $model = PerimetroUrbano::class;
 

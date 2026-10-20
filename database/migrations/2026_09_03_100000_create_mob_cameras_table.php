@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Câmeras de monitoramento em tempo real (Mobilidade Urbana, docs/piuma.txt
+ * Câmeras de monitoramento em tempo real (Mobilidade Urbana, docs/modulos/piuma.txt
  * Onda 5): ponto no mapa + fonte do vídeo (embed/iframe, YouTube, HLS ou
  * snapshot JPEG). O SIGWEB só exibe — nunca grava imagens.
  */

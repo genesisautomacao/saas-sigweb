@@ -237,4 +237,4 @@ Roda depois do `php artisan down` na Hostgator. Etapas: (0) confere que os dois 
 
 ## Depois da migração
 
-- **Anexos de processos, documentos e demais arquivos no bucket PRIVADO** (`sigweb-midia`, link assinado, autorização por usuário) — corrige também o fato de hoje esses arquivos abrirem por link sem login. Registrado no backlog (`docs/pendenciasTangara.md`) e retoma a parte 1 de [releaseNuvemFerramentasAdmin.md](releaseNuvemFerramentasAdmin.md) (que previa AWS S3; o padrão agora é Cloudflare R2).
+- **Anexos de processos, documentos e demais arquivos no bucket PRIVADO** (`sigweb-midia`, link assinado, autorização por usuário) — corrige também o fato de hoje esses arquivos abrirem por link sem login. Registrado no backlog da época (`docs/arquivo/pendenciasTangara.md`) e retoma a parte 1 de [releaseNuvemFerramentasAdmin.md](../arquivo/releaseNuvemFerramentasAdmin.md) (que previa AWS S3; o padrão agora é Cloudflare R2).

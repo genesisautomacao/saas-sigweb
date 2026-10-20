@@ -9,7 +9,7 @@ use Illuminate\Database\Seeder;
 /**
  * As 7 câmeras municipais de Piúma/ES (IZ1 Telecom, player FullCam) publicadas
  * no site da prefeitura — demo do "Monitoramento em tempo Real"
- * (docs/piuma.txt, Onda 5). Embeds públicos; nada é gravado pelo SIGWEB.
+ * (docs/modulos/piuma.txt, Onda 5). Embeds públicos; nada é gravado pelo SIGWEB.
  *
  * Posições aproximadas (POIs do levantamento + orla + entroncamento ES-060/
  * ES-375); a prefeitura ajusta no mapa com "Reposicionar". Idempotente por

@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\File;
 use Spatie\SimpleExcel\SimpleExcelWriter;
 
 /**
- * Exports do módulo Mobilidade Urbana (docs/piuma.txt, Onda 3) — XLS/PDF/CSV/XML.
+ * Exports do módulo Mobilidade Urbana (docs/modulos/piuma.txt, Onda 3) — XLS/PDF/CSV/XML.
  *
  * PARAMETRIZADO por entidade (desvio consciente do padrão 1-service-por-entidade:
  * são 6 entidades com o MESMO esqueleto; a spec de colunas por entidade vive em

@@ -29,7 +29,7 @@ class PainelSocialPage extends Page
     public static function canAccess(): bool
     {
         // ⚠️ canAccess da classe sobrepõe o do trait HasTenantModule — o módulo tem de
-        // ser checado AQUI (A1 — docs/Modulos_Permissoes.txt)
+        // ser checado AQUI (A1 — docs/modulos/Modulos_Permissoes.txt)
         return \App\Support\Modulos::ativo(static::$tenantModule)
             && (auth()->user()?->can('view_painel_social') ?? false);
     }

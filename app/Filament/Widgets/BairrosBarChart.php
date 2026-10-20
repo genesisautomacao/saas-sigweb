@@ -11,7 +11,7 @@ class BairrosBarChart extends ChartWidget
 {
     protected static ?string $heading = 'Área Territorial por Bairro (m²)';
 
-    /** Bairros são da base cartográfica (docs/Modulos_Permissoes.txt, D1) */
+    /** Bairros são da base cartográfica (docs/modulos/Modulos_Permissoes.txt, D1) */
     public static function canView(): bool
     {
         return \App\Support\Modulos::ativo('base_cartografica');

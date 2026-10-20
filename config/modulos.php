@@ -2,7 +2,7 @@
 
 /*
 |--------------------------------------------------------------------------
-| Catálogo de MÓDULOS do SIGWEB (docs/Modulos_Permissoes.txt, 2026-09-04)
+| Catálogo de MÓDULOS do SIGWEB (docs/modulos/Modulos_Permissoes.txt, 2026-09-04)
 |--------------------------------------------------------------------------
 | FONTE ÚNICA do que pertence a cada módulo contratado por prefeitura
 | (`tenants.modules`). Lido por App\Support\Modulos e consumido por:
@@ -43,15 +43,15 @@ return [
 
     'base_cartografica' => [
         'label' => 'GIS - Base Cartográfica',
-        'descricao' => 'Perímetro/distritos, bairros, logradouros e suas seções. Pré-requisito do imobiliário; base de qualquer módulo GIS.',
+        'descricao' => 'Perímetro/distritos, setores fiscais, bairros, logradouros e suas seções. Pré-requisito do imobiliário; base de qualquer módulo GIS.',
         'requer' => [],
         'permissoes' => [
-            ...$quarteto('perimetros_urbanos'), ...$quarteto('bairros'), ...$quarteto('logradouros'),
+            ...$quarteto('perimetros_urbanos'), ...$quarteto('setores_fiscais'), ...$quarteto('bairros'), ...$quarteto('logradouros'),
             ...$quarteto('secoes_logradouro'), // D8: a seção segue o logradouro; R83: quarteto (era gerenciar_)
-            'ver_camada_perimetros', 'ver_camada_bairros', 'ver_camada_logradouros', 'ver_camada_secoes_logradouro',
+            'ver_camada_perimetros', 'ver_camada_setores_fiscais', 'ver_camada_bairros', 'ver_camada_logradouros', 'ver_camada_secoes_logradouro',
         ],
-        'camadas' => ['perimetros', 'bairros', 'logradouros', 'secoes_logradouro'],
-        'artefatos' => ['perimetro_urbano', 'bairro', 'logradouro'],
+        'camadas' => ['perimetros', 'setores_fiscais', 'bairros', 'logradouros', 'secoes_logradouro'],
+        'artefatos' => ['perimetro_urbano', 'setor_fiscal', 'bairro', 'logradouro'],
         'ferramentas' => [],
     ],
 
@@ -209,18 +209,18 @@ return [
 
     'pgv' => [
         'label' => 'PGV - Planta Genérica de Valores',
-        'descricao' => 'Parâmetros, setores fiscais, histórico de valores e avaliação em massa.',
+        'descricao' => 'Parâmetros, setores da PGV, histórico de valores e avaliação em massa.',
         'requer' => ['imobiliario'],
         'permissoes' => [
-            ...$quarteto('pgv_parametros'), ...$quarteto('setores_fiscais'), ...$quarteto('lote_valor_historicos'),
+            ...$quarteto('pgv_parametros'), ...$quarteto('setores_pgv'), ...$quarteto('lote_valor_historicos'),
             // R83: amostras, pólos e faces em quarteto (eram gerenciar_); CUB e depreciação seguem únicas
             ...$quarteto('pgv_amostras'), ...$quarteto('pgv_polos'), ...$quarteto('face_quadras'),
             'gerenciar_pgv_cubs', 'gerenciar_pgv_depreciacoes',
-            'ver_camada_setores_fiscais',
+            'ver_camada_setores_pgv',
             'ferramenta_pgv_simulador', 'ferramenta_pgv_motor', 'ferramenta_pgv_amostra', 'ferramenta_pgv_polo',
         ],
-        'camadas' => ['setores_fiscais'],
-        'artefatos' => ['setor_fiscal'],
+        'camadas' => ['setores_pgv'],
+        'artefatos' => ['setor_pgv'],
         'ferramentas' => ['pgv_simulador', 'pgv_motor', 'pgv_amostra', 'pgv_polo'],
     ],
 

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Schema;
 /**
  * PoC Tangará — KIT INICIAL de campos customizados.
  *
- * Depois da refatoração (lista aprovada em docs/campos_imobiliario_para_aprovacao.txt),
+ * Depois da refatoração (lista aprovada em docs/modulos/campos_imobiliario_para_aprovacao.txt),
  * atributos como "Tipo de Edificação" e "Nº de Pavimentos" deixaram de ser colunas e
  * passam a existir por prefeitura. Este kit garante que nenhum município comece com a
  * edificação "vazia" — os itens 16 e 43 do edital citam esses campos.

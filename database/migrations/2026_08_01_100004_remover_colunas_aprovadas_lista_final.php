@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * PoC Tangará — execução da lista aprovada (docs/campos_imobiliario_para_aprovacao.txt).
+ * PoC Tangará — execução da lista aprovada (docs/modulos/campos_imobiliario_para_aprovacao.txt).
  *
  * Regra da lista: campo alimentado pelo sistema tributário não é campo fixo do SIGWEB.
  * Antes de cada DROP, o dado existente é copiado para `dados_customizados` (slug = nome

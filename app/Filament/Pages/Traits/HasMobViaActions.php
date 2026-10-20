@@ -13,7 +13,7 @@ use Illuminate\Support\HtmlString;
 use Livewire\Attributes\On;
 
 /**
- * Via urbana no mapa (Mobilidade Urbana — docs/piuma.txt, Onda 6).
+ * Via urbana no mapa (Mobilidade Urbana — docs/modulos/piuma.txt, Onda 6).
  * É AQUI que mora o fluxo: sentido (mão única/dupla), "Inverter Sentido"
  * (ST_Reverse — a direção é a ordem dos vértices) e a caneta de classificação
  * em massa. O trecho de levantamento não tem nada disso (sua direção define

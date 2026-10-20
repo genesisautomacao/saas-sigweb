@@ -27,7 +27,8 @@ class CampoCustomizadoService
         'loteamento' => 'loteamentos',
         'zona' => 'zonas',
         'perimetro' => 'perimetros_urbanos',
-        'setor_fiscal' => 'setores_fiscais',
+        'setor_fiscal' => 'setores_fiscais', // B9
+        'setor_pgv' => 'setores_pgv',
         'meio_fio' => 'meio_fios',
     ];
 

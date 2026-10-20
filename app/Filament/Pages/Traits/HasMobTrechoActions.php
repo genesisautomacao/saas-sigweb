@@ -13,7 +13,7 @@ use Illuminate\Support\HtmlString;
 use Livewire\Attributes\On;
 
 /**
- * Trecho viário no mapa (Mobilidade Urbana — docs/piuma.txt §3, Onda 2/6).
+ * Trecho viário no mapa (Mobilidade Urbana — docs/modulos/piuma.txt §3, Onda 2/6).
  * Direção = ordem dos vértices = direção do MAPEAMENTO (define calçada
  * direita/esquerda) — por isso NÃO há "Inverter Sentido" nem sentido de
  * tráfego aqui: o fluxo mora na Via Urbana (HasMobViaActions).

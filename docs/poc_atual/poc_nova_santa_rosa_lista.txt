@@ -1,0 +1,229 @@
+PROVA DE CONCEITO - NOVA SANTA ROSA/PR
+Lista de trabalho do SIGWEB (adequações e criações)
+Atualizado em: 16/10/2026
+
+==========================================================================================
+O QUE JÁ TEMOS E PRECISA SER ADEQUADO (45 itens)
+==========================================================================================
+
+MAPA E FERRAMENTAS:
+
+[ ] 03  Mapas de fundo: incluir o Google (já temos OpenStreetMap, Esri, Azure/Bing e as
+        ortofotos do município).
+[ ] 05  Edição no QGIS: ligar o QGIS direto no banco, enxergando só os dados do município,
+        com cálculo automático de área e extensão. O que for editado aparece na hora no
+        mapa interno e no mapa do cidadão.
+[ ] 07  Temas de cores: oferecer pelo menos 3 temas para o usuário escolher (hoje só claro
+        e escuro).
+[ ] 08  Fontes externas: além do WMS (já existe), permitir carregar um shapefile no mapa.
+[ ] 13  Buffer (entorno): gerar a partir de qualquer feição selecionada e consultar todas
+        as camadas ligadas (hoje só por clique com raio, ou a partir de logradouro).
+[ ] 16  Medir área: mostrar a medida de cada lado, a área total e o perímetro.
+[ ] 17  Perfil altimétrico: além do perfil do terreno (já existe), mostrar o perfil da
+        superfície (com prédios e árvores), usando um serviço on-line.
+[ ] 20  Minha localização: botão no mapa interno e no público que mostra onde o usuário
+        está.
+[ ] 28  Destaque na pesquisa: ao localizar algo pela busca, destacar o contorno da feição
+        encontrada (hoje aparece só um marcador).
+
+
+ANEXOS:
+
+[ ] 09  Anexos em lote, quadra, loteamento, bairro e imóvel rural (hoje só em unidade,
+        pessoa, patrimônio e jazigo), aceitando PDF e link, com tipo do anexo (contrato,
+        matrícula, croqui...) e código do documento.
+
+
+MAPAS TEMÁTICOS:
+
+[ ] 32  Salvar o mapa temático criado e organizar em categorias (hoje ele é criado na hora
+        e some ao sair do mapa).
+[ ] 36  Temático por intervalo de classes: número de faixas livre (hoje 3, 5 ou 7).
+[ ] 42  Temático de valores únicos: listar só os atributos de texto.
+[ ] 43  Consulta do temático: encadear várias condições com E/OU e cruzar 3 ou mais
+        camadas (hoje 1 condição e 2 camadas).
+[ ] 68  Usar os valores simulados da PGV (novo IPTU e diferença) para criar temáticos.
+[ ] 103 Temático visível ao cidadão quando quem criou permitir.
+
+
+CADASTRO IMOBILIÁRIO (CTM):
+
+[ ] 44  Seletor de módulo: ao trocar de módulo (ex.: Cadastro Imobiliário, PGV), mostrar
+        só as funções daquele tema.
+[ ] 45  Carta de notificação para imóvel com área construída divergente (a carta existe,
+        mas hoje só para inconformidade de coleta).
+[ ] 46  Lista de imóveis com área CONSTRUÍDA divergente do cadastro, por percentual
+        informado na hora, exportando em PDF e CSV (hoje compara a área do terreno).
+[ ] 47  Gerar a carta de um imóvel ou de todos acima do percentual.
+[ ] 59  Desmembramento: redistribuir também as unidades e dar inscrição ao lote novo
+        (área, testada, edificações e ocupação já são atualizadas).
+[ ] 61  Excluir edificação: quando não sobrar nenhuma, o lote volta a "baldio".
+
+
+EDIÇÃO CARTOGRÁFICA:
+
+[ ] 55  Quadra nova: preencher sozinho o código do distrito e do setor (a área já é
+        automática).
+[ ] 56  Seção de logradouro nova: gerar sozinho o código métrico e o lado (geometria e
+        comprimento já são automáticos).
+[ ] 57  Lote novo: gerar sozinho a inscrição (distrito.setor.quadra.lote), as testadas com
+        logradouro e seção e a ocupação (a área já é automática).
+[ ] 58  Edificação nova: gerar a inscrição com a unidade e calcular a área pelo número de
+        pavimentos.
+
+
+PGV - PLANTA GENÉRICA DE VALORES:
+
+[ ] 63  Simulador de IPTU: incluir o "% de dedução do valor venal" (alíquota, % do venal
+        e limite de aumento já existem).
+[ ] 65  Mostrar a tabela imóvel a imóvel: IPTU proposto x lançado (hoje só os totais).
+[ ] 70  Centro de valorização: mover e excluir no mapa e vincular à zona homogênea
+        (incluir já existe).
+[ ] 71  Amostras da pesquisa imobiliária: mover e excluir no mapa, atualizando na hora
+        coordenadas e distâncias (incluir já existe).
+
+
+APP DE COLETA (CELULAR/TABLET):
+
+[ ] 74  Formulário de campo também para eixo viário (hoje lote, edificação e unidade).
+[ ] 75  Campo do tipo assinatura no construtor do formulário (número, texto e seleção já
+        existem).
+[ ] 80  Supervisor por equipe, o único que ativa ou desativa o trabalho de campo (hoje só
+        o gestor).
+[ ] 81  Área de atuação desenhada livremente OU escolhida por bairros (hoje por quadras).
+[ ] 82  Dentro da área, escolher os lotes um a um ou todos.
+[ ] 87  Mostrar no app os informativos de cada campo (a obrigatoriedade já é cobrada).
+[ ] 90  Status "visita confirmada" e "refazer visita" (fechado, recusado), cada um com sua
+        cor no mapa.
+[ ] 91  Mapa do supervisor atualizando sozinho o status das feições.
+[ ] 92  Envio automático das coletas quando houver internet (hoje pelo botão Sincronizar).
+[ ] 94  Validar (aprovar ou recusar) cada ficha que chega do app.
+[ ] 95  Gráfico de produtividade, com filtro por data E hora e por agente.
+[ ] 96  Relatório da coleta escolhendo o formulário e a data/hora de início e fim.
+
+
+USUÁRIOS:
+
+[ ] 100 Pedido de acesso de servidor: o cadastro fica pendente até o administrador aceitar
+        ou recusar.
+[ ] 101 Quem for recusado continua como cidadão.
+[ ] 102 No aceite, o administrador define setor e perfis de acesso.
+
+
+
+
+==========================================================================================
+O QUE NÃO TEMOS E PRECISA SER CRIADO (43 itens)
+==========================================================================================
+
+MAPA E FERRAMENTAS:
+
+[ ] 14  Lista das feições encontradas no buffer; clicar numa leva até ela no mapa.
+[ ] 15  Medir distância mostrando a medida de cada trecho, além do total.
+[ ] 18  Girar o mapa, com a seta do norte acompanhando a rotação.
+[ ] 19  Segundo mapa sobreposto ao principal, com cortina (swipe) para comparar.
+[ ] 24  Busca de setor pelo código, filtrando pelo distrito.
+[ ] 25  Busca de quadra pelo código, filtrando pelo distrito e pelo setor.
+[ ] 26  Busca de lote pelo código, filtrando pelo distrito, setor e quadra.
+[ ] 29  Impressão personalizada: título, subtítulo, legenda e norte (acompanhando a
+        rotação do mapa).
+[ ] 30  Carimbo na impressão: empresa, responsável, data e versão.
+
+
+ANEXOS:
+
+[ ] 10  Criar um tipo novo de anexo na hora de anexar, se não existir.
+[ ] 11  Tela de busca de anexos por código, tipo, extensão do arquivo, entidade e data.
+[ ] 12  A partir do anexo encontrado, ir até a feição no mapa e baixar o arquivo.
+
+
+MAPAS TEMÁTICOS:
+
+[ ] 33  Definir quais perfis podem ver cada temático. Quem não tem o perfil não vê.
+[ ] 34  O mesmo controle de perfis nas categorias de temáticos.
+        (atenção: o edital diz que, se o controle de acesso falhar, o item de tematização
+        inteiro é reprovado)
+[ ] 38  Editar os limites e as cores de cada faixa do temático.
+[ ] 40  Escolher a paleta de cores do mapa de calor a partir de uma lista.
+[ ] 98  Temático dos dados de coleta filtrando por período.
+
+
+CADASTRO IMOBILIÁRIO (CTM):
+
+[ ] 48  Configurar o texto da carta de notificação e os dados de assinatura do responsável.
+[ ] 49  Painel comparando área construída do mapa x cadastro por bairro, e a quantidade de
+        imóveis divergentes por logradouro num bairro, por percentual.
+[ ] 50  Montar o BCI pela tela: escolher campos exibidos ou ocultos, ordem e disposição.
+[ ] 51  Montar o croqui pela tela: escolher campos exibidos ou ocultos, ordem e disposição.
+[ ] 60  Recodificação de lote, recodificando junto todas as unidades.
+
+
+PGV - PLANTA GENÉRICA DE VALORES:
+
+[ ] 66  Salvar até 5 propostas de simulação e reabrir qualquer uma depois.
+[ ] 67  Resumo de cada proposta salva: valor total do novo imposto e todos os parâmetros.
+[ ] 69  Alterar o valor do m² de uma face de quadra e recalcular na hora o IPTU dos
+        imóveis daquela face.
+[ ] 72  Simulador de ITBI (dados do terreno e da edificação, m², alíquota), com impressão.
+[ ] 73  Painel da PGV: imóveis com aumento de IPTU, valor venal atual x proposto e m² de
+        terreno anterior x proposto.
+
+
+APP DE COLETA (CELULAR/TABLET):
+
+[ ] 77  Informativo (texto de ajuda) por campo do formulário.
+[ ] 78  Definir quais perfis podem ver cada formulário.
+[ ] 79  Criar e gerenciar equipes de campo a partir dos usuários.
+[ ] 83  Usar mais de um formulário no mesmo trabalho de campo.
+[ ] 88  Assinar na tela do app e salvar a assinatura como imagem.
+
+
+CIDADÃO E LGPD:
+
+[ ] 104 Esconder campos só para o cidadão (configurável pela prefeitura).
+[ ] 105 Aceite obrigatório do termo de privacidade (LGPD) no primeiro acesso.
+[ ] 106 O cidadão pode excluir a própria conta a qualquer momento.
+
+
+LEVANTAMENTO CONTÍNUO POR VÍDEO (depende do vídeo 360 + GPX):
+
+[ ] 107 Importar vídeo MP4 + trilha GPX e tocar o vídeo sincronizado com a rota no mapa.
+[ ] 109 Controles: tocar, avançar, voltar, brilho e contraste.
+[ ] 110 Tirar a foto da fachada a partir do vídeo e gravar no imóvel.
+[ ] 111 Exportar o quadro do vídeo com a coordenada gravada no arquivo (geotag).
+
+
+
+
+==========================================================================================
+O QUE NÃO FARÍAMOS AGORA DEVIDO A COMPLEXIDADE (4 itens)
+==========================================================================================
+
+[ ] 02  Sistema em inglês e espanhol, com seletor de idioma.
+[ ] 108 Vídeo 360 mostrando no mapa a posição e o cone do ângulo de visão.
+[ ] 112 Localizar no mapa objetos vistos no vídeo/360 (ex.: um poste).        
+[ ] 113 Exportar imagens 360 a cada 5 metros, em JPG, com geotag.
+
+
+
+
+==========================================================================================
+JÁ PRONTOS (26 itens - só ensaiar a demonstração)
+==========================================================================================
+
+01 Edge, Firefox e Chrome sem plugin       | 52 BCI do imóvel
+04 Visitante, cidadão e restrito           | 53 Croqui do imóvel
+06 Base única                              | 54 Edição só com permissão
+21 Visualizador 360 com avanço/retrocesso  | 62 Módulo PGV
+22 Consulta por inscrição, endereço,       | 64 Total proposto x lançado
+   nome e CPF                              | 76 Campo obrigatório no app
+23 Consulta por camadas                    | 84 Integração web x app
+27 Edifício pelo nome                      | 85 Celular e tablet (*)
+31 Impressão do mapa                       | 86 Tocar na feição abre o formulário
+35 Temático por intervalo de classes       | 89 Câmera do aparelho
+37 Gradiente de cor inicial e final        | 93 Trabalho offline
+39 Mapa de calor por atributo numérico     | 97 Temático com dados da coleta
+41 Temático de valores únicos              | 99 Cadastro do cidadão
+                                           | 114 Navegação 360 estilo Street View
+
+(*) Demonstrar num aparelho com Google Play.

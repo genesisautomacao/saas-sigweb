@@ -3,7 +3,7 @@
 > **Status:** 📋 Especificado, **não implementado**. Parado por decisão do usuário em 2026-07-30 para priorizar a **PoC de Tangará/SC (17/08/2026)**.
 > **Retomar depois da PoC.** Este documento é a fonte de verdade da release — o levantamento foi feito no código e no banco reais, não por suposição.
 >
-> ✅ **Já executado desta release:** a correção do bug de exclusão em massa ([MapaFullscreen.php:878](../app/Filament/Pages/MapaFullscreen.php#L878)) — ver a seção final.
+> ✅ **Já executado desta release:** a correção do bug de exclusão em massa ([MapaFullscreen.php:878](../../app/Filament/Pages/MapaFullscreen.php#L878)) — ver a seção final.
 
 ---
 
@@ -69,10 +69,10 @@ Verificados no código e no banco (não presumidos):
 3. **7 tabelas têm `tenant_id` SEM FK** para `tenants`: `cnaes`, `zoneamento_regras`, `categorias_wms`, `fontes_wms` (dados) + `roles`, `model_has_roles`, `model_has_permissions` (Spatie). Excluir uma prefeitura hoje deixa essas linhas órfãs; e um `WHERE tenant_id` esquecido nelas apaga de **todos** os municípios.
 4. **6 tabelas tenant-owned NÃO têm `tenant_id`**: `arvore_logradouro`, `poste_logradouro`, `movimentacao_itens`, `os_equipe`, `os_materiais`, `setor_user` — só saem pelo pai ou por subconsulta.
 5. **SoftDelete não dispara `ON DELETE CASCADE`.** 83 models usam SoftDeletes; um `->delete()` deixaria metade da árvore viva e visível.
-6. **`BelongsToTenant` desliga o escopo global em console** ([BelongsToTenant.php:15-17](../app/Traits/BelongsToTenant.php#L15-L17)) — em comando artisan o `where('tenant_id', …)` é obrigatório e explícito, sempre.
+6. **`BelongsToTenant` desliga o escopo global em console** ([BelongsToTenant.php:15-17](../../app/Traits/BelongsToTenant.php#L15-L17)) — em comando artisan o `where('tenant_id', …)` é obrigatório e explícito, sempre.
 7. **Não existe worker de fila em produção.** `app/Jobs/` não existe, nenhum `ShouldQueue`; `queue:listen` só no `composer run dev`. Tudo roda no request.
 8. **`AdminPanelProvider` não tem `->databaseNotifications()`** — toda notificação do /admin é flash de sessão e **some na primeira navegação**. Um link de download entregue assim se perde.
-9. **`ZipArchive` está habilitado** e já é usado ([ShapefileExportService.php:81](../app/Services/Exports/ShapefileExportService.php#L81)); `ogr2ogr` tem pré-flight pronto no mesmo arquivo (linha 163).
+9. **`ZipArchive` está habilitado** e já é usado ([ShapefileExportService.php:81](../../app/Services/Exports/ShapefileExportService.php#L81)); `ogr2ogr` tem pré-flight pronto no mesmo arquivo (linha 163).
 10. **Os 36 ExportServices materializam `Collection` inteira** — não servem para 100 mil imóveis. O próprio `ShapefileExportService::buildGeoJSON` monta o array completo em memória.
 11. **`Tables\Actions\Action` suporta `->steps([...])`** (herda `HasWizard` de `MountableAction`) — base do modal em 2 passos.
 12. **Presigned URL do S3 (SigV4) expira em no máximo 7 dias.** Não existe link de 30 dias sem CloudFront signed URL.
@@ -103,20 +103,20 @@ Independentes entre si; podem ir em paralelo.
 Existem 23 pontos de upload espalhados. Em vez de mexer nos 23:
 
 - **Disco `public` repontado para o S3** quando a credencial existir. Todo `->disk('public')`, `Storage::url()` e `FileUpload` segue funcionando: fotos de lote, logos, panorâmicas, ícones, fotos de chamado.
-- **Disco `privado` novo** (S3, `visibility: private`) recebe só documento pessoal: `processos_anexos` ([ProcessoFormService.php:147](../app/Services/Processo/ProcessoFormService.php#L147), requerimento assinado, PDF do requerimento, PDF anotado) e `documentos/*` (pessoa, patrimônio, falecidos, unidades). Leitura por `temporaryUrl(now()->addMinutes(15))`.
+- **Disco `privado` novo** (S3, `visibility: private`) recebe só documento pessoal: `processos_anexos` ([ProcessoFormService.php:147](../../app/Services/Processo/ProcessoFormService.php#L147), requerimento assinado, PDF do requerimento, PDF anotado) e `documentos/*` (pessoa, patrimônio, falecidos, unidades). Leitura por `temporaryUrl(now()->addMinutes(15))`.
 
 Como o **caminho relativo gravado no banco não muda**, a migração é cópia pura — nenhum registro precisa ser atualizado.
 
-Injeção no [AppServiceProvider::boot()](../app/Providers/AppServiceProvider.php#L56-L74), no mesmo bloco do Resend, guardado por `Schema::hasTable` + try/catch. Chaves da linha `ApiSetting name='AWS S3'`: `ATIVO`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` (`sa-east-1`), `AWS_BUCKET`, `AWS_URL` (CloudFront), `TILES_BASE_URL`. Sem a linha ou com `ATIVO ≠ sim`, **nada muda**.
+Injeção no [AppServiceProvider::boot()](../../app/Providers/AppServiceProvider.php#L56-L74), no mesmo bloco do Resend, guardado por `Schema::hasTable` + try/catch. Chaves da linha `ApiSetting name='AWS S3'`: `ATIVO`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` (`sa-east-1`), `AWS_BUCKET`, `AWS_URL` (CloudFront), `TILES_BASE_URL`. Sem a linha ou com `ATIVO ≠ sim`, **nada muda**.
 
 ⚠️ **Não mexer em `filesystems.default`** — ele governa o upload temporário do Livewire e os imports GIS/tributário, que devem continuar locais (são lidos com `file_get_contents`).
 
 ### 5.2 Correções obrigatórias
 
-1. **13 templates DomPDF** usam `public_path('storage/...')` para a logo — em S3 o arquivo não existe localmente e a logo some. Criar um helper único que devolve *data-URI* (padrão de [BicPdfService.php:24-27](../app/Services/Gis/BicPdfService.php#L24-L27)) e trocar em: `bic-template`, `bic-massa-template`, `default-report`, `lote-detalhado-report`, `memorial_descritivo`, `relatorio-numeracao`, `notificacao-irregularidade`, `ordem-servico-pdf-template`, `processo-digital-template`, `requerimento-template`, `viabilidade-template`, `viabilidade-parcelamento`, `viabilidade-unificacao`.
+1. **13 templates DomPDF** usam `public_path('storage/...')` para a logo — em S3 o arquivo não existe localmente e a logo some. Criar um helper único que devolve *data-URI* (padrão de [BicPdfService.php:24-27](../../app/Services/Gis/BicPdfService.php#L24-L27)) e trocar em: `bic-template`, `bic-massa-template`, `default-report`, `lote-detalhado-report`, `memorial_descritivo`, `relatorio-numeracao`, `notificacao-irregularidade`, `ordem-servico-pdf-template`, `processo-digital-template`, `requerimento-template`, `viabilidade-template`, `viabilidade-parcelamento`, `viabilidade-unificacao`.
 2. **8 usos de `asset('storage/...')`** → `Storage::disk(...)->url(...)`: `Tenant.php:139`, `Api/ChamadoController.php:93`, `ProcessoDigitalPdfService.php:69`, `HasPontoPanoramicoActions.php:98`, `MapaPublico.php:391`, `HasPatrimonioPublicoActions.php:171` e os dois `DocumentosRelationManager`.
 3. **Fixar `'disk' => 'local'`** em `config/livewire.php` (hoje `null`) — senão todo upload temporário/abortado vira PUT+DELETE no bucket.
-4. **Consolidar o diretório de fotos de chamado**: painel grava em `chamados/fotos` ([ChamadoResource.php:65](../app/Filament/Resources/ChamadoResource.php#L65)), API do app em `chamados_fotos` ([ChamadoController.php:253](../app/Http/Controllers/Api/ChamadoController.php#L253)).
+4. **Consolidar o diretório de fotos de chamado**: painel grava em `chamados/fotos` ([ChamadoResource.php:65](../../app/Filament/Resources/ChamadoResource.php#L65)), API do app em `chamados_fotos` ([ChamadoController.php:253](../../app/Http/Controllers/Api/ChamadoController.php#L253)).
 5. **Tratar a pasta legada** `lotes/fotos-frontais/` na migração (ainda há linhas apontando para lá).
 
 ### 5.3 Migração dos arquivos existentes
@@ -127,13 +127,13 @@ Injeção no [AppServiceProvider::boot()](../app/Providers/AppServiceProvider.ph
 
 Nada em PHP toca esses arquivos — são 2 linhas de JS e um `file_exists`:
 
-- [mapa-engine.js:101](../public/js/gis/mapa-engine.js#L101) e [mapa-cidadao-engine.js:36](../public/js/gis/mapa-cidadao-engine.js#L36): trocar a URL fixa por `${config.tilesBaseUrl}/mapas/...`, injetada pelo Blade a partir do `TILES_BASE_URL`.
-- [MapaFullscreen.php:1934](../app/Filament/Pages/MapaFullscreen.php#L1934): o `file_exists(public_path(...))` vira checagem no bucket quando houver base remota.
+- [mapa-engine.js:101](../../public/js/gis/mapa-engine.js#L101) e [mapa-cidadao-engine.js:36](../../public/js/gis/mapa-cidadao-engine.js#L36): trocar a URL fixa por `${config.tilesBaseUrl}/mapas/...`, injetada pelo Blade a partir do `TILES_BASE_URL`.
+- [MapaFullscreen.php:1934](../../app/Filament/Pages/MapaFullscreen.php#L1934): o `file_exists(public_path(...))` vira checagem no bucket quando houver base remota.
 - Upload uma vez: `aws s3 sync public/mapas s3://bucket/mapas`. **Exige CORS** no bucket (o Potree dispara milhares de requisições de octree) e `Cache-Control: max-age=31536000, immutable` nos tiles.
 
 ### 5.5 Privacidade
 
-Hoje anexo de processo e documento de pessoa moram no disco público: **qualquer um com a URL baixa, sem login** — RG, CPF, plantas, requerimentos assinados. Pontos a revalidar ao mover para o disco privado: pré-visualização do `FileUpload` (o Filament gera URL temporária quando o disco suporta), lista de documentos do processo ([ProcessoFormService.php:621](../app/Services/Processo/ProcessoFormService.php#L621)), editor de anotação de PDF ([ProcessoAnexoController.php:24](../app/Http/Controllers/ProcessoAnexoController.php#L24)), blade `processo-anexos` e os RelationManagers de Documentos.
+Hoje anexo de processo e documento de pessoa moram no disco público: **qualquer um com a URL baixa, sem login** — RG, CPF, plantas, requerimentos assinados. Pontos a revalidar ao mover para o disco privado: pré-visualização do `FileUpload` (o Filament gera URL temporária quando o disco suporta), lista de documentos do processo ([ProcessoFormService.php:621](../../app/Services/Processo/ProcessoFormService.php#L621)), editor de anotação de PDF ([ProcessoAnexoController.php:24](../../app/Http/Controllers/ProcessoAnexoController.php#L24)), blade `processo-anexos` e os RelationManagers de Documentos.
 
 ---
 
@@ -158,7 +158,7 @@ pacote-{slug}-{AAAAMMDD-HHmm}.zip
 └── banco-bruto/         CSV por tabela (COPY), geo em WKT + esquema.sql
 ```
 
-Planilha até 50k linhas/aba em XLSX multi-aba (padrão de [LoteExportService.php:41-80](../app/Services/Exports/LoteExportService.php#L41-L80)); acima disso, CSV UTF-8 **com BOM** (senão o Excel pt-BR estraga os acentos).
+Planilha até 50k linhas/aba em XLSX multi-aba (padrão de [LoteExportService.php:41-80](../../app/Services/Exports/LoteExportService.php#L41-L80)); acima disso, CSV UTF-8 **com BOM** (senão o Excel pt-BR estraga os acentos).
 
 ### 6.2 Como executar sem estourar memória
 
@@ -234,7 +234,7 @@ Arquivos: `COUNT(*)` exato + amostragem de 200 arquivos para a média → "≈ 3
 
 **SQL puro, `DELETE … WHERE tenant_id = ?`, filho antes do pai, uma transação por conjunto.**
 
-Por que não Eloquent em chunks: o hook `deleting` de [EstoqueMovimentacao.php:35-60](../app/Models/EstoqueMovimentacao.php#L35-L60) estorna saldo numa tabela que será apagada duas linhas depois; `LogsActivity` (6 models) transformaria 100 mil lotes em 100 mil linhas novas de `activity_log` justamente enquanto se esvazia o banco. **Nenhum hook deve rodar num zerar** — SQL puro dá isso de graça.
+Por que não Eloquent em chunks: o hook `deleting` de [EstoqueMovimentacao.php:35-60](../../app/Models/EstoqueMovimentacao.php#L35-L60) estorna saldo numa tabela que será apagada duas linhas depois; `LogsActivity` (6 models) transformaria 100 mil lotes em 100 mil linhas novas de `activity_log` justamente enquanto se esvazia o banco. **Nenhum hook deve rodar num zerar** — SQL puro dá isso de graça.
 
 Por que filho explícito mesmo com CASCADE: `ON DELETE CASCADE` é trigger `AFTER ROW` — uma varredura no filho por linha do pai. Sem índice (147 FKs sem índice), vira seq scan por linha. `DELETE FROM contatos WHERE tenant_id = ?` primeiro é **um** statement; depois o cascade não encontra nada.
 
@@ -274,7 +274,7 @@ Comando: `sigweb:zerar-dados --tenant= --conjuntos= --operacao= [--remover-arqui
 **App de coleta** — aqui o diagnóstico inicial estava errado e a correção é outra:
 
 - **Lote fantasma não é problema**: `salvarLotesDoServidorEmBatch` (`app-coletas/src/services/db.js`) já remove localmente todo lote ausente do pull, desde que `sync_status != 'updated'`. O purge-por-ausência cobre exclusão em massa.
-- **O problema real é perda silenciosa de coleta**: [LoteSyncController.php](../app/Http/Controllers/Api/LoteSyncController.php) no `push` faz `if (! $lote) { continue; }` e responde 200 — o app marca como `synced` e **a ficha de campo evapora sem uma única mensagem**. Corrigir junto: servidor acumula os `code` não encontrados e devolve `nao_encontrados`; o app marca `sync_status = 'orfao'` e avisa "N fichas não puderam ser enviadas (o imóvel não existe mais no servidor)".
+- **O problema real é perda silenciosa de coleta**: [LoteSyncController.php](../../app/Http/Controllers/Api/LoteSyncController.php) no `push` faz `if (! $lote) { continue; }` e responde 200 — o app marca como `synced` e **a ficha de campo evapora sem uma única mensagem**. Corrigir junto: servidor acumula os `code` não encontrados e devolve `nao_encontrados`; o app marca `sync_status = 'orfao'` e avisa "N fichas não puderam ser enviadas (o imóvel não existe mais no servidor)".
 - **Complemento de 15 minutos**: gravar `tenants.data['coleta_reset_at']` no zerar e devolvê-lo no pull; o app compara e avisa o fiscal **antes** de sincronizar. Muito mais simples que tombstones.
 
 ---
@@ -283,7 +283,7 @@ Comando: `sigweb:zerar-dados --tenant= --conjuntos= --operacao= [--remover-arqui
 
 ### ✅ Bug de exclusão em massa de lotes — corrigido em 2026-07-30
 
-[MapaFullscreen.php:878](../app/Filament/Pages/MapaFullscreen.php#L878), na `deletarArtefatoAction`:
+[MapaFullscreen.php:878](../../app/Filament/Pages/MapaFullscreen.php#L878), na `deletarArtefatoAction`:
 
 ```php
 $lote->query()->delete();   // ERRADO — Model::query() é ESTÁTICO: builder sem WHERE

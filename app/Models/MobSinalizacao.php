@@ -12,7 +12,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Placa/marcação de sinalização viária (Mobilidade Urbana — docs/piuma.txt §2.2).
+ * Placa/marcação de sinalização viária (Mobilidade Urbana — docs/modulos/piuma.txt §2.2).
  * POINT que aponta para o catálogo MobTipoSinalizacao (cor/ícone/tipo vêm de lá);
  * descricao_original preserva o texto cru do levantamento de campo.
  */

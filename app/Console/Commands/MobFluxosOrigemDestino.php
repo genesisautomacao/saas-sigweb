@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Deriva origem_zona/destino_zona dos fluxos O/D pela geometria × zonas O/D
- * (docs/piuma.txt, 2026-09-04). O importador já faz isso ao importar fluxos ou
+ * (docs/modulos/piuma.txt, 2026-09-04). O importador já faz isso ao importar fluxos ou
  * zonas; o comando serve para bases já carregadas (VPS) e para conferência.
  *
  *   php artisan mob:fluxos-origem-destino --tenant=prefeitura-de-piuma

@@ -15,7 +15,7 @@ class PontoPanoramicoResource extends Resource
 {
     use HasTenantModule;
 
-    protected static ?string $tenantModule = 'imageamento'; // D6 (docs/Modulos_Permissoes.txt)
+    protected static ?string $tenantModule = 'imageamento'; // D6 (docs/modulos/Modulos_Permissoes.txt)
 
     protected static ?string $model = PontoPanoramico::class;
 

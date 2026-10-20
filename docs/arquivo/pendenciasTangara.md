@@ -1,0 +1,920 @@
+# Backlog de Pendências — PoC Tangará/SC
+
+> **Fonte de verdade para todas as implementações futuras deste projeto.**
+> Ao concluir um item: riscar o título (`#### ~~T1.1 — ...~~`), definir `**Status:** ✅ Concluído`, adicionar `**Concluído em:** YYYY-MM-DD` e atualizar os contadores abaixo.
+>
+> ⚠️ **Este arquivo substitui `docs/pendencias.md` e `docs/pendencias2.md`** (backlog da PoC de Nova Esperança do Sul/RS, **já vencida**). Aqueles arquivos são mantidos apenas como histórico — **não** usar como referência de trabalho.
+
+**Contexto:** backlog derivado da análise de conformidade da PoC de Tangará/SC (124 itens obrigatórios). A tabela item-a-item completa, com status e evidências arquivo:linha, está em [PocTangara_plano.md](PocTangara_plano.md) — consultar antes de iniciar qualquer item.
+
+**Critério do edital:** demonstração plena de **≥ 85%** (106/124), em até 10 dias úteis a partir da convocação. Itens não demonstrados (dentro dos 85%) → implementação em 60 dias pós-contrato.
+**Meta interna pré-PoC:** ≥ 95% (118/124) — o plano leva a **122/124 (98,4%)**; os 124/124 completam-se no pós-contrato (item F2 do Plano de Ação Futura).
+
+**Legenda:** ⏳ Pendente · 🔄 Em andamento · ✅ Concluído · 📋 Aguardando decisão externa
+
+---
+
+## Contadores de Conformidade PoC Tangará/SC
+
+**Progresso atual (baseline da auditoria de 2026-07-08): 95/124 plenos ≈ 76,6%** (19 parciais ⚠️ + 10 não atendidos ❌)
+
+| Marco | Plenos | % acumulado | Status |
+|-------|-------:|------------:|--------|
+| Baseline (auditoria 2026-07-08) | 95/124 | 76,6% | — |
+| **Onda 1 — Estrutura de campos** | 95/124 | 76,6% | ✅ 2026-08-02 — fundacional, **destravou** as demais |
+| **Onda 2 — T1.1, T1.2, T1.3, T1.5, T1.7** | **101/124** | **81,5%** | ✅ 2026-08-03 (itens 14, 15, 44, 17, 21, 3-14) |
+| **Onda 3 — T1.4, T1.6 (mapa público)** | **103/124** | **83,1%** | ✅ 2026-08-03 (itens 3-9, 3-11) |
+| **Onda 4 — T1.8, T1.9 + item 76① (filtro)** | **105/124** | **84,7%** | ✅ 2026-08-03 (itens 2.1-1, 2.1-2) |
+| **Onda 5 — T1.10, T1.11, T1.12 (motores)** | **113/124** | **91,1%** | ✅ 2026-08-03 — **ETAPA 1 COMPLETA** (itens 2.5-32/34/37, 3-18/20/23, 2.3-24, 2.6-38) |
+| **Onda 6 — T2.1, T2.2** | **118/124** | **95,2%** | ✅ 2026-08-03 — 🎯 **META INTERNA DE 95% ATINGIDA** (itens 46, 54, 64, 59, 60) |
+| **Onda 7 — T2.3, T2.4 + UI dos mapas** | **120/124** | **96,8%** | ✅ 2026-08-03 (itens 3-10, 3-12; topbar glass + painel de camadas fixo à esquerda) |
+| + Etapa 2 (T2.1–T2.5) | 121/124 | **97,6%** (meta 95% ✔) | ⏳ |
+| + Etapa 3 (T3.1 — WMS) | 122/124 | 98,4% | ⏳ |
+| + Itens 75/76 (D5 — dentro das Ondas 3 e 4) | **124/124** | **100%** | ⏳ |
+
+> Referência dos itens da PoC: numeração `2.x-N` = seção Intranet do edital; `3-N` = seção Internet/Público; `1-N` = Características Técnicas (conforme `poc_tangara_sc.md` e tabelas do [PocTangara_plano.md](PocTangara_plano.md)).
+
+---
+
+## Decisões registradas (2026-07-08)
+
+- **D1 — Integração Betha Sistemas: ✅ Decidido — dump JSON na PoC.** A demonstração usará dump JSON exportado do Betha → `php artisan tributario:importar` (mesma estratégia validada para o GOVBR em Bom Princípio; ponto de extensão: `IntegraPrefeituraService`). A API do Betha, em regra, só é liberada **após a aprovação da PoC e a assinatura do contrato** → a integração em tempo real está registrada como item futuro **F1**.
+- **D2 — EAV (campos customizáveis): ✅ Decidido — pós-PoC.** Por ser o item mais complexo do plano (40–80 h), o ex-T3.2 foi movido para o plano futuro como **F2** (a janela de 60 dias pós-contrato prevista no edital o cobre). O escopo pré-PoC passa a mirar **122/124 (98,4%)** — bem acima da meta de 95%.
+
+## Decisões registradas (2026-07-31)
+
+- **D3 — Base de demonstração: ✅ Decidido — reusar `prefeitura-de-santa-cecilia`.** Não será criado tenant novo nem importada base cartográfica de Tangará para a PoC. Reduz a Etapa 0 de ~8–24 h para ~2 h. A T0.1 vira **inventário de dados de demo** (garantir que a base exercite cada item do edital) em vez de importação.
+- **D4 — Seção de Logradouro é LINEAR, uma por lado. ✅ Decidido — sem entidade nova, sem polígono.** Confirmado no texto bruto do edital ([lista_txt_poc_tangara.txt](lista_txt_poc_tangara.txt)):
+  - **Intranet 44** pede *"Código do Logradouro + Código da Seção (métrico) + **Lado da Seção**, **comprimento**"* — "lado" só existe em relação a um eixo e o edital pede **comprimento**, não área → geometria linear (a `SecaoLogradouro` atual, MULTILINESTRING, serve).
+  - **Intranet 42** pede *"testada(s), **Logradouro e Seção de cada testada**"* — já implementado em `LoteTestada` (`logradouro_id` + `secao_logradouro_id`). O vínculo "o lote se integra à seção" **já existe**.
+  - **Uma seção por lado:** o `lado` só é dado útil se a própria seção for de um lado só (senão o lote par e o ímpar apontariam para a mesma seção). Logo, **duas seções por trecho** — independentes entre si, com comprimentos diferentes (travessa que entra só de um lado, rio/praça no outro lado, faces de quadra assimétricas). Modelagem: N linhas independentes com `lado` como **atributo**, nunca estrutura pareada.
+  - **Desenho sobre a testada, não sobre o eixo.** Coincidência geométrica exata quebra três coisas: (a) o `forEachFeatureAtPixel` do mapa só captura uma das linhas → a outra fica inclicável; (b) o **T2.2** fica impossível (buffer de linha no eixo pega os lotes dos DOIS lados e o `lado` fica indecidível); (c) a galeria de fotos do item 17 não distingue os lados. Fica como prática recomendada — **sem** constraint geométrica, para não quebrar importação de base legada desenhada no eixo.
+  - **Vocabulário do `lado` é white-label** (`CampoDominioService`, padrão R67-2): default Par/Ímpar/Ambos, cada município ajusta.
+  - **Pai hierárquico = Logradouro, único.** Já é assim (FK obrigatória + `hasMany` + `SecoesRelationManager` + "Nova Seção" pelo modal do logradouro) e o edital sempre escreve *"Logradouro **e** Seções"* (itens 44, 52, 70). **Não** adicionar `quadra_id` — a relação com a quadra é derivável por PostGIS no T2.2, e o PGV já tem `FaceQuadra` para face de quadra.
+  - **Rótulo:** manter **"Seções de Logradouro"** (o termo do edital, usado em 8 itens). A ideia de renomear para "Trechos" foi descartada para a PoC — se necessário no futuro, vira rótulo white-label por município, nunca renomeação de tabela/model/rota (25 arquivos + FK + camada do mapa + permissões).
+
+## Decisões registradas (2026-08-01)
+
+- **D5 — Itens 75/76 (campos customizáveis) VOLTAM para o escopo pré-PoC. ✅ Decidido — cancela a D2.** O `CampoCustomizado` (R67-1) já existe e já está plumbado na **edição** (①). Falta integrá-lo a ② filtro avançado, ③ mapa temático, ④ heatmap e ⑤ estatísticas — e os quatro vivem no `MapDataController` + `mapa-engine.js`, exatamente os arquivos que as Ondas 3 e 4 vão abrir. Construir os motores **já cientes de campos customizados** custa **10–16 h** marginais, contra os 40–80 h estimados no F2. **Resultado: 124/124 = 100%.** O F2 sai do Plano de Ação Futura.
+- **D6 — Régua de campos: 3 categorias. ✅ Decidido.** Detalhamento completo em [mapeamentoCamposImobiliario.md](mapeamentoCamposImobiliario.md).
+  1. ⚙️ **Base fixa do sistema** — `id`, `sequential_id`, `code`, `geo`, FKs, derivados PostGIS. Não é item de cadastro.
+  2. 🏷️ **Campo fixo white-label** — coluna do sistema com **valores (chaves) imutáveis** e **rótulos customizáveis** (nome do campo e texto de cada opção). O município **não inventa nem remove valor de select**.
+  3. ➕ **Campo da prefeitura** — não existe como coluna; cada município cria e ele aparece em ficha, edição, filtro, busca, temático, heatmap e estatísticas.
+  - Consequência direta: **`tipo_ocupacao` NÃO vira coluna** (era o N2). A `ocupacao` fica travada no binário `baldio`/`construido` que os itens 42/51/60 exigem, e o município que precisa de "em ruínas"/"em construção" cria o campo dele.
+- **D7 — Corte das colunas fiscais de `unidade_imobiliarias`. ✅ Decidido.** As 13 colunas promovidas em 2026-07-01 foram moldadas pelo export de **Santa Cecília** e o rastreio mostrou que **as buscas e o PGV leem o JSON, não as colunas** (proprietário e `nome_edificio` em [MapDataController:571-576](../../app/Http/Controllers/Api/MapDataController.php#L571); `valor_total_imposto` em [PgvSimulacaoIptuService:50](../../app/Services/Pgv/PgvSimulacaoIptuService.php#L50)). **Saem 9 colunas**; ficam 11 (incluindo as 3 novas `nome_edificio`, `proprietario_nome`, `proprietario_cpf_cnpj`). O `dados_tributarios` continua sendo a verdade — nenhum dado se perde.
+  - **Em aberto (decidir na implementação):** com o corte, `sistemas_tributarios.extras` (R67-5) e `CampoCustomizado` passam a disputar o papel de "mostrar campo do tributário que não é canônico". Unificar os dois é decisão adiada para quando o comportamento real estiver à vista.
+
+## Plano de Ação Futura (pós-PoC / pós-contrato)
+
+> Itens que só entram em desenvolvimento **após a aprovação da PoC e a assinatura do contrato**. Não contam para a demonstração.
+
+#### F1 — Integração em tempo real com a API Betha Sistemas
+**Origem:** decisão D1 · **Esforço:** 8–16 h (estimativa inicial; depende da documentação da API) · **Status:** 📋 Futuro (aguarda liberação da API pós-contrato)
+
+- Criar `BethaService` consumindo a API de tributos do Betha (Strategy junto a `IntegraPrefeituraService`/`GovbrService`, configurável por tenant);
+- `.env`: `BETHA_API_URL` + credenciais; sincronização periódica → upsert em `unidade_imobiliarias.dados_tributarios` (mesmo contrato do `tributario:importar`);
+- Substitui o fluxo de dump JSON usado na PoC sem mudança de modelo de dados.
+
+#### ~~F2 — Itens de Cadastro customizáveis (EAV)~~ *(ex-T3.2)*
+**Status:** ❌ **CANCELADO como item futuro em 2026-08-01 — decisão D5.** Voltou para o escopo pré-PoC, distribuído nas **Ondas 3 e 4** (o motor `CampoCustomizado` do R67-1 já existe; falta integrá-lo ao filtro avançado, mapa temático, heatmap e estatísticas, que são justamente os arquivos daquelas ondas). Texto original mantido abaixo como referência de escopo.
+
+**Itens PoC:** 2.8-75, 2.8-76, 2.10-88 (leitura estrita) · **Esforço original estimado:** 40–80 h · ~~**Status:** 📋 Futuro (decisão D2)~~
+
+Entidades `ItemCadastro` (tenant, camada, nome, tipo: numérico/texto/seleção/multisseleção/multisseleção-com-quantitativo, opções) + `ItemCadastroValor` (polimórfico). Integração obrigatória em: ① ficha/edição da entidade; ② filtro avançado/expressões; ③ tematização (valores únicos + classes); ④ heatmap; ⑤ estatísticas; ⑥ visibilidade por perfil. As integrações ③④⑤ reaproveitam os motores genéricos de T1.10/T1.11/T1.12 — **por isso a ordem das etapas importa**. Registrar o design detalhado aqui antes de iniciar.
+
+---
+
+## Etapa 0 — Preparação (sem código)
+
+#### T0.1 — Base de demonstração (`prefeitura-de-santa-cecilia`)
+**Status:** 🔄 Em andamento — *inventário concluído em 2026-07-31; correção das lacunas pendente*
+
+Decisão **D3**: sem tenant novo e sem importação cartográfica. A tarefa virou **inventário de dados** contra os itens do edital que dependem de dado. Resultado completo na seção 2 de [roteiroDemoTangara.md](roteiroDemoTangara.md). 20 itens com dado suficiente; **6 lacunas** a corrigir com seeder idempotente antes da Onda 1:
+
+| # | Itens afetados | Lacuna medida |
+|---|---|---|
+| G1 | 2.1-11 | **0** pessoas jurídicas (item pede busca por CPF **/CNPJ**) |
+| G2 | 2.1-21, 3-11, 3-14 | `parametros_urbanos` cobre **2 de 10** zonas |
+| G3 | 2.7-42 | `ocupacao` / `situacao_quadra` em **4 de 4.434** lotes — **também esvazia a tematização da Onda 4** |
+| G4 | 2.7-43 | `pavimento` em **7 de 7.894** edificações |
+| G5 | 2.7-42, 2.7-44 | **5** testadas de lote · **2** seções de logradouro |
+| G6 | 2.1-5, 3-3 | **1** unidade com `nome_edificio` (chave do JSON `dados_tributarios`) |
+
+#### T0.2 — Validação de dependências do servidor de demo
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-31
+
+PHP 8.3.30 · Laravel 12.52 · PostgreSQL 18.3 · **PostGIS 3.6.1** · **GDAL/ogr2ogr 3.13.0** no PATH (item 2.4-30 ok) · **DomPDF 3.1.4** com render validado em **A0/A1/A2/A3/A4 paisagem** (itens 2.4-25 a 29) · simple-excel 3.8.1 · activitylog 4.12.3 (13.277 registros).
+
+> ⚠️ **Dois achados:**
+> 1. **`AZURE_MAPS_KEY` está vazia** — os basemaps Azure Road/Satélite ([mapa-engine.js:83-96](../../public/js/gis/mapa-engine.js#L83)) renderizam em branco. Pior: a chave é lida com `env()` dentro de um Blade ([mapa-fullscreen.blade.php:25](../../resources/views/filament/pages/mapa-fullscreen.blade.php#L25)) e **`env()` fora de arquivo de config retorna vazio quando `config:cache` está ativo** — então em produção o basemap quebra mesmo com a chave no `.env`. Corrigir movendo para `config/services.php` + `config()`. O item 1-4 já é atendido por OSM + Esri Satélite.
+> 2. **Não existe suíte de testes** — apenas os 2 testes de exemplo do Laravel, e o `Tests\Feature\ExampleTest` falha (espera 200 em `/`, recebe 302). Sem rede de segurança contra regressão → o teste de cada onda será por **script em transação revertida**, padrão já usado no projeto.
+
+#### T0.3 — Roteiro de demonstração v1
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-31
+
+[roteiroDemoTangara.md](roteiroDemoTangara.md) — checklist de ambiente, **matriz de dependência de dados** por item, estrutura em 7 blocos (A–G) espelhando as seções do edital e **5 riscos com plano B** (R1 Azure · R2 ausência de testes · R3 "itens de Cadastro" nos itens 24/37/38/3-23 · R4 lacunas de dado · R5 WMS). Os caminhos de clique item-a-item são preenchidos no T4.1, após as Ondas 1–4.
+
+---
+
+## Onda 1 — Estrutura de campos ✅ CONCLUÍDA em 2026-08-01 *(escopo ampliado pelas decisões D6/D7 e pela lista aprovada)*
+
+> **Status:** ✅ Implementada e testada (23 asserções em transação revertida, 0 falhas de código).
+> O escopo real executado foi muito além do planejado — a lista aprovada em
+> [campos_imobiliario_para_aprovacao.txt](campos_imobiliario_para_aprovacao.txt) virou uma refatoração completa:
+>
+> - **E1.1 ✅** `codigo` municipal nas 7 entidades (+ forms/tabelas nos Resources);
+> - **E1.2 ✅** chave/rótulo separados no `CampoDominioService` (+ normalização: `esquina`/`Esquina` unificados; push do app traduz rótulo→chave);
+> - **E1.3 ✅** a grande refatoração:
+>   - `jsonb` nas colunas de dado livre + `dados_customizados` em **13 camadas** (item 75) + 18 índices GIN + `pg_trgm`;
+>   - tabela **`coleta_imobiliaria`** polimórfica (campanha/status/quem/quando/observação/inconformidade) — 48 coletas migradas; `lotes.status_cadastro` mantido como cache do mapa;
+>   - **34 colunas removidas** com dado migrado antes do drop (5.395 edificações preservadas em `dados_customizados`);
+>   - novas: `secoes_logradouro.lado` e `unidade_imobiliarias.nome_edificio` (backfill do JSON + trigram);
+>   - busca unificada: proprietário via **`pessoas`** (funciona sem integração tributária; fallback no JSON), endereço só na unidade, `nome_edificio` na coluna;
+>   - **KIT INICIAL** de campos customizados (`KitCamposCustomizadosService` + seeder + hook `Tenant::created`) — 8 campos por prefeitura, opções mescladas com o dado real;
+>   - consumidores atualizados: sync API (pull/push com blindagem p/ app publicado), estatísticas (expressão JSONB **+ correção de injeção de SQL** no `group_field`), produtividade/monitoramento, Filament (LoteResource, traits, RelationManagers, ficha do mapa), PDFs (planta de quadra, produtividade, notificação, lote detalhado), exports, `MapaFiscalService::camposCanonicos()` mirando slugs;
+>   - app RN (`app-coletas`): `CONFIG_PADRAO` atualizado — o form é config-driven e se adapta sozinho;
+> - **E1.4 ✅** absorvido pelo kit (as 3 taxonomias hardcoded viraram campos do kit);
+> - **E1.5 ✅** `ApiSetting` "Azure Maps"/"Google Maps" + cache + fim dos 4 `env()` em runtime + opções Azure ocultas sem chave;
+> - **E1.6 ✅** comando `php artisan poc:inventario --tenant=<slug>` (rodar na VPS).
+>
+> ⚠️ **Implantação na VPS:** `php artisan migrate` (7 migrations, com migração de dado embutida) + `php artisan db:seed --class=KitCamposCustomizadosSeeder`. A integração bidirecional (GET + POST/PUT no tributário) ficou DESENHADA (de/para mira slug) — os métodos de escrita do driver entram com o 1º conector real.
+
+### Escopo original (referência)
+
+> Trabalho fundacional decidido pelas **D6/D7**. Vem **antes** das quick wins porque é pré-requisito delas: o T1.3 precisa do `codigo` do logradouro, e os motores da Onda 4 (itens 75/76) precisam da separação chave/rótulo.
+> Não altera contadores de conformidade por si só — **destrava** os itens 44/45/46/47/48/49 (L1), 5/3-3 (L2), 11 (proprietário) e 75/76 (D5).
+
+#### E1.1 — L1: coluna `codigo` municipal nas 7 entidades
+**Itens PoC:** 2.7-44, 2.7-45, 2.7-46, 2.7-47, 2.7-48, 2.7-49 · **Esforço:** 6–8 h · **Status:** ⏳ Pendente
+
+`logradouros`, `secoes_logradouro`, `bairros`, `quadras`, `zonas`, `perimetros_urbanos`, `setores_fiscais`. Hoje `code` é **UUID interno** e `sequential_id` é a **chave da importação GIS** (não pode virar editável). Sem isso, o código composto do item 44 não é formável e o **T2.5 (Recodificação) é impossível** — não se recodifica o que não tem código. Migration + forms + tabelas + exports + busca.
+
+#### E1.2 — N1: separar chave e rótulo no `CampoDominioService`
+**Pré-requisito da Onda 4** · **Esforço:** 4–6 h · **Status:** ⏳ Pendente
+
+Hoje `campo_dominios.opcoes` guarda **array plano de rótulos**, então o Select grava o **rótulo** na coluna — a base já tem `esquina` **e** `Esquina` como valores distintos do mesmo conceito, e `ocupacao` com `"Em Contrução"` (com typo). Isso faria o **mapa temático por valores únicos (T1.10) pintar duas classes para o mesmo conceito**. Passar a gravar `chave => rótulo` (chave por slug, imutável, mesma disciplina do `CampoCustomizado.slug`) + normalização única dos registros existentes.
+
+#### E1.3 — D7: corte fiscal em `unidade_imobiliarias`
+**Itens PoC:** 2.1-5, 2.1-11, 3-3 · **Esforço:** 6–10 h · **Status:** ⏳ Pendente
+
+Remover 9 colunas; criar `nome_edificio`, `proprietario_nome`, `proprietario_cpf_cnpj`. Ajustar `componentesFiscaisUnidade()` (R67-8), os modais de unidade, o BIC, os exports, o `MapaFiscalService` e a busca do `MapDataController` (que passa a ler coluna em vez de JSON). ⚠️ Base da VPS pode ser resetada — **exceto os processos digitais de Bom Princípio**.
+
+#### E1.4 — L3: taxonomias hardcoded para o `CampoDominio`
+**Esforço:** 2–3 h · **Status:** ⏳ Pendente
+
+`secoes_logradouro.tipo_pavimentacao`, `meio_fios.material`, `meio_fios.estado_conservacao`.
+
+> **L4 adiado (decisão do usuário, 2026-08-01):** o `PgvDepreciacaoResource` passar a listar `estado_conservacao` do `CampoDominioService` **fica fora desta onda** — o PGV terá uma revisão dedicada mais adiante. Nada no módulo PGV é tocado na Onda 1.
+
+#### E1.5 — N4: credenciais no `ApiSetting` + fim dos `env()` em runtime
+**Item PoC:** 1-4 · **Esforço:** 3–4 h · **Status:** ⏳ Pendente
+
+Entradas `Azure Maps` e `Google Maps` no `ApiSettingResource`; `AppServiceProvider` carrega todas as `api_settings` numa consulta só (com cache invalidado no `saved()`) e injeta em `config('services.*')`. Trocar os **4 `env()` em runtime** ([mapa-fullscreen.blade.php:25](../../resources/views/filament/pages/mapa-fullscreen.blade.php#L25) e [:3239](../../resources/views/filament/pages/mapa-fullscreen.blade.php#L3239), [mapa-publico.blade.php:585](../../resources/views/filament/cidadao/pages/mapa-publico.blade.php#L585), [MapaFullscreen.php:1483](../../app/Filament/Pages/MapaFullscreen.php#L1483)) por `config()` — **`env()` fora de arquivo de config retorna vazio com `config:cache` ativo**. Ocultar os basemaps Azure quando não houver chave.
+
+#### E1.6 — N3: comando `poc:inventario`
+**Esforço:** 1–2 h · **Status:** ⏳ Pendente
+
+Transformar o script de inventário da Onda 0 em comando artisan, para rodar **na VPS** (que é a base real da PoC — decisão do usuário em 2026-07-31) e medir a densidade de dado por item do edital.
+
+---
+
+## Etapa 1 — Quick Wins (36–61 h) → 113/124 (91,1%)
+
+> Converte 5 ❌ e 13 ⚠️ em ✅ (+ corrige o falso positivo do item 2.7-52 dentro do T1.3). Ordenada do mais fácil ao mais difícil.
+> **Ordem de execução por ondas** (agrupada por arquivo/subsistema, para não reabrir o mesmo arquivo várias vezes — acordada em 2026-07-31):
+> **Onda 1** = T1.1, T1.2, T1.3, T1.7, T1.5 (fichas, PDFs e cadastros) · **Onda 2** = T1.4, T1.6 (mapa público) ·
+> **Onda 3** = T1.8, T1.9 (`advancedSpatialQuery`) · **Onda 4** = T1.10, T1.11, T1.12 (motores genéricos do mapa — maior retorno: 9 itens).
+> Cada onda: implementação → teste do agente → teste do usuário → ok → próxima.
+
+#### ~~T1.1 — Link "Ver histórico" na ficha do lote~~
+**Item PoC:** 2.1-14 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+Botão "Ver histórico" na ficha lateral do lote (gated por `view_auditoria`) → `AuditoriaPage?lote_id=X` pré-filtrada pelo lote **e seus filhos** (unidades, edificações, testadas — com `withTrashed`, para histórico de itens excluídos). Subheading indica o foco; header action "Limpar filtro do lote".
+
+#### ~~T1.2 — Contribuinte confrontante no Memorial Descritivo~~
+**Item PoC:** 2.1-15 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+`gerarDadosPerimetro` ganhou a coluna `confrontante_proprietario` — nome do contribuinte do lote vizinho via `pessoas` (`proprietario_id`, pós-refatoração) com fallback no JSON `dados_tributarios`. Sai no texto corrido ("confrontando com o Lote 111, de LEANDRO SOUZA GOTER") e na tabela do PDF.
+
+#### ~~T1.3 — Seção de Logradouro: código métrico, lado e cascata de exclusão~~
+**Itens PoC:** 2.7-44, **2.7-52** · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03 · *(colunas `codigo`/`lado` criadas na Onda 1; acabamento na Onda 2)*
+
+Entregue: código composto `{cód. logradouro}-{cód. seção}` (accessor `codigo_composto`, exibido na tabela do Resource e na ficha do logradouro no mapa, com coluna Lado), índice único parcial `(tenant_id, logradouro_id, codigo, lado) WHERE deleted_at IS NULL` (dois lados com o mesmo código = ok; duplicar o mesmo lado = bloqueado; NULL nunca colide) e a **cascata de soft delete/restore Logradouro → Seções** (item 52 — eventos `deleted`/`restoring`/`restored` no model; o restore só ressuscita seções excluídas na MESMA cascata, pelo marco do `deleted_at`).
+
+> 🐛 **Achado no teste do usuário (2026-08-03) — 22 botões de exclusão do mapa surdos a eventos.** O usuário excluiu um logradouro e a seção permaneceu: TODOS os botões "Excluir" das traits do mapa usavam `Model::where('id', $x)->delete()` — delete de **query builder**, que não dispara eventos Eloquent. Consequências: a cascata do item 52 não rodava E **nenhuma exclusão pelo mapa era registrada na Auditoria** (item 89 — o `LogsActivity` também depende de evento). Corrigidos os **22** para `Model::find($x)?->delete()`; o excluir do logradouro ganhou aviso com a contagem de seções e o front agora remove as seções da tela junto (`remover-secao_logradouro-mapa` por seção). Testado: cascata OK, log de exclusão na auditoria OK.
+
+1. Migration em `secoes_logradouro`: **`codigo`** (Código da Seção, métrico) + **`lado`**;
+2. **`lado` white-label** — registrar a entidade `secao_logradouro` em `CampoDominioService::PADROES` (default Par/Ímpar/Ambos). Fica fora de `ENTIDADES_NA_COLETA` (não é campo de coleta de campo);
+3. **Código composto na UI** — o item 44 pede `Código do Logradouro + Código da Seção`; exibir concatenado na tabela, na ficha do mapa e no PDF;
+4. **Índice único parcial** `(tenant_id, logradouro_id, codigo, lado) WHERE deleted_at IS NULL` — impede duplicar a mesma seção do mesmo lado, libera os dois lados (código igual + lado diferente). Como no Postgres `NULL ≠ NULL`, seção sem código nunca colide → importação legada passa limpo;
+5. 🐛 **Cascata de exclusão Logradouro → Seções (item 52)** — ver achado abaixo;
+6. Form/tabela no `SecaoLogradouroResource`, no `SecoesRelationManager` e na trait `HasSecaoLogradouroActions`. Orientação no formulário: desenhar a seção **sobre a testada** (frente dos lotes do lado), não sobre o eixo — sem constraint geométrica.
+
+> 🐛 **Achado 2026-07-31 — item 2.7-52 estava marcado ✅ indevidamente.** O edital pede *"Excluir Logradouro **e Seções**"*, mas excluir um logradouro **não** exclui as seções: o `cascadeOnDelete` da FK é constraint de banco e só dispara em DELETE físico, enquanto [HasLogradouroActions.php:202](../../app/Filament/Pages/Traits/HasLogradouroActions.php#L202) faz `->delete()` num model com `SoftDeletes` — só grava `deleted_at`. As seções continuam ativas e visíveis no mapa, apontando para um pai excluído (a coluna "Logradouro" da listagem fica vazia porque o `belongsTo` cai no escopo global de soft delete). Corrigir cascateando o **soft delete e o restore** do logradouro para as seções. Não altera os contadores (o item já era contado como ✅), mas era um falso positivo que quebraria ao vivo.
+
+#### ~~T1.4 — Foto frontal + croqui na ficha pública do imóvel~~
+**Item PoC:** 3-9 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+Imagem frontal no topo da ficha pública (clicável p/ ampliar; placeholder "Sem imagem frontal cadastrada" como fallback) e o botão do croqui promovido a **"Planta / Croqui do Imóvel"** em destaque (azul sólido) — é a "Planta Cartográfica" que o item 3-9 pede junto da imagem.
+
+#### ~~T1.5 — Viabilidade: metragens + parâmetros no PDF; mapImage na reimpressão~~
+**Itens PoC:** 2.1-21, 3-14 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+`enriquecerComMetragensEParametros()` no `ViabilidadePdfService` (ponto único — vale p/ intranet E público): área do lote, testada principal, área construída (SUM das edificações) + parâmetros da zona (`ParametroUrbano`), gravados **no snapshot** (a reimpressão herda; snapshot antigo é enriquecido na hora, idempotente). Template ganhou as seções "Metragens / Áreas" e "Parâmetros Urbanísticos da Zona". **Reimpressão com croqui:** o print do mapa é persistido em `storage/app/public/viabilidades/{protocolo}.b64` na emissão (viabilidade, parcelamento e unificação) e recuperado no `reimprimirPdf` — antes saía `mapImage=null`.
+
+#### ~~T1.6 — Zona clicável no mapa público (parâmetros + usos)~~
+**Item PoC:** 3-11 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+`singleclick` do `mapa-cidadao-engine.js` agora coleta TODAS as feições no pixel e escolhe por prioridade (**lote > ponto panorâmico > zona**) — a zona vira clicável sem roubar o clique de um lote sobreposto. Clique na zona → modal com swatch de cor + código, **Parâmetros Urbanísticos** (áreas/testadas mín-máx do `ParametroUrbano`) e **Usos do Solo** agrupados em permitido/permissível/proibido (badges por classificação, via `ZoneamentoRegra`), com nota direcionando análise de CNAE específico à Consulta de Viabilidade. View `ficha-zona-publica.blade.php`, listener `abrirFichaZona` no `HasFichaImovelPublico`.
+
+#### ~~T1.7 — Fotos nas Seções de Logradouro~~
+**Item PoC:** 2.1-17 (base para 3-10) · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+`SecaoLogradouro::fotos()` = morphMany na tabela polimórfica `documentos` (type `Foto`), mesmo padrão da UnidadeImobiliaria. Upload por Repeater (legenda + imagem, `secoes_logradouro/fotos/`, 5MB) no `SecaoLogradouroResource` **e** no `SecoesRelationManager` do Logradouro. **Galeria na ficha do logradouro** (modal do mapa): coluna Fotos com até 3 miniaturas clicáveis (+N) por seção, eager-load `with('fotos')`. Base pronta para o T2.3 (ficha pública do logradouro).
+
+#### ~~T1.8 — Filtro avançado: atributo + espacial combinados~~
+**Item PoC:** 2.1-1 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+Seção "Condição de atributo (opcional)" nas abas **espacial** e **desenho** do filtro: o WHERE de atributo entra na MESMA consulta SQL do cruzamento ("lotes na zona X **com área > 400**" → 292 de 1.110 num só passo). Vale também para **campos customizados** (`custom:slug`). Rótulo do resultado inclui a condição.
+
+#### ~~T1.9 — Delimitadores Quadra e Logradouro~~
+**Item PoC:** 2.1-2 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+**Logradouro** virou área de referência do cruzamento espacial via `ST_Buffer` do eixo (campo "Largura da faixa", padrão 20 m — "imóveis lindeiros da Rua X"); **Quadra** já constava como referência (polígono direto). O item 2.1-2 ("delimitar por Distrito/Setor/Bairro/Logradouro/Quadra") fica pleno na consulta; nas estatísticas, a delimitação segue Distrito/Setor/Bairro, que é exatamente o que o item 39 pede.
+
+> **Onda 4 também entregou (2026-08-03):**
+> - **Item 76① — campos customizados nas expressões de consulta (D5):** o select de atributo das 4 abas do filtro lista os campos do município (marcados com ★), resolvidos no backend contra o JSONB `dados_customizados` (cast numérico quando o campo é número; índice GIN da Onda 1 serve a consulta). A tematização por intervalo aceita campo customizado numérico (adianta parte do 76③).
+> - 🐛 **Injeção de SQL corrigida** no `advancedSpatialQuery`: `$field` (rota atributo) e `$attr` (rota intervalo) iam interpolados crus no `selectRaw`. Agora todo campo passa por whitelist (schema da tabela ou `custom:slug` validado nas definições) — campo desconhecido → 403. Testado com payload malicioso real.
+
+#### ~~T1.10 — Tematização por Valores Únicos (intranet + público)~~
+**Itens PoC:** 2.5-32, 2.5-34, 2.5-37, 3-18, 3-20, 3-23 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+Rota `valores_unicos` no `advancedSpatialQuery` (atributo = coluna whitelisted OU `custom:slug` — item 76③; devolve feições rotuladas + resumo de valores). Aba "Tematização por Valores Únicos" no filtro da **intranet e do público**; paleta automática (ângulo áureo — cores bem separadas p/ N valores) e **legenda flutuante com `input color` por valor** — trocar a cor repinta as feições na hora (itens 34/3-20). NULL vira "Não informado". Integrada ao painel de filtros ativos e ao "limpar".
+
+#### ~~T1.11 — Heatmap genérico por camada~~
+**Item PoC:** 2.3-24 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+Aba "Mapa de Calor (qualquer camada)" no filtro avançado: reusa a rota `intervalo` com **atributo opcional** (sem atributo = densidade por contagem; com atributo numérico — inclusive `custom:` — o valor vira o **peso**, normalizado 0.15–1). Polígono entra pelo ponto interior, linha pelo centro do extent; raio configurável; camada `ol.layer.Heatmap` registrada no painel de filtros.
+
+#### ~~T1.12 — Estatísticas: mais camadas e atributos~~
+**Item PoC:** 2.6-38 (reforça 2.5-37, 3-23) · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+`getEstatisticas` ampliado: **+7 camadas** (quadras, seções, meios-fio, árvores, postes, chamados — com joins de categoria/fase — e grupos novos em lotes: ocupação, status). Agrupamento aceita, além da whitelist curada, **campo customizado (`custom:slug` — item 76⑤) ou qualquer coluna do schema**, validados (a injeção via `group_field` já estava fechada; a via `$field`/`$attr` do filtro foi fechada na Onda 4).
+
+---
+
+## Etapa 2 — Intermediária (36–58 h) → 121/124 (97,6%)
+
+#### ~~T2.1 — Distrito formal~~
+**Itens PoC:** 2.7-46, 2.7-54, 2.8-64 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+`PerimetroUrbano` apresentado formalmente como **Distrito**: menu/labels "Distritos" no Resource; o item 46 já estava coberto de fato pelas ondas anteriores — **código** (E1.1 + campo nos modais do mapa na correção de 2026-08-02), nome, área automática e cor. Busca por nome de Distrito e camada "Distritos/Limites" já operavam.
+
+#### ~~T2.2 — Recalcular testadas e ocupação após desmembramento/unificação~~
+**Itens PoC:** 2.7-59, 2.7-60 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+Novo [PosEdicaoLoteService](../../app/Services/Gis/PosEdicaoLoteService.php), chamado ao confirmar **desmembramento** (nas DUAS partes) e **unificação**:
+1. **Testadas**: `ST_Intersection` do perímetro (`ST_Boundary`) com buffer de 15 m das **seções de logradouro** (fallback: eixo dos logradouros, p/ município sem seção), com `ST_CollectionExtract` blindando o resultado; a maior vira `principal` e alimenta `main_facade_length` — **na unificação isso substitui a soma cega das testadas antigas** (que contava divisa interna extinta);
+2. **Ocupação**: derivada de fato (tem edificação = `construido`; senão `baldio`);
+3. **Situação na quadra**: campo do município (D6) — o sistema **sugere** pelo nº de logradouros distintos com testada (0=Encravado, 1=Meio de Quadra, 2+=Esquina), casa o rótulo com o vocabulário do kit municipal e grava a sugestão; a notificação orienta conferir/ajustar na ficha (decisão do usuário: sugestão confirmável, não automação cega).
+
+#### ~~T2.3 — Logradouro clicável no mapa público~~
+**Item PoC:** 3-10 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+Clique prioriza lote > ponto > **logradouro** > zona (a linha ganha do polígono de fundo). Modal `ficha-logradouro-publica`: código, extensão e nº de seções + lista de seções com **código composto, lado (rótulo do município), pavimentação (campo do kit) e as fotos da T1.7** (miniaturas clicáveis). Listener `abrirFichaLogradouro` no `HasFichaImovelPublico`.
+
+#### ~~T2.4 — Viabilidade de Parcelamento/Desmembramento no público~~
+**Item PoC:** 3-12 · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-03
+
+Botão "Viabilidade de Parcelamento" na ficha pública do imóvel → mesmo motor da intranet (`analisarParcelamento`), modal com veredito + parecer técnico e **"Gerar PDF Oficial"** que captura o croqui do mapa (lote destacado) e emite via `generateParcelamentoPdf` — **com protocolo `/v/{protocolo}` e croqui persistido** (T1.5) para reimpressão.
+
+#### T2.5 — Recodificação em cascata + entidade Piscina
+**Item PoC:** 2.7-61 · **Esforço:** 14–24 h · **Status:** ⏳ Pendente
+
+Ação "Recodificar" (mapa + Resource) para Lote (inscrição → propaga a unidades/edificações/testadas), Quadra, Logradouro/Seções, Setor, Distrito, Bairro, Zoneamento e Meio-fio — transação única + registro Antes/Depois no activitylog. Incluir entidade **Piscina** leve (molde `MeioFio`, polígono) para cobrir a lista do edital.
+
+#### ~~T2.8 — Correções do reteste manual da PoC (lista testada do usuário)~~
+**Origem:** dúvidas/erros anotados pelo usuário em `lista_texto_poc_tangara_testada.txt` (2026-08-06) · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-06 · Testes: 10/10 (bateria C, transação revertida) + blades compiladas + engines com sintaxe validada.
+- **I-12:** aba **Imóveis** no `PessoaResource` (`Pessoa::unidadesImobiliarias()` via `proprietario_id` + `ImoveisRelationManager` read-only).
+- **I-59/60:** testadas do desmembramento/unificação agora filtram por **ÂNGULO** (`PosEdicaoLoteService::segmentosParalelosARua` — perímetro decomposto em segmentos; só os ≈paralelos ao eixo da rua, ≤35°, viram testada; fim do "L" das laterais). Meio de quadra: 1 testada = frente exata; esquina: 2 testadas + sugestão "Esquina".
+- **I-77/78 (+ Internet 24/25):** botões **Zoom in/out** (`window.zoomMais/zoomMenos`) nos DOIS mapas.
+- **I-86/87:** os **4 grupos da barra** do mapa gated de verdade (eram só comentários): Filtro+Estatísticas (`toolbar_filtros`), Criar artefatos (`toolbar_criar_artefatos`), Ferramentas (`toolbar_ferramentas`) — via `temPermissao()`.
+- **I-30 (novo recurso):** export SHP com **recorte por desenho** — checkbox no menu, polígono no mapa, rota aceita POST (`drawn_geometry` validado; `ST_Intersects`), 4.437→2 feições no teste.
+- Respostas registradas item a item na própria `lista_texto_poc_tangara_testada.txt` (Bing→Azure, cruzamento espacial, SHP por camada). QGIS (Téc-3): diagnóstico com prints — conexão criada no provedor WMS/WMTS (errado) + WFS mínimo não atende o provedor nativo; workaround GeoJSON documentado; upgrade no T3.1.
+- **I-60 round 2 (2026-08-06):** o motor formal de unificação estava correto (reprodução fiel 7/7); o defeito relatado era o **"Unir" do CAD** (item 043), que soft-deletava as origens e criava lote novo genérico. Correção: `PosEdicaoLoteService::herdarLotesUnidos()` (herança de unidades/edificações com guard `ST_Intersects` + mesmo pós-processo), acionado via `MapaFullscreen::$unirLotesOrigemIds` (setado no `excluirArtefatosUnir`) e consumido no `criarLoteAction` — 8/8 no teste.
+
+#### ~~T2.7 — Performance do carregamento de camadas do mapa (N+1 do geo_json + gzip)~~
+**Origem:** lentidão relatada pelo usuário (2026-08-06) em municípios de 5-6 mil lotes · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-06 · Medido: lotes de Bom Princípio (6.610) **11,9 s → 0,31 s** (38×); Santa Cecília (4.435) **9,0 s → 0,21 s**; edificações 2,5 s → 0,77 s. Causa: accessor `geo_json` = 1 query/registro, acessado 3× por item nos loops do `MapDataController` (~20 mil queries por carregamento). Correção: `ST_AsGeoJSON` em **1 query por camada** (`buildFeatureCollection` + cases lotes/patrimônios/REURB). Extra: middleware [ComprimirJsonMapa](../../app/Http/Middleware/ComprimirJsonMapa.php) nas rotas `gis-data`/`advanced-query` (3,7 MB → 0,47 MB na rede; 7/7 no teste). **Evolução futura registrada:** vector tiles (MVT) para municípios 50 mil+ lotes.
+
+#### ~~T2.6 — Modos de importação GIS (Adicionar / Atualizar / Substituir) + campos custom nas 9 camadas~~
+**Origem:** pedido do usuário em 2026-08-04 (reimportação pós-edição no QGIS) · **Status:** ✅ Concluído
+**Concluído em:** 2026-08-04 · Teste: 23/23 (tinker c/ rollback — 3 modos, reconexão de unidade/edificação/coleta/quadra→lote, FK discovery com processos_digitais, rollback em falha)
+
+(a) Importador do `TenantResource` passa a ler campos customizados nas **9 camadas** do seletor (antes só lote/edificação/unidade). (b) Select "Modo de importação": **Adicionar** (comportamento atual), **Atualizar** (upsert por `tenant_id`+`sequential_id` — preserva vínculos de processos/unidades/coletas; caso de uso: atualização externa no QGIS) e **Substituir** (soft-delete de toda a camada antes de importar, na mesma transação — falhou, nada é apagado). No Substituir, **reconexão automática dos filhos por `sequential_id`**: FKs descobertas via `information_schema` (unidades, edificações, testadas, processos digitais, faces etc.) + `coleta_imobiliaria` polimórfica passam a apontar para o registro novo de mesmo número. Extração da lógica para `App\Services\Gis\ImportadorGisService` (testável). Decisões do usuário: 3 modos + reconectar por sequential_id.
+
+---
+
+## Onda 8 — App de Coletas: fluxo completo de campo ✅ CONCLUÍDA em 2026-08-04
+
+> **Status:** ✅ Implementada e testada — 24/24 no web (tinker, transação revertida: kit, pull c/ proprietário,
+> map/data por região, push blindado, antes→depois c/ merge, relatório + PDF de 1,2MB renderizado) +
+> 21/21 na simulação Node (helpers do app) + 8 arquivos do app validados (esbuild/JSX).
+> Kit aplicado nas 3 tenants locais (2 campos novos cada). **Implantação VPS:** `php artisan migrate`
+> (colunas `alteracoes` + `obrigatorio_coleta`) + `php artisan db:seed --class=KitCamposCustomizadosSeeder` + rebuild Expo.
+>
+> **Correções pós-entrega → SPEC FINAL do Boletim (2026-08-04, feedback do usuário):** TODOS os campos
+> de lote/edificação/unidade listados no Boletim, cada um com **3 estados** — "Não usar" / "Apenas
+> leitura" / "Preencher em campo" (+ Obrigatório só no Preencher, independente do sistema web).
+> Inclui os dados do cadastro oficial como leitura configurável (área/testada do lote; endereço,
+> inscrição, proprietário atual e fiscais da unidade — estes sem opção de Preencher: divergência
+> entra por campo customizado). Colunas novas `obrigatorio_coleta` + `leitura_coleta` (campo_dominios
+> e campos_customizados), `coleta_campos_base_config`/`coleta_leitura` no tenant.data, payload com
+> `leitura` em tudo + `campos_base` legado derivado. Testes: 7/7 + 8/8 + 13/13 web · 10/10 + 21/21 Node.
+>
+> **Ajustes do teste em campo (2026-08-05):** botões do mapa do app reorganizados (Sync/Atualizar no canto
+> inferior direito — fim das sobreposições); Salvar desabilitado com status "Não visitado"; **pin vermelho de
+> inconformidade** na camada Coleta do mapa web (ponto GPS do coletor, popup com a descrição — 5/5 no teste).
+> Decisão: divergência de proprietário PERMANECE por slug do kit (convenção documentada), sem status novo.
+
+**Origem:** fluxo de 8 passos descrito pelo usuário (boletim → regiões → coleta offline → validação → tributário). Passos 1/2/4/5/7 já atendidos (boletim configurável, regiões, regras de status no app, offline, Produtividade). Frentes desta onda:
+
+- **A — Proprietário divergente (decisão do usuário: via campo customizado):** pull envia `proprietario_nome`/`proprietario_cpf_cnpj` da unidade (pessoas com fallback no JSON tributário); kit ganha 2 campos custom de unidade (`proprietario_divergente`, `cpf_cnpj_divergente`, na_coleta); app exibe o dado oficial para comparação; divergências destacadas no Relatório de Validação. Convenção: divergência que impede confirmar o cadastro → status `inconformidade`.
+- **B — Região no app (decisão: leveza primeiro):** `map/data?layer=lotes` filtrado pela região do coletor (só os delegados desenham; camada quadras segue integral como referência); push blindado (lote fora da região → rejeitado com aviso, sem derrubar o envio); app mostra o aviso.
+- **C — Progresso do coletor (passo 6):** tela "Meu Progresso" no menu (total/coletados/pendentes/inconformidades/restantes/% + detalhe por quadra, 100% offline via SQLite) + contador resumido no mapa.
+- **D — Validação e entrega (passos 7-8):** push grava antes→depois por campo em `coleta_imobiliaria.alteracoes` (jsonb); página **Validação da Coleta** (filtros campanha/coletor/status/período) com export PDF/Excel incluindo divergências de proprietário; ação "Marcar campanha como validada" (quem/quando no tenant.data) — marco antes da integração tributária.
+- **Fora da onda:** escrita no sistema tributário (1º conector real) e reset/nova campanha.
+
+---
+
+## Etapa 3 — Complexa (16–24 h) → 122/124 (98,4%)
+
+#### T3.1 — WMS servidor no endpoint OGC + WFS "nível QGIS"
+**Item PoC:** 1-3 · **Esforço:** 16–24 h · **Status:** ⏳ Pendente
+
+`OgcController` hoje só serve WFS mínimo (GetCapabilities + GetFeature em GeoJSON). Implementar: (a) **WMS** `GetCapabilities` + `GetMap` (renderização PNG em PHP/GD a partir do PostGIS); (b) **WFS compatível com o provedor nativo do QGIS** — diagnóstico de 2026-08-06 com prints do engenheiro: além do erro de uso (conexão criada como WMS/WMTS), o provedor WFS nativo exige `DescribeFeatureType`, capabilities com a seção `<Capability><Request>` (endpoints DCPType) e formato de saída anunciado (GML2/GeoJSON). Workaround documentado na lista testada: carregar as camadas no QGIS via "Protocolo HTTP(S) → GeoJSON" com a URL do GetFeature. Evolução futura: sidecar GeoServer/QGIS Server com proxy autenticado por tenant.
+
+> **T3.2 (EAV)** foi movido para o **Plano de Ação Futura** como item **F2** (decisão D2 de 2026-07-08) — ver seção logo abaixo dos contadores.
+
+---
+
+## Etapa 4 — Ensaio da demonstração (paralela às Etapas 2–3)
+
+#### T4.1 — Roteiro final + ensaio cronometrado
+**Status:** ⏳ Pendente
+
+- Roteiro item-a-item com responsável e caminho de clique;
+- Ensaio cronometrado (a PoC tem 10 dias úteis a partir da convocação — tudo pronto **antes** da convocação);
+- Checklist impresso espelhando as tabelas do edital para a Comissão;
+- Plano B por item: mapear o que cabe na janela de 60 dias pós-contrato caso falhe ao vivo.
+
+---
+
+## Itens extra-backlog — Processos Digitais (implantação Bom Princípio/RS)
+
+> Melhorias no motor BPMN solicitadas em 2026-07-14 para a implantação dos Processos Digitais
+> em Bom Princípio/RS. Beneficiam todos os tenants (motor único).
+
+#### PD-1 — Requerimento assinado antes da análise
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-14
+
+- Check `exige_requerimento` no `BpmnFluxo` + `template_requerimento` (RichEditor com placeholders `{{nome}}`, `{{cpf}}`, `{{protocolo}}`, `{{campo:slug}}`…);
+- **Etapa configurável:** toggle `exige_requerimento` na `BpmnEtapa` (etapas do solicitante) define ONDE o requerimento é exigido; sem marcação, vale a 1ª etapa. `{{campo:slug}}` resolve de todas as etapas já respondidas;
+- Na etapa do requerimento, o processo fica `aguardando_solicitante`, em duas fases: **1)** o cidadão preenche/anexa os campos do formulário e envia (salva os dados); **2)** só então a seção do requerimento aparece — gera o PDF (preenchido com os dados enviados), baixa, assina fora do sistema e anexa o PDF assinado (só o assinado aparece na lista de documentos);
+- Só com o requerimento assinado anexado o processo segue para análise. Fluxos sem o check seguem inalterados;
+- Anexos `requerimento_gerado` (auditoria) e `requerimento_assinado` (versionados via `versao`/`anexo_origem_id`).
+
+#### PD-2 — Checklist de análise por anexo
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-14
+
+- Aprovar/reprovar cada anexo individualmente (`processo_anexos.status_analise` + `observacao_analise` + auditoria de quem/quando), apenas para anexos (`formulario` e `requerimento_assinado`) — campos de formulário ficam de fora;
+- O analista marca os itens e julga a etapa normalmente; aprovar a etapa exige o checklist COMPLETO (item pendente ou reprovado bloqueia); reprovar concatena a lista de itens reprovados ao parecer (flui para tramitação e e-mail);
+- Na correção, o cidadão só substitui os anexos reprovados (aprovados ficam travados); substituição = nova versão e o item volta a `pendente`;
+- Vínculo campo↔anexo por nova coluna `campo_slug`.
+
+#### PD-3 — Campos condicionais no construtor de formulário + blocos condicionais no requerimento
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-14
+
+- Novo tipo de campo **"Seleção Única"** (select — ex.: Estado Civil) no construtor de formulário das etapas;
+- **Exibição condicional** em qualquer campo: "Mostrar somente se o campo [X] tiver o valor [Y]" (gatilho = Seleção Única ou Múltipla Escolha, mesma etapa; campo oculto não é validado nem exigido);
+- **Blocos condicionais no template do requerimento**: `{{#se campo:estado-civil = Casado}} ...texto com {{campo:nome-do-conjuge}}... {{/se}}` (operadores `=`, `!=` e `contem`).
+
+#### PT-1 — Página Portal de links por município (`/portal/{slug}`)
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-14
+
+- Landing pública responsiva por tenant (brasão + cor do município) para a prefeitura usar como link no site oficial;
+- 4 botões: login do painel cidadão (`/cidadao/login`), cadastro (`/cidadao/register?prefeitura={slug}`), mapa público anônimo (`/cidadao/mapa-publico?t={slug}`) e vídeo tutorial global (URL em `ApiSetting name='Portal'`, chave `VIDEO_TUTORIAL_URL`, nova aba; botão oculto sem config);
+- Action "Link do Portal" no `TenantResource` (admin) + remoção do provider fantasma `PortalPanelProvider` do bootstrap;
+- Login do cidadão "limpo" (page custom `LoginCidadao` sem o link "registre-se" + remoção dos hooks "Acessar mapa sem cadastro") — os atalhos levavam ao seletor de município; a porta de entrada agora é o Portal. Rotas de registro/mapa seguem ativas;
+- Registro sem o link "Trocar" prefeitura (passo 2) — a prefeitura vem fixada da URL do Portal; faixa mostra só o nome (sem o rótulo "Prefeitura"); o link "faça login na sua conta" carrega o `?prefeitura=` para o login manter o brasão;
+- Brasão do município no login/cadastro/navbar do painel cidadão (`logo-cidadao.blade.php`; login do Portal passa `?prefeitura={slug}`; fallback = logo SIGWEB);
+- Reset de senha em PT-BR com a marca do município e envio SÍNCRONO via Resend (`ResetSenhaNotification` + bind no container — a notification original do Filament é ShouldQueue e ficava presa na fila sem worker).
+
+#### PD-4 — Refinamentos de cadastro e processos (CPF/CNPJ, múltipla escolha, correção focada, layout de documentos)
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-14
+
+- Cadastro do cidadão com **CPF ou CNPJ** (máscara dinâmica; CNPJ → `Pessoa type=juridica`, dedup por `cnpj`);
+- Construtor de campos: máscaras **CNPJ** e **CPF ou CNPJ (dinâmica)** no bloco "Campo com Máscara";
+- "Múltipla Escolha" renderiza como **Select multiple** (bug do CheckboxList: marcar uma opção marcava todas);
+- Correção focada: com itens reprovados no checklist, o cidadão vê **só os campos reprovados** (merge do save aprofundado para 2 níveis — etapa + campo — para não apagar o restante); reprovado fora do formulário (ex.: requerimento assinado) → nenhum campo da etapa, só a seção do item; botões do checklist só em item pendente (decidido → "↺ desfazer");
+- Documentos na View do analista em **largura total**, um anexo por linha com Aprovar/Reprovar/Anotar na mesma linha.
+
+#### PD-5 — Exigência de aprovação de anexos configurável por etapa
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-22
+
+- Nova config `bpmn_etapas.aprovacao_anexos` (etapas do analista): **`nao_exige`** (aprova a etapa mesmo com anexos pendentes), **`novos`** (exige aprovar só os anexos enviados desde a última etapa de análise — ex.: comprovante de pagamento no Financeiro) e **`todos`** (exige o checklist completo do processo — ex.: análise final da Engenharia; default = comportamento atual);
+- Documento **reprovado bloqueia sempre**, em qualquer modo (devolver ao cidadão ou desfazer a reprova);
+- Caso de uso (Aprovação de Projeto Bom Princípio): Financeiro 1ª passagem `nao_exige` → cidadão paga/anexa comprovante → Financeiro `novos` aprova só o comprovante → Engenharia `todos` aprova os documentos iniciais e conclui.
+
+#### PD-6 — Upload múltiplo no construtor de formulário das etapas
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-23
+
+- Toggle "Permitir vários arquivos" (+ máximo configurável) no bloco "Upload de Arquivo" do construtor;
+- Cada arquivo vira um `ProcessoAnexo` próprio (aprovável/reprovável individualmente no checklist PD-2);
+- No campo múltiplo não há cadeia de versões: arquivo removido pelo cidadão (não aprovado) é soft-deletado na sincronização; travamento do campo na correção = todos aprovados; reprovado em qualquer arquivo exige substituição.
+
+---
+
+## Release 67 — Coleta cadastral (campos por município, boletim, regiões, integração fiscal)
+
+> Ajustes no app de coleta (CTM) e no gerenciador web, solicitados em 2026-07-29 (antes da PoC Tangará 17/08).
+> Beneficiam todos os municípios. Plano completo em `C:\Users\jesse\.claude\plans\precisamos-melhorar-alguns-aspectos-reflective-hopcroft.md`.
+>
+> **Organização do menu (revisada em 2026-07-29):** customização de campos e integração tributária **não** são da coleta —
+> valem para o sistema todo. Grupo **Customizações** (Campos Customizados + Campos Padrão do Sistema) ·
+> grupo **Configurações** (Integração Tributária) · grupo **Coleta cadastral** apenas Boletim de Coleta + Regiões dos Cadastradores.
+
+#### R67-1 — Campos customizados por município (lotes, edificações, unidades)
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-29
+
+- Entidade `CampoCustomizado` (tenant, entidade, label, slug snake_case, tipo [texto|numero|selecao|multipla|data|sim_nao], opções, obrigatório, na_coleta, ordem, ativo) + coluna `dados_customizados` JSON nas 3 tabelas;
+- Presentes em: formulários web (LoteResource, modais do mapa, RelationManagers), boletim do app, exports (Excel/PDF/XML), BIC e **importação GIS** (property do GeoJSON com o slug → valor).
+
+#### R67-2 — Campos padrão "white-label" por município
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-29
+
+- `CampoDominio` (tenant, entidade, campo): **rótulo** + **lista de valores** + visibilidade + exigência na coleta, configuráveis por município para os campos taxonômicos (`ocupacao`, `situacao_quadra`, `tipo`, `tp_construcao`, `caracteristica_construcao`, `estado_conservacao`, `pavimento`);
+- A coluna no banco **não muda** (relatórios, PGV, mapa e contrato do app seguem estáveis); fallback para o padrão do sistema quando não configurado;
+- O vocabulário de `estado_conservacao` passa a servir também à Depreciação do PGV.
+
+**Correção 2026-07-30 —** `lotes.ocupacao` e `lotes.situacao_quadra` eram `enum()` (varchar + CHECK no PostgreSQL) e recusavam o vocabulário do município ao salvar o lote. Migration `2026_07_30_100000_drop_dominio_check_constraints_from_lotes` remove as duas restrições (mantém `lotes_status_cadastro_check`, que é estrutural). Junto: `CampoDominioService::rotuloValor()` traduz valores gravados nas telas/PDFs/exports, `aplicar()` preserva no Select o valor legado fora da nova lista, a Planta de Quadra passa a contar por vocabulário e o modal "Criar Lote" do mapa (que ficara com a lista fixa) foi plumbado.
+
+#### R67-3 — Boletim de coleta configurável
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-29
+
+- `ConfiguracaoColetaPage` (painel do município): quais campos BASE são exigidos no boletim (lote/edificação) + rótulos/vocabulários + mapa fiscal;
+- Novo `GET /api/coleta/config`: o app monta o boletim inteiro a partir do payload (campos base, campos padrão com rótulo/opções do município, campos customizados, região). Obrigatoriedade validada no app — o push nunca rejeita coleta offline.
+
+#### R67-4 — Regiões por cadastrador
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-29
+
+- `ColetaAtribuicao` (tenant, user, período, quadras[], ativo) + Resource no painel do município, com **seleção das quadras pelo MAPA** (clique alterna; quadra de outro cadastrador no mesmo período aparece em vermelho e é bloqueada — no mapa e no servidor) e **mapa geral na lista** com uma cor por cadastrador;
+- `pull`/`nearest` filtram por quadra da atribuição vigente: **sem atribuição → pull vazio** (Master/Manager baixam tudo); resolve o travamento do app por carregar toda a base;
+- Índice novo em `lotes.quadra_id`. ⚠️ Implantação: atribuir região a todos os cadastradores antes de atualizar o app.
+
+#### R67-5 — Integração fiscal por SISTEMA (catálogo global no /admin)
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-29 · **Revisado em:** 2026-07-30
+
+- **Revisão 2026-07-30 (decisão do usuário):** o de/para é característica do SISTEMA (Betha, GOVBR, IPM, Fiorilli…), não da prefeitura — e deixá-lo editável no painel do município era risco operacional. Virou **catálogo global** `SistemaTributario` no painel **/admin** (`SistemaTributarioResource`, Configurações Globais); o `TenantResource` ganhou a seção "Integração Tributária" com o select do sistema (`tenant.data['sistema_tributario_id']`). Export divergente do mesmo fornecedor = outra entrada no catálogo ("Betha — layout 2"). A página por-tenant e a permissão `gerenciar_integracao_fiscal` foram removidas;
+- O JSON bruto (`dados_tributarios`) continua sendo a verdade; as 13 colunas fiscais seguem como **projeção canônica**; sem sistema apontado = passthrough. Aplicado em `tributario:importar`, sync da API e BIC (extras);
+- **Futuro (fora desta release):** transformações/fórmulas, agendamento, **retorno SIGWEB → sistema tributário** (divergências da coleta), **BIC estruturalmente customizável**, tipo de campo "foto".
+
+#### R67-10 — Chave simulação ↔ produção + arquitetura de conectores de API
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- **A chave:** `tenant.data['tributario_modo']` (`simulacao` | `producao`) — Select na seção "Integração Tributária" do `TenantResource`; "Produção" desabilitado enquanto o sistema escolhido não tiver conector implementado;
+- **Onde as APIs se configuram (2 níveis):** o **conector** (driver — endpoints/autenticação do fornecedor) é do SISTEMA, no catálogo (`sistemas_tributarios.driver` → registry `IntegraPrefeituraService::DRIVERS`, interface `Drivers\TributarioDriver`); as **credenciais** (URL/token da instância) são da PREFEITURA (`tenant.data['tributario_api']`, campos no TenantResource — molde da seção e-SUS);
+- `IntegraPrefeituraService` virou despachante: produção → driver + credenciais; senão → mock. Falha da API real = log + vazio, **nunca** fallback silencioso ao mock. Selo da prefeitura reflete o modo ("— produção (API)"). Registry vazio: 1ª entrada será o `GovbrDriver` (Bom Princípio/RS, P1 do backlog) quando houver credenciais + documentação;
+- Testado com driver fake: resolução pelo catálogo, credenciais chegando ao conector, payload da API traduzido pelo de/para, produção-sem-driver caindo honestamente na simulação e falha de API sem contaminar com o mock;
+- **Ponto de ligação configurável (adição do mesmo dia):** `sistemas_tributarios.chave_ligacao` (código tributário padrão | inscrição imobiliária) declara qual campo da unidade localiza o imóvel no fornecedor. Novo `buscarImovel(array $identificadores)` — os 8 call sites passam código E inscrição e o service escolhe pelo sistema (o driver recebe chave+valor; o mock busca pelo nome de origem da chave via de/para invertido). Testado: sistema por inscrição acha pela inscrição e recusa busca só-por-código; sistema por código inalterado; syncs não apagam mais a inscrição quando o payload não a traz.
+
+#### R67-9 — Simulação Tributária pelo /admin + de/para no ponto único
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- Ação **"Simulação Tributária"** na listagem do `TenantResource`: upload do JSON (vira `storage/app/mocks/{slug}.json`, com validação/normalização e diagnóstico pós-de/para) + toggle "importar todos agora" (`tributario:importar`). O formulário da prefeitura mostra só o STATUS do arquivo;
+- **Correção de furo:** o de/para só rodava em 1 dos 4 consumidores do `IntegraPrefeituraService`. Agora `buscarImovelPorCodigo()` aplica `MapaFiscalService::aplicar()` internamente (ponto único) e a **busca por código aceita o nome de origem** (de/para invertido) — JSON "cara do sistema" (ex.: `cdImovel`, `nrInscricao`) funciona em busca, sincronização e importação em massa (que também passou a traduzir ANTES dos lookups);
+- **Prefeitura enxerga a integração:** selo "Sistema — simulação (JSON)" nas seções Dados Fiscais dos modais e no modal Sincronizar (via `rotuloIntegracao()`), sem expor configuração;
+- Testado ponta a ponta: mock estilo IPM com sistema de/para → busca acha pelo código de origem, canônico preenchido, bruto preservado, extras no BIC, `tributario:importar --dry-run` casa pela inscrição traduzida; sem sistema apontado = passthrough como antes.
+
+#### R67-8 — Campos Padrão por entidade + Unidade Imobiliária white-label
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- "Campos Padrão do Sistema" virou **tabela Filament nativa** (busca, filtro por entidade e por "personalizado", agrupamento por entidade, toggle "usar este campo" inline) — linhas de `campo_dominios` semeadas sob demanda com valores-fallback; a ação "Personalizar" abre o detalhe da entidade (`campos-padrao/{entidade}`) com os fieldsets de rótulo/lista/uso. Extensível: nova entidade (ex.: Árvore) = registrar em `CampoDominioService::PADROES`;
+- **Unidade Imobiliária** entrou nos campos padrão: as 13 colunas fiscais com **rótulo + ocultar** (sem lista de valores — decisão do usuário: os valores vêm do sistema tributário). Inputs dos modais Cadastrar/Editar Unidade agora nascem de `componentesFiscaisUnidade()` (white-label aplicado); campos padrão da unidade ficam **fora** do Boletim de Coleta e do app (`ENTIDADES_NA_COLETA`).
+
+#### R67-6 — Resumo de Produtividade por região designada
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- `ProdutividadePage` deixa de filtrar por **Setor Fiscal** (recorte que não corresponde ao trabalho de campo) e passa a filtrar por **data inicial + data final + cadastrador**;
+- A tabela mostra **apenas as quadras designadas** (`ColetaAtribuicao` que se sobrepõe ao período), com cadastrador, período da atribuição, total de lotes, coletados no período e **percentual cumprido** de cada quadra;
+- Botão **Exportar PDF** no topo da página (blade `pdf/produtividade-quadras.blade.php`, paisagem), respeitando os filtros da tela.
+
+#### R67-11 — Operadores do painel /admin (delegar tarefas sem dar acesso total)
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- **Decisão (usuário, 2026-07-30):** manter **um único painel** `/admin` com papéis, em vez de criar um painel de suporte separado — as tarefas a delegar (importar GIS, editar prefeitura) vivem dentro do `TenantResource`, e duplicá-lo custaria manutenção eterna;
+- Papel **global** `Operador` (`roles.tenant_id = null`, mesmo mecanismo do Master) + 9 permissões `admin_*` marcadas **por usuário** (`AdminAcessoSeeder`). `User::papelAdmin()/isMaster()/podeNoAdmin()`; `canAccessPanel('admin')` passou a aceitar Master **ou** Operador;
+- Novo **`UsuarioAdminResource`** (Configurações Globais → Usuários do Admin), **visível só para o Master**: cria/edita/exclui operadores e marca as capacidades (checkbox com descrição). `User::sincronizarAcessoAdmin()` mexe só nos vínculos globais — papéis que a pessoa tenha **dentro de prefeituras** (Manager) ficam intactos, o que `syncRoles()` do Spatie não garante com teams ligado;
+- Travas: `TenantPolicy` (excluir prefeitura = só Master), `ApiSettingPolicy` e `SistemaTributarioPolicy` (só Master); ações do `TenantResource` com `visible()` por capacidade; seções e-SUS e Integração Tributária ocultas para o Operador;
+- **Correção de furo achada no caminho:** o `EditTenant` não preservava as chaves do JSON `tenant.data` ausentes do formulário — salvar a prefeitura apagava `coleta_campos_base` e credenciais de seções ocultas. `mutateFormDataBeforeSave` agora faz merge com o `data` atual;
+- Testado (38 asserções, transação revertida): operador entra no /admin e só executa o marcado, sem acesso a APIs/sistemas/exclusão; revogação; Master irrestrito; papel de prefeitura preservado; merge do JSON. ⚠️ **Implantação:** `php artisan db:seed --class=AdminAcessoSeeder`.
+
+#### R67-12 — Importação GIS: referência não encontrada não pode virar vínculo cruzado
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- O `resolveRelacionamento` do importador traduz o id do GeoJSON pelo par (`tenant_id`, `sequential_id`) — é isso que permite cada município ter numeração própria começando em 1. Quando **não achava**, caía no número do JSON como id global e podia amarrar o registro na entidade de **outra prefeitura** (a PK é sequência global), silenciosamente;
+- Agora vínculo não resolvido fica **nulo** e a notificação final vira aviso **persistente** com a contagem por entidade ("⚠️ 38 × Quadra — importe a camada superior primeiro"). Sintoma típico: hierarquia importada fora de ordem;
+- Testado ponta a ponta pela ação real (transação revertida): município novo com quadras 1–2, lotes apontando para elas ficam corretos, lote apontando para quadra inexistente fica com `quadra_id` nulo (antes apontaria para a quadra id 99 da prefeitura 1), campo customizado (`numero_teste`) importado do GeoJSON e base sem nenhum vínculo cruzado.
+
+---
+
+## Pós-PoC — releases especificadas e paradas
+
+#### 🗂️ Nuvem (S3/CloudFront) + Pacote de dados + Zerar dados no /admin
+**Status:** 📋 Especificado, **não implementado** — retomar depois da PoC de Tangará
+**Especificado em:** 2026-07-30 · **Documento:** [releaseNuvemFerramentasAdmin.md](releaseNuvemFerramentasAdmin.md)
+
+- Três frentes do painel `/admin`, levantadas no código e no banco reais: **(1)** armazenamento em nuvem — hoje 15,4 GB de ortofoto/LiDAR em `public/` e 126 MB de anexos, com anexos de processos e documentos de pessoas **publicamente acessíveis por URL sem login**; **(2)** pacote de dados por prefeitura (portabilidade, **não** backup); **(3)** zerar dados por conjuntos coerentes, nunca tabela a tabela;
+- Decisões já tomadas com o usuário: AWS S3 + CloudFront, credenciais em `api_settings` (nunca `.env`), pacote de entrega (planilhas + camadas + anexos + PDFs) com link temporário, exclusão em cascata com previsão de impacto, e privacidade dos anexos corrigida junto;
+- **Bloqueador conhecido:** o sistema **não tem backup automático**; a mitigação da ferramenta de zerar é operacional (`pg_dump` agendado) e a ferramenta só libera se houver pacote gerado nos últimos 7 dias.
+
+#### 🐛 Bug corrigido no levantamento — exclusão em massa de lotes pelo mapa
+**Status:** ✅ Concluído
+**Concluído em:** 2026-07-30
+
+- [MapaFullscreen.php:878](../../app/Filament/Pages/MapaFullscreen.php#L878) fazia `$lote->query()->delete()` — `Model::query()` é **estático** e devolve builder **sem WHERE**: excluir um lote pelo mapa soft-deletava **todos os lotes da prefeitura ativa** (recuperável pelo `TrashedFilter`, mas silencioso). Corrigido para `$lote->delete()`;
+- Testado em transação revertida: 4.434 → 4.433 lotes ativos (exatamente o alvo), demais prefeituras intactas.
+
+---
+
+## Itens extra-backlog — App de Coletas: correções urgentes de campo (2026-08-26)
+
+**Status:** ✅ Concluído
+**Concluído em:** 2026-08-26
+
+Cinco bugs reportados do uso em campo, todos corrigidos **no app RN** (`app-coletas` — nenhuma migração de banco; backend intocado):
+
+1. **Mapa offline-first** — fechar o app sem internet deixava só os pendentes no mapa (a base da região já estava no SQLite via pull, mas nunca era desenhada). Fetch por bbox falhou → fallback da base local (`getLotesBaseLeves` + cache de centróides + filtro de viewport em JS).
+2. **Área edificação > área do lote não bloqueia mais o salvar** — virou aviso âmbar + Alert oferecendo "Marcar Inconformidade" (seta status e pré-preenche descrição) ou "Salvar assim mesmo". Área construída pode legitimamente superar o terreno (2+ pavimentos).
+3. **Botão Sync sob a barra do Android** — edge-to-edge obrigatório do Expo SDK 54; FABs do MapScreen e bottom sheet agora somam `insets.bottom` (SafeAreaProvider no App.js).
+4. **Número do lote sobre o polígono** — o app lia `properties.numero_lote`, mas o `MobileMapDataController` manda em `properties.name`; visibilidade por zoom lia ref durante o render (nunca re-renderizava) → virou state booleano; threshold 0.015→0.03.
+5. **Lentidão/fechamento silencioso (OOM)** — fotos base64 saíram do state do mapa e dos params de navegação (bottom sheet usa `getLoteResumo`, sem fotos; EditLote hidrata tudo do SQLite no mount via `loteBase` — de quebra corrige data-loss ao reabrir ficha pendente, que apagava fotos/observação no re-save); teto de render 500→300 polígonos.
+
+> Recomendação registrada: instrumentar crashes do app (Sentry/`adb logcat`) — hoje não há visibilidade de OOM em produção.
+
+**Complemento (mesmo dia, builds 1.1.1→1.1.3 + Sentry):** Sentry integrado (org `genesis-16`) e caçada guiada por eventos reais de campo: teto de labels (ANR), troca de camadas num render só + sem `strokeDashArray` + recarga adiada por `InteractionManager` (SIGSEGV/SIGABRT no ShadowNode do Fabric), "Próximo imóvel" **offline** (haversine na base local — item #15 do TR de AC), câmera **sem tela de recorte** + preview adiado (crash na volta da câmera), **rascunho automático da ficha** (crash não perde mais preenchimento; recuperação por prompt), **"atendidos" = coletados + inconformidades** nos percentuais (app + ProdutividadePage + API + PDFs) e fotos do PDF detalhado com proporção preservada. Pendência conhecida (pós-PoC): upgrade `react-native-maps`/Sentry≥8.5 p/ extinguir a família ShadowNode.
+
+---
+
+## Itens extra-backlog — Exclusão definitiva de prefeitura + limpeza de órfãos (2026-08-27)
+
+**Status:** ✅ Concluído
+**Concluído em:** 2026-08-27
+
+Pedido do usuário pós-PoC de Antônio Carlos (aprovada em 2026-08-28... na véspera — vitória! 🏆): exclusão FÍSICA de tenant com tudo que lhe pertence.
+
+- **Achado do levantamento:** o `DeleteAction` cru já apagava fisicamente (~97 FKs `cascadeOnDelete`; `Tenant` nunca teve SoftDeletes) — sem prévia nem confirmação forte, e deixando órfãos: usuários, roles Spatie, viabilidades, arquivos locais/R2.
+- **Entregue:** [TenantExclusaoService](../../app/Services/Saas/TenantExclusaoService.php) (prévia de impacto via information_schema, varredura pós-cascata genérica, usuários exclusivos hard-delete com proteção de papel global/multi-tenant, arquivos coletados antes do delete + R2/nuvem-pontos/mock), ação "Excluir prefeitura (definitivo)" no `TenantResource` (só Master, slug digitado; bulk delete removido) e comando **`tenant:limpar-orfaos`** (dry-run por padrão, `--executar` aplica) p/ restos de exclusões antigas.
+- **Testado:** ponta a ponta na base local com tenant descartável (kit cascateado ✓, usuário exclusivo hard-deleted ✓, role órfã capturada pela varredura ✓) + dry-run do comando.
+- Relacionado: parte 3 da release especificada [releaseNuvemFerramentasAdmin.md](releaseNuvemFerramentasAdmin.md) (o gate de pacote de exportação/7 dias fica p/ a release; dump manual via phpPgAdmin é o mitigador atual).
+
+---
+
+## Itens extra-backlog — Fundos de mapa no app + ortofotos por tenant + labels (2026-08-27)
+
+**Status:** ✅ Concluído
+**Concluído em:** 2026-08-27
+
+Pedido do usuário (build 1.1.4 do app + web/admin):
+
+1. **Satélite no app**: `mapType` nativo do Google (`hybrid` = satélite com nomes de rua) — sem custo, sem tiles externos; Azure descartado no app (chave exposta + custo por tile p/ o mesmo resultado).
+2. **Ortofotos N-por-tenant**: tabela `ortofotos` (nome + URL template XYZ + ativo + ordem; FK cascade → entra sozinha na exclusão definitiva), Repeater no `TenantResource`, basemaps dinâmicos no seletor do mapa web e opções no botão **"Mapas"** da bottom bar do app (payload `tenant.ortofotos` no login; `UrlTile` sobre satélite). URL livre → decisão de hospedagem (R2 público/VPS) virou operacional, não de código.
+3. **Números dos lotes por demanda**: teto de 150 labels deixou de ser tudo-ou-nada — escolhe os mais próximos do centro da tela; + correção do label vazio do Android (`collapsable={false}`).
+4. **Hospedagem no Cloudflare R2 + `tiles.sigwebmidia.com.br`** (2026-08-29 → 09-01, operacional): Santa Cecília (PNG, depois convertida para **WebP** = 15% do tamanho, prefixo novo `ortofoto-2025-webp`) e Jucurutu 2026 (3 pirâmides sede/Boi Selado/Nova Santana **fundidas** no prefixo `ortofoto-2026-sede`, 1 colisão composta). Lições: WebP q85 como padrão; troca de versão sempre em prefixo novo (cache de borda de 1 mês prende tile re-enviado); processo documentado no CLAUDE.md.
+
+---
+
+## ~~Item extra-backlog — Ortofotos com tiles 512×512~~
+
+**Status:** ✅ Concluído (código web + app; Santa Cecília re-tilada em 512 a partir dos PNGs — 25.017 objetos; Jucurutu 512 entra quando a Líder entregar a pirâmide WebP/512)
+**Concluído em:** 2026-09-01
+
+Padrão novo combinado com a Líder (Pedro): `gdal2tiles --xyz --tiledriver=WEBP --webp-quality 85 --tilesize=512`. O tile 512 tem 4× a área → ¼ das requisições e do overhead por tile; z22@512 equivale a z23@256 em resolução. Hoje web e app assumem 256 fixo, então uma pirâmide 512 renderizaria em escala errada.
+
+Escopo: (1) migration `ortofotos.tile_size` smallint default 256 (256|512); (2) Select "Tamanho do tile" no Repeater do `TenantResource`; (3) engine `mapa-engine.js`: `new ol.source.XYZ({ url, tileSize: [orto.tile_size, orto.tile_size], maxZoom: 22 })` por ortofoto; (4) app: `tile_size` no payload `tenant.ortofotos` (`BuildsMobileAuthResponse`) e `<UrlTile tileSize={orto.tile_size} maximumZ=…>` no `MapScreen` (default 256 p/ payload antigo); (5) CLAUDE.md. Depois: recadastrar Jucurutu apontando p/ `.../ortofoto-2026/{z}/{x}/{y}.webp` com 512, purgar os prefixos PNG e, mais tarde, re-tilar Santa Cecília em 512.
+
+---
+
+## ~~Item extra-backlog — Módulo Mobilidade Urbana (Piúma/ES)~~
+
+**Status:** ✅ Implementado (Ondas 0–4 concluídas em 2026-09-01; pendências operacionais — classificação dos sentidos com a equipe e deploy — registradas no backlog próprio)
+**Concluído em:** 2026-09-01
+Backlog e decisões em [piuma.txt](piuma.txt): 6 entidades + catálogo cobrem os 19 layers do levantamento (~2.750 features importadas no tenant de teste), mapa completo (toggles, setas de sentido, "Colorir por", CRUD geográfico), 7 Resources com exports em 4 formatos e caneta de classificação em massa de sentidos.
+
+---
+
+## ~~Item extra-backlog — Reorganização de módulos × menu × mapa (2026-09-05)~~
+
+**Status:** ✅ Concluído (verificado por render interno de dashboard + mapa em Santa Cecília [16 módulos] e Piúma [base + mobilidade]: ordem da sidebar, dos acordeons, das camadas por acordeon e dos grupos/itens do Criar Artefatos batem com a regra; `ModulosTest` 9/9; backfill `chamados` aplicado no banco local)
+**Concluído em:** 2026-09-05
+**Deploy:** `php artisan modulos:backfill --executar` (quem tem `coleta_cadastral` ganha `chamados`) + conferir módulos por prefeitura no /admin. Sem migration nem permissão nova.
+**Origem:** revisão do usuário sobre o catálogo `config/modulos.php` (decisão D8 em [Modulos_Permissoes.txt](Modulos_Permissoes.txt)).
+
+Regra nova: **a sidebar, os acordeons da janela de camadas e os grupos do "Criar Artefatos" contam a mesma história** — mesmos nomes, mesma ordem, mesmo gate de módulo. Escopo:
+
+1. **Sidebar** (`AppPanelProvider::navigationGroups()`), ordem de exibição: Módulo Administrativo · Base Cartográfica · Módulo Imobiliário · Coleta cadastral · Processos Digitais · Consultas de Viabilidade · **Imageamento** (grupo novo, só Pontos Panorâmicos — sai do Administrativo) · Mobilidade Urbana · Módulo Social · Gestão Tributária (PGV) · Iluminação Pública · Meio Ambiente · Manutenção e Serviços · Estoque e Almoxarifado · Patrimônios Públicos · Gestão de Cemitérios · Cadastro Rural · App de Chamados · WMS · Customizações · Configurações · Ajuda.
+2. **Seções de Logradouro** seguem o Logradouro: Resource no grupo Base Cartográfica, permissões `gerenciar_secoes_logradouro`/`ver_camada_secoes_logradouro` e a camada `secoes_logradouro` saem de `imobiliario` para `base_cartografica`. Continuam sendo criadas a partir do próprio logradouro (sem botão novo no Criar Artefatos).
+3. **App de Chamados vira módulo próprio** (chave `chamados`, sem pré-requisito): 3 Resources, permissões `gerenciar_categorias_chamado`/`gerenciar_fluxos_chamado`/`gerenciar_chamados`/`ver_camada_chamados` e a camada `chamados` saem de `coleta_cadastral`. Backfill: quem tem `coleta_cadastral` ganha `chamados` (`modulos:backfill`).
+4. **Janela de camadas**, ordem espelhando a sidebar: **Base Cartográfica** (renomeado de "Cadastro Base", aberto ao carregar; perímetros, bairros, logradouros, seções) · **Cadastro Imobiliário** (novo: loteamentos, quadras, lotes, edificações, meio-fios) · Zoneamento Urbano · Coleta de Dados · Processos Digitais · **Imageamento** (novo: pontos 360, sai de Infraestrutura) · Mobilidade Urbana · **Cadastro Social** (renomeado de "Inteligência Social") · Infraestrutura (setores fiscais — vindo do Cadastro Base —, áreas REURB, patrimônios, postes, árvores, chamados) · Gestão de Cemitérios · Cadastro Rural · Anotações.
+5. **Criar Artefatos** espelha os acordeons (mesmos nomes/ordem/gates), itens do maior para o menor, tipo de geometria à direita de cada item; grupo "Anotações" com Texto/Toponímia.
+6. **Dashboard:** gráfico de barras por bairro à esquerda + **pizza de logradouros por extensão (m)** à direita (`LogradourosPieChart`, gate `base_cartografica`); donut de zonas abaixo dos dois (largura total, só com `imobiliario`).
+7. Fora do escopo (decisão do usuário): fusão Pessoas + Social (Administrativo fica como está); Pessoas continua no módulo `administrativo`.
+
+---
+
+## ~~Item extra-backlog — Mapa público: acordeons no padrão D8 + Mobilidade Urbana só leitura (2026-09-05)~~
+
+**Status:** ✅ Concluído (render anônimo interno de `/cidadao/mapa-publico?t=slug` em Piúma [Base + Mobilidade, 11 camadas, 26 mini-filtros] e Santa Cecília [8 acordeons na ordem D8, 29 camadas]; `/api/gis-data` serve `mob_vias`/`mob_fluxos` sem login; blade compilado; `node --check` no engine)
+**Concluído em:** 2026-09-05
+**Origem:** pedido do usuário após a reorganização D8 — "o mapa público deve refletir o ajuste dos acordeons existentes e ter o módulo de Mobilidade Urbana com a opção de somente leitura".
+
+Escopo (mapa `/cidadao/mapa-publico`, [MapaPublico](../../app/Filament/Cidadao/Pages/MapaPublico.php) + [mapa-publico.blade.php](../../resources/views/filament/cidadao/pages/mapa-publico.blade.php) + [mapa-cidadao-engine.js](../../public/js/gis/mapa-cidadao-engine.js)):
+
+1. **Acordeons reorganizados no mesmo padrão da intranet, só com o que o público já mostra:** Base Cartográfica (perímetros, bairros, logradouros; abre por padrão) · Cadastro Imobiliário (loteamentos, quadras, lotes) · Zoneamento Urbano · Imageamento (pontos 360, sai de Infraestrutura) · **Mobilidade Urbana** (novo) · Infraestrutura (setores fiscais — vindo do "Cadastro Base" —, arborização, iluminação) · Gestão de Cemitérios · Cadastro Rural.
+2. **Gate por módulo no público** (hoje não existia): cada acordeon só aparece se o módulo estiver ativo na prefeitura (`Modulos::ativos($tenant)` calculado no `mount`, tenant resolvido por login ou `?t=slug`). Sem isso, Mobilidade apareceria para toda cidade e Piúma mostraria acordeons vazios.
+3. **Mobilidade Urbana só leitura:** as 8 camadas (`mob_trechos`, `mob_vias` com setas de sentido, `mob_sinalizacoes`, `mob_pontos_interesse`, `mob_eixos`, `mob_zonas`, `mob_fluxos` coloridos por destino com %, `mob_cameras`) com os mini-filtros por tipo/categoria/destino e o "Simular fluxo" (visual). Clique = **ficha só leitura** (painel JS com os atributos da feição; câmera abre o player público). **Sem** criação, edição, caneta de sentido, "Colorir por" ou coroplético. O endpoint `/api/gis-data` já serve as camadas e devolve 403 para módulo inativo.
+
+---
+
+## ~~Item extra-backlog — Auditoria: diff de coluna JSON chave a chave (2026-09-05)~~
+
+**Status:** ✅ Concluído
+**Concluído em:** 2026-09-05
+Pedido do usuário após teste em Santa Cecília (edificação com 5+ campos do município): o "Ver detalhes" e o PDF/Excel despejavam o `dados_customizados` inteiro antes/depois, escondendo a alteração real. Novo [AuditoriaDiffService](../../app/Services/Auditoria/AuditoriaDiffService.php) = fonte única do modal e dos exports: coluna JSON explodida chave a chave, numa atualização só as chaves que mudaram, rótulo do campo customizado do município (inclusive já desativado/excluído), valores de escolha múltipla como lista. Criação/exclusão continuam listando todas as chaves (estado inicial/final).
+
+---
+
+## ~~Item extra-backlog — Visualizador 360 do mapa público: URL do R2 + navegação Street View (2026-09-21)~~
+
+**Status:** ✅ Concluído (teste funcional com o componente Livewire anônimo em Bom Princípio: URL assinada do R2, foto HTTP 206 com CORS `*`, navegação ponto 349 → 350 pelas setas, ponto de outra prefeitura → null, `$wire.set('tenantId')` bloqueado, blade com aviso no caso sem foto; painel interno conferido após a extração do motor)
+**Concluído em:** 2026-09-21
+**Deploy:** só código — `git pull` + `php artisan optimize:clear` + `php artisan view:cache`. Sem migration, seeder ou mudança no bucket.
+**Origem:** Bom Princípio — no mapa público a foto 360 dava "The file …/storage/{slug}/panoramicas/… could not be accessed". Causa: `MapaPublico::visualizador360Action` montava `asset('storage/'.$image_path)` (trecho anterior à migração das panorâmicas para o bucket privado R2), enquanto o painel interno usa o accessor `PontoPanoramico::imagem_url` (URL assinada). Não é permissão: o público só tem o gate do módulo `imageamento`.
+
+Escopo (decisão do usuário: correção completa + setas):
+1. URL pelo accessor `imagem_url` (R2 assinado → storage local → simulação); sem CORS novo (mesmo domínio do painel interno).
+2. Busca do ponto escopada pela prefeitura do mapa + `#[Locked]` nas propriedades que definem o escopo (o cliente Livewire não pode trocar o tenant).
+3. `northOffset` = azimute da captura (bússola correta).
+4. Ponto sem foto → aviso "Foto ainda não enviada" (fim da imagem de demonstração do Pannellum no público).
+5. **Navegação estilo Street View** no público (só leitura): setas dentro do panorama, vizinhos da mesma trajetória + cruzamentos em 15 m. Motor extraído do trait interno para `App\Services\Gis\PanoramaNavegacaoService` = fonte única dos dois painéis.
+
+---
+
+## ~~Item extra-backlog — Simulação tributária em escala + proprietários por CPF/CNPJ (Cajazeiras, 2026-10-07)~~
+
+**Status:** ✅ Concluído (testes unitários `IntegracaoTributariaTest` + smoke transacional local do comando com mock GeoJSON)
+**Concluído em:** 2026-10-07
+**Deploy:** só código — `git pull` + `php artisan optimize:clear`. Sem migration/seeder. Roteiro da implantação em [docs/implantacao-cajazeiras-tributario.md](implantacao-cajazeiras-tributario.md).
+**Origem:** implantação de Cajazeiras/PB — 21.818 unidades importadas pelo GIS (código tributário = setor.quadra.lote) e `cadastro_imobiliario.json` do tributário com 39.705 imóveis (44 MB, **GeoJSON do QGIS** com os campos em `properties`, `"NULL"` literal, campo CPF = código do imóvel com zeros à esquerda). A ação "Simulação Tributária" recusava o GeoJSON; o `tributario:importar` casa por inscrição (que aqui é o código do lote) e pulava tudo **em silêncio**; e o `sigweb:sincronizar-imoveis` relia e decodificava o mock inteiro **a cada unidade** (horas, estouro do tempo da ação do /admin) e criava Pessoa só pelo nome (DESCONHECIDO viraria uma pessoa com 767 imóveis).
+
+Entregue **sem mudar o resultado das prefeituras já em produção** (decisão do usuário — a leitura dos mocks existentes é byte a byte a de antes):
+1. `IntegraPrefeituraService`: mock lido uma vez por processo + **índice por chave** (`indexar`; valor repetido = primeiro do arquivo vence, a mesma regra do `first()` antigo), `normalizarImoveis` aceita array raiz / `{imoveis}` / **GeoJSON** (só estrutura), `limparValores` (`"NULL"`→null, trim) **só no upload de arquivo novo**, `limparCacheMock()`.
+2. [ProprietarioService](../../app/Services/Fiscal/ProprietarioService.php) (novo): dedupe **segura** — CNPJ/CPF válido (dígitos verificadores) procura por documento em qualquer formatação → senão pelo nome **sem** documento e grava o documento nessa Pessoa (as criadas pela sync antiga nunca duplicam) → senão cria; sem documento válido = `firstOrCreate` por nome como antes; nomes-curinga não viram Pessoa. Canônico novo `proprietario_cnpj` no de/para.
+3. `sigweb:sincronizar-imoveis`: `chunkById(500)`, memória 2 GB, filtra pela chave de ligação do sistema, **preserva** proprietário/endereço quando a fonte não traz (antes gravava null/"S/N"), contadores no resumo (sem dados · sem proprietário · pessoas criadas · falhas logadas no laravel.log).
+4. `tributario:importar` aceita GeoJSON e avisa quantos ficaram sem inscrição; ações do /admin com limite de memória, mock novo salvo compacto e textos de ajuda apontando o caminho pela CLI para bases grandes.
+5. **Bug da lixeira na validação da unidade (achado na VPS, SQL confirmou):** os 4 `unique()` dos modais Criar/Editar Unidade do mapa (`HasLoteActions`) contavam unidades **soft-deletadas** — `01.124.0030` tinha 1 viva + 2 na lixeira (importações de 18/09 e 22/09 substituídas) e a edição era barrada com "já está cadastrada". Agora as regras levam `->whereNull('deleted_at')`. Efeito nas outras prefeituras: só deixa de barrar por registro que já está na lixeira (qualquer uma que usou "Substituir" ou apagou unidade). O restante dos códigos repetidos de Cajazeiras (53, listados em `resumo-duplicidades-unidades.txt` na pasta da implantação) é dado: 34 lotes com N unidades reais usando o código do LOTE em vez do `CODIGO_IMOVEL`, 17 duplicatas de desenho, 2 códigos malformados (+389 unidades fora do padrão `NN.NNN.NNNN` que nunca casam com o tributário).
+
+---
+
+## Release 78 — Ajustes em sistema com ênfase em implementações
+
+#### ~~R78-1 — Lote × Edificação desacoplados + acordeon de edificações + downloads do lote~~
+**Status:** ✅ Concluído (teste funcional com o componente Livewire em Santa Cecília: acordeon, olhinho individual/todos, beiral de 9 m² fora do lote salvo, centro fora bloqueado com a geometria intacta, criação com centro em outro lote bloqueada, aviso ao editar o lote, vínculo pelo clique no mapa com Auditoria `lote_id` 1→29, exclusão pelo acordeon, `lote_158.zip` = xlsx + pdf + fotos/ e `Lote_158_fotos.zip`; falta o teste visual no navegador)
+**Concluído em:** 2026-10-07
+**Deploy:** só código — `git pull` + `php artisan optimize:clear` + `php artisan view:cache`. Sem migration/seeder/permissão.
+**Origem:** pedido da equipe de Engenharia — "editar o lote sem interferir na edificação, dizer a qual lote a edificação pertence, editar edificações e baixar todas as fotos".
+
+Situação atual (levantamento do código):
+- Salvar a geometria do lote **não toca** edificações (só checa sobreposição com outro lote → "Edição Cancelada" — [MapaFullscreen.php:944](../../app/Filament/Pages/MapaFullscreen.php#L944)). Por isso o lote pode ser editado para dentro da edificação e salva normalmente.
+- Salvar a geometria da edificação exige que ela fique **inteira dentro do lote** (tolerância de 0,1 m² → "Erro Topológico" — [MapaFullscreen.php:971](../../app/Filament/Pages/MapaFullscreen.php#L971)): o beiral de sobrado que passa do muro é recusado. No modo de edição da edificação, o snap universal **gruda nos vértices do lote**.
+- O desmembramento é barrado quando a linha de corte cruza uma edificação ([MapaFullscreen.php:1756](../../app/Filament/Pages/MapaFullscreen.php#L1756)); na confirmação, a edificação já vai para a parte que contém o seu centróide.
+- Não existe UI para trocar o `lote_id` de uma edificação. Edificação **não tem fotos** — só o lote (`foto_frontal`/`foto_lateral_esq`/`foto_lateral_dir`, disco `public`, `lotes_fotos/`). Não existe download em zip de fotos.
+
+Escopo (decisões do usuário em 2026-10-07):
+1. **Regra do beiral = centróide no lote:** a edificação pode ultrapassar a divisa; só precisa ter o centróide dentro do lote ao qual pertence. Centróide em outro lote → oferece "Vincular ao lote X".
+2. **Sem snap no lote** durante a edição da geometria da edificação.
+3. **Desmembramento não bloqueia mais** por cruzar edificação (segue a atribuição por centróide já existente).
+4. **Acordeon "Edificações (N)" na ficha do lote** (substitui o toggle único "Ver Edificações"): uma linha por edificação, uma abaixo da outra, com **olhinho** (liga/desliga só aquela no mapa — vários pavimentos), **Editar**, **Excluir**, **Geometria** e **Vincular a outro lote**; "+ Nova edificação" mantido. O modal aberto pelo clique na camada geral "Edificações" ganha o mesmo "Vincular a outro lote".
+5. **Vincular a outro lote = mapa + sugestão:** clica no lote destino no mapa e confirma; o sistema sugere o lote que contém o centróide.
+   - Decisões complementares (2026-10-07): editar o LOTE continua livre — a edificação segue vinculada mesmo com o centro fora do novo desenho (só aviso amarelo); o snap da edição da edificação pega **só nas outras edificações** (paredes geminadas), nunca no lote.
+6. **"Baixar fotos"** no modal de fotos do lote → `Lote_{numero}_fotos.zip`.
+7. **"Baixar lote"** na ficha do lote → `lote_{numero}.zip` com **Excel** (abas Lote / Edificações / Unidades, campos customizados inclusos) + **PDF** detalhado + pasta `fotos/` — reaproveitando `LoteExportService` e `pdf/lote-detalhado-report` recortados para 1 lote.
+
+---
+
+## Release 79
+
+#### ~~R79-1 — Mídias no Cloudflare R2 (fotos do lote etc.)~~
+**Status:** ✅ Concluído (local, Santa Cecília: 15 fotos/12 lotes migradas sem falha; ficha interna, BIC, ZIP, pull e push do app, modal de fotos e EditLote testados com foto no bucket, com foto legada e com upload novo; `fotos:limpar-local` em simulação = 15 apagáveis, 3 órfãos intocados)
+**Concluído em:** 2026-10-08
+**Deploy:** `git pull` + `php artisan optimize:clear` → conferir no /admin a linha "Cloudflare R2 Fotos" → `php artisan fotos:migrar-bucket` (simulação) → `php artisan fotos:migrar-bucket --executar` → dias depois `php artisan fotos:limpar-local` (simulação) e `--executar`. Sem migration.
+**Origem:** era o R78-2, adiado para a Release 79 em 2026-10-07.
+Decisões do usuário (2026-10-08):
+- **Bucket PÚBLICO novo** (o usuário cria; sugestão de nome `sigweb-fotos`) com domínio **`fotos.sigwebmidia.com.br`**. A foto frontal do lote já aparece na ficha do **mapa público** (`HasFichaImovelPublico` → `asset('storage/...')`, ou seja, hoje já abre por URL sem login) — o bucket público não muda a exposição. O `sigweb-midia` (privado, 360) continua como está. Cloudflare: Custom Domain, CORS GET/HEAD e token do R2 com leitura e escrita no bucket novo.
+- **Escopo = só as fotos dos lotes** (`foto_frontal`/`foto_lateral_esq`/`foto_lateral_dir`, web + push do app). Documentos de unidade (escritura/matrícula) e anexos de processos **nunca** vão para bucket público; fotos de chamados/OS ficam fora.
+- **Onde está cada foto = pelo caminho gravado** (sem consultar o bucket): `{tenant_slug}/lotes_fotos/...` → bucket (URL `https://fotos.sigwebmidia.com.br/...`); `lotes_fotos/...` legado → disco local da VPS. A leitura dupla fica no código mesmo após a migração (fotos que chegam durante o comando, falha pontual de cópia).
+- **PDFs e ZIPs leem o arquivo pelo disco do bucket**, nunca pela URL (BIC, Viabilidade, PDF de Produtividade, ZIPs do R78-1) — DomPDF não depende de download remoto. Telas (mapa interno, mapa público, LoteResource) usam a URL pública.
+- **Roteiro na VPS:** deploy (foto nova já nasce no bucket) → comando de migração em simulação (total, faltando no disco, tamanho) → `--executar` (copia, confere no bucket, só então troca o caminho no banco; idempotente e retomável).
+- **Disco da VPS: guardar e limpar depois** — os arquivos locais ficam como backup; comando de limpeza separado (simulação por padrão) apaga só os já confirmados no bucket, quando o usuário decidir.
+
+---
+
+## Release 80 — Chamados pelo mapa Público
+
+#### ~~R80-1 — Chamados pelo mapa público (módulo novo)~~
+**Status:** ✅ Concluído (teste funcional local em Santa Cecília: validações, CPF, tempo mínimo com modal aberto, envio sem e com ponto, campo-armadilha, `#[Locked]` bloqueando injeção, limite por IP; painel com filtros, mudança de situação + e-mail interceptado com protocolo/resposta/cor, tela do chamado, camada 200 p/ equipe e 403 p/ anônimo; rota da foto 200 equipe / 403 cidadão e anônimo; Turnstile com as chaves de teste oficiais da Cloudflare; prefeitura sem o módulo sem botão)
+**Concluído em:** 2026-10-08
+**Deploy:** `php artisan migrate` + `php artisan db:seed --class=PermissionsSeeder` + `php artisan permission:cache-reset` + `php artisan optimize:clear` + `php artisan view:cache` → ligar o módulo "PUB - Chamados pelo Mapa Público" nas prefeituras no /admin (papéis que não acompanham todos os módulos precisam de `gerenciar_chamados_mapa`).
+**Origem:** pedido do usuário.
+- Mapa público: botão "Fale conosco" (ícone de chamada) como último item da barra principal, ao lado da pesquisa → modal com nome, celular, e-mail, assunto (Solicitação / Sugestão / Reclamação), título, descrição e uma foto opcional; check "mostrar no mapa" → o cidadão marca o ponto e a localização vai junto com o formulário.
+- Painel `/app`: grupo de menu próprio **"Chamados pelo Mapa"** com a lista, filtros por data e tipo (assunto) e situação do chamado (ex.: pendente, atendido, irrelevante).
+- **Módulo novo** no catálogo (`config/modulos.php`), ligado por prefeitura no `/admin`; sem o módulo, o botão não aparece no mapa público e o grupo não aparece no painel.
+- Separado do "App de Chamados" (módulo `chamados`, que exige cidadão logado e tem categorias/fluxos/fases): aqui é formulário aberto, sem login. Chave de módulo proposta: `chamados_mapa`.
+- Decisões do usuário (2026-10-08):
+  - **Localização:** com "Mostrar no mapa", ao enviar o modal some e o cidadão clica no ponto (ajusta antes de confirmar) + botão "Usar minha localização" (GPS do aparelho) como atalho.
+  - **Situações fixas com cor:** Pendente (amarelo) · Em atendimento (azul) · Atendido (verde) · Irrelevante ou Falso (vermelho). Ao mudar a situação, o cidadão que deixou e-mail recebe aviso pelo **Resend com a marca do município** (protocolo + situação + resposta).
+  - **CPF opcional**, validado pelos dígitos verificadores quando preenchido; guardado normalizado e indexado junto com o protocolo — deixar pronto para uma **futura página pública de consulta de protocolos** (por protocolo/CPF).
+  - **Camada própria no mapa interno**, colorida pela situação; clique abre o chamado; "Ver no mapa" na lista.
+  - Assumidos (sem objeção do usuário): obrigatórios nome, assunto, título, descrição e celular OU e-mail; foto no bucket PRIVADO `sigweb-midia` (URL assinada — pode mostrar pessoas/interior de casas); protocolo exibido ao cidadão ao enviar; permissões próprias (gerenciar + ver camada).
+  - **Anti-spam:** campo-armadilha (honeypot) + tempo mínimo de preenchimento (3 s) + limite de **10 envios por hora por IP**, tudo invisível ao cidadão. **Cloudflare Turnstile pronto no código**, ligado só quando existir a linha "Cloudflare Turnstile" (site key + secret) no /admin.
+  - Futura consulta pública de protocolos: sugerido pedir **protocolo + CPF** (ou protocolo + e-mail) juntos, nunca só o CPF — decidir quando for implementar.
+
+#### ~~R80-2 — "Monitoramento em tempo real" como item independente na janela de camadas~~
+**Status:** ✅ Concluído (mapa interno e público)
+**Concluído em:** 2026-10-08
+- Hoje a camada `mob_cameras` é um sub-check dentro do bloco "Vias Urbanas (sentido)" no acordeon Mobilidade Urbana (mapa interno e público). Passa a ser um bloco próprio no mesmo acordeon, com checkbox no padrão das demais camadas.
+
+---
+
+## Infraestrutura — troca de servidor e arquivos no bucket
+
+#### ~~INF-1 — Migração Hostgator (AlmaLinux + cPanel) → Hostinger (Ubuntu 26.04, sem painel): SIGWEB + site da Líder + Criador de Sites~~
+**Status:** ✅ Concluído — virada em 2026-10-10 (plano, roteiro e conferência em [migracao-servidor.md](migracao-servidor.md))
+**Concluído em:** 2026-10-10
+- Decisão do usuário: **servidor primeiro**; arquivos locais vão por rsync como estão.
+
+#### ~~INF-3 — Backup diário dos bancos de produção no R2 + registro no /admin~~
+**Status:** ✅ Concluído — Release 81 em produção, 1º backup manual OK (SIGWEB 47,9 MB + Criador de Sites 70 KB), trava testada (apagar/sobrescrever recusados), timer diário ligado
+**Concluído em:** 2026-10-10
+- Só os **bancos** e só **produção** (o servidor de testes não tem backup). Buckets privados: `sigweb-backup/banco/AAAA-MM-DD.dump` (PostgreSQL do SIGWEB) e `lider-backup/ferramenta/AAAA-MM-DD.sql.gz` (MySQL do Criador de Sites — o site da Líder vai morar nele). Diário às 3h; **30 dias** com Bucket Lock (nem o servidor apaga) + ciclo de vida apagando após 31 dias. Uma chave R2 restrita aos 2 buckets e ao IP do servidor.
+- Script e agendamento só no servidor (`/root/backup-diario.sh`, fora do git). No SIGWEB: tabela `backup_execucoes` + comando `backup:registrar` (chamado pelo script) + tela **"Backups"** no /admin (Configurações Globais, só Master) com alerta de backup atrasado (> 26 h) + e-mail de falha pelo Resend para o endereço do ApiSetting "Backup" (`ALERTA_EMAIL`).
+
+#### INF-2 — Anexos de processos, documentos e demais arquivos no bucket PRIVADO
+**Status:** 🔄 Em andamento (2026-10-10, Release 82) — escopo ampliado e aprovado em 2026-10-10:
+- **Privado `sigweb-midia`** (link temporário gerado só para quem já pode ver a tela): anexos de processos (incl. requerimentos gerados/assinados e anotações), documentos de pessoas/patrimônios/falecidos, documentos das unidades, fotos do App de Chamados, 360 enviadas avulsas pelo painel (29 pontos).
+- **Público `sigweb-fotos`** (fotos de rua, sem dado pessoal): seções de logradouro, solicitações de manutenção, ordens de serviço.
+- **Público `sigweb-ortofoto`** (`tiles.sigwebmidia.com.br/{slug}/nuvem-pontos/` + `potree/`): nuvem de pontos LiDAR — campo "endereço da nuvem de pontos" no cadastro da prefeitura; sem ele, cai na pasta local e depois na demonstração.
+- **Fica na VPS:** logos das prefeituras, ícones (categorias de chamado, sinalização), mocks tributários, cache de imagem da viabilidade, temporários.
+- Regra igual à R79: **o caminho gravado decide onde está o arquivo** (`{slug}/{pasta}/...` = bucket; `{pasta}/...` = VPS) — leitura dupla para sempre, upload novo vai ao bucket com fallback para a VPS se o bucket recusar (inclui o servidor de testes, cuja chave do `sigweb-midia` é só leitura). Comando de migração (copia, confere tamanho, troca o caminho via `DB::table`, inclusive dentro de `dados_formulario`/`processo_respostas`) + comando de limpeza do disco local.
+- **Impacto nas prefeituras:** nenhuma tela muda; links de anexos/documentos deixam de abrir sem login (passam a expirar); a migração roda com o sistema no ar (leitura dupla).
+- **Implementado (2026-10-10, testado no local):** [App\Support\Midia](../../app/Support/Midia.php) + macro `->midia($pasta, $tenant)` em 15 campos de upload, rota estável `processo.anexo.abrir` (`/anexos/{id}`), PDF do anotador servido pelo sistema (`processo-anexo.arquivo` — sem depender do CORS do bucket), campo `data.nuvem_pontos_url` no TenantResource, comandos `midia:migrar-bucket` e `midia:limpar-local`. **Produção (2026-10-10):** Release 82 (`4746ef7`) no ar; `midia:migrar-bucket --executar` = **754 arquivos / 578 MB, 0 falhas** (695 anexos, 19 documentos, 10 fotos de chamados, 1 de manutenção, 29 360 avulsas); conferência independente: 754/754 **MD5 idênticos**, banco apontando para o caminho certo, 0 caminhos legados em `processo_anexos`/`dados_formulario`/`processo_respostas`, bucket privado nega acesso sem assinatura. Envio novo (anexo #845) gravado direto no bucket. `midia:limpar-local --executar` apagou os 754 (578 MB). **155 arquivos sem nenhuma referência no banco (~133 MB, quase todos em `processos_anexos/`) mantidos na VPS — decisão do usuário.** LiDAR: Potree (711 arquivos) + João Pinheiro (40.487 arquivos, 6,4 GB) no `sigweb-ortofoto` por `/root/subir-lidar.sh` (`rclone check`: 0 diferenças; as 17 referências do `index.html` abrem); `nuvem_pontos_url` gravado em João Pinheiro (chave R2 `lidar-servidor-lider`, remote rclone `ortofoto`). Falta: conferência visual do visualizador 3D e então apagar `public/nuvem-pontos` + `public/potree` da VPS; `fotos:limpar-local` (2,5 GB).
+- Limpezas de 2026-10-10: ZIPs manuais de 29/08 apagados da VPS (`processos_anexos.zip`, `tenant-logos.zip` — 100% redundantes). Pendente: `fotos:limpar-local` (2,5 GB de fotos de lotes já no bucket).
+- Hoje `processos_anexos`, `documentos`, `unidades_imobiliarias/documentos` etc. ficam no disk `public` e **abrem por link sem login**. Destino: bucket privado `sigweb-midia` (`{slug}/...`), leitura por URL assinada + autorização por usuário, leitura dupla durante a migração e comando de migração/limpeza no molde do R79-1 (`fotos:migrar-bucket`).
+- Retoma a parte 1 de [releaseNuvemFerramentasAdmin.md](releaseNuvemFerramentasAdmin.md) (especificada com AWS S3; o padrão agora é Cloudflare R2). Impacto nas prefeituras da VPS a apresentar antes de codar.
+
+---
+
+## ~~Release 83 — Permissões do mapa por camada e por ação (2026-10-12)~~
+
+**Status:** ✅ Concluído (código + migration aplicada no banco local: 74 permissões criadas, 15 apagadas, 6 papéis convertidos; `php artisan test` = 27 passam [a falha é o `ExampleTest` padrão, que espera 200 na raiz redirecionada para `/app`]; teste funcional novo `tests/Feature/R83PermissoesMapaTest` contra o PostGIS local [papel leitor × editor × Manager: resumo, `/api/gis-data`/consulta avançada/SHP/map-permissions, ações Livewire do mapa recusadas/aceitas, tela de papéis em matriz lendo e gravando]; blade compilado; `node --check` no engine. Falta o teste visual no navegador.)
+**Concluído em:** 2026-10-12
+**Correção pós-teste do usuário (2026-10-13):** no Laragon o mapa abria em branco, sem camadas nem ortofoto, com `window.podeFerramentaMapa is not a function` no console — os helpers novos do engine (`podeCriarArtefato`/`podeFerramentaMapa`/`avisarSemPermissao`) estavam definidos DEPOIS da primeira chamada (`injetarPickersCamadas()` no init) e um erro não tratado no init do `mapa-engine.js` aborta tudo que vem depois (camadas, basemaps, permissões). Movidos para o topo do engine, logo após o `config`. **Lição:** teste Livewire/HTTP não pega erro de JS — a partir daqui, mudança no engine/blade do mapa passa por varredura headless (playwright-core no scratchpad + Chrome do sistema: login com papel leitor/editor/Manager, erros de console, status dos `/api/gis-data`, camadas carregadas, ortofoto, ficha, modais, tela de papéis, mapa público anônimo). Varredura de 2026-10-13: 0 erros JS nos 3 papéis e no público; Manager carrega 4.435 lotes e a ortofoto (4 tiles, 404 só fora da cobertura da pirâmide); leitor vê só suas camadas, sem lápis/filtro/impressão/CAD/enquadramento, ficha e modais só leitura, `coleta` = 403; editor cria lote/edificação e edita quadra mas não exclui lote; público com lotes/quadras normais. ⚠️ Para testar restrição, usar papel COMUM: o "Manager" (gerente) tem bypass por desenho (D7) e as caixas dele são só leitura. **Ajuste de UX (2026-10-13):** o usuário "restringiu" o gerente pela tela e nada mudou — agora, com "Acompanha todos os módulos" ligado (o Manager sempre), as CheckboxLists ficam `disabled` e a matriz trava (`somenteLeitura` no ViewField, inputs `disabled` + `pointer-events:none`), com a descrição da seção explicando o bypass e indicando criar um papel comum para gestor com restrições.
+**R83-7 — Flag "Ativo" nas Configurações de APIs (2026-10-13):** pedido do usuário — excluiu a linha "Azure Maps" na VPS e a opção continuou no seletor de mapas de fundo. Causa: `config/services.php` cai no `AZURE_MAPS_KEY` do `.env` quando não há linha no admin (e com `config:cache` o valor do `.env` fica congelado). Entregue: coluna `api_settings.ativo` (default true) + Toggle no form e ToggleColumn na lista do `ApiSettingResource`; linha INATIVA vale como ausente para todo consumidor (`ApiSetting::ativasCache()` é a fonte única do cache `api_settings.all` — provider, Turnstile — e Portal/Backup consultam com o scope `ativas()`); **Azure Maps passou a ser mandado só pela linha do admin** (sem linha ativa ⇒ `services.azure_maps.key = null`, o `.env` deixa de valer e as opções Azure somem do mapa). Google Maps mantém o fallback do `.env` (Street View/altimetria em produção podem depender dele). Deploy: `migrate` + `optimize:clear`. **Decisão do usuário (2026-10-13): manter os fallbacks do `.env` para as demais APIs (Resend, Google, R2)** — estudo feito, só enxugar o `.env` se isso impactar no futuro; o Azure exclusivo do admin já resolve o caso da VPS.
+**Deploy:** `git pull` → `php artisan permissoes:simular-r83` (relatório do que cada papel recebe) → `php artisan migrate` → `php artisan db:seed --class=PermissionsSeeder` → `php artisan permission:cache-reset` → `php artisan optimize:clear` + `php artisan view:cache` → conferir os papéis no /app de cada prefeitura (matrizes + "Mapa — Ferramentas"). Impacto: quem tinha `ver_camada_X` + "Criar Artefatos" segue criando/editando/excluindo X; quem só via fica só leitura (antes editava pelas modais sem ninguém ter configurado); Manager/Master não mudam (bypass).
+**Origem:** pedido do usuário — "não só ver lotes, mas se o papel pode criar, editar e excluir e/ou apenas visualizar, para todas as camadas de artefatos" + mais opções de uso do mapa.
+
+**Levantamento (como estava):** `ver_camada_*` (36) só escondia o checkbox no painel; `/api/gis-data` sem login e só com gate de módulo (qualquer visitante baixava coleta/processos/chamados/câmeras de qualquer prefeitura); consulta avançada/estatísticas sem login; export SHP sem checar camada. Criar = um gate só (`toolbar_criar_artefatos`) para 36 botões; `interceptarDesenho` e os 36 `criar*Action` sem checagem. Editar/excluir = NENHUM gate (ficha do lote, 35 modais `opcoes*`, ~40 listeners `salvarNovaGeometria*`, unificar, corte, Unir do CAD, numeração, caneta de sentido, toponímia — métodos Livewire públicos, chamáveis pelo console). Única exceção: "Nova Face" (`gerenciar_face_quadras`). Vocabulário misto: quarteto em 22 entidades, `gerenciar_X` único em 12 editáveis no mapa, nada para toponímias. Caixa "Mapa — Camadas" com ajuda errada ("vazio = sem restrição"; desde o seeder, vazio = não vê nada). Colaterais: "Salvar enquadramento" gateado pelo NOME do papel (regressão do D7) e sem checagem no servidor; aliases de camada duplicados em JS e PHP.
+
+**Decisões do usuário (2026-10-12):**
+1. **Vocabulário unificado com as telas:** `create_X` / `edit_X` / `delete_X` valem no mapa E no menu; `ver_camada_X` continua sendo "ver no mapa" (independente de `view_X` = ver a tela). As 12 `gerenciar_X` editáveis no mapa (areas_reurb, secoes_logradouro, face_quadras, pgv_amostras, pgv_polos, mob_trechos/vias/sinalizacoes/pontos_interesse/eixos/zonas/cameras) viram quarteto `view/create/edit/delete_X`. Toponímia ganha `create/edit/delete_toponimias`. Edificações, testadas e unidades seguem o lote; quadras/ruas/jazigos de cemitério seguem `ver_camada_cemiterios` no mapa (CED próprios).
+2. **Tela de Papéis em matriz por entidade:** por módulo (nomes D8), linha = entidade, colunas Menu · Mapa · Criar · Editar · Excluir, com marcar linha/coluna inteira; substitui as caixas-quarteto GIS e a caixa de camadas. Caixas não-GIS ficam como estão.
+3. **Escopo extra (tudo marcado):** (a) `/api/gis-data` serve sem login só as camadas do mapa público; demais exigem login + vínculo + `ver_camada_X` ou bypass — mesma regra em export SHP, consulta avançada e estatísticas; (b) permissão própria por ferramenta: `ferramenta_<id>` para TODO item do menu Ferramentas/Imprimir/CAD/barra (filtros, estatisticas, enquadramento, cad, numeracao, altimetria, unificar, desmembrar, azimute, coordxy, sentidos, lidar, wms, pgv_simulador, pgv_motor, pgv_amostra, pgv_polo, medir, capturar, imprimir, exportar_shp, cores, street_view). `toolbar_*` deixa de existir: o menu aparece se o papel tem ≥1 item; ferramenta que grava exige TAMBÉM a permissão da entidade (numeração = `edit_lotes`, sentido = `edit_mob_vias`, "Salvar como" = `create_X`).
+4. **Backfill = preservar quem já cria:** papel com `ver_camada_X` + `toolbar_criar_artefatos` recebe `create/edit/delete_X`; papel que só vê fica só leitura; `gerenciar_X` vira as 4; `toolbar_ferramentas` vira todas as `ferramenta_*` do menu; `toolbar_filtros` → filtros + estatísticas; `toolbar_criar_artefatos` → desmembrar; cores e street_view (sem gate antes) para todos os papéis; enquadramento para ninguém (era só Master/Manager, que têm bypass). Relatório por prefeitura/papel na migration + comando de simulação antes do deploy.
+
+**Itens:**
+- **R83-1** Catálogo `config/mapa.php` (entidades: módulo, grupo D8, camadas, artefatos, permissões menu/mapa/criar/editar/excluir, pública) + `App\Support\MapaPermissoes` (`pode`, `podeFerramenta`, `podeVerCamada`, `resumo`, bypass pela flag) + `config/modulos.php`/seeder/Policies com os nomes novos + migration de backfill + `permissoes:simular-r83`.
+- **R83-2** RoleResource: caixas em matriz (ViewField `matriz-permissoes`), caixa "Anotações", caixa "Mapa — Ferramentas"; Create/EditRole pela fonte única.
+- **R83-3** Servidor manda: trait `ChecaPermissoesMapa` no `MapaFullscreen` + `->authorize()`/checagem em TODAS as ações e listeners de criar/editar/excluir dos 36 traits e do core (desenho, geometria, ficha, unidades, fotos, desmembrar, unificar, corte, Unir, numeração, sentido, toponímia, vínculo, PGV, enquadramento). Sem permissão = notificação, nada gravado.
+- **R83-4** Cliente espelha: `map-permissions` devolve `permissoes`/`ferramentas`/`camadas`; blade com `@if` por ação; engine esconde/bloqueia desenho, Salvar como, CAD, pickers de cor, caneta.
+- **R83-5** Dados fechados (`/api/gis-data`, advanced-query, estatísticas, export-shp).
+- **R83-6** Colaterais: enquadramento pela flag + servidor; alias único; `ModulosTest`/`MapaPermissoesTest`; CLAUDE.md + §10 do Modulos_Permissoes.txt; Releases.md.
+
+**Deploy (previsto):** `php artisan permissoes:simular-r83` (relatório) → `php artisan migrate` (cria/converte/apaga permissões e aplica o backfill) → `php artisan db:seed --class=PermissionsSeeder` → `php artisan permission:cache-reset` → `php artisan optimize:clear` + `view:cache` → conferir papéis no /app de cada prefeitura.
+
+---
+
+## ~~Release 84 — Exportação de dados coletados, importação de camadas, fila e ajustes da coleta (2026-10-15)~~
+
+**Origem:** pedido do usuário (implantação Cajazeiras/Jucurutu) + estudo do vai-e-volta com o QGIS (2026-10-14). Decisões tomadas em conversa em 2026-10-15.
+
+#### ~~R84-1 — Jucurutu: bairros × quadras e lotes × edificações~~
+**Status:** ✅ Concluído **Concluído em:** 2026-10-15
+Script temporário por SSH (prévia em Excel aprovada → execução do plano via Eloquent, entra na Auditoria): 141 quadras trocaram de bairro (pelo maior % de área; #397, fora dos bairros e do perímetro, foi para o PEDRA DO NAVIO vigente pelo nome) e 61 edificações sem lote ganharam lote pelo centróide; 438 seguem órfãs (sem lote desenhado), 21 com lote e centro em outro lote, 67 com lote e centro fora — só relatório. Causa das 141: reimportação "Substituir" de 23/09 com numeração nova — a reconexão automática por `sequential_id` ligou quadras ao bairro de mesmo NÚMERO (outro nome) e 35 ficaram apontando para bairros na lixeira. Relatórios + plano executado (com o bairro antigo, para desfazer) em `C:\laragon\www\docs\webgis\jucurutu\relatórios`.
+
+#### ~~R84-2 — Segurança: `/api/ogc/{slug}` sem login~~
+**Status:** ✅ Concluído (deploy na VPS em 2026-10-15 18:48: 3 migrations, fila `sigweb-fila` e agendador ativos, exportação de teste em produção ok) **Concluído em:** 2026-10-15
+O WFS entregava lotes/quadras/ruas/bairros de qualquer prefeitura a qualquer visitante. Fechar com o critério da R83: sem login só camadas `publica` do `config/mapa.php`, sem dado pessoal; tenant inativo = 404.
+
+#### ~~R84-3 — Filtro avançado do mapa sem limite~~
+**Status:** ✅ Concluído (deploy na VPS em 2026-10-15 18:48: 3 migrations, fila `sigweb-fila` e agendador ativos, exportação de teste em produção ok) **Concluído em:** 2026-10-15
+LIMIT 2500/2000/5000 (Release 30) cortava em silêncio (bairro grande saía incompleto). Remover nas rotas espacial/desenho/atributo/valores únicos/intervalo, buscando só o necessário (id, rótulo, geometria com 6 casas) e sem duplicar o alvo que cruza 2+ referências (lote na divisa de dois bairros saía duas vezes).
+
+#### ~~R84-4 — Fila de processamento + "Arquivos Gerados"~~
+**Status:** ✅ Concluído (deploy na VPS em 2026-10-15 18:48: 3 migrations, fila `sigweb-fila` e agendador ativos, exportação de teste em produção ok) **Concluído em:** 2026-10-15
+Medição na VPS (Cajazeiras, 2.498 lotes da semana): o PDF detalhado de Coletas levaria ~9 min baixando 7.200 fotos uma a uma + ~4 min montando, ~400 MB e ~5 GB de memória (limite do pool = 1 GB), e voltava ao navegador base64 dentro do Livewire (499 no log). As fotos já chegam comprimidas pelo app (1280 px) — miniatura não resolve. Entregar: processador de filas na VPS (serviço systemd `sigweb-fila`, QUEUE_CONNECTION=database já configurado) + agendador; model/tabela `arquivos_gerados` (tipo, quem pediu, prefeitura, situação na fila/processando/pronto/erro, tamanho, caminho no bucket privado `midia` em `{slug}/arquivos-gerados/`, validade 7 dias); tela "Arquivos Gerados" no grupo Configurações do /app (cada um vê os seus; Manager vê todos) e em Configurações Globais do /admin; aviso no sininho com link temporário; limpeza diária do que venceu. Deploy passa a exigir `php artisan queue:restart`.
+
+#### ~~R84-5 — PDF detalhado de Coletas em segundo plano~~
+**Status:** ✅ Concluído (deploy na VPS em 2026-10-15 18:48: 3 migrations, fila `sigweb-fila` e agendador ativos, exportação de teste em produção ok) **Concluído em:** 2026-10-15
+Job na fila: ZIP com PDFs de até 250 lotes; agrupamento escolhido pelo usuário — por coletor (1 PDF por coletor, partes acima de 250), por quadra (ordem de quadra, sem cortar quadra) ou por data crescente; fotos baixadas em paralelo.
+
+#### ~~R84-6 — Importação GIS: Testadas, Seções de Logradouro e Faces de Quadra~~
+**Status:** ✅ Concluído (deploy na VPS em 2026-10-15 18:48: 3 migrations, fila `sigweb-fila` e agendador ativos, exportação de teste em produção ok) **Concluído em:** 2026-10-15
+`lote_testadas` ganha `sequential_id` (+ `code`, índice único parcial, backfill) para os 3 modos; importador resolve `logradouro_id`, `secao_logradouro_id`, `setor_fiscal_id`; campos `lado`/`tipo`/`codigo`; seções repetidas (logradouro+código+lado) apontadas antes de gravar; extensão/comprimento recalculados. Formato = o mesmo que a exportação (R84-7) gera.
+
+#### ~~R84-7 — "Exportar dados" (motor único: /admin e mapa da prefeitura)~~
+**Status:** ✅ Concluído (deploy na VPS em 2026-10-15 18:48: 3 migrations, fila `sigweb-fila` e agendador ativos, exportação de teste em produção ok) **Concluído em:** 2026-10-15
+/admin → Prefeitura → "Exportar dados" (capacidade `admin_exportar_dados`): camadas do cadastro base e imobiliário, formato JSON (GeoJSON por camada, ZIP) / Excel (aba por camada, centro lat/lon + área) / GeoPackage (ogr2ogr; VPS tem GDAL 3.12 com GPKG), recorte opcional por bairro(s). Arquivo REIMPORTÁVEL (`id` = número da prefeitura, vínculos pelo número do pai), campos customizados em colunas, dados da coleta + link das fotos, proprietário e CPF/CNPJ. Mapa da prefeitura (/app, nunca o público): "Exportar resultado" do filtro nos mesmos formatos (o mapa envia os ids do resultado — completo desde a R84-3 — e o servidor revalida na prefeitura e na permissão de ver a camada); ferramenta "Exportar SHP" vira "Exportar dados". Processado pela fila (R84-4).
+
+#### ~~R84-8 — App de Coletas: destaque do lote selecionado~~
+**Status:** ✅ Concluído (APK 1.1.5 / versionCode 4 gerado no EAS em 2026-10-15; falta a validação do gestor de Cajazeiras) **Concluído em:** 2026-10-15
+Polígono extra por cima do lote tocado, no tom escuro da cor do status, enquanto a ficha rápida estiver aberta. APK 1.1.5 (validação primeiro com o gestor de Cajazeiras).
+
+#### R84-9 — (backlog, não nesta release) Importação "Substituir" avisar renumeração
+Quando o mesmo `sequential_id` troca de nome entre o registro antigo e o novo, a reconexão automática liga os filhos à entidade errada (caso Jucurutu). Prévia/aviso antes de reconectar.
+
+#### R84-11 — (backlog) 21 coletas de Santa Cecília com `coletavel_type` de barra dobrada
+`App\\Models\\Lote` (criadas de uma vez em 04/08, tenant de teste) — o `coletaVigente` não as enxerga. Prefeituras reais conferidas na VPS em 2026-10-15: todas no formato certo. Corrigir com um UPDATE quando convier.
+
+#### ~~R84-12 — (decisão) Agendador ligado = `sigweb:sync-esus` volta a rodar às 02:00~~
+**Status:** ✅ Decidido: e-SUS diário DESLIGADO (linha comentada em `routes/console.php`; sync segue sob demanda). **Concluído em:** 2026-10-15
+A VPS nova não tinha cron: nada do `routes/console.php` rodava. Ao ativar o `sigweb-agendador.timer` (R84-4), o sync do e-SUS diário volta junto. Confirmar com o usuário antes de ativar (ou tirar a linha do schedule).
+
+#### ~~R84-13 — Painel de filtros do mapa persistente + moldes de importação~~
+**Status:** ✅ Concluído **Concluído em:** 2026-10-15
+Pedido do usuário no teste: o painel sumia ao clicar em Exportar (faltava `wire:ignore` — a resposta do Livewire redesenhava o painel). Agora fica embaixo e centralizado, recolhível, com acordeon por filtro e o nome dos bairros no título. Moldes GeoJSON + LEIAME em `docs/modelos-importacao/` (validados importando numa transação desfeita); o teste achou testada/seção SEM geometria quebrando a importação (`ST_GeomFromGeoJSON('null')`) — setters corrigidos.
+
+#### ~~R84-14 — Página de novidades da release + /admin → Novidades~~
+**Status:** ✅ Concluído **Concluído em:** 2026-10-15
+Página estática `public/novidades/release-84.html` (logo da Líder, temas claro/escuro) + tela /admin → Novidades que lista as páginas da pasta pelos metadados (release, data, resumo). Regra no CLAUDE.md: toda release gera a sua página.
+
+#### R84-10 — (backlog, não nesta release) Impressão do mapa A0 no servidor
+Hoje é jsPDF no navegador; levar para a fila exige renderizar o mapa no servidor (Chrome headless na VPS).
+
+---
+
+## Pontos fortes a destacar na demonstração
+
+1. Estatísticas com **gráficos plotados no mapa** (centroide de cada bairro) — item 2.6-41;
+2. **Impressão A0–A4** retrato/paisagem direto do mapa (2.4-25 a 29);
+3. **Exportação SHP** por camada + relatórios em 4 formatos (2.4-30/31);
+4. **Código de autenticação com verificação pública** (`/v/{protocolo}` + SHA-256) nas viabilidades;
+5. **Auditoria com croqui Antes/Depois** de geometria (2.10-89);
+6. Busca unificada por 10+ critérios num único campo (2.1-3 a 11);
+7. Navegação completa com **visão anterior** (histórico de 50 estados).

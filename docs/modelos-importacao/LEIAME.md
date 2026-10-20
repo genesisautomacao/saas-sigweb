@@ -59,7 +59,7 @@ A geometria pode vir vazia (`"geometry": null`) quando só se conhece o comprime
 | `quadra_id` | sim | Número da quadra |
 | `logradouro_id` | recomendada | Número do logradouro da face |
 | `zona_id` | não | Número da zona |
-| `setor_fiscal_id` | não | Número do setor fiscal |
+| `setor_pgv_id` | não | Número do setor da PGV (até a Release 85 a property era `setor_fiscal_id`) |
 | `name` | não | Nome/descrição da face |
 
 O valor do m² (`valor_m2_calculado`) **não** é importado: quem calcula é o Motor da PGV.

@@ -14,7 +14,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Fluxos Origem/Destino (docs/piuma.txt §2.7, Onda 3) — linhas de desejo.
+ * Fluxos Origem/Destino (docs/modulos/piuma.txt §2.7, Onda 3) — linhas de desejo.
  * Fluxo INTRAZONAL (origem = destino) não tem linha no mapa por natureza:
  * o levantamento entrega só o volume (badge "Intrazonal" na tabela).
  */

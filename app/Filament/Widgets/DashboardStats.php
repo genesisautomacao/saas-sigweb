@@ -11,7 +11,7 @@ use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 /**
- * Cards do dashboard — cada card pertence a um módulo (docs/Modulos_Permissoes.txt):
+ * Cards do dashboard — cada card pertence a um módulo (docs/modulos/Modulos_Permissoes.txt):
  * só aparecem os dos módulos ativos; sem nenhum, o widget some.
  */
 class DashboardStats extends BaseWidget

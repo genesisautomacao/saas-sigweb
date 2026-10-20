@@ -12,7 +12,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Via urbana (Mobilidade Urbana — docs/piuma.txt, Onda 6).
+ * Via urbana (Mobilidade Urbana — docs/modulos/piuma.txt, Onda 6).
  *
  * É a entidade do FLUXO de tráfego: `sentido` (mão única/dupla) + DIREÇÃO =
  * ordem dos vértices da linha (mão única segue início → fim). `azimute` é

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Catálogo de tipos de sinalização viária (Mobilidade Urbana — decisão 6.1
- * de docs/piuma.txt): a placa no mapa NÃO carrega texto livre — aponta para
+ * de docs/modulos/piuma.txt): a placa no mapa NÃO carrega texto livre — aponta para
  * um tipo pré-cadastrado com nome, tipo (vertical/horizontal), cor e ícone.
  * O que varia entre duas placas "Pare" é só a posição.
  *

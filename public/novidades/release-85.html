@@ -1,0 +1,338 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SIGWEB Release 85</title>
+<meta name="sigweb-release" content="85">
+<meta name="sigweb-data" content="2026-10-19">
+<meta name="description" content="Setores Fiscais da inscrição imobiliária e Setores da PGV">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,600;125,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: uma "folha de carta" — carimbo no topo, legenda de camadas em grade, régua de escala e coordenadas no rodapé */
+:root {
+  --papel: #f2f4ee;
+  --folha: #fbfcf8;
+  --tinta: #1c2726;
+  --tinta-suave: #55625f;
+  --linha: #cdd5cc;
+  --acento: #156a8e;
+  --acento-suave: #dcedf4;
+  --alerta: #b45309;
+  --alerta-suave: #fbefdf;
+  /* paleta real dos status da coleta (app + mapa web) */
+  --nao-visitado: #faff00;
+  --coletado: #00ffff;
+  --pendente: #ff751f;
+  --inconformidade: #ff3131;
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --corpo: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --papel: #121918; --folha: #182120; --tinta: #e6ece9; --tinta-suave: #9fb0ab;
+    --linha: #2c3a37; --acento: #5cc4e2; --acento-suave: #14303c; --alerta: #f0a35a; --alerta-suave: #33261a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --papel: #121918; --folha: #182120; --tinta: #e6ece9; --tinta-suave: #9fb0ab;
+  --linha: #2c3a37; --acento: #5cc4e2; --acento-suave: #14303c; --alerta: #f0a35a; --alerta-suave: #33261a;
+  color-scheme: dark;
+}
+
+.logo { display: block; height: 64px; width: auto; max-width: 100%; margin-bottom: 18px; }
+.logo-escura { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .logo-clara { display: none; } :root:not([data-theme="light"]) .logo-escura { display: block; } }
+:root[data-theme="dark"] .logo-clara { display: none; }
+:root[data-theme="dark"] .logo-escura { display: block; }
+
+* { box-sizing: border-box; }
+html { background: var(--papel); }
+body {
+  margin: 0; background: var(--papel); color: var(--tinta);
+  font: 16px/1.6 var(--corpo);
+  padding-inline: 16px; padding-block: 32px 48px;
+}
+.folha {
+  max-width: 1040px; margin: 0 auto; background: var(--folha);
+  border: 1px solid var(--linha); border-radius: 4px;
+  /* moldura dupla de carta topográfica */
+  box-shadow: 0 0 0 6px var(--folha), 0 0 0 7px var(--linha);
+}
+
+/* ── Carimbo ───────────────────────────── */
+.carimbo {
+  display: grid; grid-template-columns: 1fr auto; gap: 24px;
+  padding: 28px 32px 24px; border-bottom: 1px solid var(--linha);
+}
+.carimbo .eyebrow {
+  font: 500 12px/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--acento);
+}
+.carimbo h1 {
+  font: 800 clamp(30px, 5.2vw, 52px)/1.02 var(--display); font-stretch: 125%;
+  margin: 8px 0 12px; letter-spacing: -.01em; text-wrap: balance;
+}
+.carimbo .tese { margin: 0; max-width: 58ch; color: var(--tinta-suave); font-size: 18px; }
+.ficha {
+  font: 400 12px/1.7 var(--mono); color: var(--tinta-suave);
+  border-left: 1px solid var(--linha); padding-left: 20px; align-self: start;
+  display: grid; grid-template-columns: auto auto; column-gap: 14px;
+}
+.ficha dt { color: var(--tinta-suave); }
+.ficha dd { margin: 0; color: var(--tinta); font-variant-numeric: tabular-nums; }
+
+/* ── Rota ida-e-volta ─────────────────── */
+.rota { padding: 8px 32px 0; }
+.rota svg { width: 100%; height: auto; display: block; max-width: 100%; }
+.rota .cap { font: 400 13px/1.5 var(--mono); color: var(--tinta-suave); margin: 4px 0 0; }
+
+/* ── Legenda (as entregas) ────────────── */
+.legenda-titulo {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 28px 32px 8px;
+}
+.legenda-titulo h2 { font: 600 13px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; margin: 0; color: var(--tinta-suave); }
+.legenda-titulo span { font: 400 12px/1 var(--mono); color: var(--tinta-suave); }
+.camadas {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--linha); margin: 0 32px;
+}
+.camada {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 14px;
+  padding: 22px 20px 22px 0; border-bottom: 1px solid var(--linha);
+}
+.camada:nth-child(odd) { border-right: 1px solid var(--linha); }
+.camada:nth-child(even) { padding-left: 20px; }
+.simbolo { width: 34px; height: 24px; margin-top: 4px; }
+.camada h3 {
+  font: 600 20px/1.2 var(--display); font-stretch: 112%; margin: 0 0 6px; text-wrap: balance;
+}
+.camada p { margin: 0 0 8px; color: var(--tinta-suave); }
+.camada p:last-child { margin-bottom: 0; }
+.camada strong { color: var(--tinta); font-weight: 600; }
+.numero {
+  font: 500 13px/1.4 var(--mono); color: var(--acento); font-variant-numeric: tabular-nums;
+  background: var(--acento-suave); padding: 2px 8px; border-radius: 3px; display: inline-block;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.chip { font: 500 12px/1 var(--mono); border: 1px solid var(--linha); border-radius: 3px; padding: 5px 8px; color: var(--tinta); }
+
+/* ordem de importação = sequência real */
+.ordem { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 4px 0; font: 500 13px/1.6 var(--mono); }
+.ordem li { display: flex; align-items: center; }
+.ordem li + li::before { content: "→"; color: var(--tinta-suave); margin: 0 8px; }
+.ordem .novo { color: var(--acento); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+
+/* status da coleta */
+.status { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font: 400 12px/1.4 var(--mono); color: var(--tinta-suave); }
+.status span { display: inline-flex; align-items: center; gap: 6px; }
+.status i { width: 14px; height: 10px; border: 2px solid; border-radius: 2px; display: inline-block; }
+
+/* ── Jucurutu ─────────────────────────── */
+.campo { padding: 28px 32px 8px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 28px; }
+.campo h2 { font: 800 26px/1.1 var(--display); font-stretch: 125%; margin: 0 0 8px; }
+.campo p { margin: 0 0 10px; color: var(--tinta-suave); max-width: 52ch; }
+.placar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border: 1px solid var(--linha); align-self: start; }
+.placar div { padding: 14px 16px; }
+.placar div + div { border-left: 1px solid var(--linha); }
+.placar b { display: block; font: 800 34px/1 var(--display); font-stretch: 112%; font-variant-numeric: tabular-nums; }
+.placar small { display: block; margin-top: 6px; font: 400 12px/1.4 var(--mono); color: var(--tinta-suave); }
+.licao {
+  grid-column: 1 / -1; background: var(--alerta-suave); border: 1px solid color-mix(in srgb, var(--alerta) 35%, transparent);
+  border-radius: 4px; padding: 14px 18px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start;
+}
+.licao span { font: 600 12px/1.6 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--alerta); white-space: nowrap; }
+.licao p { margin: 0; color: var(--tinta); max-width: none; }
+
+/* ── Rodapé: escala + coordenadas ─────── */
+.rodape {
+  margin-top: 24px; padding: 18px 32px 22px; border-top: 1px solid var(--linha);
+  display: flex; justify-content: space-between; align-items: end; gap: 18px; flex-wrap: wrap;
+  font: 400 12px/1.5 var(--mono); color: var(--tinta-suave);
+}
+.escala { display: grid; gap: 4px; }
+.escala .barra { display: flex; height: 8px; width: 220px; max-width: 100%; border: 1px solid var(--tinta); }
+.escala .barra i { flex: 1; }
+.escala .barra i:nth-child(odd) { background: var(--tinta); }
+.escala .marcas { display: flex; justify-content: space-between; width: 220px; max-width: 100%; }
+.rodape .assina { text-align: right; }
+
+a { color: var(--acento); }
+:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+@media (max-width: 760px) {
+  body { padding-block: 16px 32px; }
+  .carimbo { grid-template-columns: 1fr; padding: 22px 20px; }
+  .ficha { border-left: 0; padding-left: 0; border-top: 1px solid var(--linha); padding-top: 12px; }
+  .rota, .legenda-titulo, .campo, .rodape { padding-inline: 20px; }
+  .camadas { grid-template-columns: 1fr; margin: 0 20px; }
+  .camada, .camada:nth-child(even) { padding: 18px 0; border-right: 0; }
+  .campo { grid-template-columns: 1fr; }
+  .placar b { font-size: 28px; }
+  .licao { grid-template-columns: 1fr; gap: 4px; }
+  .rodape .assina { text-align: left; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rota .trajeto { stroke-dasharray: 6 7; animation: andar 2.4s linear infinite; }
+  @keyframes andar { to { stroke-dashoffset: -26; } }
+}
+
+/* R85 — dois setores */
+:root { --setor: #0d9488; --setor-suave: #d5efec; --pgv: #d97706; --bairro: #3b82f6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --setor: #2dd4bf; --setor-suave: #123532; --pgv: #f0a35a; --bairro: #6ea8fe; } }
+:root[data-theme="dark"] { --setor: #2dd4bf; --setor-suave: #123532; --pgv: #f0a35a; --bairro: #6ea8fe; }
+.rota .legenda-mapa { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 6px 0 0; font: 400 12px/1.4 var(--mono); color: var(--tinta-suave); }
+.rota .legenda-mapa span { display: inline-flex; align-items: center; gap: 6px; }
+.rota .legenda-mapa i { width: 18px; height: 10px; border: 2px solid; border-radius: 2px; display: inline-block; }
+.inscricao { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 0; font: 500 15px/1 var(--mono); }
+.inscricao span { border: 1px solid var(--linha); border-radius: 3px; padding: 6px 9px; font-variant-numeric: tabular-nums; }
+.inscricao .setor { border-color: var(--setor); background: var(--setor-suave); color: var(--tinta); }
+.inscricao em { font-style: normal; color: var(--tinta-suave); }
+.exemplo-legenda { display: block; margin-top: 8px; font: 400 12px/1.5 var(--mono); color: var(--tinta-suave); }
+</style>
+
+<main class="folha">
+
+  <header class="carimbo">
+    <div>
+      <img class="logo logo-clara" src="img/logo-lider.png" alt="Líder Engenharia e Gestão de Cidades" width="206" height="64">
+      <img class="logo logo-escura" src="img/logo-lider-br.png" alt="Líder Engenharia e Gestão de Cidades" width="206" height="64">
+      <div class="eyebrow">SIGWEB · Folha R85 · Equipe GEO</div>
+      <h1>Cada setor no seu lugar</h1>
+      <p class="tese">Release 85: o setor que entra na inscrição imobiliária ganhou camada própria na Base Cartográfica, e o setor que calcula valor passou a se chamar Setor da PGV.</p>
+    </div>
+    <dl class="ficha">
+      <dt>Release</dt><dd>85</dd>
+      <dt>No ar desde</dt><dd>19/10/2026</dd>
+      <dt>Datum</dt><dd>WGS 84 · EPSG:4326</dd>
+      <dt>App coleta</dt><dd>1.1.5</dd>
+    </dl>
+  </header>
+
+  <!-- Croqui: um setor fiscal abraçando dois bairros; o setor da PGV é outra régua -->
+  <section class="rota" aria-label="Setor fiscal agrupa bairros">
+    <svg viewBox="0 0 960 220" role="img" aria-label="O Setor 01 contém dois bairros; o Setor da PGV é uma camada separada, de valor">
+      <defs>
+        <pattern id="curvas" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M0 20 Q10 12 20 20 T40 20" fill="none" stroke="var(--linha)" stroke-width="1"/>
+        </pattern>
+      </defs>
+      <rect x="0" y="0" width="960" height="220" fill="url(#curvas)" opacity=".7"/>
+      <path d="M70 40 L470 28 L520 120 L450 196 L90 190 Z" fill="var(--setor-suave)" fill-opacity=".7" stroke="var(--setor)" stroke-width="3"/>
+      <path d="M100 62 L280 54 L292 176 L112 174 Z" fill="var(--bairro)" fill-opacity=".12" stroke="var(--bairro)" stroke-width="2"/>
+      <path d="M300 54 L456 46 L494 122 L436 176 L310 176 Z" fill="var(--bairro)" fill-opacity=".12" stroke="var(--bairro)" stroke-width="2"/>
+      <g font-family="IBM Plex Mono, monospace" font-size="13" fill="var(--tinta)">
+        <text x="196" y="122" text-anchor="middle">Bairro Centro</text>
+        <text x="394" y="122" text-anchor="middle">Bairro Vila Nova</text>
+      </g>
+      <text x="280" y="22" text-anchor="middle" font-family="Archivo, sans-serif" font-weight="800" font-size="18" fill="var(--setor)">Setor 01</text>
+      <path d="M620 46 L880 40 L900 170 L640 182 Z" fill="var(--pgv)" fill-opacity=".1" stroke="var(--pgv)" stroke-width="3" stroke-dasharray="9 7"/>
+      <g font-family="IBM Plex Mono, monospace" text-anchor="middle">
+        <text x="766" y="104" font-size="15" font-weight="500" fill="var(--pgv)">Setor da PGV</text>
+        <text x="766" y="126" font-size="12" fill="var(--tinta-suave)">zona de valor do m²</text>
+      </g>
+    </svg>
+    <div class="legenda-mapa" aria-hidden="true">
+      <span><i style="border-color:var(--setor); background:var(--setor-suave)"></i>Setor Fiscal (inscrição) · Base Cartográfica</span>
+      <span><i style="border-color:var(--bairro)"></i>Bairro · aponta para o seu setor</span>
+      <span><i style="border-color:var(--pgv); border-style:dashed"></i>Setor da PGV · Infraestrutura</span>
+    </div>
+  </section>
+
+  <div class="legenda-titulo">
+    <h2>Legenda · o que entrou</h2>
+    <span>6 entregas nesta folha</span>
+  </div>
+
+  <section class="camadas">
+
+    <article class="camada">
+      <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><rect x="2" y="2" width="30" height="20" fill="var(--setor-suave)" stroke="var(--setor)" stroke-width="2.5"/><text x="17" y="16.5" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="var(--setor)">01</text></svg>
+      <div>
+        <h3>Setores Fiscais, a camada nova</h3>
+        <p>Em <strong>Base Cartográfica → Setores Fiscais</strong>, entre Distritos e Bairros. O "nome" do setor é o <strong>número que entra na inscrição</strong>, e o zero à esquerda fica guardado:</p>
+        <div class="inscricao" aria-label="Exemplo de inscrição">
+          <span>01</span><em>.</em><span class="setor">03</span><em>.</em><span>012</span><em>.</em><span>0187</span><em>.</em><span>001</span>
+        </div>
+        <span class="exemplo-legenda">distrito · <strong>setor</strong> · quadra · lote · unidade (exemplo)</span>
+      </div>
+    </article>
+
+    <article class="camada">
+      <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><rect x="2" y="2" width="30" height="20" fill="none" stroke="var(--setor)" stroke-width="2"/><rect x="6" y="6" width="10" height="12" fill="var(--bairro)" fill-opacity=".2" stroke="var(--bairro)" stroke-width="1.5"/><rect x="18" y="6" width="10" height="12" fill="var(--bairro)" fill-opacity=".2" stroke="var(--bairro)" stroke-width="1.5"/></svg>
+      <div>
+        <h3>O bairro sabe o seu setor</h3>
+        <p>Um setor pode ser um bairro só ou abraçar vários. O bairro ganhou o campo <strong>Setor Fiscal</strong>, e quadra e lote chegam ao setor pelo bairro.</p>
+        <p>Atalho: <strong>Vincular bairros</strong>, num setor ou em todos de uma vez. Cada bairro vai para o setor que contém o meio dele, e quem já tem setor só muda se vocês pedirem. Na lista de bairros, o filtro <strong>"sem setor"</strong> mostra o que ficou para trás.</p>
+      </div>
+    </article>
+
+    <article class="camada">
+      <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><path d="M4 4 L20 3 L30 12 L22 21 L5 20 Z" fill="var(--setor-suave)" stroke="var(--setor)" stroke-width="2"/><circle cx="20" cy="3.5" r="2.5" fill="var(--setor)"/><circle cx="30" cy="12" r="2.5" fill="var(--setor)"/></svg>
+      <div>
+        <h3>No mapa, como as outras camadas</h3>
+        <p>Desenho pelo <strong>Criar Artefatos</strong>, por azimutes ou por coordenadas; ficha com Geometria, Vincular bairros e Excluir. Também aparece no mapa público.</p>
+        <p>Setores <strong>não se sobrepõem</strong>: usem o ímã para colar as bordas. A busca acha <span class="numero">setor 03</span> e o filtro espacial responde "lotes dentro do setor 03".</p>
+      </div>
+    </article>
+
+    <article class="camada">
+      <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><rect x="2" y="2" width="30" height="20" fill="none" stroke="var(--pgv)" stroke-width="2.5" stroke-dasharray="5 4"/><text x="17" y="16" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="600" fill="var(--pgv)">R$</text></svg>
+      <div>
+        <h3>O antigo agora é Setor da PGV</h3>
+        <p>O setor que vocês já conheciam, o que define o valor do m² no Motor da PGV, mudou só de nome. Mora em <strong>Gestão Tributária (PGV) → Setores da PGV</strong> e no acordeon Infraestrutura do mapa.</p>
+        <p>Cálculo, faces de quadra, histórico de valores e permissões dos papéis seguem iguais.</p>
+      </div>
+    </article>
+
+    <article class="camada">
+      <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><path d="M2 20 L12 6 L22 14 L32 4" fill="none" stroke="var(--acento)" stroke-width="2.5"/><circle cx="12" cy="6" r="2.5" fill="var(--acento)"/><circle cx="22" cy="14" r="2.5" fill="var(--acento)"/></svg>
+      <div>
+        <h3>Importação com o setor no meio</h3>
+        <p>Nova camada <strong>2.1 Setores Fiscais</strong> no Importar Mapa (GIS). O número vai na coluna <code>name</code>. Bairro que trouxer <code>setor_fiscal_id</code> (o id do setor no arquivo de setores) já entra vinculado.</p>
+        <ol class="ordem">
+          <li>distritos</li><li class="novo">setores</li><li>bairros</li><li>quadras</li><li>…</li>
+        </ol>
+      </div>
+    </article>
+
+    <article class="camada">
+      <svg class="simbolo" viewBox="0 0 34 24" aria-hidden="true"><rect x="2" y="3" width="30" height="18" fill="none" stroke="var(--acento)" stroke-width="2"/><path d="M2 9h30M2 15h30M12 3v18M22 3v18" stroke="var(--acento)" stroke-width="1.2"/><path d="M14 11l3 3 5-6" stroke="var(--setor)" stroke-width="2" fill="none"/></svg>
+      <div>
+        <h3>Permissão própria</h3>
+        <p>Em Papéis, a matriz da Base Cartográfica ganhou a linha <strong>Setores Fiscais</strong>: Menu, Mapa, Criar, Editar e Excluir. Quem só vê abre a ficha em modo leitura.</p>
+        <p>Também entra no Exportar dados, no SHP, nas Estatísticas e no Recalcular Áreas.</p>
+      </div>
+    </article>
+
+  </section>
+
+  <section class="campo">
+    <div>
+      <div class="eyebrow" style="font:500 12px/1.4 var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--acento); margin-bottom:6px;">Próxima folha</div>
+      <h2>O parametrizador da inscrição</h2>
+      <p>Com os setores no lugar, o próximo passo é o sistema montar a inscrição sozinho: quais pedaços entram, quantos dígitos cada um tem e de onde vem cada número.</p>
+      <p>Se a prefeitura de vocês tem um padrão próprio, mandem um exemplo para a gente.</p>
+    </div>
+    <div class="placar" role="list">
+      <div role="listitem"><b>1</b><small>setor para vários bairros</small></div>
+      <div role="listitem"><b>0</b><small>sobreposição entre setores</small></div>
+      <div role="listitem"><b>"01"</b><small>número guardado como texto</small></div>
+    </div>
+    <div class="licao">
+      <span>Lição do dia</span>
+      <p>No arquivo de setores, o número precisa ir como <strong>texto</strong> ("01"). Coluna numérica no QGIS come o zero e o setor vira "1".</p>
+    </div>
+  </section>
+
+  <footer class="rodape">
+    <div class="escala" aria-hidden="true">
+      <div class="barra"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="marcas"><span>0</span><span>Escala: 1 release</span><span>85</span></div>
+    </div>
+    <div class="assina">SIGWEB · Líder Engenharia<br>Bom proveito, time.</div>
+  </footer>
+
+</main>

@@ -51,7 +51,7 @@ class MapDataController extends Controller
             return response()->json(['error' => 'Parâmetros inválidos'], 400);
         }
 
-        // MÓDULOS (docs/Modulos_Permissoes.txt): camada de módulo não contratado pela
+        // MÓDULOS (docs/modulos/Modulos_Permissoes.txt): camada de módulo não contratado pela
         // prefeitura não é servida — defesa em profundidade além do painel/engine.
         $tenantModulos = \App\Models\Tenant::find($tenantId);
         if ($tenantModulos && ! \App\Support\Modulos::camadaDisponivel($layer, $tenantModulos)) {
@@ -151,6 +151,10 @@ class MapDataController extends Controller
 
             case 'bairros':
                 $data = $buildFeatureCollection(Bairro::where('tenant_id', $tenantId)->get(), 'bairros');
+                break;
+
+            case 'setores_fiscais': // B9 — setor da inscrição imobiliária
+                $data = $buildFeatureCollection(\App\Models\SetorFiscal::where('tenant_id', $tenantId)->get(), 'setores_fiscais');
                 break;
 
             case 'patrimonio_publicos':
@@ -401,11 +405,11 @@ class MapDataController extends Controller
                 $data = $buildFeatureCollection($jazigos, 'jazigos');
                 break;
 
-            case 'setores_fiscais':
-                $setores = \App\Models\SetorFiscal::where('tenant_id', $tenantId)
+            case 'setores_pgv':
+                $setores = \App\Models\SetorPgv::where('tenant_id', $tenantId)
                     ->select('id', 'nome as name', 'geo') // REMOVIDO O 'code' DAQUI!
                     ->get();
-                $data = $buildFeatureCollection($setores, 'setores_fiscais');
+                $data = $buildFeatureCollection($setores, 'setores_pgv');
                 break;
 
             case 'rural-localidades':
@@ -687,7 +691,7 @@ class MapDataController extends Controller
                 $data = ['type' => 'FeatureCollection', 'features' => $features];
                 break;
 
-            // ── MOBILIDADE URBANA (docs/piuma.txt, Onda 2) — camadas self-contained,
+            // ── MOBILIDADE URBANA (docs/modulos/piuma.txt, Onda 2) — camadas self-contained,
             //    query direta com ST_AsGeoJSON (nunca accessor em loop). Toggles por
             //    tipo/categoria são filtro de CLIENTE (dados pequenos: ≤ ~830 feats).
             case 'mob_trechos':
@@ -791,7 +795,7 @@ class MapDataController extends Controller
                 break;
 
             case 'mob_cameras':
-                // Monitoramento em tempo real (docs/piuma.txt, Onda 5) — só posição/metadados; o vídeo
+                // Monitoramento em tempo real (docs/modulos/piuma.txt, Onda 5) — só posição/metadados; o vídeo
                 // é carregado no modal (player) ao clicar, nunca em massa.
                 $rows = DB::table('mob_cameras')
                     ->where('tenant_id', $tenantId)->whereNull('deleted_at')->whereNotNull('geo')
@@ -1140,6 +1144,31 @@ class MapDataController extends Controller
                 ];
             }
 
+            // --- 3.1 BUSCA DE SETORES FISCAIS (B9) — pelo número ("03" ou "setor 03") ---
+            $termoSetor = trim(preg_replace('/^setor\s*/iu', '', $termo));
+            if ($termoSetor !== '') {
+                $setoresFiscais = \Illuminate\Support\Facades\DB::table('setores_fiscais')
+                    ->where('tenant_id', $tenantId)
+                    ->whereNull('deleted_at')
+                    ->whereNotNull('geo')
+                    ->where('name', 'ilike', "%{$termoSetor}%")
+                    ->selectRaw('id, name, ST_AsGeoJSON(ST_PointOnSurface(geo::geometry)) as centroide')
+                    ->limit(5)
+                    ->get();
+
+                foreach ($setoresFiscais as $setor) {
+                    $coords = json_decode($setor->centroide)->coordinates ?? null;
+                    if (! $coords) continue;
+                    $results[] = [
+                        'id' => $setor->id,
+                        'tipo' => 'setor',
+                        'titulo' => 'Setor ' . $setor->name,
+                        'subtitulo' => 'Setor Fiscal',
+                        'coords' => $coords,
+                    ];
+                }
+            }
+
             // --- 4. BUSCA DE LOTEAMENTOS ---
             $loteamentos = \Illuminate\Support\Facades\DB::table('loteamentos')
                 ->where('tenant_id', $tenantId)
@@ -1205,8 +1234,8 @@ class MapDataController extends Controller
                 ];
             }
 
-            // --- 6. BUSCA DE SETORES FISCAIS ---
-            $setores = \Illuminate\Support\Facades\DB::table('setores_fiscais')
+            // --- 6. BUSCA DE SETORES DA PGV ---
+            $setores = \Illuminate\Support\Facades\DB::table('setores_pgv')
                 ->where('tenant_id', $tenantId)
                 ->whereNull('deleted_at')
                 ->whereNotNull('geo')
@@ -1223,7 +1252,7 @@ class MapDataController extends Controller
                     'id'       => $setor->id,
                     'tipo'     => 'setor',
                     'titulo'   => $setor->nome,
-                    'subtitulo'=> 'Setor Fiscal',
+                    'subtitulo'=> 'Setor da PGV',
                     'coords'   => $coords
                 ];
             }
@@ -1286,6 +1315,7 @@ class MapDataController extends Controller
             'logradouros',
             'quadras',
             'bairros',
+            'setores_fiscais', // B9
             'loteamentos',
             'rural_propriedades',
             'rural_estradas',
@@ -1658,7 +1688,8 @@ class MapDataController extends Controller
                     'rural_estradas'     => 'nome',
                     'postes'             => 'sequential_id',
                     'arvores'            => 'sequential_id',
-                    'setor_fiscais'      => 'code',
+                    'setores_fiscais'    => 'name',
+                    'setores_pgv'        => 'nome',
                     'perimetro_urbanos'  => 'code',
                 ];
                 $labelCol = $labelColMap[$layer] ?? 'id';
@@ -1741,7 +1772,7 @@ class MapDataController extends Controller
     {
         try {
             $tenantId   = $request->input('tenant_id');
-            $areaType   = $request->input('area_type');   // bairros | setores_fiscais | perimetros_urbanos
+            $areaType   = $request->input('area_type');   // bairros | setores_fiscais | setores_pgv | perimetros_urbanos
             $areaId     = $request->input('area_id');     // id da área (ou 'all')
             $targetLayer= $request->input('target_layer'); // lotes | edificacoes | logradouros
             $groupField = $request->input('group_field'); // campo para agrupar
@@ -1877,7 +1908,8 @@ class MapDataController extends Controller
             // ----------------------------------------------------------------
             $areaTableMap = [
                 'bairros'             => ['table' => 'bairros',            'label' => 'name'],
-                'setores_fiscais'     => ['table' => 'setores_fiscais',    'label' => 'nome'],
+                'setores_pgv'     => ['table' => 'setores_pgv',    'label' => 'nome'],
+                'setores_fiscais' => ['table' => 'setores_fiscais', 'label' => 'name'], // B9
                 'perimetros_urbanos'  => ['table' => 'perimetros_urbanos', 'label' => 'name'],
             ];
  

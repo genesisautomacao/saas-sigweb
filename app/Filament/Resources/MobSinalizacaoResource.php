@@ -15,7 +15,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Sinalização viária (Mobilidade Urbana — docs/piuma.txt, Onda 3).
+ * Sinalização viária (Mobilidade Urbana — docs/modulos/piuma.txt, Onda 3).
  * A placa aponta pro CATÁLOGO (decisão 6.1); posição é editada no mapa.
  */
 class MobSinalizacaoResource extends Resource

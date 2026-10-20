@@ -27,7 +27,7 @@ class ShapefileExportService
         'arvores', 'postes', 'cemiterios',
         'rural_propriedades', 'rural_estradas', 'rural_pontes',
         'rural_localidades', 'rural_hidrografias',
-        'setores_fiscais',
+        'setores_pgv', 'setores_fiscais',
     ];
 
     public function export(string $layer, int $tenantId)

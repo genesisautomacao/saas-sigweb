@@ -9,7 +9,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Livewire\Attributes\On;
 
-/** Ponto de interesse da mobilidade no mapa (docs/piuma.txt §2.3, Onda 2). */
+/** Ponto de interesse da mobilidade no mapa (docs/modulos/piuma.txt §2.3, Onda 2). */
 trait HasMobPontoInteresseActions
 {
     public ?int $mobPontoInteresseAtivoId = null;

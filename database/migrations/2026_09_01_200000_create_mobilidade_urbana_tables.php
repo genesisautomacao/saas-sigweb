@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Módulo Mobilidade Urbana (Piúma/ES — docs/piuma.txt, Onda 0).
+ * Módulo Mobilidade Urbana (Piúma/ES — docs/modulos/piuma.txt, Onda 0).
  *
  * 6 entidades geográficas + 1 catálogo cobrem os 19 layers do levantamento.
  * Convenções do sistema: tenant_id cascade, sequential_id com índice único

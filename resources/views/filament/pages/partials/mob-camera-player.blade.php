@@ -1,4 +1,4 @@
-{{-- Player da câmera de monitoramento (docs/piuma.txt, Onda 5). Renderizado como
+{{-- Player da câmera de monitoramento (docs/modulos/piuma.txt, Onda 5). Renderizado como
      modalContent do opcoesMobCameraAction — o Filament destrói o modal ao fechar,
      então o stream para sozinho. Estilos INLINE (a página só tem o CSS
      pré-compilado do Filament).

@@ -28,7 +28,7 @@ class ReurbProgressoPage extends Page
 
     public static function canAccess(): bool
     {
-        // módulo Processos Digitais + permissão (docs/Modulos_Permissoes.txt)
+        // módulo Processos Digitais + permissão (docs/modulos/Modulos_Permissoes.txt)
         return \App\Support\Modulos::ativo('processos')
             && (auth()->user()?->can('view_processos_progresso') ?? false);
     }

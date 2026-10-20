@@ -13,7 +13,7 @@ use Illuminate\Support\HtmlString;
 use Livewire\Attributes\On;
 
 /**
- * Eixo de mobilidade no mapa (docs/piuma.txt §2.5, Onda 2): ciclovia, eixo
+ * Eixo de mobilidade no mapa (docs/modulos/piuma.txt §2.5, Onda 2): ciclovia, eixo
  * comercial, rota de carga, rodovia. Extensão em METROS, exibida em km.
  */
 trait HasMobEixoActions

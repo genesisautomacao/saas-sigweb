@@ -5,7 +5,7 @@
 > **XVIII** (REURB Digital) e **XIX** (Visualização do progresso).
 > Objetivo: fixar a arquitetura **antes** de escrever código. Ler antes de mexer no motor de processos.
 >
-> Companheiro de [pgvConceito.md](pgvConceito.md). Fonte de verdade de execução: [pendencias.md](pendencias.md).
+> Companheiro de [pgvConceito.md](pgvConceito.md). Fonte de verdade de execução: [pendencias.md](../arquivo/pendencias.md).
 
 ---
 
@@ -37,7 +37,7 @@ A PoC lista "Aprovação de Projeto" (XIII), "Habite-se" (XIV) e "REURB Digital"
 
 3. **O código já nasceu como motor único:** existe **um** `ProcessoDigital`, **um** par `BpmnFluxo`/`BpmnEtapa`, **um** resource do analista e **um** do cidadão. "Aprovação de Projeto", "Habite-se" e "REURB" seriam apenas **registros** em `bpmn_fluxos`.
 
-**Decorrência prática:** os "3 módulos" do TR viram **3 fluxos-semente** (ver B17 em [pendencias.md](pendencias.md)). O trabalho real é **completar as capacidades genéricas do motor**, compartilhadas por todos os fluxos — nunca duplicar código por tipo de processo.
+**Decorrência prática:** os "3 módulos" do TR viram **3 fluxos-semente** (ver B17 em [pendencias.md](../arquivo/pendencias.md)). O trabalho real é **completar as capacidades genéricas do motor**, compartilhadas por todos os fluxos — nunca duplicar código por tipo de processo.
 
 ---
 
@@ -182,7 +182,7 @@ Requisitos agrupados pela **capacidade genérica** que os atende. Legenda: ✅ p
 3. Completar as capacidades genéricas em ondas:
    **B16** (trava de correção) → **B14** (dados do imóvel) → dados do requerente (tel/CPF) → filtros do analista (217/218/136) → timeline (216) → **B18** (swimlanes) → **B11** (progresso REURB) → **B15** (anotação PDF).
 
-> As decisões da seção 5 precisam ser fechadas antes de iniciar. As respostas serão registradas aqui e refletidas em [pendencias.md](pendencias.md).
+> As decisões da seção 5 precisam ser fechadas antes de iniciar. As respostas serão registradas aqui e refletidas em [pendencias.md](../arquivo/pendencias.md).
 
 ---
 
@@ -272,7 +272,7 @@ Nova entidade **`Setor`** (`BelongsToTenant`): `id`, `tenant_id`, `nome`, `cor` 
 
 ## 10. Plano de execução
 
-> Arquitetura fixada (§8/§9). Início pela **Fundação Híbrida** (decisão de sequência) — sem ela os demais itens não encaixam. Ao concluir cada onda, atualizar [pendencias.md](pendencias.md).
+> Arquitetura fixada (§8/§9). Início pela **Fundação Híbrida** (decisão de sequência) — sem ela os demais itens não encaixam. Ao concluir cada onda, atualizar [pendencias.md](../arquivo/pendencias.md).
 
 ### Onda 0 — Fundação Híbrida (base do motor) · ✅ Concluído em 2026-07-02
 Migrations + models + registro. Nada de UI de fluxo ainda.

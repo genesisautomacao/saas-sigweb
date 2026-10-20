@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Demografia por setor censitário (docs/piuma.txt, ajustes de 2026-09-04):
+ * Demografia por setor censitário (docs/modulos/piuma.txt, ajustes de 2026-09-04):
  * população, densidade (hab/hectare) e renda média vindas do arquivo
  * "Densidade Demográfica" (Censo 2022 tratado pela Líder), casadas por
  * código IBGE. Valem para qualquer zona, mas o levantamento só traz p/ setor.

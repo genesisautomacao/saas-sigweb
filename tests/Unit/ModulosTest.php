@@ -7,7 +7,7 @@ use App\Support\Modulos;
 use Tests\TestCase;
 
 /**
- * Catálogo de módulos (config/modulos.php) — docs/Modulos_Permissoes.txt.
+ * Catálogo de módulos (config/modulos.php) — docs/modulos/Modulos_Permissoes.txt.
  * Sem banco: o Tenant é montado em memória só com `modules`.
  */
 class ModulosTest extends TestCase

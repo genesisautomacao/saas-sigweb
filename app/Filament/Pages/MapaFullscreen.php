@@ -36,6 +36,7 @@ use App\Filament\Pages\Traits\HasRuralPontoInteresseActions;
 use App\Filament\Pages\Traits\HasRuralPropriedadeActions;
 use App\Filament\Pages\Traits\HasSecaoLogradouroActions;
 use App\Filament\Pages\Traits\HasSetorFiscalActions;
+use App\Filament\Pages\Traits\HasSetorPgvActions;
 use App\Filament\Pages\Traits\HasTestadaActions;
 use App\Filament\Pages\Traits\HasToponimiaActions;
 use App\Filament\Pages\Traits\HasZonaActions;
@@ -98,7 +99,8 @@ class MapaFullscreen extends Page
     use HasRuralPontoInteresseActions;
     use HasRuralPropriedadeActions;
     use HasSecaoLogradouroActions;
-    use HasSetorFiscalActions;
+    use HasSetorPgvActions;
+    use HasSetorFiscalActions; // B9 — setor da inscrição (base cartográfica)
     use HasTestadaActions;
     use HasToponimiaActions;
     use HasZonaActions;
@@ -230,7 +232,7 @@ class MapaFullscreen extends Page
     public array $altimetriaData = [];
 
     // Propriedades do PGV
-    public ?int $setorFiscalAtivoId = null;
+    public ?int $setorPgvAtivoId = null;
 
     public bool $previewPgvAtivo = false;
 
@@ -245,7 +247,7 @@ class MapaFullscreen extends Page
     // Ortofotos da prefeitura (2026-08-27) — viram basemaps dinâmicos no seletor
     public array $ortofotos = [];
 
-    // ── Mobilidade Urbana (docs/piuma.txt, Onda 2) ──
+    // ── Mobilidade Urbana (docs/modulos/piuma.txt, Onda 2) ──
     /** Módulo mob_infra ativo no tenant (gate do acordeon e do grupo de criação). */
     public bool $temMobilidade = false;
 
@@ -626,10 +628,10 @@ class MapaFullscreen extends Page
             // Salva o ID da Quadra detectada
             $this->quadraCemiterioPreSelecionadaId = $quadra->id;
             $this->mountAction('criarJazigo');
-        } elseif ($entityType === 'setor_fiscal') {
+        } elseif ($entityType === 'setor_pgv') {
 
             // Impede sobreposição (Tolerância de 5m² para o Ímã funcionar sem falsos positivos de borda)
-            $sobreposicao = \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)
+            $sobreposicao = \App\Models\SetorPgv::query()->where('tenant_id', $this->tenantId)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->whereRaw("ST_Area(ST_Intersection(geo::geometry, $polyWKT)::geography) > 5.0")
                 ->exists();
@@ -637,7 +639,7 @@ class MapaFullscreen extends Page
             if ($sobreposicao) {
                 \Filament\Notifications\Notification::make()
                     ->title('Sobreposição Detectada')
-                    ->body('Um Setor Fiscal não pode invadir a área de outro setor. Use a ferramenta com o ímã ativado para colar as bordas sem cruzar para dentro.')
+                    ->body('Um Setor da PGV não pode invadir a área de outro setor. Use a ferramenta com o ímã ativado para colar as bordas sem cruzar para dentro.')
                     ->danger()
                     ->send();
 
@@ -648,9 +650,9 @@ class MapaFullscreen extends Page
 
             // Pré-calcula a área do polígono para o Placeholder do modal de criação
             $area = DB::selectOne("SELECT ST_Area($polyWKT::geography) AS metros");
-            $this->setorFiscalAreaCalculada = $area?->metros ? round((float) $area->metros, 2) : null;
+            $this->setorPgvAreaCalculada = $area?->metros ? round((float) $area->metros, 2) : null;
 
-            $this->mountAction('criarSetorFiscal');
+            $this->mountAction('criarSetorPgv');
         } elseif ($entityType === 'rural_localidade') {
             // 🛑 Aqui o PHP recebe o desenho do JS e abre a modal da Trait
             $this->mountAction('criarRuralLocalidadeAction');
@@ -785,6 +787,8 @@ class MapaFullscreen extends Page
 
             $this->ruralLocalidadePreSelecionadaId = $localidade->id;
             $this->mountAction('criarRuralPontoInteresse');
+        } elseif ($entityType === 'setor_fiscal') {
+            $this->interceptarDesenhoSetorFiscal($polyWKT);
         } elseif ($entityType === 'bairro') {
 
             // Pré-calcula a área do polígono para o Placeholder do modal de criação
@@ -819,7 +823,7 @@ class MapaFullscreen extends Page
 
             $this->mountAction('criarMeioFio');
         } elseif (str_starts_with((string) $entityType, 'mob_')) {
-            // MOBILIDADE URBANA (docs/piuma.txt, Onda 2): linhas pré-calculam a
+            // MOBILIDADE URBANA (docs/modulos/piuma.txt, Onda 2): linhas pré-calculam a
             // extensão para o Placeholder do modal; pontos/zonas montam direto.
             $this->mobExtensaoCalculada = null;
             if (in_array($entityType, ['mob_trecho', 'mob_via', 'mob_eixo'], true)) {
@@ -2177,6 +2181,7 @@ class MapaFullscreen extends Page
             'zonas' => \App\Models\Zona::class,
             'loteamentos' => \App\Models\Loteamento::class,
             'perimetros' => \App\Models\PerimetroUrbano::class,
+            'setores_pgv' => \App\Models\SetorPgv::class,
             'setores_fiscais' => \App\Models\SetorFiscal::class,
             'areas_reurb' => \App\Models\AreaReurb::class,
             'patrimonio_publicos' => \App\Models\PatrimonioPublico::class,
@@ -2269,29 +2274,29 @@ class MapaFullscreen extends Page
             });
     }
 
-    #[On('abrirOpcoesSetorFiscal')]
-    public function abrirOpcoesSetorFiscal($id)
+    #[On('abrirOpcoesSetorPgv')]
+    public function abrirOpcoesSetorPgv($id)
     {
-        $this->setorFiscalAtivoId = $id;
-        $this->mountAction('opcoesSetorFiscal');
+        $this->setorPgvAtivoId = $id;
+        $this->mountAction('opcoesSetorPgv');
     }
 
-    #[On('salvarNovaGeometriaSetorFiscal')]
-    public function salvarNovaGeometriaSetorFiscal($id, $geoJson)
+    #[On('salvarNovaGeometriaSetorPgv')]
+    public function salvarNovaGeometriaSetorPgv($id, $geoJson)
     {
         // R83: geometria só grava com permissão de EDITAR a entidade
-        if (! $this->autorizarNoMapa('setores_fiscais', 'editar')) {
+        if (! $this->autorizarNoMapa('setores_pgv', 'editar')) {
             $this->dispatch('desfazer-edicao-geometria');
 
             return;
         }
 
-        $setor = \App\Models\SetorFiscal::query()->find($id);
+        $setor = \App\Models\SetorPgv::query()->find($id);
         if ($setor) {
             $polyWKT = "ST_GeomFromGeoJSON('".json_encode($geoJson)."')";
 
             // Validação de sobreposição com tolerância de 5m² para edição com Ímã (Ignorando a si mesmo)
-            $sobreposicao = \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)
+            $sobreposicao = \App\Models\SetorPgv::query()->where('tenant_id', $this->tenantId)
                 ->where('id', '!=', $setor->id)
                 ->whereRaw("ST_Intersects(geo, $polyWKT)")
                 ->whereRaw("ST_Area(ST_Intersection(geo::geometry, $polyWKT)::geography) > 5.0")
@@ -2300,7 +2305,7 @@ class MapaFullscreen extends Page
             if ($sobreposicao) {
                 \Filament\Notifications\Notification::make()
                     ->title('Edição Cancelada 🛑')
-                    ->body('O polígono editado invade outro Setor Fiscal. A edição foi revertida.')
+                    ->body('O polígono editado invade outro Setor da PGV. A edição foi revertida.')
                     ->danger()
                     ->send();
 
@@ -2310,7 +2315,7 @@ class MapaFullscreen extends Page
             }
 
             $setor->update(['geo' => $geoJson]);
-            DB::statement('UPDATE setores_fiscais SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$setor->id]);
+            DB::statement('UPDATE setores_pgv SET area_geo = ST_Area(geo::geography) WHERE id = ?', [$setor->id]);
             \Filament\Notifications\Notification::make()->title('Geometria do Setor Atualizada!')->success()->send();
         }
     }
@@ -2324,7 +2329,7 @@ class MapaFullscreen extends Page
             ->authorize(fn () => $this->podeFerramenta('pgv_simulador')) // R83
             ->hiddenLabel()
             ->modalHeading('Simulador - Planta Genérica de Valores')
-            ->modalDescription('Defina os parâmetros para simular o IPTU/Valor Venal. O sistema cruzará os Lotes com os Setores Fiscais desenhados no mapa.')
+            ->modalDescription('Defina os parâmetros para simular o IPTU/Valor Venal. O sistema cruzará os Lotes com os Setores da PGV desenhados no mapa.')
             ->modalSubmitActionLabel('Calcular no Mapa')
             ->modalIcon('heroicon-o-banknotes')
             ->form([
@@ -2343,7 +2348,7 @@ class MapaFullscreen extends Page
             ->action(function (array $data) {
                 $bairros = $data['bairros'] ?? [];
 
-                // MÁGICA POSTGIS: Pega os Lotes, cruza com o Setor Fiscal que ele cai dentro, e junta com a Tabela de Preços
+                // MÁGICA POSTGIS: Pega os Lotes, cruza com o Setor da PGV que ele cai dentro, e junta com a Tabela de Preços
                 $query = '
                     SELECT
                         l.id as lote_id,
@@ -2354,7 +2359,7 @@ class MapaFullscreen extends Page
                         p.valor_m2_edificacao,
                         s.id as setor_id
                     FROM lotes l
-                    JOIN setores_fiscais s ON ST_Intersects(ST_Centroid(l.geo), s.geo)
+                    JOIN setores_pgv s ON ST_Intersects(ST_Centroid(l.geo), s.geo)
                     JOIN pgv_parametros p ON s.pgv_parametro_id = p.id
                     WHERE l.tenant_id = ? AND l.deleted_at IS NULL
                 ';
@@ -2390,7 +2395,7 @@ class MapaFullscreen extends Page
                 }
 
                 if (count($this->resultadosPgv) === 0) {
-                    Notification::make()->title('Sem resultados')->body('Nenhum lote cruzou com os Setores Fiscais cadastrados.')->warning()->send();
+                    Notification::make()->title('Sem resultados')->body('Nenhum lote cruzou com os Setores da PGV cadastrados.')->warning()->send();
 
                     return;
                 }
@@ -2418,7 +2423,7 @@ class MapaFullscreen extends Page
                 ['lote_id' => $pgv['lote_id'], 'ano_vigente' => $pgv['ano_vigente']],
                 [
                     'tenant_id' => $this->tenantId,
-                    'setor_fiscal_id' => $pgv['setor_id'],
+                    'setor_pgv_id' => $pgv['setor_id'],
                     'valor_terreno' => $pgv['valor_terreno'],
                     'valor_edificacao' => $pgv['valor_edificacao'],
                     'valor_total' => $pgv['valor_total'],
@@ -3040,6 +3045,7 @@ class MapaFullscreen extends Page
                             'logradouros' => 'Logradouros',
                             'quadras' => 'Quadras',
                             'bairros' => 'Bairros',
+                            'setores_fiscais' => 'Setores Fiscais',
                             'loteamentos' => 'Loteamentos',
                             'zonas' => 'Zonas Urbanas',
                             'perimetros_urbanos' => 'Distritos / Limites',
@@ -3155,6 +3161,7 @@ class MapaFullscreen extends Page
                         ->options([
                             'quadras' => 'Quadras',
                             'bairros' => 'Bairros',
+                            'setores_fiscais' => 'Setores Fiscais',
                             'loteamentos' => 'Loteamentos',
                             'zonas' => 'Zonas Urbanas',
                             'perimetros_urbanos' => 'Distritos / Limites',
@@ -3189,6 +3196,7 @@ class MapaFullscreen extends Page
                             return match ($refLayer) {
                                 'quadras' => \App\Models\Quadra::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'bairros' => \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
+                                'setores_fiscais' => \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id')->toArray(),
                                 'loteamentos' => \App\Models\Loteamento::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'zonas' => \App\Models\Zona::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
                                 'perimetros_urbanos' => \App\Models\PerimetroUrbano::query()->where('tenant_id', $this->tenantId)->pluck('name', 'id')->toArray(),
@@ -3448,6 +3456,7 @@ class MapaFullscreen extends Page
                         ->options([
                             'bairros' => 'Bairro',
                             'setores_fiscais' => 'Setor Fiscal',
+                            'setores_pgv' => 'Setor da PGV',
                             'perimetros_urbanos' => 'Distrito',
                         ])
                         ->default('bairros')
@@ -3464,7 +3473,8 @@ class MapaFullscreen extends Page
                             $opts = ['all' => '— Todas —'];
                             $rows = match ($tipo) {
                                 'bairros' => \App\Models\Bairro::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
-                                'setores_fiscais' => \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)->orderBy('nome')->pluck('nome', 'id'),
+                                'setores_fiscais' => \App\Models\SetorFiscal::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
+                                'setores_pgv' => \App\Models\SetorPgv::query()->where('tenant_id', $this->tenantId)->orderBy('nome')->pluck('nome', 'id'),
                                 'perimetros_urbanos' => \App\Models\PerimetroUrbano::query()->where('tenant_id', $this->tenantId)->orderBy('name')->pluck('name', 'id'),
                                 default => collect([]),
                             };

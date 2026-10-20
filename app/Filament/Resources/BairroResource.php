@@ -15,7 +15,7 @@ class BairroResource extends Resource
 {
     use HasTenantModule;
 
-    protected static ?string $tenantModule = 'base_cartografica'; // D1 (docs/Modulos_Permissoes.txt)
+    protected static ?string $tenantModule = 'base_cartografica'; // D1 (docs/modulos/Modulos_Permissoes.txt)
 
     protected static ?string $model = Bairro::class;
 
@@ -44,6 +44,14 @@ class BairroResource extends Resource
                     ->label('Nome do Bairro')
                     ->required()
                     ->maxLength(255),
+
+                // B9 — setor da inscrição imobiliária (um setor agrupa 1+ bairros)
+                Forms\Components\Select::make('setor_fiscal_id')
+                    ->label('Setor Fiscal')
+                    ->relationship('setorFiscal', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->placeholder('Sem setor'),
 
                 Forms\Components\TextInput::make('area_geo')
                     ->label('Área (m²)')
@@ -77,12 +85,28 @@ class BairroResource extends Resource
                 Tables\Columns\TextColumn::make('sequential_id')->label('ID')->sortable(),
                 Tables\Columns\TextColumn::make('codigo')->label('Código')->searchable()->sortable()->placeholder('—'),
                 Tables\Columns\TextColumn::make('name')->label('Nome')->searchable()->weight('bold'),
+                Tables\Columns\TextColumn::make('setorFiscal.name')->label('Setor')->badge()->sortable()->placeholder('—')->toggleable(),
                 Tables\Columns\TextColumn::make('area_geo')
                     ->label('Área (m²)')
                     ->numeric(decimalPlaces: 2, decimalSeparator: ',', thousandsSeparator: '.')
                     ->suffix(' m²')
                     ->sortable()
                     ->toggleable(),
+            ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('setor_fiscal_id')
+                    ->label('Setor Fiscal')
+                    ->relationship('setorFiscal', 'name')
+                    ->preload(),
+                Tables\Filters\TernaryFilter::make('sem_setor')
+                    ->label('Vínculo com setor')
+                    ->placeholder('Todos')
+                    ->trueLabel('Sem setor')
+                    ->falseLabel('Com setor')
+                    ->queries(
+                        true: fn ($query) => $query->whereNull('setor_fiscal_id'),
+                        false: fn ($query) => $query->whereNotNull('setor_fiscal_id'),
+                    ),
             ])
             ->actions([
                 Tables\Actions\Action::make('ver_no_mapa')

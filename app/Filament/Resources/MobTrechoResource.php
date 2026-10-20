@@ -14,7 +14,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Trechos viários (Mobilidade Urbana — docs/piuma.txt, Onda 3).
+ * Trechos viários (Mobilidade Urbana — docs/modulos/piuma.txt, Onda 3).
  * CRUD modal; geometria é editada no MAPA (a direção é a ordem dos vértices =
  * direção do mapeamento — aqui só os dados tabulares). Sentido de tráfego é
  * da Via Urbana (MobViaResource), não do trecho.

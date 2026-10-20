@@ -13,7 +13,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
-/** Pontos de interesse da mobilidade (docs/piuma.txt §2.3, Onda 3). */
+/** Pontos de interesse da mobilidade (docs/modulos/piuma.txt §2.3, Onda 3). */
 class MobPontoInteresseResource extends Resource
 {
     use HasTenantModule;

@@ -45,7 +45,7 @@ class AppServiceProvider extends ServiceProvider
 
             // Fazemos uma consulta direta (RAW) no banco de dados.
             // Isso ignora completamente o cache do Spatie e a perda de contexto do Livewire.
-            // D7 (docs/Modulos_Permissoes.txt): o papel é de sistema pela FLAG
+            // D7 (docs/modulos/Modulos_Permissoes.txt): o papel é de sistema pela FLAG
             // roles.papel_sistema, não pelo nome — renomear "Manager" não derruba nada.
             // A9: filtra pela prefeitura da sessão (SyncSpatieTenant seta o team id) —
             // Manager em A não vira Manager em B. Sem team id (console/API) mantém o

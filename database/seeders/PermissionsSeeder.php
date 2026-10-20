@@ -137,6 +137,7 @@ class PermissionsSeeder extends Seeder
             'create_logradouros',
             'edit_logradouros',
             'delete_logradouros',
+            'view_setores_fiscais', 'create_setores_fiscais', 'edit_setores_fiscais', 'delete_setores_fiscais', // B9
             'view_bairros',
             'create_bairros',
             'edit_bairros',
@@ -237,7 +238,7 @@ class PermissionsSeeder extends Seeder
 
             /* Módulo PGV / Gestão Tributária */
             'view_pgv_parametros', 'create_pgv_parametros', 'edit_pgv_parametros', 'delete_pgv_parametros',
-            'view_setores_fiscais', 'create_setores_fiscais', 'edit_setores_fiscais', 'delete_setores_fiscais',
+            'view_setores_pgv', 'create_setores_pgv', 'edit_setores_pgv', 'delete_setores_pgv',
             'view_lote_valor_historicos', 'create_lote_valor_historicos', 'edit_lote_valor_historicos', 'delete_lote_valor_historicos',
 
             /* Módulo PGV — Avaliação em Massa (R83: amostras/pólos/faces em quarteto — têm artefato no mapa) */
@@ -262,7 +263,7 @@ class PermissionsSeeder extends Seeder
             /* R80-1 — Chamados pelo mapa público (módulo chamados_mapa) */
             'gerenciar_chamados_mapa',
 
-            /* Módulo Mobilidade Urbana (mob_infra — docs/piuma.txt). R83: as 7 entidades
+            /* Módulo Mobilidade Urbana (mob_infra — docs/modulos/piuma.txt). R83: as 7 entidades
                editáveis no mapa em quarteto; catálogo e fluxos (só leitura no mapa) seguem únicas */
             'view_mob_trechos', 'create_mob_trechos', 'edit_mob_trechos', 'delete_mob_trechos',
             'view_mob_vias', 'create_mob_vias', 'edit_mob_vias', 'delete_mob_vias',
@@ -276,7 +277,8 @@ class PermissionsSeeder extends Seeder
 
             /* Permissões de visibilidade de camadas GIS */
             'ver_camada_perimetros',
-            'ver_camada_setores_fiscais',
+            'ver_camada_setores_pgv',
+            'ver_camada_setores_fiscais', // B9 — setor da inscrição (base cartográfica)
             'ver_camada_bairros',
             'ver_camada_loteamentos',
             'ver_camada_quadras',
@@ -298,7 +300,7 @@ class PermissionsSeeder extends Seeder
             'ver_camada_rural_pontos_interesse',
             'ver_camada_pontos_panoramicos',
             'ver_camada_toponimias',
-            // A3 (docs/Modulos_Permissoes.txt): camadas que existiam no painel sem permissão
+            // A3 (docs/modulos/Modulos_Permissoes.txt): camadas que existiam no painel sem permissão
             'ver_camada_coleta',
             'ver_camada_chamados',
             'ver_camada_areas_reurb',

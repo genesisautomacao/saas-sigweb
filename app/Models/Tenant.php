@@ -61,7 +61,7 @@ class Tenant extends Model implements HasAvatar
         static::updated(function (Tenant $tenant) {
             // Só roda se o campo 'modules' tiver sofrido alguma alteração:
             // todo papel que "acompanha todos os módulos" (Manager incluído) recebe
-            // as permissões dos módulos ativos (D7 — docs/Modulos_Permissoes.txt)
+            // as permissões dos módulos ativos (D7 — docs/modulos/Modulos_Permissoes.txt)
             if ($tenant->wasChanged('modules')) {
                 $tenant->sincronizarPapeisTodosModulos();
             }
@@ -119,7 +119,7 @@ class Tenant extends Model implements HasAvatar
         return $this->hasMany(Ortofoto::class)->orderBy('ordem');
     }
 
-    // ── Mobilidade Urbana (docs/piuma.txt, Onda 3) — exigidas pelo
+    // ── Mobilidade Urbana (docs/modulos/piuma.txt, Onda 3) — exigidas pelo
     //    $tenantRelationshipName dos Resources do grupo ──
     public function mobTrechos(): HasMany
     {
@@ -213,6 +213,18 @@ class Tenant extends Model implements HasAvatar
     public function bairros(): HasMany
     {
         return $this->hasMany(Bairro::class);
+    }
+
+    /** B9 — setor da inscrição imobiliária (base cartográfica). */
+    public function setoresFiscais(): HasMany
+    {
+        return $this->hasMany(SetorFiscal::class);
+    }
+
+    /** Setor da PGV (zona de valor) — era `setores_fiscais` até 2026-10-19. */
+    public function setoresPgv(): HasMany
+    {
+        return $this->hasMany(SetorPgv::class);
     }
 
     public function loteamentos(): HasMany

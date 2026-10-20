@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Filament\Resources\SetorFiscalResource\Pages;
+namespace App\Filament\Resources\SetorPgvResource\Pages;
 
-use App\Filament\Resources\SetorFiscalResource;
+use App\Filament\Resources\SetorPgvResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Forms;
 
-class ListSetorFiscals extends ListRecords
+class ListSetorPgvs extends ListRecords
 {
-    protected static string $resource = SetorFiscalResource::class;
+    protected static string $resource = SetorPgvResource::class;
 
     protected function getHeaderActions(): array
     {
@@ -39,11 +39,11 @@ class ListSetorFiscals extends ListRecords
             ->color('gray'),
 
             Actions\Action::make('novo_setor')
-                ->label('Novo Setor Fiscal')
+                ->label('Novo Setor da PGV')
                 ->icon('heroicon-o-plus')
                 ->color('primary')
                 ->modalHeading('Forma de Desenho do Setor')
-                ->modalDescription('Como deseja demarcar o polígono deste Setor Fiscal?')
+                ->modalDescription('Como deseja demarcar o polígono deste Setor da PGV?')
                 ->modalSubmitActionLabel('Continuar')
                 ->modalWidth('md')
                 ->form([
@@ -59,11 +59,11 @@ class ListSetorFiscals extends ListRecords
                 ->action(function (array $data) {
                     if ($data['metodo'] === 'mapa') {
                         $tenant = \Filament\Facades\Filament::getTenant();
-                        // Redireciona para o mapa avisando que a layer alvo é setores_fiscais
-                        $mapUrl = url('/app/' . $tenant->slug . '/mapa-interativo?layer=setores_fiscais&action=create');
+                        // Redireciona para o mapa avisando que a layer alvo é setores_pgv
+                        $mapUrl = url('/app/' . $tenant->slug . '/mapa-interativo?layer=setores_pgv&action=create');
                         return redirect()->to($mapUrl);
                     } else {
-                        return redirect()->to(SetorFiscalResource::getUrl('create'));
+                        return redirect()->to(SetorPgvResource::getUrl('create'));
                     }
                 }),
         ];

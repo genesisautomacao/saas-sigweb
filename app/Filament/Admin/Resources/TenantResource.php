@@ -385,7 +385,7 @@ class TenantResource extends Resource
                     ->icon('heroicon-o-squares-2x2')
                     ->visible(fn () => static::pode('admin_gerenciar_modulos'))
                     ->schema([
-                        // Chaves e rótulos vêm do catálogo config/modulos.php (docs/Modulos_Permissoes.txt).
+                        // Chaves e rótulos vêm do catálogo config/modulos.php (docs/modulos/Modulos_Permissoes.txt).
                         // Módulo ligado aqui = telas, camadas, ferramentas e caixas de permissão
                         // aparecem na prefeitura; desligado = somem para todo mundo (Manager incluído).
                         Forms\Components\Select::make('modules')
@@ -629,6 +629,7 @@ class TenantResource extends Resource
                                 ->options([
                                     'PerimetroUrbano' => '1. Distritos / Limites',
                                     'Zona' => '2. Zoneamento',
+                                    'SetorFiscal' => '2.1 Setores Fiscais (antes dos bairros)', // B9
                                     'Bairro' => '3. Bairros',
                                     'Loteamento' => '4. Loteamentos',
                                     'Quadra' => '5. Quadras',
@@ -640,7 +641,7 @@ class TenantResource extends Resource
                                     'Edificacao' => '8. Edificações',
                                     'UnidadeImobiliaria' => '9. Unidades Imobiliárias',
                                     'FaceQuadra' => '10. Faces de Quadra (PGV — depois das quadras e logradouros)',
-                                    // Mobilidade Urbana (docs/piuma.txt) — JSONs preparados
+                                    // Mobilidade Urbana (docs/modulos/piuma.txt) — JSONs preparados
                                     // pelo comando mob:normalizar-levantamento
                                     'MobVia' => 'Mobilidade — Vias Urbanas (importar ANTES dos trechos)',
                                     'MobTrecho' => 'Mobilidade — Trechos Viários',
@@ -1127,6 +1128,7 @@ class TenantResource extends Resource
                                 ->helperText('Deixe em branco para recalcular todas.')
                                 ->options([
                                     'perimetros_urbanos' => 'Perímetros Urbanos',
+                                    'setores_fiscais' => 'Setores Fiscais',
                                     'zonas' => 'Zonas',
                                     'bairros' => 'Bairros',
                                     'loteamentos' => 'Loteamentos',

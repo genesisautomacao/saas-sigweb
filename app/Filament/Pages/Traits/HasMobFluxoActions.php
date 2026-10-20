@@ -8,7 +8,7 @@ use Illuminate\Support\HtmlString;
 use Livewire\Attributes\On;
 
 /**
- * Linha de desejo O/D no mapa (docs/piuma.txt §2.7, Onda 2 → ajuste 2026-09-04).
+ * Linha de desejo O/D no mapa (docs/modulos/piuma.txt §2.7, Onda 2 → ajuste 2026-09-04).
  *
  * A camada é SÓ LEITURA no mapa (decisão da equipe da mobilidade): o clique
  * abre uma ficha com origem → destino (zonas derivadas da geometria) e os

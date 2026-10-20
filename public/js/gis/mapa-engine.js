@@ -94,7 +94,7 @@ document.addEventListener("DOMContentLoaded", function () {
         maxZoom: 22,
     });
 
-    // ══ MOBILIDADE URBANA (docs/piuma.txt, Onda 2) — paletas e helpers ══
+    // ══ MOBILIDADE URBANA (docs/modulos/piuma.txt, Onda 2) — paletas e helpers ══
     const MOB_EIXO_CORES = {
         ciclovia: "#16a34a",
         eixo_comercial: "#f59e0b",
@@ -633,6 +633,32 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
+        // B9 — Setor Fiscal da inscrição (agrupa bairros): por baixo dos bairros
+        setores_fiscais: {
+            z: 28,
+            minZoom: 0,
+            style: function (feature, resolution) {
+                const zoom = view.getZoomForResolution(resolution);
+                const style = new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: "#0d9488", width: 3 }),
+                    fill: new ol.style.Fill({ color: "rgba(13, 148, 136, 0.08)" }),
+                });
+                if (zoom >= 12) {
+                    style.setText(
+                        new ol.style.Text({
+                            text: feature.get("name") ? "Setor " + feature.get("name") : "",
+                            font: "bold 15px Arial, sans-serif",
+                            fill: new ol.style.Fill({ color: "#134e4a" }),
+                            stroke: new ol.style.Stroke({ color: "#ffffff", width: 4 }),
+                            offsetY: -18, // não briga com o nome do bairro no mesmo centro
+                            overflow: true,
+                        }),
+                    );
+                }
+                return style;
+            },
+        },
+
         bairros: {
             z: 30,
             minZoom: 0,
@@ -849,7 +875,7 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
-        // ══ MOBILIDADE URBANA (docs/piuma.txt, Onda 2) ══
+        // ══ MOBILIDADE URBANA (docs/modulos/piuma.txt, Onda 2) ══
         // Trechos = LEVANTAMENTO: cor pelo tema "Colorir por"; a direção da linha
         // é a do coletor (calçada D/E) → tique discreto sempre visível (zoom ≥ 16).
         // Sentido de tráfego NÃO existe aqui (é da camada mob_vias, Onda 6).
@@ -992,7 +1018,7 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
-        // MONITORAMENTO EM TEMPO REAL (docs/piuma.txt, Onda 5): ícone de câmera
+        // MONITORAMENTO EM TEMPO REAL (docs/modulos/piuma.txt, Onda 5): ícone de câmera
         // (vermelho = ativa, cinza = inativa) + cone de visada pelo azimute_visada.
         // O vídeo NÃO é carregado aqui — só no modal, ao clicar.
         mob_cameras: {
@@ -1504,7 +1530,7 @@ document.addEventListener("DOMContentLoaded", function () {
             },
         },
 
-        setores_fiscais: {
+        setores_pgv: {
             z: 22, // Fica abaixo dos lotes mas acima dos bairros
             minZoom: 12,
             style: function (feature, resolution) {
@@ -1525,7 +1551,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         new ol.style.Text({
                             text: feature.get("name")
                                 ? feature.get("name").toString()
-                                : "Setor Fiscal",
+                                : "Setor da PGV",
                             font: "bold 15px Arial, sans-serif",
                             fill: new ol.style.Fill({ color: "#78350f" }),
                             stroke: new ol.style.Stroke({
@@ -1915,7 +1941,8 @@ document.addEventListener("DOMContentLoaded", function () {
     // FUTURO: cor padrão da entidade editável pelo Manager no Resource.
     const CAMADAS_PERSONALIZAVEIS = {
         perimetros: "#ef4444",
-        setores_fiscais: "#f59e0b",
+        setores_pgv: "#f59e0b",
+        setores_fiscais: "#0d9488",
         bairros: "#3b82f6",
         loteamentos: "#2563eb",
         quadras: "#f97316",
@@ -2141,7 +2168,7 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(function (perms) {
                 if (!perms) return;
 
-                // MÓDULOS (docs/Modulos_Permissoes.txt): camada cujo módulo está inativo na
+                // MÓDULOS (docs/modulos/Modulos_Permissoes.txt): camada cujo módulo está inativo na
                 // prefeitura some para TODO MUNDO, Manager incluído — reforço do que o
                 // blade já não renderiza (defesa em profundidade).
                 if (Array.isArray(perms.camadas_indisponiveis) && perms.camadas_indisponiveis.length) {
@@ -2656,6 +2683,7 @@ document.addEventListener("DOMContentLoaded", function () {
             "mob_fluxos",
             "zonas",
             "mob_cameras",
+            "setores_fiscais",
             "bairros",
             "loteamentos",
             "quadras",
@@ -2664,7 +2692,7 @@ document.addEventListener("DOMContentLoaded", function () {
             "cemiterios",
             "quadras_cemiterio",
             "logradouros_cemiterio",
-            "setores_fiscais",
+            "setores_pgv",
             "rural-localidades",
             "rural-propriedades",
             "rural-estradas",
@@ -3013,6 +3041,30 @@ document.addEventListener("DOMContentLoaded", function () {
                                               color: "#1e3a8a",
                                               width: 4,
                                           }), // Borda azul escura
+                                          overflow: true,
+                                      })
+                                    : null,
+                        }),
+                    );
+                } else if (layer === "setores_fiscais") {
+                    // B9 — mesmo "acender" dos bairros, na cor do setor
+                    feature.setStyle(
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: corHoverCamada("setores_fiscais", "#0d9488"),
+                                width: 4,
+                            }),
+                            fill: new ol.style.Fill({
+                                color: fillHoverCamada("setores_fiscais", "rgba(13, 148, 136, 0.35)", 0.5),
+                            }),
+                            text:
+                                zoom >= 12
+                                    ? new ol.style.Text({
+                                          text: name ? "Setor " + name : "",
+                                          font: "bold 15px Arial, sans-serif",
+                                          fill: new ol.style.Fill({ color: "#ffffff" }),
+                                          stroke: new ol.style.Stroke({ color: "#134e4a", width: 4 }),
+                                          offsetY: -18,
                                           overflow: true,
                                       })
                                     : null,
@@ -4120,7 +4172,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             window.cadFeatureToUnite.get("layer")
                         ) {
                             alert(
-                                "⚠️ Operação Inválida: Você só pode unir artefatos da mesma camada (ex: Setor Fiscal com Setor Fiscal).",
+                                "⚠️ Operação Inválida: Você só pode unir artefatos da mesma camada (ex: Setor da PGV com Setor da PGV).",
                             );
                             return;
                         }
@@ -4153,7 +4205,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             featureUnida.set("id", "clone_temp");
                             featureUnida.set("layer", "cad_draft");
                             featureCloneOriginalLayer =
-                                clickedFeature.get("layer"); // Salva de onde veio (ex: 'setores_fiscais')
+                                clickedFeature.get("layer"); // Salva de onde veio (ex: 'setores_pgv')
 
                             // Item 043: guarda as 2 origens NO rascunho para apagá-las ao salvar o unido.
                             featureUnida.set("unirOrigens", {
@@ -4477,11 +4529,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 "quadras_cemiterio",
                 "quadras", // Polígonos Médios
                 "cemiterios",
-                "setores_fiscais",
+                "setores_pgv",
                 "zonas", // Polígonos Grandes
                 "areas_reurb",
                 "mob_zonas",
                 "bairros",
+                "setores_fiscais", // B9 — abraça os bairros: perde para eles
                 "loteamentos",
                 "rural-localidades",
                 "perimetros", // Distritos / Limites — polígonos gigantes (menor prioridade)
@@ -4583,8 +4636,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     case "cemiterios":
                         Livewire.dispatch("abrirOpcoesCemiterio", { id: id });
                         break;
-                    case "setores_fiscais":
-                        Livewire.dispatch("abrirOpcoesSetorFiscal", { id: id });
+                    case "setores_pgv":
+                        Livewire.dispatch("abrirOpcoesSetorPgv", { id: id });
                         break;
                     case "zonas":
                         Livewire.dispatch("abrirOpcoesZona", { id: id });
@@ -4618,6 +4671,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         break;
                     case "bairros":
                         Livewire.dispatch("abrirOpcoesBairro", { id: id });
+                        break;
+                    case "setores_fiscais":
+                        Livewire.dispatch("abrirOpcoesSetorFiscal", { id: id });
                         break;
                     case "perimetros":
                         Livewire.dispatch("abrirOpcoesPerimetroUrbano", { id: id });
@@ -5619,6 +5675,11 @@ document.addEventListener("DOMContentLoaded", function () {
             cor: "#3b82f6",
         },
         {
+            evento: "iniciar-edicao-geometria-setor_fiscal",
+            layer: "setores_fiscais",
+            cor: "#0d9488",
+        },
+        {
             evento: "iniciar-edicao-geometria-perimetro_urbano",
             layer: "perimetros",
             cor: "#ef4444",
@@ -5704,8 +5765,8 @@ document.addEventListener("DOMContentLoaded", function () {
             cor: "#57534e",
         },
         {
-            evento: "iniciar-edicao-geometria-setor_fiscal",
-            layer: "setores_fiscais",
+            evento: "iniciar-edicao-geometria-setor_pgv",
+            layer: "setores_pgv",
             cor: "#f59e0b",
         },
 
@@ -5833,6 +5894,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     lotes: "lote",
                     quadras: "quadra",
                     bairros: "bairro",
+                    setores_fiscais: "setor_fiscal",
                     perimetros: "perimetro_urbano",
                     meio_fios: "meio_fio",
                     secoes_logradouro: "secao_logradouro",
@@ -5847,7 +5909,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     quadras_cemiterio: "quadra_cemiterio",
                     logradouros_cemiterio: "logradouro_cemiterio",
                     jazigos: "jazigo",
-                    setores_fiscais: "setor_fiscal",
+                    setores_pgv: "setor_pgv",
                     areas_reurb: "area_reurb",
                     patrimonio_publicos: "patrimonio_publico",
                     "rural-localidades": "rural_localidade",
@@ -5947,6 +6009,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     id: id,
                     geoJson: geoJson,
                 });
+            else if (layerName === "setores_fiscais")
+                Livewire.dispatch("salvarNovaGeometriaSetorFiscal", {
+                    id: id,
+                    geoJson: geoJson,
+                });
             else if (layerName === "perimetros")
                 Livewire.dispatch("salvarNovaGeometriaPerimetroUrbano", {
                     id: id,
@@ -6033,8 +6100,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     id: id,
                     geoJson: geoJson,
                 });
-            else if (layerName === "setores_fiscais")
-                Livewire.dispatch("salvarNovaGeometriaSetorFiscal", {
+            else if (layerName === "setores_pgv")
+                Livewire.dispatch("salvarNovaGeometriaSetorPgv", {
                     id: id,
                     geoJson: geoJson,
                 });
@@ -6150,7 +6217,7 @@ document.addEventListener("DOMContentLoaded", function () {
     window.addEventListener("mostrar-fatias-corte", (e) => {
         const data = e.detail[0] || e.detail;
         const fatias = data.fatias;
-        featureCloneOriginalLayer = data.layerOrigem; // Grava a entidade original (ex: setor_fiscal)
+        featureCloneOriginalLayer = data.layerOrigem; // Grava a entidade original (ex: setor_pgv)
 
         cadSource.clear(); // Limpa a linha de desenho
         document.body.style.cursor = "default";
@@ -6721,11 +6788,12 @@ document.addEventListener("DOMContentLoaded", function () {
         { layer: "arvores", singular: "arvore" },
 
         { layer: "bairros", singular: "bairro" },
+        { layer: "setores_fiscais", singular: "setor_fiscal" },
         { layer: "loteamentos", singular: "loteamento" },
         { layer: "quadras_cemiterio", singular: "quadra_cemiterio" },
         { layer: "logradouros_cemiterio", singular: "logradouro_cemiterio" },
         { layer: "jazigos", singular: "jazigo" },
-        { layer: "setores_fiscais", singular: "setor_fiscal" },
+        { layer: "setores_pgv", singular: "setor_pgv" },
         { layer: "rural-localidades", singular: "rural_localidade" },
         { layer: "rural-propriedades", singular: "rural_propriedade" },
         { layer: "rural-estradas", singular: "rural_estrada" },
@@ -6972,6 +7040,7 @@ document.addEventListener("DOMContentLoaded", function () {
             },
             zonas: { label: "da nova Zona de Uso", func: "zona" },
             bairros: { label: "do novo Bairro", func: "bairro" },
+            setores_fiscais: { label: "do novo Setor Fiscal", func: "setor_fiscal" },
             perimetros: { label: "do novo Distrito / Limite", func: "perimetro_urbano" },
             meio_fios: { label: "do novo Meio-fio / Calçada", func: "meio_fio" },
             secoes_logradouro: { label: "da nova Seção de Logradouro", func: "secao_logradouro" },
@@ -6998,9 +7067,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 func: "logradouro_cemiterio",
             },
             jazigos: { label: "do novo Jazigo", func: "jazigo" },
-            setores_fiscais: {
-                label: "do novo Setor Fiscal",
-                func: "setor_fiscal",
+            setores_pgv: {
+                label: "do novo Setor da PGV",
+                func: "setor_pgv",
             },
             "rural-localidades": {
                 label: "da nova Localidade Rural",
@@ -8798,7 +8867,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // R84-7 — camadas do mapa que o "Exportar resultado" aceita (mesma lista do
     // ExportadorDadosService::CAMADAS_DO_MAPA; o servidor confere de novo).
     const CAMADAS_EXPORTAVEIS_FILTRO = [
-        "perimetros", "perimetros_urbanos", "zonas", "bairros", "loteamentos", "quadras",
+        "perimetros", "perimetros_urbanos", "setores_fiscais", "zonas", "bairros", "loteamentos", "quadras",
         "logradouros", "secoes_logradouro", "lotes", "edificacoes", "face_quadras",
     ];
 

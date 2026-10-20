@@ -21,6 +21,6 @@ class PgvParametro extends Model
     ];
 
     public function setores() {
-        return $this->hasMany(SetorFiscal::class, 'pgv_parametro_id');
+        return $this->hasMany(SetorPgv::class, 'pgv_parametro_id');
     }
 }

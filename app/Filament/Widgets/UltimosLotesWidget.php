@@ -11,7 +11,7 @@ class UltimosLotesWidget extends BaseWidget
 {
     protected static ?string $heading = 'Últimas Atualizações de Lotes';
 
-    /** Widget do módulo imobiliário (docs/Modulos_Permissoes.txt) */
+    /** Widget do módulo imobiliário (docs/modulos/Modulos_Permissoes.txt) */
     public static function canView(): bool
     {
         return \App\Support\Modulos::ativo('imobiliario');
